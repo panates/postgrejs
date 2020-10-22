@@ -1,0 +1,20 @@
+language: node_js
+node_js:
+  - "10"
+  - "11"
+  - "12"
+  - "stable"
+branches:
+  only:
+    - master
+sudo: false
+cache:
+  directories:
+    - "$HOME/.npm"
+    - node_modules
+install:
+  - "npm install"
+script:
+- "npm run-script travis-cover"
+after_script:
+- "npm install coveralls && cat ./coverage/lcov.info | coveralls"

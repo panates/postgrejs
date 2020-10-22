@@ -1,0 +1,4 @@
+{
+  "url": "postgres://postgres:postgres@localhost/test?schema=sqbtest",
+  "skip_create_tables": true
+}
