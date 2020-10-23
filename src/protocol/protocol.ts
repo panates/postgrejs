@@ -48,50 +48,6 @@ export namespace Protocol {
         Terminate = 0x58 // X
     }
 
-    export const BackendMessageName = {
-        [BackendMessageCode.Authentication]: 'AuthenticationOk',
-        [BackendMessageCode.BackendKeyData]: 'BackendKeyData',
-        [BackendMessageCode.BindComplete]: 'BindComplete',
-        [BackendMessageCode.CloseComplete]: 'CloseComplete',
-        [BackendMessageCode.CommandComplete]: 'CommandComplete',
-        [BackendMessageCode.CopyData]: 'CopyData',
-        [BackendMessageCode.CopyDone]: 'CopyDone',
-        [BackendMessageCode.CopyInResponse]: 'CopyInResponse',
-        [BackendMessageCode.CopyOutResponse]: 'CopyOutResponse',
-        [BackendMessageCode.CopyBothResponse]: 'CopyBothResponse',
-        [BackendMessageCode.DataRow]: 'DataRow',
-        [BackendMessageCode.EmptyQueryResponse]: 'EmptyQueryResponse',
-        [BackendMessageCode.ErrorResponse]: 'ErrorResponse',
-        [BackendMessageCode.FunctionCallResponse]: 'FunctionCallResponse',
-        [BackendMessageCode.NegotiateProtocolVersion]: 'NegotiateProtocolVersion',
-        [BackendMessageCode.NoData]: 'NoData',
-        [BackendMessageCode.NoticeResponse]: 'NoticeResponse',
-        [BackendMessageCode.NotificationResponse]: 'NotificationResponse',
-        [BackendMessageCode.ParameterDescription]: 'ParameterDescription',
-        [BackendMessageCode.ParameterStatus]: 'ParameterStatus',
-        [BackendMessageCode.ParseComplete]: 'ParseComplete',
-        [BackendMessageCode.PortalSuspended]: 'PortalSuspended',
-        [BackendMessageCode.ReadyForQuery]: 'ReadyForQuery',
-        [BackendMessageCode.RowDescription]: 'RowDescription'
-    }
-
-    export const FrontendMessageName = {
-        [FrontendMessageCode.Bind]: 'Bind',
-        [FrontendMessageCode.Close]: 'Close',
-        [FrontendMessageCode.CopyData]: 'CopyData',
-        [FrontendMessageCode.CopyDone]: 'CopyDone',
-        [FrontendMessageCode.CopyFail]: 'CopyFail',
-        [FrontendMessageCode.Describe]: 'Describe',
-        [FrontendMessageCode.Execute]: 'Execute',
-        [FrontendMessageCode.Flush]: 'Flush',
-        [FrontendMessageCode.FunctionCall]: 'FunctionCall',
-        [FrontendMessageCode.Parse]: 'Parse',
-        [FrontendMessageCode.PasswordMessage]: 'PasswordMessage',
-        [FrontendMessageCode.Query]: 'Query',
-        [FrontendMessageCode.Sync]: 'Sync',
-        [FrontendMessageCode.Terminate]: 'Terminate'
-    }
-
     export enum AuthenticationMessageKind {
         KerberosV5 = 'KerberosV5',
         CleartextPassword = 'CleartextPassword',

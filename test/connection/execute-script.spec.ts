@@ -12,12 +12,13 @@ describe('Execute script (Simple Query)', function () {
     })
 
     after(async () => {
-        await connection.close(true);
+        await connection.close(0);
     })
 
     it('should execute sql script', async function () {
         const result = await connection.execute(`select 1`);
         assert.ok(result);
+        assert.strictEqual(result.totalCommands, 1);
         assert.strictEqual(result.results.length, 1);
         assert.strictEqual(result.results[0].command, 'SELECT');
     });
@@ -25,6 +26,7 @@ describe('Execute script (Simple Query)', function () {
     it('should execute multiple sql script', async function () {
         const result = await connection.execute(`begin; select 1; end;`);
         assert.ok(result);
+        assert.strictEqual(result.totalCommands, 3);
         assert.strictEqual(result.results.length, 3);
         assert.strictEqual(result.results[0].command, 'BEGIN');
         assert.strictEqual(result.results[1].command, 'SELECT');
@@ -34,6 +36,7 @@ describe('Execute script (Simple Query)', function () {
     it('should return fields info', async function () {
         const result = await connection.execute(`select 1 as one, 'two'::varchar as two `);
         assert.ok(result);
+        assert.strictEqual(result.totalCommands, 1);
         assert.ok(result.results[0].fields);
         assert.strictEqual(result.results[0].fields.length, 2);
         assert.strictEqual(result.results[0].fields[0].fieldName, 'one');

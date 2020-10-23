@@ -13,7 +13,7 @@ describe('Parse string representations of data types', function () {
     })
 
     after(async () => {
-        await connection.close(true);
+        await connection.close(0);
     })
 
     async function testDataType(typeName: string, dataTypeId: number | number[],

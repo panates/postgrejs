@@ -1,14 +1,14 @@
 import net from 'net';
 import tls from 'tls';
 import crypto from "crypto";
-import {SafeEventEmitter} from './SafeEventEmitter';
-import {Backend} from './protocol/Backend';
-import {Frontend} from './protocol/Frontend';
-import {Protocol} from './protocol/protocol';
-import {BindParam, ConnectionConfiguration, ConnectionState, Maybe} from './definitions';
-import {DatabaseError} from './protocol/DatabaseError';
-import {SASL} from './protocol/sasl';
-import {dataTypeRegistry} from './datatype-registry';
+import {SafeEventEmitter} from '../SafeEventEmitter';
+import {Backend} from './Backend';
+import {Frontend} from './Frontend';
+import {Protocol} from './protocol';
+import {BindParam, ConnectionConfiguration, ConnectionState, Maybe} from '../definitions';
+import {DatabaseError} from './DatabaseError';
+import {SASL} from './sasl';
+import {dataTypeRegistry} from '../datatype-registry';
 
 const DEFAULT_PORT_NUMBER = 5432;
 const COMMAND_RESULT_PATTERN = /^([A-Za-z]+)(?: (\d+)(?: (\d+))?)?$/;
@@ -20,7 +20,7 @@ export interface SocketError extends Error {
     code: string;
 }
 
-export class PgSocket extends SafeEventEmitter {
+export class ProtocolSocket extends SafeEventEmitter {
     private _state = ConnectionState.CLOSED;
     private _socket?: net.Socket;
     private _backend = new Backend();
@@ -141,8 +141,8 @@ export class PgSocket extends SafeEventEmitter {
         this._send(this._frontend.getDescribeMessage(type, name));
     }
 
-    sendExecuteMessage(portal?: string, fetchRows?: number): void {
-        this._send(this._frontend.getExecuteMessage(portal, fetchRows));
+    sendExecuteMessage(portal?: string, fetchCount?: number): void {
+        this._send(this._frontend.getExecuteMessage(portal, fetchCount));
     }
 
     sendCloseMessage(type: 'S' | 'P', name?: string): void {

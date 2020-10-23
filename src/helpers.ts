@@ -1,8 +1,10 @@
-import {Circle, ConnectionConfiguration, FiniteLine, Nullable, Point} from './definitions';
 import url from "url";
-import {Protocol} from './protocol/protocol';
 import {dataTypeRegistry} from './datatype-registry';
-import RowDescription = Protocol.RowDescription;
+import {Protocol} from './protocol/protocol';
+import type {Circle, ConnectionConfiguration, FiniteLine, Nullable, Point} from './definitions';
+import type {Connection} from './Connection';
+import TaskQueue from 'putil-taskqueue';
+import {ProtocolSocket} from './protocol/ProtocolSocket';
 
 export function fastParseInt(str: string | number): number {
     /* istanbul ignore next */
@@ -228,7 +230,7 @@ export function parseRow(parsers: ((v: any) => any)[], row: any[]): void {
     }
 }
 
-export function convertRowToObject(fields: RowDescription[], row: any[]): any {
+export function convertRowToObject(fields: Protocol.RowDescription[], row: any[]): any {
     const out = {};
     const l = row.length;
     let i;
@@ -236,4 +238,27 @@ export function convertRowToObject(fields: RowDescription[], row: any[]): any {
         out[fields[i].fieldName] = row[i];
     }
     return out;
+}
+
+export function getStatementQueue(connection: Connection): TaskQueue {
+    return connection['_statementQueue'] as TaskQueue;
+}
+
+export function getProtocolSocket(connection: Connection): ProtocolSocket {
+    return connection['_socket'] as ProtocolSocket;
+}
+
+export function wrapRowDescription(fields: Protocol.RowDescription[]): any[] {
+    return fields.map(f => {
+        const x: any = {...f};
+        delete x.format;
+        if (x.fixedSize < 0)
+            delete x.fixedSize;
+        if (x.modifier < 0)
+            delete x.modifier;
+        const reg = dataTypeRegistry[x.dataTypeId];
+        if (reg && reg.isArray)
+            x.isArray = true;
+        return x;
+    });
 }

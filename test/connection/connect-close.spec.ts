@@ -1,13 +1,13 @@
 import assert from 'assert';
 import net from "net";
 import '../_support/env';
-import {Connection, ConnectionState} from '../../src';
+import {Connection, ConnectionState, ScriptExecutor} from '../../src';
 
 describe('Connect & Close', function () {
 
     after(async () => {
         if (connection)
-            await connection.close(true);
+            await connection.close(0);
     })
     let connection: Connection;
 
@@ -28,6 +28,18 @@ describe('Connect & Close', function () {
         await connection.close();
         assert.ok(events.includes('close'), 'close event is not called');
         assert.strictEqual(connection.state, ConnectionState.CLOSED);
+    });
+
+    it('should wait for active query before terminate', async function () {
+        const connection1 = new Connection(process.env.DB_URL);
+        await connection1.connect();
+        let terminated = false;
+        const startTime = Date.now();
+        connection1.on('terminate', () => terminated = true);
+        connection1['_activeQuery'] = new ScriptExecutor(connection1);
+        await connection1.close(500);
+        assert.strictEqual(terminated, true);
+        assert.ok(Date.now() - startTime >= 500);
     });
 
     it('create emit error on early disconnect', function (done) {

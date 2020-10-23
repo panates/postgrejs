@@ -1,17 +1,23 @@
 import {SafeEventEmitter} from './SafeEventEmitter';
 import {Protocol} from './protocol/protocol';
 import RowDescription = Protocol.RowDescription;
-import {PgSocket} from './PgSocket';
+import {Portal} from './Portal';
 
 export class Cursor extends SafeEventEmitter {
 
-    private readonly _fetchRows: number;
+    private readonly _fetchCount: number;
+    private readonly _objectRows: boolean;
+    private readonly _parsers: ((v) => any)[];
 
-    constructor(private _socket: PgSocket,
-                private readonly _portal: string,
-                public readonly fields: RowDescription[]) {
+    constructor(private readonly _portal: Portal,
+                public readonly fields: RowDescription[],
+                parsers: ((v) => any)[],
+                fetchCount?: number,
+                objectRows?: boolean) {
         super();
-        this._fetchRows = 100;
+        this._parsers = parsers;
+        this._fetchCount = fetchCount || 100;
+        this._objectRows = !!objectRows;
     }
 
     async next(): Promise<any> {

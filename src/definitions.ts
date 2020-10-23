@@ -118,23 +118,6 @@ export const DataTypeOIDs = {
     ArrayJsonb: 3807,
 }
 
-export const DataTypeArrayMap = {
-    [DataTypeOIDs.ArrayBpchar]: DataTypeOIDs.Bpchar,
-    [DataTypeOIDs.ArrayBytea]: DataTypeOIDs.Bytea,
-    [DataTypeOIDs.ArrayChar]: DataTypeOIDs.Char,
-    [DataTypeOIDs.ArrayDate]: DataTypeOIDs.Date,
-    [DataTypeOIDs.ArrayFloat4]: DataTypeOIDs.Float4,
-    [DataTypeOIDs.ArrayFloat8]: DataTypeOIDs.Float8,
-    [DataTypeOIDs.ArrayInt4]: DataTypeOIDs.Int4,
-    [DataTypeOIDs.ArrayJson]: DataTypeOIDs.Json,
-    [DataTypeOIDs.ArrayJsonb]: DataTypeOIDs.Jsonb,
-    [DataTypeOIDs.ArrayText]: DataTypeOIDs.Text,
-    [DataTypeOIDs.ArrayTimestamp]: DataTypeOIDs.Timestamp,
-    [DataTypeOIDs.ArrayTimestamptz]: DataTypeOIDs.Timestamptz,
-    [DataTypeOIDs.ArrayUuid]: DataTypeOIDs.Uuid,
-    [DataTypeOIDs.ArrayVarchar]: DataTypeOIDs.Varchar
-}
-
 export interface ConnectionConfiguration {
     host?: string | null;
     port?: number;
@@ -171,12 +154,25 @@ export interface ScriptExecuteOptions {
     objectRows?: boolean;
 }
 
+export interface CommandResult {
+    command?: string;
+    fields?: any[];
+    rows?: any[];
+    executeTime?: number;
+    rowsAffected?: number;
+}
+
+export interface ScriptResult {
+    results: CommandResult[];
+    totalCommands: number;
+    totalTime: number;
+}
+
 export interface QueryOptions {
     bindParams?: BindParam[];
-    fetchRows?: number;
+    fetchCount?: number;
     objectRows?: boolean;
     cursor?: boolean;
-    statementName?: string;
 }
 
 export interface BindParam {
@@ -184,14 +180,9 @@ export interface BindParam {
     value: any;
 }
 
-export interface QueryResult {
-    command?: string;
-    rowsAffected?: number;
-    fields?: any[];
-    rows?: any[];
+export interface QueryResult extends CommandResult {
     cursor?: Cursor;
     prepareTime?: number;
-    executeTime?: number;
     fetchTime?: number;
     totalTime?: number;
 }
