@@ -1,25 +1,37 @@
-import arrayParser from 'postgres-array';
-import {DataType, Nullable, Circle} from '../definitions';
-import {parseCircle} from '../helpers';
+import {DataType, Circle, Maybe} from '../definitions';
+import {SmartBuffer} from '../protocol/SmartBuffer';
+
+const CIRCLE_PATTERN1 = /^< *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *(-?\d+\.?\d*) *>$/;
+const CIRCLE_PATTERN2 = /^\( *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *(-?\d+\.?\d*) *\)$/;
+const CIRCLE_PATTERN3 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *(-?\d+\.?\d*)$/;
+const CIRCLE_PATTERN4 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/
 
 export const CircleType: DataType = {
 
-    parse(v: string, isArray?: boolean): Nullable<Circle> | Nullable<Circle>[] {
-        if (isArray)
-            return arrayParser.parse(v, parseCircle);
-        return parseCircle(v);
-    },
-
-    decode(v: Buffer): Circle {
+    parseBinary(v: Buffer): Circle {
         return {
             x: v.readDoubleBE(0),
-            y: v.readDoubleBE(0),
-            r: v.readDoubleBE(0),
-        };
+            y: v.readDoubleBE(8),
+            r: v.readDoubleBE(16),
+        } as Circle;
     },
 
-    encode(v: Circle): string {
-        return '<(' + v.x + ',' + v.y + '), ' + v.r + '>';
+    encodeBinary(buf: SmartBuffer, v: Circle): void {
+        buf.writeDoubleBE(v.x);
+        buf.writeDoubleBE(v.y);
+        buf.writeDoubleBE(v.r);
+    },
+
+    parseText(v: string): Maybe<Circle> {
+        const m = v.match(CIRCLE_PATTERN1) || v.match(CIRCLE_PATTERN2) ||
+            v.match(CIRCLE_PATTERN3) || v.match(CIRCLE_PATTERN4);
+        if (!m)
+            return undefined;
+        return {
+            x: parseFloat(m[1]),
+            y: parseFloat(m[2]),
+            r: parseFloat(m[3]),
+        } as Circle;
     },
 
     isType(v: any): boolean {

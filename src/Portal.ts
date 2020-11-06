@@ -1,13 +1,9 @@
 import {Connection} from './Connection';
-import {BindParam, CommandResult, Maybe} from './definitions';
+import {FetchOptions, Maybe} from './definitions';
 import {Protocol} from './protocol/protocol';
-import {getProtocolSocket} from './helpers';
-import {ProtocolSocket} from './protocol/ProtocolSocket';
-
-export interface PortalBindResult {
-    code: Protocol.BackendMessageCode;
-    fields?: Protocol.RowDescription[];
-}
+import {getSocket} from './common';
+import {PgSocket} from './protocol/PgSocket';
+import {PreparedStatement} from './PreparedStatement';
 
 export interface PortalExecuteResult {
     code: Protocol.BackendMessageCode;
@@ -18,51 +14,75 @@ export interface PortalExecuteResult {
 
 export class Portal {
 
-    private readonly _connection: Connection;
-    private readonly _socket: ProtocolSocket;
+    private readonly _socket: PgSocket;
+    private readonly _statement: PreparedStatement;
     private readonly _name?: string;
+    private _binaryColumns: boolean | boolean[] = false;
 
-    constructor(connection: Connection, name: string) {
-        this._connection = connection;
-        this._socket = getProtocolSocket(this.connection);
+    constructor(statement: PreparedStatement, name: string) {
+        this._statement = statement;
+        this._socket = getSocket(this.connection);
         this._name = name;
     }
 
     get connection(): Connection {
-        return this._connection;
+        return this._statement.connection;
     }
 
     get name(): Maybe<string> {
         return this._name;
     }
 
-    async bind(statementName?: string,
-               bindParams?: BindParam[]): Promise<PortalBindResult> {
+    async bind(params: Maybe<any[]>,
+               fetchOptions: FetchOptions): Promise<void> {
         const socket = this._socket;
-        socket.sendBindMessage(statementName, this.name, bindParams);
-        socket.sendDescribeMessage('P', this.name);
+        this._binaryColumns = fetchOptions.binaryColumns || false;
+        socket.sendBindMessage({
+            statement: this._statement.name,
+            portal: this.name,
+            paramTypes: this._statement.paramTypes,
+            params,
+            fetchOptions: fetchOptions
+        });
         socket.sendFlushMessage();
         return socket.capture(async (code: Protocol.BackendMessageCode, msg: any,
-                                     done: (err?, result?: PortalBindResult) => void) => {
+                                     done: (err?) => void) => {
             switch (code) {
                 case Protocol.BackendMessageCode.BindComplete:
+                    done();
+                    break;
+                case Protocol.BackendMessageCode.NoticeResponse:
+                    break;
+                default:
+                    done(new Error(`Server returned unexpected response message (${String.fromCharCode(code)})`));
+            }
+        });
+    }
+
+    async retrieveFields(): Promise<Protocol.RowDescription[]> {
+        const socket = this._socket;
+        socket.sendDescribeMessage({type: 'P', name: this.name});
+        socket.sendFlushMessage();
+        return socket.capture(async (code: Protocol.BackendMessageCode, msg: any,
+                                     done: (err?, result?) => void) => {
+            switch (code) {
                 case Protocol.BackendMessageCode.NoticeResponse:
                     break;
                 case Protocol.BackendMessageCode.NoData:
-                    done(undefined, {code} as PortalBindResult);
+                    done();
                     break;
                 case Protocol.BackendMessageCode.RowDescription:
-                    done(undefined, {code, fields: msg.fields} as PortalBindResult);
+                    done(undefined, msg.fields);
                     break;
                 default:
-                    done(new Error(`Server returned unexpected response message (0x${code.toString(16)})`));
+                    done(new Error(`Server returned unexpected response message (${String.fromCharCode(code)})`));
             }
         });
     }
 
     async execute(fetchCount?: number): Promise<PortalExecuteResult> {
         const socket = this._socket;
-        await socket.sendExecuteMessage(this.name, fetchCount || 100);
+        await socket.sendExecuteMessage({portal: this.name, fetchCount: fetchCount || 100});
         await socket.sendFlushMessage();
         const rows: any = [];
         return socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error, result?: PortalExecuteResult) => void) => {
@@ -73,7 +93,12 @@ export class Portal {
                     done(undefined, {code});
                     break;
                 case Protocol.BackendMessageCode.DataRow:
-                    rows.push(msg.columns);
+                    if (this._binaryColumns == true)
+                        rows.push(msg.columns);
+                    else if (Array.isArray(this._binaryColumns))
+                        rows.push(msg.columns.map((buf: Buffer, i) =>
+                            this._binaryColumns[i] ? buf : buf.toString('utf8')));
+                    else rows.push(msg.columns.map((buf: Buffer) => buf.toString('utf8')));
                     break;
                 case Protocol.BackendMessageCode.PortalSuspended:
                     done(undefined, {code, rows});
@@ -86,24 +111,26 @@ export class Portal {
                     });
                     break;
                 default:
-                    done(new Error(`Server returned unexpected response message (0x${code.toString(16)})`));
+                    done(new Error(`Server returned unexpected response message (${String.fromCharCode(code)})`));
             }
         });
     }
 
     async close(): Promise<void> {
         const socket = this._socket;
-        await socket.sendCloseMessage('P', this.name);
+        await socket.sendCloseMessage({type: 'P', name: this.name});
         await socket.sendSyncMessage();
         return socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error) => void) => {
             switch (code) {
                 case Protocol.BackendMessageCode.NoticeResponse:
                     break;
                 case Protocol.BackendMessageCode.CloseComplete:
+                    break;
+                case Protocol.BackendMessageCode.ReadyForQuery:
                     done();
                     break;
                 default:
-                    done(new Error(`Server returned unexpected response message (0x${code.toString(16)})`));
+                    done(new Error(`Server returned unexpected response message (${String.fromCharCode(code)})`));
             }
         });
     }

@@ -1,20 +1,22 @@
 import TaskQueue from 'putil-taskqueue';
-import {ProtocolSocket} from './protocol/ProtocolSocket';
+import {PgSocket} from './protocol/PgSocket';
 import {SafeEventEmitter} from './SafeEventEmitter';
 import {
     ConnectionConfiguration,
-    ConnectionState,
+    ConnectionState, Maybe, OID,
     QueryOptions,
     QueryResult,
     ScriptExecuteOptions,
     ScriptResult
 } from './definitions';
 import {PreparedStatement} from './PreparedStatement';
-import {parseConnectionString} from './helpers';
 import {ScriptExecutor} from './ScriptExecutor';
+import {BindParam} from './BindParam';
+import {DataTypeRegistry} from './DataTypeRegistry';
+import {parseConnectionString} from './helpers/parse-connectionstring';
 
 export class Connection extends SafeEventEmitter {
-    private _socket: ProtocolSocket;
+    private _socket: PgSocket;
     private _statementQueue = new TaskQueue();
     private _activeQuery?: ScriptExecutor | PreparedStatement;
 
@@ -22,7 +24,7 @@ export class Connection extends SafeEventEmitter {
         super();
         if (typeof config === 'string')
             config = parseConnectionString(config);
-        this._socket = new ProtocolSocket(config);
+        this._socket = new PgSocket(config);
         this._socket.on('error', (err) => this._onError(err));
         this._socket.on('close', () => this.emit('close'));
         this._socket.on('connecting', () => this.emit('connecting'));
@@ -76,8 +78,14 @@ export class Connection extends SafeEventEmitter {
     }
 
     async query(sql: string, options?: QueryOptions): Promise<QueryResult> {
-        const statement = new PreparedStatement(this, sql);
-        return statement.execute(options);
+        const paramTypes: Maybe<Maybe<OID>[]> = options?.params?.map(prm =>
+            prm instanceof BindParam ? prm.oid :
+                (DataTypeRegistry.determine(prm))
+        );
+        const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm =>
+            prm instanceof BindParam ? prm.value : prm);
+        const statement = new PreparedStatement(this, sql, undefined, paramTypes);
+        return statement.execute({...options, params});
     }
 
     private _terminate(): void {

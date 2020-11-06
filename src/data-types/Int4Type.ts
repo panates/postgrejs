@@ -1,27 +1,22 @@
-import arrayParser from 'postgres-array';
-import {fastParseInt} from '../helpers';
 import {DataType} from '../definitions';
+import {SmartBuffer} from '../protocol/SmartBuffer';
+import {fastParseInt} from '../helpers/fast-parseint';
 
 export const Int4Type: DataType = {
 
-    parse(v: string, isArray?: boolean): number | number[] {
-        if (isArray)
-            return arrayParser.parse(v, fastParseInt);
-        return fastParseInt(v);
-    },
-
-    decode(v: Buffer): number {
+    parseBinary(v: Buffer): number {
         return v.readInt32BE(0);
     },
 
-    encode(v: string): Buffer {
-        const buf = Buffer.allocUnsafe(4);
+    encodeBinary(buf: SmartBuffer, v: number): void {
         buf.writeInt32BE(fastParseInt(v));
-        return buf;
     },
 
+    parseText: fastParseInt,
+
     isType(v: any): boolean {
-        return typeof v === 'number';
+        return typeof v === 'number' &&
+            Number.isInteger(v);
     }
 
 }

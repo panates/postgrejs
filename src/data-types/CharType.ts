@@ -1,14 +1,14 @@
 import {DataType} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
 
-export const VarcharType: DataType = {
+export const CharType: DataType = {
 
     parseBinary(v: Buffer): string {
         return v.toString('utf8');
     },
 
-    encodeBinary(buf: SmartBuffer, v: string): void {
-        buf.writeString('' + v, 'utf8');
+    encodeText(v): string {
+        return v ? ('' + v) : ' ';
     },
 
     parseText(v): string {
@@ -16,7 +16,7 @@ export const VarcharType: DataType = {
     },
 
     isType(v: any): boolean {
-        return typeof v === 'string';
+        return typeof v === 'string' && v.length === 1;
     }
 
 }

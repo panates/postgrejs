@@ -143,7 +143,7 @@ export namespace Protocol {
 
     export interface DataRowMessage {
         columnCount: number;
-        columns: any[];
+        columns: Buffer[];
     }
 
     export interface ErrorResponseMessage {
@@ -204,10 +204,4 @@ export namespace Protocol {
         fields: RowDescription[]
     }
 
-    export interface StartupMessage {
-        user: string;
-        database: string;
-
-        [index: string]: string;
-    }
 }

@@ -1,24 +1,31 @@
-import {DataType, Nullable, Point} from '../definitions';
-import arrayParser from 'postgres-array';
-import {parsePoint} from '../helpers';
+import {DataType, Maybe, Point} from '../definitions';
+import {SmartBuffer} from '../protocol/SmartBuffer';
+
+const POINT_PATTERN1 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\)$/;
+const POINT_PATTERN2 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 
 export const PointType: DataType = {
 
-    parse(v: string, isArray?: boolean): Nullable<Point> | Nullable<Point>[] {
-        if (isArray)
-            return arrayParser.parse(v, parsePoint);
-        return parsePoint(v);
-    },
-
-    decode(v: Buffer): Point {
+    parseBinary(v: Buffer): Point {
         return {
             x: v.readDoubleBE(0),
-            y: v.readDoubleBE(0)
+            y: v.readDoubleBE(8)
         };
     },
 
-    encode(v: Point): string {
-        return '(' + v.x + ',' + v.y + ')';
+    encodeBinary(buf: SmartBuffer, v: Point): void {
+        buf.writeDoubleBE(v.x);
+        buf.writeDoubleBE(v.y);
+    },
+
+    parseText(v: string): Maybe<Point> {
+        const m = v.match(POINT_PATTERN1) || v.match(POINT_PATTERN2);
+        if (!m)
+            return undefined;
+        return {
+            x: parseFloat(m[1]),
+            y: parseFloat(m[2])
+        };
     },
 
     isType(v: any): boolean {

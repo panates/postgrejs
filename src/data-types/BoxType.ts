@@ -1,12 +1,13 @@
 import {DataType, Rectangle, Maybe} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
 
-const LSEG_PATTERN1 = /^\[ *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *]$/;
-const LSEG_PATTERN2 = /^\( *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *\)$/;
-const LSEG_PATTERN3 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\)$/;
-const LSEG_PATTERN4 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/
+const BOX_PATTERN1 = /^\( *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *\)$/;
+const BOX_PATTERN2 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\)$/;
+const BOX_PATTERN3 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/
 
-export const LsegType: DataType = {
+export const BoxType: DataType = {
+
+    arraySeparator: ';',
 
     parseBinary(v: Buffer): Rectangle {
         return {
@@ -25,8 +26,8 @@ export const LsegType: DataType = {
     },
 
     parseText(v: string): Maybe<Rectangle> {
-        const m = v.match(LSEG_PATTERN1) || v.match(LSEG_PATTERN2) ||
-            v.match(LSEG_PATTERN3) || v.match(LSEG_PATTERN4);
+        const m = v.match(BOX_PATTERN1) || v.match(BOX_PATTERN2) ||
+            v.match(BOX_PATTERN3);
         if (!m)
             return undefined;
         return {

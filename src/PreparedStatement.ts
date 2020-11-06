@@ -1,36 +1,47 @@
 import crypto from "crypto";
-import {CommandResult, Maybe, QueryOptions, QueryResult, ScriptResult, StatementState} from './definitions';
+import {
+    AnyParseFunction,
+    CommandResult,
+    Maybe, OID,
+    QueryOptions,
+    QueryResult,
+    ScriptResult,
+    StatementState
+} from './definitions';
 import {Connection} from './Connection';
 import {SafeEventEmitter} from './SafeEventEmitter';
-import {ProtocolSocket} from './protocol/ProtocolSocket';
+import {PgSocket} from './protocol/PgSocket';
 import {Protocol} from './protocol/protocol';
 import {Cursor} from './Cursor';
+import {Portal} from './Portal';
 import {
     convertRowToObject,
     getParsers,
-    getProtocolSocket,
+    getSocket,
     getStatementQueue,
     parseRow,
     wrapRowDescription
-} from './helpers';
-import {Portal} from './Portal';
+} from './common';
 
 export class PreparedStatement extends SafeEventEmitter {
     private readonly _connection: Connection;
-    private readonly _socket: ProtocolSocket;
+    private readonly _socket: PgSocket;
     private readonly _sql: string;
     private readonly _name?: string;
+    private readonly _paramTypes: Maybe<Maybe<OID>[]>;
     private _prepared = false;
     private _state = StatementState.IDLE;
 
     constructor(connection: Connection,
                 sql: string,
-                name?: string) {
+                name?: string,
+                paramTypes?: Maybe<OID>[]) {
         super();
         this._connection = connection;
-        this._socket = getProtocolSocket(this.connection);
+        this._socket = getSocket(this.connection);
         this._sql = sql;
         this._name = name;
+        this._paramTypes = paramTypes;
     }
 
     get connection(): Connection {
@@ -49,6 +60,10 @@ export class PreparedStatement extends SafeEventEmitter {
         return this._sql;
     }
 
+    get paramTypes(): Maybe<Maybe<OID>[]> {
+        return this._paramTypes;
+    }
+
     async execute(options: QueryOptions = {}): Promise<QueryResult> {
         const queue = getStatementQueue(this.connection);
         return queue.enqueue<ScriptResult>(async (): Promise<QueryResult> => {
@@ -62,13 +77,17 @@ export class PreparedStatement extends SafeEventEmitter {
                 await this._prepare();
                 result.prepareTime = Date.now() - t;
                 t = Date.now();
+
+                // Create portal
                 const portalName = options.cursor ?
                     'P_' + crypto.randomBytes(8).toString('hex') : '';
-                portal = new Portal(this.connection, portalName);
-                const bindResult = await portal.bind(this.name, options.bindParams);
-                if (bindResult.fields) {
-                    const fields = bindResult.fields;
-                    const parsers = getParsers(fields);
+                portal = new Portal(this, portalName);
+
+                await portal.bind(options.params, options);
+                const fields = await portal.retrieveFields();
+
+                if (fields) {
+                    const parsers: AnyParseFunction[] = getParsers(fields);
                     const resultFields = wrapRowDescription(fields);
                     if (options.cursor) {
                         const cursor = new Cursor(
@@ -94,7 +113,7 @@ export class PreparedStatement extends SafeEventEmitter {
                         let row;
                         for (let i = 0; i < l; i++) {
                             row = rows[i];
-                            parseRow(parsers, row);
+                            parseRow(parsers, row, options);
                             if (options.objectRows) {
                                 rows[i] = convertRowToObject(fields, row);
                             }
@@ -132,8 +151,12 @@ export class PreparedStatement extends SafeEventEmitter {
     private async _prepare(): Promise<void> {
         if (this._prepared) return;
         this._state = StatementState.PREPARING;
-        const socket = getProtocolSocket(this.connection);
-        socket.sendParseMessage(this.sql, this.name);
+        const socket = getSocket(this.connection);
+        socket.sendParseMessage({
+            statement: this.name,
+            sql: this.sql,
+            paramTypes: this.paramTypes
+        });
         socket.sendFlushMessage();
         return socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error, result?: CommandResult) => void) => {
             switch (code) {
@@ -154,7 +177,7 @@ export class PreparedStatement extends SafeEventEmitter {
 
     private async _close(): Promise<void> {
         const socket = this._socket;
-        await socket.sendCloseMessage('P', this.name);
+        await socket.sendCloseMessage({type: 'P', name: this.name});
         await socket.sendSyncMessage();
         return socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error) => void) => {
             switch (code) {
@@ -163,6 +186,8 @@ export class PreparedStatement extends SafeEventEmitter {
                     break;
                 case Protocol.BackendMessageCode.CloseComplete:
                     this._prepared = false;
+                    break;
+                case Protocol.BackendMessageCode.ReadyForQuery:
                     done();
                     break;
                 default:

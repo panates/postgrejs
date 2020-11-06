@@ -1,22 +1,18 @@
-import parseBytea from 'postgres-bytea';
-import arrayParser from 'postgres-array';
+import decodeBytea from 'postgres-bytea';
 import {DataType} from '../definitions';
+import {SmartBuffer} from '../protocol/SmartBuffer';
 
 export const ByteaType: DataType = {
 
-    parse(v: string, isArray?: boolean): Buffer | Buffer[] {
-        if (isArray)
-            return arrayParser.parse(v, parseBytea);
-        return parseBytea(v);
-    },
-
-    decode(v: Buffer): Buffer {
+    parseBinary(v: Buffer): Buffer {
         return v;
     },
 
-    encode(v: Buffer): Buffer {
-        return v;
+    encodeBinary(buf: SmartBuffer, v: Buffer): void {
+        buf.writeBuffer(v);
     },
+
+    parseText: decodeBytea,
 
     isType(v: any): boolean {
         return v instanceof Buffer;

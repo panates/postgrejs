@@ -1,24 +1,17 @@
-import arrayParser from 'postgres-array';
 import {DataType} from '../definitions';
-
+import {SmartBuffer} from '../protocol/SmartBuffer';
 
 export const Float4Type: DataType = {
 
-    parse(v: string, isArray?: boolean): number | number[] {
-        if (isArray)
-            return arrayParser.parse(v, parseFloat);
-        return parseFloat(v);
+    parseBinary(v: Buffer): number {
+        return Math.round((v.readFloatBE(0) + Number.EPSILON) * 100) / 100;
     },
 
-    decode(v: Buffer): number {
-        return v.readFloatBE(0);
-    },
-
-    encode(v: number | string): string | Buffer {
-        const buf = Buffer.allocUnsafe(4);
+    encodeBinary(buf: SmartBuffer, v: number | string): void {
         buf.writeFloatBE(typeof v === 'number' ? v : parseFloat(v));
-        return buf;
     },
+
+    parseText: parseFloat,
 
     isType(v: any): boolean {
         return typeof v === 'number';

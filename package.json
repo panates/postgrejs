@@ -25,8 +25,7 @@
   ],
   "dependencies": {
     "putil-taskqueue": "^2.5.1",
-    "postgres-bytea": "^3.0.0",
-    "postgres-array": "^2.0.0"
+    "postgres-bytea": "^3.0.0"
   },
   "devDependencies": {
     "@types/mocha": "^8.0.3",

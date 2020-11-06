@@ -1,6 +1,6 @@
 import assert from 'assert';
 import '../_support/env';
-import {escapeLiteral} from '../../src/helpers';
+import {escapeLiteral} from '../../src/helpers/escape-literal';
 
 describe('Escape literal', function () {
 

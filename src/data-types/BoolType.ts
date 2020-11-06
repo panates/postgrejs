@@ -1,30 +1,24 @@
-import arrayParser from 'postgres-array';
 import {DataType} from '../definitions';
+import {SmartBuffer} from '../protocol/SmartBuffer';
 
 export const BoolType: DataType = {
 
-    decode(v: Buffer): boolean {
+    parseBinary(v: Buffer): boolean {
         return !!v.readUInt8();
     },
 
-    parse(v: string, isArray?: boolean): boolean | boolean[] {
-        if (isArray)
-            return arrayParser.parse(v, parseBool);
-        return parseBool(v);
+    encodeBinary(buf: SmartBuffer, v: boolean): void {
+        buf.writeInt8(v ? 1 : 0);
     },
 
-    encode(v: boolean): string | Buffer {
-        return v ? 't' : 'f';
+    parseText(v: string): boolean {
+        return v === 'TRUE' || v === 't' ||
+            v === 'true' || v === 'y' ||
+            v === 'yes' || v === 'on' || v === '1';
     },
 
     isType(v: any): boolean {
         return typeof v === 'boolean';
     }
 
-}
-
-function parseBool(v: string): boolean {
-    return v === 'TRUE' || v === 't' ||
-        v === 'true' || v === 'y' ||
-        v === 'yes' || v === 'on' || v === '1';
 }

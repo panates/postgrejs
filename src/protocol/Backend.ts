@@ -1,5 +1,5 @@
-import {BufferIO} from './BufferIO';
 import {Protocol} from './protocol';
+import {BufferReader} from './BufferReader';
 
 // 1 byte message type, 4 byte frame length
 const HEADER_LENGTH = 5;
@@ -40,14 +40,14 @@ export class Backend {
             this._buf = undefined;
         }
 
-        const io = new BufferIO(data);
+        const io = new BufferReader(data);
         let offsetBookmark;
-        while (io.remaining >= HEADER_LENGTH) {
+        while (io.length - io.offset >= HEADER_LENGTH) {
             offsetBookmark = io.offset;
             const code = io.readUInt8() as Protocol.BackendMessageCode;
             const len = io.readUInt32BE();
             // Check if frame data not received yet
-            if (io.remaining < len - 4) {
+            if (io.length - io.offset < len - 4) {
                 io.offset = offsetBookmark;
                 this._buf = io.readBuffer();
                 return;
@@ -83,7 +83,7 @@ const MessageParsers = {
     [Protocol.BackendMessageCode.RowDescription]: parseRowDescription
 }
 
-function parseAuthentication(io: BufferIO, code: Protocol.BackendMessageCode, len: number): any {
+function parseAuthentication(io: BufferReader, code: Protocol.BackendMessageCode, len: number): any {
     const kind = io.readUInt32BE();
     switch (kind) {
         case 0:
@@ -144,26 +144,26 @@ function parseAuthentication(io: BufferIO, code: Protocol.BackendMessageCode, le
     }
 }
 
-function parseBackendKeyData(io: BufferIO): Protocol.BackendKeyDataMessage {
+function parseBackendKeyData(io: BufferReader): Protocol.BackendKeyDataMessage {
     return {
         processID: io.readUInt32BE(),
         secretKey: io.readUInt32BE()
     } as Protocol.BackendKeyDataMessage
 }
 
-function parseCommandComplete(io: BufferIO): Protocol.CommandCompleteMessage {
+function parseCommandComplete(io: BufferReader): Protocol.CommandCompleteMessage {
     return {
         command: io.readCString('utf8')
     } as Protocol.CommandCompleteMessage
 }
 
-function parseCopyData(io: BufferIO, code: Protocol.BackendMessageCode, len: number): Protocol.CopyDataMessage {
+function parseCopyData(io: BufferReader, code: Protocol.BackendMessageCode, len: number): Protocol.CopyDataMessage {
     return {
         data: io.readBuffer(len - 4)
     } as Protocol.CopyDataMessage
 }
 
-function parseCopyResponse(io: BufferIO): Protocol.CopyResponseMessage {
+function parseCopyResponse(io: BufferReader): Protocol.CopyResponseMessage {
     const out = {
         overallFormat: io.readUInt8() === 0 ? Protocol.DataFormat.text : Protocol.DataFormat.binary,
         columnCount: io.readUInt16BE()
@@ -178,7 +178,7 @@ function parseCopyResponse(io: BufferIO): Protocol.CopyResponseMessage {
     return out;
 }
 
-function parseDataRow(io: BufferIO): Protocol.DataRowMessage {
+function parseDataRow(io: BufferReader): Protocol.DataRowMessage {
     const out = {
         columnCount: io.readUInt16BE()
     } as Protocol.DataRowMessage;
@@ -190,14 +190,14 @@ function parseDataRow(io: BufferIO): Protocol.DataRowMessage {
             // Can be zero. As a special case, -1 indicates a NULL column value.
             // No value bytes follow in the NULL case.
             const l = io.readInt32BE();
-            const v = io.readLString(l, 'utf8');
+            const v = io.readBuffer(l);
             out.columns.push(v);
         }
     }
     return out;
 }
 
-function parseErrorResponse(io: BufferIO): Protocol.ErrorResponseMessage {
+function parseErrorResponse(io: BufferReader): Protocol.ErrorResponseMessage {
     const out = {} as Protocol.ErrorResponseMessage
 
     let fieldType;
@@ -210,14 +210,14 @@ function parseErrorResponse(io: BufferIO): Protocol.ErrorResponseMessage {
     return out;
 }
 
-function parseFunctionCallResponse(io: BufferIO, code: Protocol.BackendMessageCode, len: number): Protocol.FunctionCallResponseMessage {
+function parseFunctionCallResponse(io: BufferReader, code: Protocol.BackendMessageCode, len: number): Protocol.FunctionCallResponseMessage {
     return {
         result: io.readBuffer(len - 4)
     } as Protocol.FunctionCallResponseMessage
 }
 
 
-function parseNegotiateProtocolVersion(io: BufferIO): Protocol.NegotiateProtocolVersionMessage {
+function parseNegotiateProtocolVersion(io: BufferReader): Protocol.NegotiateProtocolVersionMessage {
     return {
         supportedVersionMinor: io.readUInt32BE(),
         numberOfNotSupportedVersions: io.readUInt32BE(),
@@ -225,7 +225,7 @@ function parseNegotiateProtocolVersion(io: BufferIO): Protocol.NegotiateProtocol
     } as Protocol.NegotiateProtocolVersionMessage;
 }
 
-function parseParameterDescription(io: BufferIO): Protocol.ParameterDescriptionMessage {
+function parseParameterDescription(io: BufferReader): Protocol.ParameterDescriptionMessage {
     const out = {
         parameterCount: io.readUInt32BE(),
         parameterIds: []
@@ -238,20 +238,20 @@ function parseParameterDescription(io: BufferIO): Protocol.ParameterDescriptionM
     return out;
 }
 
-function parseParameterStatus(io: BufferIO): Protocol.ParameterStatusMessage {
+function parseParameterStatus(io: BufferReader): Protocol.ParameterStatusMessage {
     return {
         name: io.readCString('utf8'),
         value: io.readCString('utf8')
     } as Protocol.ParameterStatusMessage;
 }
 
-function parseReadyForQuery(io: BufferIO): Protocol.ReadyForQueryMessage {
+function parseReadyForQuery(io: BufferReader): Protocol.ReadyForQueryMessage {
     return {
         status: io.readLString(1)
     } as Protocol.ReadyForQueryMessage;
 }
 
-function parseRowDescription(io: BufferIO): Protocol.RowDescriptionMessage {
+function parseRowDescription(io: BufferReader): Protocol.RowDescriptionMessage {
     const fieldCount = io.readUInt16BE();
     const out: Protocol.RowDescriptionMessage = {
         fields: []

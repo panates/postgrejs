@@ -1,6 +1,6 @@
 import assert from 'assert';
 import '../_support/env';
-import {parseConnectionString} from '../../src/helpers';
+import {parseConnectionString} from '../../src/helpers/parse-connectionstring';
 
 describe('Parse connection string', function () {
 

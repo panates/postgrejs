@@ -5,10 +5,9 @@ import {SafeEventEmitter} from '../SafeEventEmitter';
 import {Backend} from './Backend';
 import {Frontend} from './Frontend';
 import {Protocol} from './protocol';
-import {BindParam, ConnectionConfiguration, ConnectionState, Maybe} from '../definitions';
+import {BindValue, ConnectionConfiguration, ConnectionState, DataTypeOIDs, Maybe, OID} from '../definitions';
 import {DatabaseError} from './DatabaseError';
 import {SASL} from './sasl';
-import {dataTypeRegistry} from '../datatype-registry';
 
 const DEFAULT_PORT_NUMBER = 5432;
 const COMMAND_RESULT_PATTERN = /^([A-Za-z]+)(?: (\d+)(?: (\d+))?)?$/;
@@ -20,7 +19,7 @@ export interface SocketError extends Error {
     code: string;
 }
 
-export class ProtocolSocket extends SafeEventEmitter {
+export class PgSocket extends SafeEventEmitter {
     private _state = ConnectionState.CLOSED;
     private _socket?: net.Socket;
     private _backend = new Backend();
@@ -116,37 +115,24 @@ export class ProtocolSocket extends SafeEventEmitter {
 
     }
 
-    sendParseMessage(sql: string, statementName?: string): void {
-        this._send(this._frontend.getParseMessage(sql, statementName));
+    sendParseMessage(args: Frontend.ParseMessageArgs): void {
+        this._send(this._frontend.getParseMessage(args));
     }
 
-    sendBindMessage(statementName?: string, portal?: string, bindParams?: BindParam[]): void {
-        let parameters: Maybe<any[]> = undefined;
-        if (bindParams) {
-            parameters = [];
-            for (const prm of bindParams) {
-                if (prm.value == null)
-                    parameters.push(null);
-                else {
-                    const dt = prm.oid ? dataTypeRegistry[prm.oid] : undefined;
-                    const v = dt ? dt.type.encode(prm.value) : '' + prm.value;
-                    parameters.push(v);
-                }
-            }
-        }
-        this._send(this._frontend.getBindMessage(statementName, portal, parameters));
+    sendBindMessage(args: Frontend.BindMessageArgs): void {
+        this._send(this._frontend.getBindMessage(args));
     }
 
-    sendDescribeMessage(type: 'P' | 'S', name?: string): void {
-        this._send(this._frontend.getDescribeMessage(type, name));
+    sendDescribeMessage(args: Frontend.DescribeMessageArgs): void {
+        this._send(this._frontend.getDescribeMessage(args));
     }
 
-    sendExecuteMessage(portal?: string, fetchCount?: number): void {
-        this._send(this._frontend.getExecuteMessage(portal, fetchCount));
+    sendExecuteMessage(args: Frontend.ExecuteMessageArgs): void {
+        this._send(this._frontend.getExecuteMessage(args));
     }
 
-    sendCloseMessage(type: 'S' | 'P', name?: string): void {
-        this._send(this._frontend.getCloseMessage(type, name));
+    sendCloseMessage(args: Frontend.CloseMessageArgs): void {
+        this._send(this._frontend.getCloseMessage(args));
     }
 
     sendQueryMessage(sql: string): void {
@@ -216,11 +202,10 @@ export class ProtocolSocket extends SafeEventEmitter {
         socket.on('data', (data: Buffer) => this._handleData(data));
         socket.on('error', (err: SocketError) => this._handleError(err));
         socket.on('close', () => this._handleClose());
-        const msg: Protocol.StartupMessage = {
+        this._send(this._frontend.getStartupMessage({
             user: this.options.user || '',
             database: this.options.database || ''
-        }
-        this._send(this._frontend.getStartupMessage(msg));
+        }));
     }
 
     protected _handleClose(): void {

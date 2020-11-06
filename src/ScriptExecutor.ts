@@ -5,11 +5,11 @@ import {Protocol} from './protocol/protocol';
 import {
     convertRowToObject,
     getParsers,
-    getProtocolSocket,
+    getSocket,
     getStatementQueue,
     parseRow,
     wrapRowDescription
-} from './helpers';
+} from './common';
 
 export class ScriptExecutor extends SafeEventEmitter {
 
@@ -25,12 +25,12 @@ export class ScriptExecutor extends SafeEventEmitter {
         return this._connection;
     }
 
-    async execute(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult> {
+    async execute(sql: string, options: ScriptExecuteOptions = {}): Promise<ScriptResult> {
         if (this._running)
             throw new Error('Script executor already running');
 
         const queue = getStatementQueue(this.connection);
-        const socket = getProtocolSocket(this.connection);
+        const socket = getSocket(this.connection);
         return queue.enqueue<ScriptResult>(async (): Promise<ScriptResult> => {
             this._running = true;
             this.connection['_activeQuery'] = this;
@@ -63,8 +63,9 @@ export class ScriptExecutor extends SafeEventEmitter {
                             current.rows = [];
                             break;
                         case Protocol.BackendMessageCode.DataRow:
-                            parseRow(parsers, msg.columns);
-                            const row = options?.objectRows ?
+                            const data = msg.columns.map((x: Buffer) => x.toString('utf8'));
+                            parseRow(parsers, data, options);
+                            const row = options.objectRows ?
                                 convertRowToObject(fields, msg.columns) : msg.columns;
                             this.emit('row', row);
                             current.rows = current.rows || [];

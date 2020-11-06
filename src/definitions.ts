@@ -1,8 +1,9 @@
 import tls from "tls";
 import {Cursor} from './Cursor';
+import {SmartBuffer} from './protocol/SmartBuffer';
 
+export type OID = number;
 export type Maybe<T> = T | undefined;
-export type Nullable<T> = T | null;
 
 export const DataTypeOIDs = {
     Bool: 16,
@@ -150,8 +151,15 @@ export enum StatementState {
     EXECUTING = 1
 }
 
-export interface ScriptExecuteOptions {
+export interface FetchOptions {
+    fetchAsString?: OID[];
+    fetchCount?: number;
     objectRows?: boolean;
+    utcDates?: boolean;
+    binaryColumns?: boolean | boolean[];
+}
+
+export interface ScriptExecuteOptions extends FetchOptions {
 }
 
 export interface CommandResult {
@@ -168,17 +176,12 @@ export interface ScriptResult {
     totalTime: number;
 }
 
-export interface QueryOptions {
-    bindParams?: BindParam[];
-    fetchCount?: number;
-    objectRows?: boolean;
+export interface QueryOptions extends FetchOptions {
+    params?: any[];
     cursor?: boolean;
 }
 
-export interface BindParam {
-    oid?: number;
-    value: any;
-}
+export type BindValue = string | Buffer | null;
 
 export interface QueryResult extends CommandResult {
     cursor?: Cursor;
@@ -187,15 +190,22 @@ export interface QueryResult extends CommandResult {
     totalTime?: number;
 }
 
+
+export type DecodeBinaryFunction = (buf: Buffer, options: FetchOptions) => any;
+export type EncodeBinaryFunction = (buf: SmartBuffer, v: any, options: FetchOptions) => void;
+export type ParseTextFunction = (v: any, options: FetchOptions) => any;
+export type EncodeTextFunction = (v: any, options: FetchOptions) => string;
+
+export type AnyParseFunction = ParseTextFunction | DecodeBinaryFunction;
+
 export interface DataType {
 
-    isType(v: any): boolean;
-
-    decode?: (buf: Buffer, isArray?: boolean) => any;
-
-    encode(v: any): string | Buffer;
-
-    parse(v: string, isArray?: boolean): any;
+    isType: (v: any) => boolean;
+    parseBinary: DecodeBinaryFunction;
+    parseText: ParseTextFunction;
+    encodeBinary?: EncodeBinaryFunction;
+    encodeText?: EncodeTextFunction;
+    arraySeparator?: string;
 }
 
 export interface Point {
@@ -209,7 +219,7 @@ export interface Circle {
     r: number
 }
 
-export interface FiniteLine {
+export interface Rectangle {
     x1: number,
     y1: number,
     x2: number,
