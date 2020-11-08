@@ -17,7 +17,7 @@ export class Portal {
     private readonly _socket: PgSocket;
     private readonly _statement: PreparedStatement;
     private readonly _name?: string;
-    private _binaryColumns: boolean | boolean[] = false;
+    private _columnFormat: Protocol.DataFormat | Protocol.DataFormat[] = Protocol.DataFormat.binary;
 
     constructor(statement: PreparedStatement, name: string) {
         this._statement = statement;
@@ -36,7 +36,8 @@ export class Portal {
     async bind(params: Maybe<any[]>,
                fetchOptions: FetchOptions): Promise<void> {
         const socket = this._socket;
-        this._binaryColumns = fetchOptions.binaryColumns || false;
+        this._columnFormat = fetchOptions.columnFormat != null ?
+            fetchOptions.columnFormat : Protocol.DataFormat.binary;
         socket.sendBindMessage({
             statement: this._statement.name,
             portal: this.name,
@@ -93,11 +94,12 @@ export class Portal {
                     done(undefined, {code});
                     break;
                 case Protocol.BackendMessageCode.DataRow:
-                    if (this._binaryColumns == true)
-                        rows.push(msg.columns);
-                    else if (Array.isArray(this._binaryColumns))
+                    if (Array.isArray(this._columnFormat)) {
                         rows.push(msg.columns.map((buf: Buffer, i) =>
-                            this._binaryColumns[i] ? buf : buf.toString('utf8')));
+                            this._columnFormat[i] === Protocol.DataFormat.text ?
+                                buf.toString('utf8') : buf));
+                    } else if (this._columnFormat === Protocol.DataFormat.binary)
+                        rows.push(msg.columns);
                     else rows.push(msg.columns.map((buf: Buffer) => buf.toString('utf8')));
                     break;
                 case Protocol.BackendMessageCode.PortalSuspended:

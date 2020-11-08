@@ -5,6 +5,7 @@ import {FetchOptions, Maybe, OID} from '../definitions';
 import {DataTypeRegistry} from '../DataTypeRegistry';
 import {encodeBinaryArray} from '../helpers/encode-binaryarray';
 import {stringifyArrayLiteral} from '../helpers/stringify-arrayliteral';
+import DataFormat = Protocol.DataFormat;
 
 const StaticFlushBuffer = Buffer.from([Protocol.FrontendMessageCode.Flush, 0x00, 0x00, 0x00, 0x04]);
 const StaticTerminateBuffer = Buffer.from([Protocol.FrontendMessageCode.Terminate, 0x00, 0x00, 0x00, 0x04]);
@@ -136,7 +137,8 @@ export class Frontend {
             .writeCString(args.portal || '', 'utf8')
             .writeCString(args.statement || '', 'utf8');
         const {params, paramTypes, fetchOptions} = args;
-        const binaryColumns = fetchOptions.binaryColumns;
+        const columnFormat = fetchOptions.columnFormat != null ? fetchOptions.columnFormat:
+            DataFormat.binary;
 
         if (params && params.length) {
             io.writeInt16BE(params.length);
@@ -193,14 +195,14 @@ export class Frontend {
             io.writeUInt16BE(0);
         }
 
-        if (Array.isArray(binaryColumns)) {
-            io.writeUInt16BE(binaryColumns.length);
-            for (let i = 0; i < binaryColumns.length; i++) {
-                io.writeUInt16BE(binaryColumns[i] ? 1 : 0);
+        if (Array.isArray(columnFormat)) {
+            io.writeUInt16BE(columnFormat.length);
+            for (let i = 0; i < columnFormat.length; i++) {
+                io.writeUInt16BE(columnFormat[i]);
             }
-        } else if (binaryColumns === true) {
+        } else if (columnFormat === DataFormat.binary) {
             io.writeUInt16BE(1);
-            io.writeUInt16BE(1);
+            io.writeUInt16BE(DataFormat.binary);
         } else io.writeUInt16BE(0);
 
         return setLengthAndFlush(io, 1);

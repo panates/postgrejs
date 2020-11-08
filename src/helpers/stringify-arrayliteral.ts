@@ -1,7 +1,7 @@
 import {EncodeTextFunction, FetchOptions} from '../definitions';
 import {arrayCalculateDim} from './array-calculatedim';
 
-export function stringifyArrayLiteral(value: any[], options: FetchOptions, encode?: EncodeTextFunction): string {
+export function stringifyArrayLiteral(value: any[], options?: FetchOptions, encode?: EncodeTextFunction): string {
     const dim = arrayCalculateDim(value);
     const writeDim = (arr: any[], level: number) => {
         const elemCount = dim[level];
@@ -24,7 +24,7 @@ export function stringifyArrayLiteral(value: any[], options: FetchOptions, encod
                 continue;
             }
             if (encode)
-                x = encode(x, options);
+                x = encode(x, options || {});
             out.push(escapeArrayItem('' + x));
         }
         return '{' + out.join(',') + '}';

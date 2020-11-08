@@ -1,6 +1,8 @@
 import tls from "tls";
 import {Cursor} from './Cursor';
 import {SmartBuffer} from './protocol/SmartBuffer';
+import {Protocol} from './protocol/protocol';
+import DataFormat = Protocol.DataFormat;
 
 export type OID = number;
 export type Maybe<T> = T | undefined;
@@ -156,7 +158,7 @@ export interface FetchOptions {
     fetchCount?: number;
     objectRows?: boolean;
     utcDates?: boolean;
-    binaryColumns?: boolean | boolean[];
+    columnFormat?: DataFormat | DataFormat[];
 }
 
 export interface ScriptExecuteOptions extends FetchOptions {
@@ -189,7 +191,6 @@ export interface QueryResult extends CommandResult {
     fetchTime?: number;
     totalTime?: number;
 }
-
 
 export type DecodeBinaryFunction = (buf: Buffer, options: FetchOptions) => any;
 export type EncodeBinaryFunction = (buf: SmartBuffer, v: any, options: FetchOptions) => void;

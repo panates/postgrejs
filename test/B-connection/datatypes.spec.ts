@@ -1,8 +1,17 @@
 import assert from 'assert';
 import '../_support/env';
-import {BindParam, Connection, DataTypeOIDs, DataTypeRegistry, FetchOptions} from '../../src';
-import {escapeLiteral} from '../../src/helpers/escape-literal';
-import {stringifyArraySQL} from '../../src/helpers/stringify-arraysql';
+import {
+    Connection,
+    BindParam,
+    DataTypeOIDs,
+    DataTypeRegistry,
+    FetchOptions,
+    escapeLiteral,
+    stringifyValueForSQL
+} from '../../src';
+import {Protocol} from '../../src/protocol/protocol';
+
+import DataFormat = Protocol.DataFormat;
 
 describe('Data type encode/decode', function () {
 
@@ -20,8 +29,8 @@ describe('Data type encode/decode', function () {
         await connection.close(0);
     })
 
-    async function parseTest(dataTypeId: number, input: any[], output?: any[],
-                             opts: { binaryColumns?: boolean } = {},
+    async function parseTest(dataTypeId: number, input: any[], output: any[],
+                             opts: { columnFormat: DataFormat },
                              fetchOpts?: FetchOptions) {
         const reg = DataTypeRegistry.items[dataTypeId];
         if (!reg)
@@ -29,16 +38,16 @@ describe('Data type encode/decode', function () {
         const typeName = reg.name;
         let sql;
         if (reg.isArray) {
-            const s = stringifyArraySQL(input, opts);
-            sql = `select ARRAY${s}::${typeName} as f1`;
+            const s = stringifyValueForSQL(input, opts);
+            sql = `select ${s}::${typeName} as f1`;
         } else {
             const inp = input.map(escapeLiteral);
             sql = 'select ' + inp.map((x: string, i: number) => `${x}::${typeName} as f${i + 1}`)
                 .join(', ');
         }
-        const resp = await connection.query(sql, {...fetchOpts, binaryColumns: opts.binaryColumns});
+        const resp = await connection.query(sql, {...fetchOpts, columnFormat: opts.columnFormat});
         assert.ok(resp && resp.rows);
-        output = output === undefined ? input : output;
+
         if (reg.isArray)
             assert.deepStrictEqual(resp.rows[0][0], output);
         else
@@ -76,12 +85,13 @@ describe('Data type encode/decode', function () {
 
     /* ---------------- */
     it('should parse "bool" field (text)', async function () {
-        await parseTest(DataTypeOIDs.Bool, ['true', 'false'], [true, false]);
+        await parseTest(DataTypeOIDs.Bool, ['true', 'false'], [true, false],
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "bool" field (binary)', async function () {
         await parseTest(DataTypeOIDs.Bool, ['true', 'false'], [true, false],
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "bool" array field (text)', async function () {
@@ -89,7 +99,8 @@ describe('Data type encode/decode', function () {
             [[true, false, null], [false, true, null]],
             [[true, null, false], [null, false, null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayBool, input);
+        await parseTest(DataTypeOIDs.ArrayBool, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "bool" array field (binary)', async function () {
@@ -98,11 +109,12 @@ describe('Data type encode/decode', function () {
             [[true, null, false], [null, false, null]]
         ];
         await parseTest(DataTypeOIDs.ArrayBool, arr, arr,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "bool" param', async function () {
-        await encodeTest(DataTypeOIDs.Bool, [true, false]);
+        const input = [true, false];
+        await encodeTest(DataTypeOIDs.Bool, input, input);
     });
 
     it('should encode "bool" array param', async function () {
@@ -120,12 +132,13 @@ describe('Data type encode/decode', function () {
     /* ---------------- */
 
     it('should parse "int2" field (text)', async function () {
-        await parseTest(DataTypeOIDs.Int2, ['1', '-2'], [1, -2]);
+        await parseTest(DataTypeOIDs.Int2, ['1', '-2'], [1, -2],
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "int2" field (binary)', async function () {
         await parseTest(DataTypeOIDs.Int2, ['1', '-2'], [1, -2],
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "int2" array field (text)', async function () {
@@ -133,7 +146,8 @@ describe('Data type encode/decode', function () {
             [[-1, 5, null], [100, 150, null]],
             [[-10, 500, 0], [null, 2, null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayInt2, input);
+        await parseTest(DataTypeOIDs.ArrayInt2, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "int2" array field (binary)', async function () {
@@ -142,7 +156,7 @@ describe('Data type encode/decode', function () {
             [[-10, 500, 0], [null, 2, null]]
         ];
         await parseTest(DataTypeOIDs.ArrayInt2, input, input,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "int2" param', async function () {
@@ -164,12 +178,13 @@ describe('Data type encode/decode', function () {
     /* ---------------- */
 
     it('should parse "int4" field (text)', async function () {
-        await parseTest(DataTypeOIDs.Int4, ['1', '-2'], [1, -2]);
+        await parseTest(DataTypeOIDs.Int4, ['1', '-2'], [1, -2],
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "int4" field (binary)', async function () {
         await parseTest(DataTypeOIDs.Int4, ['1', '-2'], [1, -2],
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "int4" array field (text)', async function () {
@@ -177,7 +192,8 @@ describe('Data type encode/decode', function () {
             [[-1, 5, null], [100, 150, null]],
             [[-10, 500, 0], [null, 2, null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayInt4, input);
+        await parseTest(DataTypeOIDs.ArrayInt4, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "int4" array field (binary)', async function () {
@@ -186,7 +202,7 @@ describe('Data type encode/decode', function () {
             [[-10, 500, 0], [null, 2, null]]
         ];
         await parseTest(DataTypeOIDs.ArrayInt4, input, input,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "int4" param', async function () {
@@ -208,12 +224,13 @@ describe('Data type encode/decode', function () {
     /* ---------------- */
 
     it('should parse "int8" field (text)', async function () {
-        await parseTest(DataTypeOIDs.Int8, ['1', '-2'], [BigInt(1), -BigInt(2)]);
+        await parseTest(DataTypeOIDs.Int8, ['1', '-2'], [BigInt(1), -BigInt(2)],
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "int8" field (binary)', async function () {
         await parseTest(DataTypeOIDs.Int8, ['1', '-2'], [BigInt(1), -BigInt(2)],
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "int8" array field (text)', async function () {
@@ -221,7 +238,8 @@ describe('Data type encode/decode', function () {
             [[-BigInt(1), BigInt(5), null], [BigInt(100), BigInt(150), null]],
             [[-BigInt(10), BigInt(500), BigInt(0)], [null, BigInt(2), null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayInt8, input);
+        await parseTest(DataTypeOIDs.ArrayInt8, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "int8" array field (binary)', async function () {
@@ -230,7 +248,7 @@ describe('Data type encode/decode', function () {
             [[-BigInt(10), BigInt(500), BigInt(0)], [null, BigInt(2), null]]
         ];
         await parseTest(DataTypeOIDs.ArrayInt8, input, input,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "int8" param', async function () {
@@ -252,12 +270,13 @@ describe('Data type encode/decode', function () {
     /* ---------------- */
 
     it('should parse "float4" field (text)', async function () {
-        await parseTest(DataTypeOIDs.Float4, ['1.2', '-2.5'], [1.2, -2.5]);
+        await parseTest(DataTypeOIDs.Float4, ['1.2', '-2.5'], [1.2, -2.5],
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "float4" field (binary)', async function () {
         await parseTest(DataTypeOIDs.Float4, ['1.25', '-2.5'], [1.25, -2.5],
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "float4" array field (text)', async function () {
@@ -265,7 +284,8 @@ describe('Data type encode/decode', function () {
             [[-1.2, 5.2456, null], [0.9025, 150.42563, null]],
             [[-10.6, 500.422, 0], [null, 2.536322, null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayFloat4, input);
+        await parseTest(DataTypeOIDs.ArrayFloat4, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "float4" array field (binary)', async function () {
@@ -274,7 +294,7 @@ describe('Data type encode/decode', function () {
             [[-10.6, 500.4, 0], [null, 2.5, null]]
         ];
         await parseTest(DataTypeOIDs.ArrayFloat4, input, input,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "float4" param', async function () {
@@ -283,24 +303,25 @@ describe('Data type encode/decode', function () {
 
     it('should encode "float4" array param', async function () {
         const input = [
-            [[-1.25, 5.2456], [0.9025, 150.42563]],
-            [[-10.6, 500.422, 0], [null, 2.536322]]
+            [[-1.25, 5.25], [0.9, 150.43]],
+            [[-10.6, 500.42, 0], [null, 2.53]]
         ];
         const output = [
-            [[-1.25, 5.2456, null], [0.9025, 150.42563, null]],
-            [[-10.6, 500.422, 0], [null, 2.536322, null]]
+            [[-1.25, 5.25, null], [0.9, 150.43, null]],
+            [[-10.6, 500.42, 0], [null, 2.53, null]]
         ];
         await encodeTest(DataTypeOIDs.ArrayFloat4, input, output);
     });
 
     /* ---------------- */
     it('should parse "float8" field (text)', async function () {
-        await parseTest(DataTypeOIDs.Float8, ['1.2', '-2.5'], [1.2, -2.5]);
+        await parseTest(DataTypeOIDs.Float8, ['1.2', '-2.5'], [1.2, -2.5],
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "float8" field (binary)', async function () {
         await parseTest(DataTypeOIDs.Float8, ['1.25', '-2.5'], [1.25, -2.5],
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "float8" array field (text)', async function () {
@@ -308,7 +329,8 @@ describe('Data type encode/decode', function () {
             [[-1.2, 5.2456, null], [0.9025, 150.42563, null]],
             [[-10.6, 500.422, 0], [null, 2.536322, null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayFloat8, input);
+        await parseTest(DataTypeOIDs.ArrayFloat8, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "float8" array field (binary)', async function () {
@@ -317,7 +339,7 @@ describe('Data type encode/decode', function () {
             [[-10.6, 500.4, 0], [null, 2.5, null]]
         ];
         await parseTest(DataTypeOIDs.ArrayFloat8, input, input,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "float8" param', async function () {
@@ -339,12 +361,13 @@ describe('Data type encode/decode', function () {
     /* ---------------- */
 
     it('should parse "oid" field (text)', async function () {
-        await parseTest(DataTypeOIDs.Oid, ['1', '2'], [1, 2]);
+        await parseTest(DataTypeOIDs.Oid, ['1', '2'], [1, 2],
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "oid" field (binary)', async function () {
         await parseTest(DataTypeOIDs.Oid, ['1', '2'], [1, 2],
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "oid" array field (text)', async function () {
@@ -352,7 +375,8 @@ describe('Data type encode/decode', function () {
             [[1, 5, null], [100, 150, null]],
             [[10, 500, 0], [null, 2, null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayOid, input);
+        await parseTest(DataTypeOIDs.ArrayOid, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "oid" array field (binary)', async function () {
@@ -361,7 +385,7 @@ describe('Data type encode/decode', function () {
             [[10, 500, 0], [null, 2, null]]
         ];
         await parseTest(DataTypeOIDs.ArrayOid, input, input,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "oid" param', async function () {
@@ -382,12 +406,13 @@ describe('Data type encode/decode', function () {
     /* ---------------- */
 
     it('should parse "char" field (text)', async function () {
-        await parseTest(DataTypeOIDs.Char, ['abc', 'bcd'], ['a', 'b']);
+        await parseTest(DataTypeOIDs.Char, ['abc', 'bcd'], ['a', 'b'],
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "char" field (binary)', async function () {
         await parseTest(DataTypeOIDs.Char, ['abc', 'bcd'], ['a', 'b'],
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "char" array field (text)', async function () {
@@ -399,7 +424,8 @@ describe('Data type encode/decode', function () {
             [['a', 'b', null], ['c', 'd', null]],
             [['e', 'f', 'j'], [null, 'h', null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayChar, input, output);
+        await parseTest(DataTypeOIDs.ArrayChar, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "char" array field (binary)', async function () {
@@ -412,7 +438,7 @@ describe('Data type encode/decode', function () {
             [['e', 'f', 'j'], [null, 'h', null]]
         ];
         await parseTest(DataTypeOIDs.ArrayChar, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "char" param', async function () {
@@ -434,12 +460,15 @@ describe('Data type encode/decode', function () {
     /* ---------------- */
 
     it('should parse "bpchar" field (text)', async function () {
-        await parseTest(DataTypeOIDs.Bpchar, ['abc', 'bcd']);
+        const input = ['abc', 'bcd'];
+        await parseTest(DataTypeOIDs.Bpchar, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "bpchar" field (binary)', async function () {
-        await parseTest(DataTypeOIDs.Bpchar, ['abc', 'bcd'], undefined,
-            {binaryColumns: true});
+        const input = ['abc', 'bcd'];
+        await parseTest(DataTypeOIDs.Bpchar, input, input,
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "bpchar" array field (text)', async function () {
@@ -447,7 +476,8 @@ describe('Data type encode/decode', function () {
             [['a', 'b', null], ['c', 'd', null]],
             [['e', 'fg', 'jkl'], [null, 'h', null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayBpchar, input);
+        await parseTest(DataTypeOIDs.ArrayBpchar, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "bpchar" array field (binary)', async function () {
@@ -455,8 +485,8 @@ describe('Data type encode/decode', function () {
             [['a', 'b', null], ['c', 'd', null]],
             [['e', 'fg', 'jkl'], [null, 'h', null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayBpchar, input, undefined,
-            {binaryColumns: true});
+        await parseTest(DataTypeOIDs.ArrayBpchar, input, input,
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "bpchar" param', async function () {
@@ -474,12 +504,15 @@ describe('Data type encode/decode', function () {
     /* ---------------- */
 
     it('should parse "varchar" field (text)', async function () {
-        await parseTest(DataTypeOIDs.Varchar, ['abc"\'', 'bcd']);
+        const input = ['abc"\'', 'bcd'];
+        await parseTest(DataTypeOIDs.Varchar, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "varchar" field (binary)', async function () {
-        await parseTest(DataTypeOIDs.Varchar, ['abc', 'bcd'], undefined,
-            {binaryColumns: true});
+        const input = ['abc"\'', 'bcd'];
+        await parseTest(DataTypeOIDs.Varchar, input, input,
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "varchar" array field (text)', async function () {
@@ -487,7 +520,8 @@ describe('Data type encode/decode', function () {
             [['a', 'b', null], ['c', 'd', null]],
             [['e', 'fg', 'jkl'], [null, 'h', null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayVarchar, input);
+        await parseTest(DataTypeOIDs.ArrayVarchar, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "varchar" array field (binary)', async function () {
@@ -495,8 +529,8 @@ describe('Data type encode/decode', function () {
             [['a', 'b', null], ['c', 'd', null]],
             [['e', 'fg', 'jkl'], [null, 'h', null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayVarchar, input, undefined,
-            {binaryColumns: true});
+        await parseTest(DataTypeOIDs.ArrayVarchar, input, input,
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "varchar" param', async function () {
@@ -514,12 +548,15 @@ describe('Data type encode/decode', function () {
     /* ---------------- */
 
     it('should parse "text" field (text)', async function () {
-        await parseTest(DataTypeOIDs.Text, ['abc', 'bcd']);
+        const input = ['abc', 'bcd'];
+        await parseTest(DataTypeOIDs.Text, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "text" field (binary)', async function () {
-        await parseTest(DataTypeOIDs.Text, ['abc', 'bcd'], undefined,
-            {binaryColumns: true});
+        const input = ['abc', 'bcd'];
+        await parseTest(DataTypeOIDs.Text, input, input,
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "text" array field (text)', async function () {
@@ -527,7 +564,8 @@ describe('Data type encode/decode', function () {
             [['a', 'b', null], ['c', 'd', null]],
             [['e', 'fg', 'jkl'], [null, 'h', null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayText, input);
+        await parseTest(DataTypeOIDs.ArrayText, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "text" array field (binary)', async function () {
@@ -535,12 +573,13 @@ describe('Data type encode/decode', function () {
             [['a', 'b', null], ['c', 'd', null]],
             [['e', 'fg', 'jkl'], [null, 'h', null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayText, input, undefined,
-            {binaryColumns: true});
+        await parseTest(DataTypeOIDs.ArrayText, input, input,
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "text" param', async function () {
-        await encodeTest(DataTypeOIDs.Text, ['abc', 'bcd']);
+        const input = ['abc', 'bcd'];
+        await encodeTest(DataTypeOIDs.Text, input, input);
     });
 
     it('should encode "text" array param', async function () {
@@ -548,17 +587,20 @@ describe('Data type encode/decode', function () {
             [['a', 'b', null], ['c', 'd', null]],
             [['e', 'fg', 'jkl'], [null, 'h', null]]
         ];
-        await encodeTest(DataTypeOIDs.ArrayText, input);
+        await encodeTest(DataTypeOIDs.ArrayText, input, input);
     });
 
     /* ---------------- */
     it('should parse "xml" field (text)', async function () {
-        await parseTest(DataTypeOIDs.Xml, ['<tag>1</tag>', '<tag>2</tag>']);
+        const input = ['<tag>1</tag>', '<tag>2</tag>'];
+        await parseTest(DataTypeOIDs.Xml, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "xml" field (binary)', async function () {
-        await parseTest(DataTypeOIDs.Xml, ['<tag>1</tag>', '<tag>2</tag>'], undefined,
-            {binaryColumns: true});
+        const input = ['<tag>1</tag>', '<tag>2</tag>'];
+        await parseTest(DataTypeOIDs.Xml, input, input,
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "xml" array field (text)', async function () {
@@ -566,7 +608,8 @@ describe('Data type encode/decode', function () {
             [['<tag>1</tag>', '<tag>2</tag>', null], ['<tag>3</tag>', '<tag>4</tag>', null]],
             [['<tag>5</tag>', '<tag>6</tag>', '<tag>7</tag>'], [null, '<tag>8</tag>', null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayXml, input);
+        await parseTest(DataTypeOIDs.ArrayXml, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "xml" array field (binary)', async function () {
@@ -574,8 +617,8 @@ describe('Data type encode/decode', function () {
             [['<tag>1</tag>', '<tag>2</tag>', null], ['<tag>3</tag>', '<tag>4</tag>', null]],
             [['<tag>5</tag>', '<tag>6</tag>', '<tag>7</tag>'], [null, '<tag>8</tag>', null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayXml, input, undefined,
-            {binaryColumns: true});
+        await parseTest(DataTypeOIDs.ArrayXml, input, input,
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "xml" param', async function () {
@@ -593,12 +636,15 @@ describe('Data type encode/decode', function () {
     /* ---------------- */
 
     it('should parse "json" field (text)', async function () {
-        await parseTest(DataTypeOIDs.Json, ['{"a": 1}', '{"a": 2}'], ['{"a": 1}', '{"a": 2}']);
+        const input = ['{"a": 1}', '{"a": 2}'];
+        await parseTest(DataTypeOIDs.Json, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "json" field (binary)', async function () {
-        await parseTest(DataTypeOIDs.Json, ['{"a": 1}', '{"a": 2}'], ['{"a": 1}', '{"a": 2}'],
-            {binaryColumns: true});
+        const input = ['{"a": 1}', '{"a": 2}'];
+        await parseTest(DataTypeOIDs.Json, input, input,
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "json" array field (text)', async function () {
@@ -606,7 +652,8 @@ describe('Data type encode/decode', function () {
             [['{"a": 1}', '{"a": 2}', null], ['{"a": 3}', '{"a": 4}', null]],
             [['{"a": 5}', '{"a": 6}', '{"a": 7}'], [null, '{"a": 8}', null]]
         ];
-        await parseTest(DataTypeOIDs.ArrayJson, input);
+        await parseTest(DataTypeOIDs.ArrayJson, input, input,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "json" array field (binary)', async function () {
@@ -619,13 +666,13 @@ describe('Data type encode/decode', function () {
             [['{"a": 5}', '{"a": 6}', '{"a": 7}'], [null, '{"a": 8}', null]]
         ];
         await parseTest(DataTypeOIDs.ArrayJson, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "json" param', async function () {
-        await encodeTest(DataTypeOIDs.Json, [{a: 1}, {a: 2}], [
-            JSON.stringify({a: 1}),
-            JSON.stringify({a: 2})]);
+        const input = [{a: 1}, {a: 2}];
+        const output = ['{"a":1}', '{"a":2}'];
+        await encodeTest(DataTypeOIDs.Json, input, output);
     });
 
     it('should encode "json" array param', async function () {
@@ -654,7 +701,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.Date, input, output);
+        await parseTest(DataTypeOIDs.Date, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "date" field (text, utcDates)', async function () {
@@ -669,7 +717,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00Z'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.Date, input, output, undefined, {utcDates: true});
+        await parseTest(DataTypeOIDs.Date, input, output,
+            {columnFormat: DataFormat.text}, {utcDates: true});
     });
 
     it('should parse "date" field (binary)', async function () {
@@ -684,7 +733,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.Date, input, output, {binaryColumns: true});
+        await parseTest(DataTypeOIDs.Date, input, output,
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "date" field (binary, utcDates)', async function () {
@@ -699,7 +749,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00Z'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.Date, input, output, {binaryColumns: true}, {utcDates: true});
+        await parseTest(DataTypeOIDs.Date, input, output,
+            {columnFormat: DataFormat.binary}, {utcDates: true});
     });
 
     it('should parse "date" array field (text)', async function () {
@@ -714,7 +765,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.ArrayDate, input, output);
+        await parseTest(DataTypeOIDs.ArrayDate, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "date" array field (binary)', async function () {
@@ -730,7 +782,7 @@ describe('Data type encode/decode', function () {
             Infinity, -Infinity,
         ];
         await parseTest(DataTypeOIDs.ArrayDate, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "date" param', async function () {
@@ -797,7 +849,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.Timestamp, input, output);
+        await parseTest(DataTypeOIDs.Timestamp, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "timestamp" field (text, utcDates)', async function () {
@@ -814,7 +867,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00Z'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.Timestamp, input, output, undefined, {utcDates: true});
+        await parseTest(DataTypeOIDs.Timestamp, input, output,
+            {columnFormat: DataFormat.text}, {utcDates: true});
     });
 
     it('should parse "timestamp" field (binary)', async function () {
@@ -831,7 +885,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.Timestamp, input, output, {binaryColumns: true});
+        await parseTest(DataTypeOIDs.Timestamp, input, output,
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "timestamp" field (binary, utcDates)', async function () {
@@ -848,7 +903,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00Z'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.Timestamp, input, output, {binaryColumns: true}, {utcDates: true});
+        await parseTest(DataTypeOIDs.Timestamp, input, output,
+            {columnFormat: DataFormat.binary}, {utcDates: true});
     });
 
     it('should parse "timestamp" array field (text)', async function () {
@@ -865,7 +921,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.ArrayTimestamp, input, output);
+        await parseTest(DataTypeOIDs.ArrayTimestamp, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "timestamp" array field (binary)', async function () {
@@ -881,7 +938,7 @@ describe('Data type encode/decode', function () {
             Infinity, -Infinity,
         ];
         await parseTest(DataTypeOIDs.ArrayTimestamp, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "timestamp" param', async function () {
@@ -946,7 +1003,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00Z'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.Timestamptz, input, output);
+        await parseTest(DataTypeOIDs.Timestamptz, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "timestamptz" field (text, utcDates)', async function () {
@@ -961,7 +1019,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00Z'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.Timestamptz, input, output, undefined, {utcDates: true});
+        await parseTest(DataTypeOIDs.Timestamptz, input, output,
+            {columnFormat: DataFormat.text}, {utcDates: true});
     });
 
     it('should parse "timestamptz" field (binary)', async function () {
@@ -976,7 +1035,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00Z'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.Timestamptz, input, output, {binaryColumns: true});
+        await parseTest(DataTypeOIDs.Timestamptz, input, output,
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "timestamptz" field (binary, utcDates)', async function () {
@@ -991,7 +1051,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00Z'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.Timestamptz, input, output, {binaryColumns: true}, {utcDates: true});
+        await parseTest(DataTypeOIDs.Timestamptz, input, output,
+            {columnFormat: DataFormat.binary}, {utcDates: true});
     });
 
     it('should parse "timestamptz" array field (text)', async function () {
@@ -1006,7 +1067,8 @@ describe('Data type encode/decode', function () {
             new Date('1970-01-01T00:00:00Z'),
             Infinity, -Infinity,
         ];
-        await parseTest(DataTypeOIDs.ArrayTimestamptz, input, output);
+        await parseTest(DataTypeOIDs.ArrayTimestamptz, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "timestamptz" array field (binary)', async function () {
@@ -1022,7 +1084,7 @@ describe('Data type encode/decode', function () {
             Infinity, -Infinity,
         ];
         await parseTest(DataTypeOIDs.ArrayTimestamptz, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "timestamptz" param', async function () {
@@ -1058,41 +1120,43 @@ describe('Data type encode/decode', function () {
     /* ---------------- */
 
     it('should parse "bytea" field (text)', async function () {
-        const input = ['\xDEADBEEF', '\xDEADBEEG'];
+        const input = ['ABCDE', 'FGHIJ'];
         const output = [
-            Buffer.from([195, 158, 65, 68, 66, 69, 69, 70]),
-            Buffer.from([195, 158, 65, 68, 66, 69, 69, 71])
+            Buffer.from([65, 66, 67, 68, 69]),
+            Buffer.from([70, 71, 72, 73, 74])
         ];
-        await parseTest(DataTypeOIDs.Bytea, input, output);
+        await parseTest(DataTypeOIDs.Bytea, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "bytea" field (binary)', async function () {
-        const input = ['\xDEADBEEF', '\xDEADBEEG'];
+        const input = ['ABCDE', 'FGHIJ'];
         const output = [
-            Buffer.from([195, 158, 65, 68, 66, 69, 69, 70]),
-            Buffer.from([195, 158, 65, 68, 66, 69, 69, 71])
+            Buffer.from([65, 66, 67, 68, 69]),
+            Buffer.from([70, 71, 72, 73, 74])
         ];
         await parseTest(DataTypeOIDs.Bytea, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "bytea" array field (text)', async function () {
-        const input = ['\xDEADBEEF', '\xDEADBEEG'];
+        const input = ['ABCDE', 'FGHIJ'];
         const output = [
-            Buffer.from([195, 158, 65, 68, 66, 69, 69, 70]),
-            Buffer.from([195, 158, 65, 68, 66, 69, 69, 71])
+            Buffer.from([65, 66, 67, 68, 69]),
+            Buffer.from([70, 71, 72, 73, 74])
         ];
-        await parseTest(DataTypeOIDs.ArrayBytea, input, output);
+        await parseTest(DataTypeOIDs.ArrayBytea, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "bytea" array field (binary)', async function () {
-        const input = ['\xDEADBEEF', '\xDEADBEEG'];
+        const input = ['ABCDE', 'FGHIJ'];
         const output = [
-            Buffer.from([195, 158, 65, 68, 66, 69, 69, 70]),
-            Buffer.from([195, 158, 65, 68, 66, 69, 69, 71])
+            Buffer.from([65, 66, 67, 68, 69]),
+            Buffer.from([70, 71, 72, 73, 74])
         ];
         await parseTest(DataTypeOIDs.ArrayBytea, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "bytea" param', async function () {
@@ -1116,27 +1180,29 @@ describe('Data type encode/decode', function () {
     it('should parse "point" field (text)', async function () {
         const input = ['(-1.2, 3.5)', '2.1, 6.3'];
         const output = [{x: -1.2, y: 3.5}, {x: 2.1, y: 6.3}];
-        await parseTest(DataTypeOIDs.Point, input, output);
+        await parseTest(DataTypeOIDs.Point, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "point" field (binary)', async function () {
         const input = ['(-1.2, 3.5)', '2.1, 6.3'];
         const output = [{x: -1.2, y: 3.5}, {x: 2.1, y: 6.3}];
         await parseTest(DataTypeOIDs.Point, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "point" array field (text)', async function () {
         const input = ['(-1.2, 3.5)', '2.1, 6.3'];
         const output = [{x: -1.2, y: 3.5}, {x: 2.1, y: 6.3}];
-        await parseTest(DataTypeOIDs.ArrayPoint, input, output);
+        await parseTest(DataTypeOIDs.ArrayPoint, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "point" array field (binary)', async function () {
         const input = ['(-1.2, 3.5)', '2.1, 6.3'];
         const output = [{x: -1.2, y: 3.5}, {x: 2.1, y: 6.3}];
         await parseTest(DataTypeOIDs.ArrayPoint, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "point" param', async function () {
@@ -1162,7 +1228,8 @@ describe('Data type encode/decode', function () {
             {x: 1.2, y: 3.5, r: 4.5},
             {x: 6.2, y: -3, r: 7.2},
             {x: 1.1, y: 3.9, r: 8.6}];
-        await parseTest(DataTypeOIDs.Circle, input, output);
+        await parseTest(DataTypeOIDs.Circle, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "circle" field (binary)', async function () {
@@ -1177,7 +1244,7 @@ describe('Data type encode/decode', function () {
             {x: 6.2, y: -3, r: 7.2},
             {x: 1.1, y: 3.9, r: 8.6}];
         await parseTest(DataTypeOIDs.Circle, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "circle" array field (text)', async function () {
@@ -1191,7 +1258,8 @@ describe('Data type encode/decode', function () {
             {x: 1.2, y: 3.5, r: 4.5},
             {x: 6.2, y: -3, r: 7.2},
             {x: 1.1, y: 3.9, r: 8.6}];
-        await parseTest(DataTypeOIDs.ArrayCircle, input, output);
+        await parseTest(DataTypeOIDs.ArrayCircle, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "circle" array field (binary)', async function () {
@@ -1206,7 +1274,7 @@ describe('Data type encode/decode', function () {
             {x: 6.2, y: -3, r: 7.2},
             {x: 1.1, y: 3.9, r: 8.6}];
         await parseTest(DataTypeOIDs.ArrayCircle, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "circle" param', async function () {
@@ -1240,7 +1308,8 @@ describe('Data type encode/decode', function () {
             {x1: -1.6, y1: 3, x2: 4.6, y2: 0.1},
             {x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7},
             {x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2}];
-        await parseTest(DataTypeOIDs.Lseg, input, output);
+        await parseTest(DataTypeOIDs.Lseg, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "lseg" field (binary)', async function () {
@@ -1255,7 +1324,7 @@ describe('Data type encode/decode', function () {
             {x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7},
             {x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2}];
         await parseTest(DataTypeOIDs.Lseg, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "lseg" array field (text)', async function () {
@@ -1269,7 +1338,8 @@ describe('Data type encode/decode', function () {
             {x1: -1.6, y1: 3, x2: 4.6, y2: 0.1},
             {x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7},
             {x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2}];
-        await parseTest(DataTypeOIDs.ArrayLseg, input, output);
+        await parseTest(DataTypeOIDs.ArrayLseg, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "lseg" array field (binary)', async function () {
@@ -1284,7 +1354,7 @@ describe('Data type encode/decode', function () {
             {x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7},
             {x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2}];
         await parseTest(DataTypeOIDs.ArrayLseg, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "lseg" param', async function () {
@@ -1316,7 +1386,8 @@ describe('Data type encode/decode', function () {
             {x1: 4.6, y1: 3, x2: -1.6, y2: 0.1},
             {x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5},
             {x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2}];
-        await parseTest(DataTypeOIDs.Box, input, output);
+        await parseTest(DataTypeOIDs.Box, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "box" field (binary)', async function () {
@@ -1329,7 +1400,7 @@ describe('Data type encode/decode', function () {
             {x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5},
             {x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2}];
         await parseTest(DataTypeOIDs.Box, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should parse "box" array field (text)', async function () {
@@ -1341,7 +1412,8 @@ describe('Data type encode/decode', function () {
             {x1: 4.6, y1: 3, x2: -1.6, y2: 0.1},
             {x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5},
             {x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2}];
-        await parseTest(DataTypeOIDs.ArrayBox, input, output);
+        await parseTest(DataTypeOIDs.ArrayBox, input, output,
+            {columnFormat: DataFormat.text});
     });
 
     it('should parse "box" array field (binary)', async function () {
@@ -1354,7 +1426,7 @@ describe('Data type encode/decode', function () {
             {x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5},
             {x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2}];
         await parseTest(DataTypeOIDs.ArrayBox, input, output,
-            {binaryColumns: true});
+            {columnFormat: DataFormat.binary});
     });
 
     it('should encode "box" param', async function () {

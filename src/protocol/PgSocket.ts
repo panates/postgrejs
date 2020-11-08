@@ -10,7 +10,7 @@ import {DatabaseError} from './DatabaseError';
 import {SASL} from './sasl';
 
 const DEFAULT_PORT_NUMBER = 5432;
-const COMMAND_RESULT_PATTERN = /^([A-Za-z]+)(?: (\d+)(?: (\d+))?)?$/;
+const COMMAND_RESULT_PATTERN = /^([^\d]+)(?: (\d+)(?: (\d+))?)?$/;
 
 export type CaptureCallback = (code: Protocol.BackendMessageCode, msg: any,
                                done: (err: Maybe<Error>, result?: any) => void) => void | Promise<void>;

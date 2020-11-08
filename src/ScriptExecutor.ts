@@ -63,10 +63,10 @@ export class ScriptExecutor extends SafeEventEmitter {
                             current.rows = [];
                             break;
                         case Protocol.BackendMessageCode.DataRow:
-                            const data = msg.columns.map((x: Buffer) => x.toString('utf8'));
-                            parseRow(parsers, data, options);
-                            const row = options.objectRows ?
-                                convertRowToObject(fields, msg.columns) : msg.columns;
+                            let row = msg.columns.map((x: Buffer) => x.toString('utf8'));
+                            parseRow(parsers, row, options);
+                            if (options.objectRows)
+                                row = convertRowToObject(fields, row);
                             this.emit('row', row);
                             current.rows = current.rows || [];
                             current.rows.push(row);
