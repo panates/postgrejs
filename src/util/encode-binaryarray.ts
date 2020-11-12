@@ -3,7 +3,7 @@ import {DataTypeOIDs, EncodeBinaryFunction, DataMappingOptions, OID} from '../de
 import {arrayCalculateDim} from './array-calculatedim';
 
 export function encodeBinaryArray(io: SmartBuffer, value: any[], itemOid: OID,
-                                  options: DataMappingOptions, encode: EncodeBinaryFunction): Buffer {
+                                  options: DataMappingOptions, encode: EncodeBinaryFunction): void {
     itemOid = itemOid || DataTypeOIDs.Varchar;
     const dim = arrayCalculateDim(value);
     const ndims = dim.length;
@@ -42,6 +42,5 @@ export function encodeBinaryArray(io: SmartBuffer, value: any[], itemOid: OID,
     writeDim(value, 0);
     if (hasNull)
         io.buffer.writeInt32BE(1, zeroOffset + 4);
-    return io.flush();
 }
 

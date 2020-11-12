@@ -4,8 +4,8 @@ import type {AnyParseFunction, DataMappingOptions, FieldInfo,} from './definitio
 import {Connection} from './Connection';
 import TaskQueue from 'putil-taskqueue';
 import {PgSocket} from './protocol/PgSocket';
-import {parsePostgresArray} from './helpers/parse-array';
-import {decodeBinaryArray} from './helpers/decode-binaryarray';
+import {parsePostgresArray} from './util/parse-array';
+import {decodeBinaryArray} from './util/decode-binaryarray';
 
 const DefaultColumnParser = (v: any) => v;
 

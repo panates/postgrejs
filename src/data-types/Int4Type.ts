@@ -1,7 +1,7 @@
 import {DataType, DataTypeOIDs} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
 // noinspection ES6PreferShortImport
-import {fastParseInt} from '../helpers/fast-parseint';
+import {fastParseInt} from '../util/fast-parseint';
 
 export const Int4Type: DataType = {
 

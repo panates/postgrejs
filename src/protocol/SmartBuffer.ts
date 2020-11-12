@@ -1,17 +1,30 @@
 import {BufferReader} from './BufferReader';
-import {writeBigUInt64BE} from '../helpers/bigint-methods';
+import {writeBigUInt64BE} from '../util/bigint-methods';
+
+export interface SmartBufferConfig {
+    pageSize: number,
+    maxLength?: number;
+    houseKeepInterval?: number;
+}
 
 export class SmartBuffer extends BufferReader {
 
+    static DEFAULT_PAGE_SIZE = 4096;
+
+    private readonly _houseKeepInterval: number;
+    private _houseKeepTimer?: NodeJS.Timeout;
+    private _lastHouseKeep = 0;
+    private _stMaxPages = 1;
     private _length = 0;
-    readonly initialSize: number;
+    readonly pageSize: number;
     readonly maxSize: number;
 
-    constructor(initialSize: number, maxSize?: number) {
+    constructor(cfg?: SmartBufferConfig) {
         // @ts-ignore
-        super(Buffer.allocUnsafe(parseInt(initialSize, 10) || 4096))
-        this.initialSize = this.buffer.length;
-        this.maxSize = maxSize || 1024 * 1024 * 2; // 2 MB
+        super(Buffer.allocUnsafe((cfg?.pageSize ? parseInt(cfg.pageSize, 10) : 0) || SmartBuffer.DEFAULT_PAGE_SIZE));
+        this._houseKeepInterval = cfg?.houseKeepInterval || 5000;
+        this.pageSize = this.buffer.length;
+        this.maxSize = cfg?.maxLength || (1024 * 1024 * 128); // 128 MB
         this._length = 0;
     }
 
@@ -23,13 +36,43 @@ export class SmartBuffer extends BufferReader {
         return this._length;
     }
 
+    start(): this {
+        this.offset = 0;
+        this._length = 0;
+        if (this._houseKeepTimer) {
+            clearTimeout(this._houseKeepTimer);
+            this._houseKeepTimer = undefined;
+        }
+        return this;
+    }
+
+    flush(): Buffer {
+        if (this._houseKeepTimer)
+            clearTimeout(this._houseKeepTimer);
+
+        const length = this.length;
+        this._length = 0;
+        const out = this.buffer.slice(0, length);
+
+        const pages = length ? Math.ceil(length / this.pageSize) : 1;
+        this._stMaxPages = Math.max(this._stMaxPages, pages);
+        if (this._lastHouseKeep < Date.now() + this._houseKeepInterval)
+            this._houseKeep();
+
+        this._houseKeepTimer = setTimeout(() => {
+            this._houseKeepTimer = undefined;
+            this._houseKeep();
+        }, this._houseKeepInterval).unref();
+
+        return out;
+    }
+
     ensureCapacity(len: number): this {
         let endOffset = this.offset + len;
         if (this.capacity < endOffset) {
             if (endOffset > this.maxSize)
                 throw new Error('Buffer limit exceeded.');
-            const growSize = this.initialSize + (this.initialSize >> 1); //  1.5 initialSize
-            const newSize = Math.ceil(endOffset / growSize) * growSize;
+            const newSize = Math.ceil(endOffset / this.pageSize) * this.pageSize;
             const newBuffer = Buffer.allocUnsafe(newSize);
             this.buffer.copy(newBuffer);
             this.buffer = newBuffer;
@@ -42,23 +85,6 @@ export class SmartBuffer extends BufferReader {
         this.ensureCapacity(len);
         this.buffer.fill(value, this.offset, this.offset + len);
         this.offset += len;
-        return this;
-    }
-
-    flush(): Buffer {
-        return this.buffer.slice(0, this.length);
-    }
-
-    reset(): this {
-        this.offset = 0;
-        this._length = 0;
-        return this;
-    }
-
-    // todo
-    shrink(): this {
-        if (this.buffer.length !== this.initialSize)
-            this.buffer = Buffer.allocUnsafe(this.initialSize);
         return this;
     }
 
@@ -166,6 +192,14 @@ export class SmartBuffer extends BufferReader {
         buffer.copy(this.buffer, this.offset, 0, buffer.length);
         this.offset += buffer.length;
         return this;
+    }
+
+    private _houseKeep(): void {
+        const needSize = this._stMaxPages * this.pageSize;
+        if (this.buffer.length > needSize)
+            this.buffer = Buffer.allocUnsafe(needSize);
+        this._stMaxPages = this.length ?
+            Math.ceil(this.length / this.pageSize) : 1;
     }
 
 }

@@ -13,8 +13,8 @@ import {PreparedStatement} from './PreparedStatement';
 import {ScriptExecutor} from './ScriptExecutor';
 import {BindParam} from './BindParam';
 import {GlobalTypeMap} from './DataTypeMap';
-import {getConnectionConfig} from './helpers/connection-config';
-import {escapeLiteral} from './helpers/escape-literal';
+import {getConnectionConfig} from './util/connection-config';
+import {escapeLiteral} from './util/escape-literal';
 
 export class Connection extends SafeEventEmitter {
     protected _socket: PgSocket;

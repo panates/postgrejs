@@ -3,7 +3,7 @@ import {SASL} from './sasl';
 import {SmartBuffer} from './SmartBuffer';
 import {Maybe, OID, QueryOptions} from '../definitions';
 import {DataTypeMap} from '../DataTypeMap';
-import {encodeBinaryArray} from '../helpers/encode-binaryarray';
+import {encodeBinaryArray} from '../util/encode-binaryarray';
 import {stringifyArrayLiteral} from '..';
 import DataFormat = Protocol.DataFormat;
 
@@ -53,14 +53,10 @@ export namespace Frontend {
 }
 
 export class Frontend {
-    private _io = new SmartBuffer(4096);
-
-    reset(): void {
-        this._io.reset();
-    }
+    private _io = new SmartBuffer();
 
     getSSLRequestMessage(): Buffer {
-        return this._io.reset()
+        return this._io.start()
             .writeUInt32BE(8) // Length of message contents in bytes, including self.
             .writeUInt16BE(1234)
             .writeUInt16BE(5679)
@@ -68,7 +64,7 @@ export class Frontend {
     }
 
     getStartupMessage(args: Frontend.StartupMessageArgs): Buffer {
-        const io = this._io.reset()
+        const io = this._io.start()
             .writeInt32BE(0) // Preserve length
             .writeInt16BE(Protocol.VERSION_MAJOR)
             .writeInt16BE(Protocol.VERSION_MINOR);
@@ -85,7 +81,7 @@ export class Frontend {
     }
 
     getPasswordMessage(password: string): Buffer {
-        const io = this._io.reset()
+        const io = this._io.start()
             .writeInt8(Protocol.FrontendMessageCode.PasswordMessage)
             .writeInt32BE(0) // Preserve header
             .writeCString(password, 'utf8');
@@ -93,7 +89,7 @@ export class Frontend {
     }
 
     getSASLMessage(sasl: SASL.Session): Buffer {
-        const io = this._io.reset()
+        const io = this._io.start()
             .writeInt8(Protocol.FrontendMessageCode.PasswordMessage)
             .writeInt32BE(0) // Preserve header
             .writeCString(sasl.mechanism, 'utf8')
@@ -102,7 +98,7 @@ export class Frontend {
     }
 
     getSASLFinalMessage(session: SASL.Session): Buffer {
-        const io = this._io.reset()
+        const io = this._io.start()
             .writeInt8(Protocol.FrontendMessageCode.PasswordMessage)
             .writeInt32BE(0) // Preserve header
             .writeString(session.clientFinalMessage)
@@ -112,7 +108,7 @@ export class Frontend {
     getParseMessage(args: Frontend.ParseMessageArgs): Buffer {
         if (args.statement && args.statement.length > 63)
             throw new Error('Query name length must be lower than 63');
-        const io = this._io.reset()
+        const io = this._io.start()
             .writeInt8(Protocol.FrontendMessageCode.Parse)
             .writeInt32BE(0) // Preserve header
             .writeCString(args.statement || '', 'utf8')
@@ -132,13 +128,13 @@ export class Frontend {
         if (args.statement && args.statement.length > 63)
             throw new Error('Query name length must be lower than 63');
 
-        const io = this._io.reset()
+        const io = this._io.start()
             .writeInt8(Protocol.FrontendMessageCode.Bind)
             .writeInt32BE(0) // Preserve header
             .writeCString(args.portal || '', 'utf8')
             .writeCString(args.statement || '', 'utf8');
         const {params, paramTypes, queryOptions} = args;
-        const columnFormat = queryOptions.columnFormat != null ? queryOptions.columnFormat:
+        const columnFormat = queryOptions.columnFormat != null ? queryOptions.columnFormat :
             DataFormat.binary;
 
         if (params && params.length) {
@@ -213,7 +209,7 @@ export class Frontend {
         if (args.name && args.name.length > 63)
             throw new Error(args.type === 'P' ? 'Portal' : 'Statement' +
                 'name length must be lower than 63');
-        const io = this._io.reset()
+        const io = this._io.start()
             .writeInt8(Protocol.FrontendMessageCode.Describe)
             .writeInt32BE(0) // Preserve header
             .writeUInt8(args.type.charCodeAt(0))
@@ -222,7 +218,7 @@ export class Frontend {
     }
 
     getExecuteMessage(args: Frontend.ExecuteMessageArgs): Buffer {
-        const io = this._io.reset()
+        const io = this._io.start()
             .writeInt8(Protocol.FrontendMessageCode.Execute)
             .writeInt32BE(0) // Preserve header
             .writeCString(args.portal || '', 'utf8')
@@ -234,7 +230,7 @@ export class Frontend {
         if (args.name && args.name.length > 63)
             throw new Error(args.type === 'P' ? 'Portal' : 'Statement' +
                 'name length must be lower than 63');
-        const io = this._io.reset()
+        const io = this._io.start()
             .writeInt8(Protocol.FrontendMessageCode.Close)
             .writeInt32BE(0) // Preserve header
             .writeUInt8(args.type.charCodeAt(0))
@@ -243,7 +239,7 @@ export class Frontend {
     }
 
     getQueryMessage(sql: string): Buffer {
-        const io = this._io.reset()
+        const io = this._io.start()
             .writeInt8(Protocol.FrontendMessageCode.Query)
             .writeInt32BE(0) // Preserve header
             .writeCString(sql || '', 'utf8')

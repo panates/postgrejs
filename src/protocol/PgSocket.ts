@@ -182,7 +182,6 @@ export class PgSocket extends SafeEventEmitter {
 
     protected _reset(): void {
         this._backend.reset();
-        this._frontend.reset();
         this._sessionParameters = {};
         this._processID = undefined;
         this._secretKey = undefined;

@@ -1,6 +1,6 @@
 import assert from 'assert';
 import '../_support/env';
-import {parsePostgresArray} from '../../src/helpers/parse-array';
+import {parsePostgresArray} from '../../src/util/parse-array';
 
 describe('Parse PostgreSQL arrays', function () {
 

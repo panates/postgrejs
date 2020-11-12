@@ -1,7 +1,7 @@
 import {DataType, DataTypeOIDs, DataMappingOptions, Maybe} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
 // noinspection ES6PreferShortImport
-import {parseDateTime} from '../helpers/parse-datetime';
+import {parseDateTime} from '../util/parse-datetime';
 
 const timeShift = 946684800000;
 const timeMul = 4294967296;

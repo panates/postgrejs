@@ -1,5 +1,4 @@
 import assert from 'assert';
-import net from "net";
 import '../_support/env';
 import {Connection, ConnectionState, ScriptExecutor} from '../../src';
 
@@ -72,23 +71,6 @@ describe('Connection', function () {
         await connection.close(500);
         assert.strictEqual(terminated, true);
         assert.ok(Date.now() - startTime >= 500);
-    });
-
-    it('create emit error on early disconnect', function (done) {
-        const server = net.createServer((socket) => {
-            socket.destroy();
-        });
-        const port = parseInt(process.env.FAKE_SERVER_PORT, 10) || 3000;
-        server.listen(port, function () {
-            connection = new Connection('postgres://localhost:' + port)
-            assert.rejects(() =>
-                connection.connect(), /ECONNRESET/)
-                .then(done)
-                .catch(done)
-                .then(() => {
-                    server.close();
-                });
-        });
     });
 
 });

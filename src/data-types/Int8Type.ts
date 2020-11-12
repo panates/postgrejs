@@ -1,6 +1,6 @@
 import {DataType, DataTypeOIDs} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
-import {readBigInt64BE} from '../helpers/bigint-methods';
+import {readBigInt64BE} from '../util/bigint-methods';
 
 export const Int8Type: DataType = {
 

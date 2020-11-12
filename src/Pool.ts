@@ -9,7 +9,7 @@ import {
     ScriptResult, StatementPrepareOptions
 } from './definitions';
 import {PoolConnection} from './PoolConnection';
-import {getConnectionConfig} from './helpers/connection-config';
+import {getConnectionConfig} from './util/connection-config';
 import {PreparedStatement} from './PreparedStatement';
 import {SafeEventEmitter} from './SafeEventEmitter';
 
