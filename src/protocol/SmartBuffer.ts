@@ -1,4 +1,5 @@
 import {BufferReader} from './BufferReader';
+import {writeBigUInt64BE} from '../helpers/bigint-methods';
 
 export class SmartBuffer extends BufferReader {
 
@@ -54,6 +55,7 @@ export class SmartBuffer extends BufferReader {
         return this;
     }
 
+    // todo
     shrink(): this {
         if (this.buffer.length !== this.initialSize)
             this.buffer = Buffer.allocUnsafe(this.initialSize);
@@ -135,8 +137,12 @@ export class SmartBuffer extends BufferReader {
     }
 
     writeBigInt64BE(n: bigint | number): this {
+        n = typeof n === 'bigint' ? n : BigInt(n);
         this.ensureCapacity(8);
-        this.buffer.writeBigInt64BE(typeof n === 'bigint' ? n : BigInt(n), this.offset);
+        if (typeof this.buffer.writeBigInt64BE === 'function')
+            this.buffer.writeBigInt64BE(n, this.offset);
+        else
+            writeBigUInt64BE(this.buffer, n, this.offset);
         this.offset += 8;
         return this;
     }

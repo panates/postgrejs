@@ -1,5 +1,6 @@
 import {DataType, DataTypeOIDs} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
+import {readBigInt64BE} from '../helpers/bigint-methods';
 
 export const Int8Type: DataType = {
 
@@ -7,7 +8,9 @@ export const Int8Type: DataType = {
     oid: DataTypeOIDs.Int8,
 
     parseBinary(v: Buffer): bigint {
-        return v.readBigInt64BE(0);
+        if (typeof v.readBigInt64BE === 'function')
+            return v.readBigInt64BE(0);
+        return readBigInt64BE(v);
     },
 
     encodeBinary(buf: SmartBuffer, v: bigint | number): void {

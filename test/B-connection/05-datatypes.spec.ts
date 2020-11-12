@@ -281,8 +281,8 @@ describe('Data type encode/decode', function () {
 
     it('should parse "float4" array field (text)', async function () {
         const input = [
-            [[-1.2, 5.2456, null], [0.9025, 150.42563, null]],
-            [[-10.6, 500.422, 0], [null, 2.536322, null]]
+            [[-1.2, 2.5, null], [1.2, 2.5, null]],
+            [[-10.6, 4.5, 0], [null, 6.5, null]]
         ];
         await parseTest(DataTypeOIDs.ArrayFloat4, input, input,
             {columnFormat: DataFormat.text});

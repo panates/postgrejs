@@ -78,8 +78,8 @@ describe('Connection', function () {
         const server = net.createServer((socket) => {
             socket.destroy();
         });
-        server.listen(7777, function () {
-            connection = new Connection('postgres://localhost:7777')
+        server.listen(88, function () {
+            connection = new Connection('postgres://localhost:88')
             assert.rejects(() =>
                 connection.connect(), /ECONNRESET/)
                 .then(done)
