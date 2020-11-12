@@ -95,7 +95,7 @@ postgresql-client is available under [MIT](LICENSE) license.
 [npm-image]: https://img.shields.io/npm/v/postgresql-client.svg
 [npm-url]: https://npmjs.org/package/postgresql-client
 [travis-image]: https://img.shields.io/travis/panates/postgresql-client/master.svg
-[travis-url]: https://travis-ci.org/panates/postgresql-client
+[travis-url]: https://travis-ci.com/panates/postgresql-client
 [coveralls-image]: https://img.shields.io/coveralls/panates/postgresql-client/master.svg
 [coveralls-url]: https://coveralls.io/r/panates/postgresql-client
 [downloads-image]: https://img.shields.io/npm/dm/postgresql-client.svg

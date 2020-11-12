@@ -44,8 +44,8 @@ The library supports both single and pooled connections.
 If you want to establish a single session to a PostgreSQL server 
 you need to use `Connection` class. If you require a connection pool use `Pool` class instead.
 
-
 *new Connection([config: String | [ConnectionConfiguration](#221-connectionconfiguration)]);*
+
 
 ```ts
 import {Connection} from 'postgresql-client';
@@ -248,10 +248,20 @@ await statement.close(); // When you done, close the statement to relase resourc
 
 
 ## 1.3.4. Using Cursors
-
+Cursors enable applications to process very large data sets. 
+Cursors should also be used where the number of query rows cannot be predicted 
+and may be larger than your JavaScript engine can handle in a single array.
+A [Cursor](#213-cursor) object is obtained by setting `cursor: true` in the 
+[options](#229-queryoptions) parameter of the [Connection](#211-connection).execute() 
+method when executing a query. Cursor fetches rows in batches. Cursor.next() method 
+returns the next row from the internal cache. When internal cache is empty, 
+it fetches next batch of rows from the server. 
+`fetchCount` property lets you set the batch size. 
+Where there is no more row to fetch, Cursor is closed automatically and next() method returns `undefined`;
 
 ```ts
-const qr = await connection.query('select * from my_table', {cursor: true});
+const qr = await connection.query('select * from my_table', 
+    {cursor: true, fetchCount: 250});
 console.log(qr.fields);
 const cursor = qr.cursor;
 let row;
