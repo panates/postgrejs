@@ -1,10 +1,10 @@
 import {Protocol} from './protocol';
 import {SASL} from './sasl';
 import {SmartBuffer} from './SmartBuffer';
-import {FetchOptions, Maybe, OID} from '../definitions';
-import {DataTypeRegistry} from '../DataTypeRegistry';
+import {Maybe, OID, QueryOptions} from '../definitions';
+import {DataTypeMap} from '../DataTypeMap';
 import {encodeBinaryArray} from '../helpers/encode-binaryarray';
-import {stringifyArrayLiteral} from '../helpers/stringify-arrayliteral';
+import {stringifyArrayLiteral} from '..';
 import DataFormat = Protocol.DataFormat;
 
 const StaticFlushBuffer = Buffer.from([Protocol.FrontendMessageCode.Flush, 0x00, 0x00, 0x00, 0x04]);
@@ -21,11 +21,12 @@ export namespace Frontend {
     }
 
     export interface BindMessageArgs {
+        typeMap: DataTypeMap;
         statement?: string;
         portal?: string;
         paramTypes?: Maybe<OID>[];
         params?: any[];
-        fetchOptions: FetchOptions;
+        queryOptions: QueryOptions;
     }
 
     export interface ParseMessageArgs {
@@ -136,8 +137,8 @@ export class Frontend {
             .writeInt32BE(0) // Preserve header
             .writeCString(args.portal || '', 'utf8')
             .writeCString(args.statement || '', 'utf8');
-        const {params, paramTypes, fetchOptions} = args;
-        const columnFormat = fetchOptions.columnFormat != null ? fetchOptions.columnFormat:
+        const {params, paramTypes, queryOptions} = args;
+        const columnFormat = queryOptions.columnFormat != null ? queryOptions.columnFormat:
             DataFormat.binary;
 
         if (params && params.length) {
@@ -155,26 +156,26 @@ export class Frontend {
                     io.writeInt32BE(-1);
 
                 const dataTypeOid = paramTypes ? paramTypes[i] : undefined;
-                const dt = dataTypeOid ? DataTypeRegistry.items[dataTypeOid] : undefined;
+                const dt = dataTypeOid ? args.typeMap.get(dataTypeOid) : undefined;
 
                 if (dt) {
-                    if (typeof dt.type.encodeBinary === 'function') {
+                    if (typeof dt.encodeBinary === 'function') {
                         // Set param format to binary
                         io.buffer.writeInt16BE(Protocol.DataFormat.binary, formatOffset + (i * 2));
                         // Preserve data length
                         io.writeInt32BE(0);
                         const dataOffset = io.offset;
-                        if (dt.isArray) {
+                        if (dt.elementsOID) { // If data type is array
                             v = Array.isArray(v) ? v : [v];
-                            encodeBinaryArray(io, v, dt.elementsOid as OID, fetchOptions, dt.type.encodeBinary);
+                            encodeBinaryArray(io, v, dt.elementsOID, queryOptions, dt.encodeBinary);
                         } else {
-                            dt.type.encodeBinary(io, v, fetchOptions);
+                            dt.encodeBinary(io, v, queryOptions);
                         }
                         io.buffer.writeInt32BE(io.length - dataOffset, dataOffset - 4); // Update length
-                    } else if (typeof dt.type.encodeText === 'function') {
-                        v = dt.isArray ?
-                            stringifyArrayLiteral(v, fetchOptions, dt.type.encodeText) :
-                            dt.type.encodeText(v, fetchOptions);
+                    } else if (typeof dt.encodeText === 'function') {
+                        v = dt.elementsOID ?
+                            stringifyArrayLiteral(v, queryOptions, dt.encodeText) :
+                            dt.encodeText(v, queryOptions);
                         io.writeLString(v, 'utf8');
                     }
                 } else if (Buffer.isBuffer(v)) {

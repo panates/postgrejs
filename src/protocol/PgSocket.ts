@@ -5,7 +5,7 @@ import {SafeEventEmitter} from '../SafeEventEmitter';
 import {Backend} from './Backend';
 import {Frontend} from './Frontend';
 import {Protocol} from './protocol';
-import {BindValue, ConnectionConfiguration, ConnectionState, DataTypeOIDs, Maybe, OID} from '../definitions';
+import {ConnectionConfiguration, ConnectionState, Maybe} from '../definitions';
 import {DatabaseError} from './DatabaseError';
 import {SASL} from './sasl';
 
@@ -56,8 +56,8 @@ export class PgSocket extends SafeEventEmitter {
 
         const connectHandler = () => {
             socket.setTimeout(0);
-            if (this.options.keepAlive)
-                socket.setKeepAlive(true, this.options.keepAliveInitialDelayMillis);
+            if (this.options.keepAlive || this.options.keepAlive == null)
+                socket.setKeepAlive(true);
             if (options.ssl) {
                 socket.write(this._frontend.getSSLRequestMessage());
                 socket.once('data', (x) => {
@@ -109,10 +109,6 @@ export class PgSocket extends SafeEventEmitter {
         this._removeListeners();
         socket.once('close', () => this._handleClose());
         socket.destroy();
-    }
-
-    cancelActiveQuery() {
-
     }
 
     sendParseMessage(args: Frontend.ParseMessageArgs): void {
@@ -203,7 +199,7 @@ export class PgSocket extends SafeEventEmitter {
         socket.on('error', (err: SocketError) => this._handleError(err));
         socket.on('close', () => this._handleClose());
         this._send(this._frontend.getStartupMessage({
-            user: this.options.user || '',
+            user: this.options.user || 'postgres',
             database: this.options.database || ''
         }));
     }
@@ -223,7 +219,6 @@ export class PgSocket extends SafeEventEmitter {
     }
 
     protected _handleData(data: Buffer): void {
-        // console.log('< ', JSON.stringify(data));
         this._backend.parse(data, (code: Protocol.BackendMessageCode, data?: any) => {
             try {
                 switch (code) {

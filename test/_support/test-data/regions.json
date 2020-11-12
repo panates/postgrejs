@@ -2,32 +2,20 @@
   "name": "regions",
   "rows": [
     {
-      "id": "FR",
-      "name": "FR Region",
-      "tags": [
-        "a1",
-        "b2"
-      ]
+      "id": "US",
+      "name": "US Region"
     },
     {
       "id": "TR",
-      "name": "TR Region",
-      "tags": [
-        "c3",
-        "d4"
-      ]
+      "name": "TR Region"
     },
     {
       "id": "GB",
-      "name": "GB Region",
-      "tags": [
-        "e5",
-        "f6"
-      ]
+      "name": "GB Region"
     },
     {
-      "id": "US",
-      "name": "US Region"
+      "id": "FR",
+      "name": "FR Region"
     },
     {
       "id": "CN",

@@ -1,5 +1,6 @@
-import {DataType, FetchOptions, Maybe} from '../definitions';
+import {DataType, DataTypeOIDs, DataMappingOptions, Maybe} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
+// noinspection ES6PreferShortImport
 import {parseDateTime} from '../helpers/parse-datetime';
 
 const timeShift = 946684800000;
@@ -7,7 +8,10 @@ const timeMul = 4294967296;
 
 export const TimestamptzType: DataType = {
 
-    parseBinary(v: Buffer, options: FetchOptions): Date | number {
+    name: 'timestamptz',
+    oid: DataTypeOIDs.Timestamptz,
+
+    parseBinary(v: Buffer, options: DataMappingOptions): Date | number {
         const hi = v.readInt32BE();
         const lo = v.readUInt32BE(4);
         if (lo === 0xffffffff && hi === 0x7fffffff) return Infinity;
@@ -23,7 +27,7 @@ export const TimestamptzType: DataType = {
             d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds());
     },
 
-    encodeBinary(buf: SmartBuffer, v: Date | number | string, options: FetchOptions): void {
+    encodeBinary(buf: SmartBuffer, v: Date | number | string, options: DataMappingOptions): void {
         if (typeof v === 'string')
             v = parseDateTime(v, true, true, options.utcDates);
         if (v === Infinity) {
@@ -46,7 +50,7 @@ export const TimestamptzType: DataType = {
         buf.writeUInt32BE(lo);
     },
 
-    parseText(v: string, options: FetchOptions): Maybe<Date | number> {
+    parseText(v: string, options: DataMappingOptions): Maybe<Date | number> {
         return parseDateTime(v, true, true, options.utcDates);
     },
 
@@ -54,4 +58,11 @@ export const TimestamptzType: DataType = {
         return v instanceof Date;
     }
 
+}
+
+export const ArrayTimestamptzType: DataType = {
+    ...TimestamptzType,
+    name: '_timestamptz',
+    oid: DataTypeOIDs.ArrayTimestamptz,
+    elementsOID: DataTypeOIDs.Timestamptz
 }

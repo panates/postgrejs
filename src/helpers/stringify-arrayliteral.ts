@@ -1,7 +1,7 @@
-import {EncodeTextFunction, FetchOptions} from '../definitions';
+import {EncodeTextFunction, DataMappingOptions} from '../definitions';
 import {arrayCalculateDim} from './array-calculatedim';
 
-export function stringifyArrayLiteral(value: any[], options?: FetchOptions, encode?: EncodeTextFunction): string {
+export function stringifyArrayLiteral(value: any[], options?: DataMappingOptions, encode?: EncodeTextFunction): string {
     const dim = arrayCalculateDim(value);
     const writeDim = (arr: any[], level: number) => {
         const elemCount = dim[level];

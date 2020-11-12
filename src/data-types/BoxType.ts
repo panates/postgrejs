@@ -1,4 +1,4 @@
-import {DataType, Rectangle, Maybe} from '../definitions';
+import {DataType, DataTypeOIDs, Rectangle, Maybe} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
 
 const BOX_PATTERN1 = /^\( *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *\)$/;
@@ -7,6 +7,8 @@ const BOX_PATTERN3 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?
 
 export const BoxType: DataType = {
 
+    name: 'box',
+    oid: DataTypeOIDs.Box,
     arraySeparator: ';',
 
     parseBinary(v: Buffer): Rectangle {
@@ -46,4 +48,11 @@ export const BoxType: DataType = {
             typeof v.y2 === 'number';
     }
 
+}
+
+export const ArrayBoxType: DataType = {
+    ...BoxType,
+    name: '_box',
+    oid: DataTypeOIDs.ArrayBox,
+    elementsOID: DataTypeOIDs.Box
 }

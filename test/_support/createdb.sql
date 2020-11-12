@@ -5,7 +5,6 @@ CREATE TABLE test.regions
 (
     id character varying(10) NOT NULL,
     name character varying(16),
-    tags character varying(16)[],
     CONSTRAINT regions_pkey PRIMARY KEY (id)
 );
 

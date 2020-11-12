@@ -1,12 +1,12 @@
-import {EncodeTextFunction, FetchOptions} from '../definitions';
+import {EncodeTextFunction, DataMappingOptions} from '../definitions';
 import {escapeLiteral} from './escape-literal';
 
-export function stringifyArrayForSQL(v: any[], options?: FetchOptions, encode?: EncodeTextFunction): string {
+export function stringifyArrayForSQL(v: any[], options?: DataMappingOptions, encode?: EncodeTextFunction): string {
     const arr = v.map(x => stringifyValueForSQL(x, options, encode));
     return 'ARRAY[' + arr.join(',') + ']';
 }
 
-export function stringifyValueForSQL(v: any, options?: FetchOptions, encode?: EncodeTextFunction): string {
+export function stringifyValueForSQL(v: any, options?: DataMappingOptions, encode?: EncodeTextFunction): string {
     if (v == null)
         return 'null';
     if (typeof v === 'boolean')

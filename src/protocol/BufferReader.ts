@@ -65,7 +65,7 @@ export class BufferReader {
     readBuffer(len?: number): Buffer {
         if (len)
             this._checkReadable(len);
-        const end = len ? this.offset + len : this.length;
+        const end = len !== undefined ? this.offset + len : this.length;
         const buf = this.buffer.slice(this.offset, end);
         this.offset = end;
         return buf;

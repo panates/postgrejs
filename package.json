@@ -1,7 +1,7 @@
 {
   "name": "postgresql-client",
   "description": "Advanced PostgreSQL client for JavaScript and TypeScript",
-  "version": "0.0.1",
+  "version": "1.0.0-beta.1",
   "author": "Panates",
   "contributors": [
     "Eray Hanoglu <e.hanoglu@panates.com>"
@@ -24,8 +24,11 @@
     "rdbms"
   ],
   "dependencies": {
+    "doublylinked": "^2.4.0",
+    "lightning-pool": "^2.3.0",
+    "postgres-bytea": "^3.0.0",
     "putil-taskqueue": "^2.5.1",
-    "postgres-bytea": "^3.0.0"
+    "putil-varhelpers": "^1.2.2"
   },
   "devDependencies": {
     "@types/mocha": "^8.0.3",
@@ -33,6 +36,7 @@
     "@typescript-eslint/eslint-plugin": "^4.4.1",
     "@typescript-eslint/parser": "^4.2.0",
     "babel-eslint": "^10.1.0",
+    "dotenv": "^8.2.0",
     "eslint": "^7.9.0",
     "eslint-config-google": "^0.14.0",
     "mocha": "^8.1.3",

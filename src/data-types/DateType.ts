@@ -1,12 +1,16 @@
-import {DataType, FetchOptions} from '../definitions';
+import {DataType, DataTypeOIDs, DataMappingOptions} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
+// noinspection ES6PreferShortImport
 import {parseDateTime} from '../helpers/parse-datetime';
 
 const timeShift = 946684800000;
 
 export const DateType: DataType = {
 
-    parseBinary(v: Buffer, options: FetchOptions): Date | number {
+    name: 'date',
+    oid: DataTypeOIDs.Date,
+
+    parseBinary(v: Buffer, options: DataMappingOptions): Date | number {
         const t = v.readInt32BE();
         if (t === 0x7fffffff)
             return Infinity;
@@ -21,7 +25,7 @@ export const DateType: DataType = {
         return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
     },
 
-    encodeBinary(buf: SmartBuffer, v: Date | number | string, options: FetchOptions): void {
+    encodeBinary(buf: SmartBuffer, v: Date | number | string, options: DataMappingOptions): void {
         if (typeof v === 'string')
             v = parseDateTime(v, false, false, options.utcDates);
         if (v === Infinity) {
@@ -41,7 +45,7 @@ export const DateType: DataType = {
         buf.writeInt32BE(t);
     },
 
-    parseText(v: string, options: FetchOptions): Date | number {
+    parseText(v: string, options: DataMappingOptions): Date | number {
         return parseDateTime(v, false, false, options.utcDates);
     },
 
@@ -49,4 +53,11 @@ export const DateType: DataType = {
         return v instanceof Date;
     }
 
+}
+
+export const ArrayDateType: DataType = {
+    ...DateType,
+    name: '_date',
+    oid: DataTypeOIDs.ArrayDate,
+    elementsOID: DataTypeOIDs.Date
 }

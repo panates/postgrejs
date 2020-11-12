@@ -1,12 +1,25 @@
 import url from "url";
 import {ConnectionConfiguration} from '../definitions';
+import {configFromEnv} from './config-from-env';
+
+export function getConnectionConfig(config?: ConnectionConfiguration | string): ConnectionConfiguration {
+    if (typeof config === 'string')
+        return parseConnectionString(config);
+    const cfg = {...configFromEnv(), ...config};
+    if (cfg.host) {
+        const x = parseConnectionString('' + cfg.host);
+        return {...cfg, ...x};
+    }
+    return cfg;
+}
 
 export function parseConnectionString(str: string): ConnectionConfiguration {
 
-    if (str.startsWith('unix:///') || str.startsWith('/')) {
-        const arr = str.split(' ');
-        return {host: arr[0], database: arr[1]} as ConnectionConfiguration;
-    }
+    if (str.startsWith('/'))
+        str = 'socket:/' + str;
+
+    if (!str.includes('://'))
+        str = 'postgres://' + str;
 
     const parsed = url.parse(str, true);
     const getFirst = (v: string | string[] | null) => {
@@ -19,7 +32,7 @@ export function parseConnectionString(str: string): ConnectionConfiguration {
     if (parsed.port)
         cfg.port = parseInt(parsed.port, 10);
 
-    if (parsed.protocol == 'socket:') {
+    if (parsed.protocol == 'socket:' || parsed.protocol == 'unix:') {
         if (!cfg.host.startsWith('/'))
             cfg.host = '/' + cfg.host;
         cfg.host += decodeURI(parsed.pathname || '');
@@ -33,14 +46,14 @@ export function parseConnectionString(str: string): ConnectionConfiguration {
     if (parsed.query.host)
         cfg.host = decodeURI(getFirst(parsed.query.host));
 
-    if (parsed.query.schema)
-        cfg.schema = decodeURI(getFirst(parsed.query.schema));
+    if (parsed.query.db)
+        cfg.database = decodeURI(getFirst(parsed.query.db));
+
+    if (parsed.query['search-path'])
+        cfg.searchPath = decodeURI(getFirst(parsed.query['search-path']));
 
     if (parsed.query.application_name)
         cfg.applicationName = decodeURI(getFirst(parsed.query.application_name));
-
-    if (parsed.query.fallback_application_name)
-        cfg.fallbackApplicationName = decodeURI(getFirst(parsed.query.fallback_application_name));
 
     if (parsed.auth) {
         const a = parsed.auth.split(':');

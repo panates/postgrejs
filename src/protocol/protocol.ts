@@ -1,3 +1,5 @@
+import {Nullable} from '../definitions';
+
 export namespace Protocol {
 
     export const VERSION_MAJOR = 3;
@@ -143,7 +145,7 @@ export namespace Protocol {
 
     export interface DataRowMessage {
         columnCount: number;
-        columns: Buffer[];
+        columns: Nullable<Buffer>[];
     }
 
     export interface ErrorResponseMessage {

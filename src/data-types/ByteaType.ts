@@ -1,8 +1,11 @@
 import decodeBytea from 'postgres-bytea';
-import {DataType} from '../definitions';
+import {DataType, DataTypeOIDs} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
 
 export const ByteaType: DataType = {
+
+    name: 'bytea',
+    oid: DataTypeOIDs.Bytea,
 
     parseBinary(v: Buffer): Buffer {
         return v;
@@ -18,4 +21,12 @@ export const ByteaType: DataType = {
         return v instanceof Buffer;
     }
 
+}
+
+
+export const ArrayByteaType: DataType = {
+    ...ByteaType,
+    name: '_bytea',
+    oid: DataTypeOIDs.ArrayBytea,
+    elementsOID: DataTypeOIDs.Bytea
 }

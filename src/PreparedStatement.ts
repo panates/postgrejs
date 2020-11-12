@@ -1,12 +1,9 @@
-import crypto from "crypto";
 import {
     AnyParseFunction,
     CommandResult,
-    Maybe, OID,
+    Maybe, OID, StatementPrepareOptions,
     QueryOptions,
-    QueryResult,
-    ScriptResult,
-    StatementState
+    QueryResult
 } from './definitions';
 import {Connection} from './Connection';
 import {SafeEventEmitter} from './SafeEventEmitter';
@@ -22,26 +19,55 @@ import {
     parseRow,
     wrapRowDescription
 } from './common';
+import {GlobalTypeMap} from './DataTypeMap';
+
+let statementCounter = 0;
+let portalCounter = 0;
 
 export class PreparedStatement extends SafeEventEmitter {
     private readonly _connection: Connection;
     private readonly _socket: PgSocket;
-    private readonly _sql: string;
-    private readonly _name?: string;
+    private readonly _sql: string = '';
+    private readonly _name: string = '';
     private readonly _paramTypes: Maybe<Maybe<OID>[]>;
-    private _prepared = false;
-    private _state = StatementState.IDLE;
+    private _refcount = 0;
 
-    constructor(connection: Connection,
-                sql: string,
-                name?: string,
-                paramTypes?: Maybe<OID>[]) {
+    constructor(connection: Connection, sql: string, paramTypes?: OID[]) {
         super();
         this._connection = connection;
         this._socket = getSocket(this.connection);
+        this._name = 'S_' + (statementCounter++);
         this._sql = sql;
-        this._name = name;
         this._paramTypes = paramTypes;
+    }
+
+    static async prepare(connection: Connection,
+                         sql: string,
+                         options?: StatementPrepareOptions): Promise<PreparedStatement> {
+        const queue = getStatementQueue(connection);
+        const statement = new PreparedStatement(connection, sql, options?.paramTypes);
+        const socket = statement._socket;
+        await queue.enqueue<void>(() => {
+            socket.sendParseMessage({
+                statement: statement.name,
+                sql: statement.sql,
+                paramTypes: statement.paramTypes
+            });
+            socket.sendFlushMessage();
+            return socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error, result?: CommandResult) => void) => {
+                switch (code) {
+                    case Protocol.BackendMessageCode.NoticeResponse:
+                        break;
+                    case Protocol.BackendMessageCode.ParseComplete:
+                        done();
+                        break;
+                    default:
+                        done(new Error(`Server returned unexpected response message (0x${code.toString(16)})`));
+                }
+            });
+        });
+        statement._refcount = 1;
+        return statement;
     }
 
     get connection(): Connection {
@@ -50,10 +76,6 @@ export class PreparedStatement extends SafeEventEmitter {
 
     get name(): Maybe<string> {
         return this._name;
-    }
-
-    get state(): StatementState {
-        return this._state;
     }
 
     get sql(): string {
@@ -66,37 +88,32 @@ export class PreparedStatement extends SafeEventEmitter {
 
     async execute(options: QueryOptions = {}): Promise<QueryResult> {
         const queue = getStatementQueue(this.connection);
-        return queue.enqueue<ScriptResult>(async (): Promise<QueryResult> => {
-            this._state = StatementState.EXECUTING;
-            const prepared = this._prepared;
+        return queue.enqueue<QueryResult>(async (): Promise<QueryResult> => {
             let portal: Maybe<Portal>;
             try {
                 const result: QueryResult = {command: undefined};
                 const startTime = Date.now();
                 let t = Date.now();
-                await this._prepare();
-                result.prepareTime = Date.now() - t;
-                t = Date.now();
 
                 // Create portal
-                const portalName = options.cursor ?
-                    'P_' + crypto.randomBytes(8).toString('hex') : '';
+                const portalName = 'P_' + (++portalCounter);
                 portal = new Portal(this, portalName);
 
                 await portal.bind(options.params, options);
                 const fields = await portal.retrieveFields();
 
                 if (fields) {
-                    const parsers: AnyParseFunction[] = getParsers(fields);
-                    const resultFields = wrapRowDescription(fields);
+                    const typeMap = options.typeMap || GlobalTypeMap;
+                    const parsers: AnyParseFunction[] = getParsers(typeMap, fields);
+                    const resultFields = wrapRowDescription(typeMap, fields);
                     if (options.cursor) {
-                        const cursor = new Cursor(
+                        result.cursor = new Cursor(
+                            this,
                             portal,
                             resultFields,
                             parsers,
-                            options.fetchCount,
-                            options.objectRows);
-                        result.cursor = cursor;
+                            options);
+                        this._refcount++;
                         portal = undefined;
                         return result;
                     }
@@ -115,7 +132,7 @@ export class PreparedStatement extends SafeEventEmitter {
                             row = rows[i];
                             parseRow(parsers, row, options);
                             if (options.objectRows) {
-                                rows[i] = convertRowToObject(fields, row);
+                                rows[i] = convertRowToObject(resultFields, row);
                             }
                         }
                     }
@@ -124,76 +141,38 @@ export class PreparedStatement extends SafeEventEmitter {
                         result.command === 'UPDATE')
                         result.rowsAffected = executeResult.rowCount;
                 }
-                result.totalTime = Date.now() - startTime;
+                result.executeTime = Date.now() - startTime;
                 return result;
             } finally {
                 if (portal)
                     await portal.close();
-                if (!prepared)
-                    await this._close();
-                this._state = StatementState.IDLE;
             }
         });
-    }
-
-    async prepare(): Promise<void> {
-        if (this._prepared) return;
-        const queue = getStatementQueue(this.connection);
-        return queue.enqueue<void>(() => this._prepare());
     }
 
     async close(): Promise<void> {
-        if (this._prepared) return;
+        if (--this._refcount > 0) return;
         const queue = getStatementQueue(this.connection);
-        return queue.enqueue<void>(() => this._close());
-    }
-
-    private async _prepare(): Promise<void> {
-        if (this._prepared) return;
-        this._state = StatementState.PREPARING;
-        const socket = getSocket(this.connection);
-        socket.sendParseMessage({
-            statement: this.name,
-            sql: this.sql,
-            paramTypes: this.paramTypes
+        await queue.enqueue<void>(async () => {
+            const socket = this._socket;
+            await socket.sendCloseMessage({type: 'S', name: this.name});
+            await socket.sendSyncMessage();
+            return socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error) => void) => {
+                switch (code) {
+                    case Protocol.BackendMessageCode.NoticeResponse:
+                        this.emit('notice', msg);
+                        break;
+                    case Protocol.BackendMessageCode.CloseComplete:
+                        break;
+                    case Protocol.BackendMessageCode.ReadyForQuery:
+                        done();
+                        break;
+                    default:
+                        done(new Error(`Server returned unexpected response message (0x${code.toString(16)})`));
+                }
+            });
         });
-        socket.sendFlushMessage();
-        return socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error, result?: CommandResult) => void) => {
-            switch (code) {
-                case Protocol.BackendMessageCode.NoticeResponse:
-                    this.emit('notice', msg);
-                    break;
-                case Protocol.BackendMessageCode.ParseComplete:
-                    this._prepared = true;
-                    this._state = StatementState.IDLE;
-                    done();
-                    break;
-                default:
-                    this._state = StatementState.IDLE;
-                    done(new Error(`Server returned unexpected response message (0x${code.toString(16)})`));
-            }
-        });
-    }
-
-    private async _close(): Promise<void> {
-        const socket = this._socket;
-        await socket.sendCloseMessage({type: 'P', name: this.name});
-        await socket.sendSyncMessage();
-        return socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error) => void) => {
-            switch (code) {
-                case Protocol.BackendMessageCode.NoticeResponse:
-                    this.emit('notice', msg);
-                    break;
-                case Protocol.BackendMessageCode.CloseComplete:
-                    this._prepared = false;
-                    break;
-                case Protocol.BackendMessageCode.ReadyForQuery:
-                    done();
-                    break;
-                default:
-                    done(new Error(`Server returned unexpected response message (0x${code.toString(16)})`));
-            }
-        });
+        this.emit('close');
     }
 
     async cancel(): Promise<void> {

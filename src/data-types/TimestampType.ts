@@ -1,5 +1,6 @@
-import {DataType, FetchOptions} from '../definitions';
+import {DataType, DataTypeOIDs, DataMappingOptions} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
+// noinspection ES6PreferShortImport
 import {parseDateTime} from '../helpers/parse-datetime';
 
 const timeShift = 946684800000;
@@ -7,7 +8,10 @@ const timeMul = 4294967296;
 
 export const TimestampType: DataType = {
 
-    parseBinary(v: Buffer, options: FetchOptions): Date | number {
+    name: 'timestamp',
+    oid: DataTypeOIDs.Timestamp,
+
+    parseBinary(v: Buffer, options: DataMappingOptions): Date | number {
         const hi = v.readInt32BE();
         const lo = v.readUInt32BE(4);
         if (lo === 0xffffffff && hi === 0x7fffffff) return Infinity;
@@ -23,7 +27,7 @@ export const TimestampType: DataType = {
             d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds(), d.getUTCMilliseconds());
     },
 
-    encodeBinary(buf: SmartBuffer, v: Date | number | string, options: FetchOptions): void {
+    encodeBinary(buf: SmartBuffer, v: Date | number | string, options: DataMappingOptions): void {
         if (typeof v === 'string')
             v = parseDateTime(v, true, false, options.utcDates);
         if (v === Infinity) {
@@ -48,7 +52,7 @@ export const TimestampType: DataType = {
         buf.writeUInt32BE(lo);
     },
 
-    parseText(v: string, options: FetchOptions): Date | number {
+    parseText(v: string, options: DataMappingOptions): Date | number {
         return parseDateTime(v, true, false, options.utcDates);
     },
 
@@ -56,4 +60,11 @@ export const TimestampType: DataType = {
         return v instanceof Date;
     }
 
+}
+
+export const ArrayTimestampType: DataType = {
+    ...TimestampType,
+    name: '_timestamp',
+    oid: DataTypeOIDs.ArrayTimestamp,
+    elementsOID: DataTypeOIDs.Timestamp
 }

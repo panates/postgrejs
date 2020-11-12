@@ -3,11 +3,11 @@ import '../_support/env';
 import {
     Connection,
     BindParam,
-    DataTypeOIDs,
-    DataTypeRegistry,
-    FetchOptions,
+    GlobalTypeMap,
+    DataMappingOptions,
     escapeLiteral,
-    stringifyValueForSQL
+    stringifyValueForSQL,
+    DataTypeOIDs
 } from '../../src';
 import {Protocol} from '../../src/protocol/protocol';
 
@@ -16,10 +16,10 @@ import DataFormat = Protocol.DataFormat;
 describe('Data type encode/decode', function () {
 
     let connection: Connection;
-    process.env.TZ = 'Europe/Istanbul';
+    process.env.PGTZ = 'Europe/Istanbul';
 
     before(async () => {
-        connection = new Connection(process.env.DB_URL);
+        connection = new Connection();
         await connection.connect();
         await connection.execute('SET SESSION timezone TO \'Europe/Berlin\'');
     })
@@ -31,24 +31,24 @@ describe('Data type encode/decode', function () {
 
     async function parseTest(dataTypeId: number, input: any[], output: any[],
                              opts: { columnFormat: DataFormat },
-                             fetchOpts?: FetchOptions) {
-        const reg = DataTypeRegistry.items[dataTypeId];
+                             mappingOptions?: DataMappingOptions) {
+        const reg = GlobalTypeMap.get(dataTypeId);
         if (!reg)
             throw new Error(`Data type "${dataTypeId}" is not registered.`);
         const typeName = reg.name;
         let sql;
-        if (reg.isArray) {
-            const s = stringifyValueForSQL(input, opts);
+        if (reg.elementsOID) {
+            const s = stringifyValueForSQL(input, mappingOptions);
             sql = `select ${s}::${typeName} as f1`;
         } else {
             const inp = input.map(escapeLiteral);
             sql = 'select ' + inp.map((x: string, i: number) => `${x}::${typeName} as f${i + 1}`)
                 .join(', ');
         }
-        const resp = await connection.query(sql, {...fetchOpts, columnFormat: opts.columnFormat});
+        const resp = await connection.query(sql, {...mappingOptions, columnFormat: opts.columnFormat});
         assert.ok(resp && resp.rows);
 
-        if (reg.isArray)
+        if (reg.elementsOID)
             assert.deepStrictEqual(resp.rows[0][0], output);
         else
             for (const [i, v] of output.entries()) {
@@ -57,13 +57,13 @@ describe('Data type encode/decode', function () {
     }
 
     async function encodeTest(dataTypeId: number, input: any[], output?: any[],
-                              fetchOpts?: FetchOptions) {
-        const reg = DataTypeRegistry.items[dataTypeId];
+                              mappingOptions?: DataMappingOptions) {
+        const reg = GlobalTypeMap.get(dataTypeId);
         if (!reg)
             throw new Error(`Data type "0x${dataTypeId.toString(16)}" is not registered.`);
         let sql;
         let params;
-        if (reg.isArray) {
+        if (reg.elementsOID) {
             sql = 'select $1 as f1';
             params = [new BindParam(dataTypeId, input)];
         } else {
@@ -72,10 +72,10 @@ describe('Data type encode/decode', function () {
                 .join(', ');
             params = input.map(v => new BindParam(dataTypeId, v));
         }
-        const resp = await connection.query(sql, {...fetchOpts, params});
+        const resp = await connection.query(sql, {...mappingOptions, params});
         assert.ok(resp && resp.rows);
         output = output === undefined ? input : output;
-        if (reg.isArray)
+        if (reg.elementsOID)
             assert.deepStrictEqual(resp.rows[0][0], output);
         else
             for (const [i, v] of output.entries()) {

@@ -1,10 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {Connection} from '../../src';
-import {stringifyValueForSQL} from '../../src/helpers/stringify-for-sql';
+import {stringifyValueForSQL} from '../../src';
 
 let testDbCreated = false;
-let testDbFilled = false;
 const structureScript = fs.readFileSync(path.join(__dirname, 'createdb.sql'), 'utf8');
 const dataFiles: any[] = [
     JSON.parse(fs.readFileSync(path.join(__dirname, 'test-data', 'regions.json'), 'utf8')),
@@ -15,13 +14,6 @@ export async function createTestSchema(connection: Connection) {
     if (testDbCreated)
         return;
     await connection.execute(structureScript);
-    testDbCreated = true;
-}
-
-export async function fillTestSchema(connection: Connection) {
-    if (testDbFilled)
-        return;
-
     /* Create tables */
     for (const table of dataFiles) {
         /* Insert rows */
@@ -36,5 +28,5 @@ export async function fillTestSchema(connection: Connection) {
         }
         await connection.execute(sql);
     }
-    testDbFilled = true;
+    testDbCreated = true;
 }

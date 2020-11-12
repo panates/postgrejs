@@ -1,10 +1,13 @@
-import {DataType, Maybe, Point} from '../definitions';
+import {DataType, DataTypeOIDs, Maybe, Point} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
 
 const POINT_PATTERN1 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\)$/;
 const POINT_PATTERN2 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 
 export const PointType: DataType = {
+
+    name: 'point',
+    oid: DataTypeOIDs.Point,
 
     parseBinary(v: Buffer): Point {
         return {
@@ -34,4 +37,11 @@ export const PointType: DataType = {
             typeof v.y === 'number';
     }
 
+}
+
+export const ArrayPointType: DataType = {
+    ...PointType,
+    name: '_point',
+    oid: DataTypeOIDs.ArrayPoint,
+    elementsOID: DataTypeOIDs.Point
 }

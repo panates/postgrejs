@@ -1,9 +1,10 @@
-import arrayParser from 'postgres-array';
-import {DataType} from '../definitions';
+import {DataType, DataTypeOIDs} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
 
 export const Float8Type: DataType = {
 
+    name: 'float8',
+    oid: DataTypeOIDs.Float8,
 
     parseBinary(v: Buffer): number {
         return v.readDoubleBE(0);
@@ -19,4 +20,11 @@ export const Float8Type: DataType = {
         return typeof v === 'number';
     }
 
+}
+
+export const ArrayFloat8Type: DataType = {
+    ...Float8Type,
+    name: '_float8',
+    oid: DataTypeOIDs.ArrayFloat8,
+    elementsOID: DataTypeOIDs.Float8
 }

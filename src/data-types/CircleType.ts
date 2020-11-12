@@ -1,4 +1,4 @@
-import {DataType, Circle, Maybe} from '../definitions';
+import {DataType, DataTypeOIDs, Circle, Maybe} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
 
 const CIRCLE_PATTERN1 = /^< *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *(-?\d+\.?\d*) *>$/;
@@ -7,6 +7,9 @@ const CIRCLE_PATTERN3 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *(-?\d+\.?\
 const CIRCLE_PATTERN4 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/
 
 export const CircleType: DataType = {
+
+    name: 'circle',
+    oid: DataTypeOIDs.Circle,
 
     parseBinary(v: Buffer): Circle {
         return {
@@ -41,4 +44,11 @@ export const CircleType: DataType = {
             typeof v.r === 'number';
     }
 
+}
+
+export const ArrayCircleType: DataType = {
+    ...CircleType,
+    name: '_circle',
+    oid: DataTypeOIDs.ArrayCircle,
+    elementsOID: DataTypeOIDs.Circle
 }

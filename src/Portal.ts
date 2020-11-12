@@ -1,9 +1,10 @@
 import {Connection} from './Connection';
-import {FetchOptions, Maybe} from './definitions';
+import {Maybe, QueryOptions} from './definitions';
 import {Protocol} from './protocol/protocol';
 import {getSocket} from './common';
 import {PgSocket} from './protocol/PgSocket';
 import {PreparedStatement} from './PreparedStatement';
+import {GlobalTypeMap} from './DataTypeMap';
 
 export interface PortalExecuteResult {
     code: Protocol.BackendMessageCode;
@@ -34,16 +35,17 @@ export class Portal {
     }
 
     async bind(params: Maybe<any[]>,
-               fetchOptions: FetchOptions): Promise<void> {
+               queryOptions: QueryOptions): Promise<void> {
         const socket = this._socket;
-        this._columnFormat = fetchOptions.columnFormat != null ?
-            fetchOptions.columnFormat : Protocol.DataFormat.binary;
+        this._columnFormat = queryOptions.columnFormat != null ?
+            queryOptions.columnFormat : Protocol.DataFormat.binary;
         socket.sendBindMessage({
+            typeMap: queryOptions.typeMap || GlobalTypeMap,
             statement: this._statement.name,
             portal: this.name,
             paramTypes: this._statement.paramTypes,
             params,
-            fetchOptions: fetchOptions
+            queryOptions: queryOptions
         });
         socket.sendFlushMessage();
         return socket.capture(async (code: Protocol.BackendMessageCode, msg: any,

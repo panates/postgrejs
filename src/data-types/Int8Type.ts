@@ -1,7 +1,10 @@
-import {DataType} from '../definitions';
+import {DataType, DataTypeOIDs} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
 
 export const Int8Type: DataType = {
+
+    name: 'int8',
+    oid: DataTypeOIDs.Int8,
 
     parseBinary(v: Buffer): bigint {
         return v.readBigInt64BE(0);
@@ -19,4 +22,11 @@ export const Int8Type: DataType = {
         return v instanceof BigInt;
     }
 
+}
+
+export const ArrayInt8Type: DataType = {
+    ...Int8Type,
+    name: '_int8',
+    oid: DataTypeOIDs.ArrayInt8,
+    elementsOID: DataTypeOIDs.Int8
 }

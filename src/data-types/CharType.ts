@@ -1,7 +1,9 @@
-import {DataType} from '../definitions';
-import {SmartBuffer} from '../protocol/SmartBuffer';
+import {DataType, DataTypeOIDs} from '../definitions';
 
 export const CharType: DataType = {
+
+    name: 'char',
+    oid: DataTypeOIDs.Char,
 
     parseBinary(v: Buffer): string {
         return v.toString('utf8');
@@ -19,4 +21,11 @@ export const CharType: DataType = {
         return typeof v === 'string' && v.length === 1;
     }
 
+}
+
+export const ArrayCharType: DataType = {
+    ...CharType,
+    name: '_char',
+    oid: DataTypeOIDs.ArrayChar,
+    elementsOID: DataTypeOIDs.Char
 }

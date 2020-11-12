@@ -1,6 +1,5 @@
 import {SafeEventEmitter} from './SafeEventEmitter';
-import {Connection} from './Connection';
-import {ScriptExecuteOptions, ScriptResult} from './definitions';
+import {CommandResult, ScriptExecuteOptions, ScriptResult} from './definitions';
 import {Protocol} from './protocol/protocol';
 import {
     convertRowToObject,
@@ -10,6 +9,8 @@ import {
     parseRow,
     wrapRowDescription
 } from './common';
+import {Connection} from './Connection';
+import {GlobalTypeMap} from './DataTypeMap';
 
 export class ScriptExecutor extends SafeEventEmitter {
 
@@ -46,8 +47,9 @@ export class ScriptExecutor extends SafeEventEmitter {
                 socket.sendQueryMessage(sql);
                 let currentStart = Date.now();
                 let parsers;
-                let current: any = {command: undefined};
+                let current: CommandResult = {command: undefined};
                 let fields: Protocol.RowDescription[];
+                const typeMap = options.typeMap || GlobalTypeMap;
                 return socket.capture(async (code: Protocol.BackendMessageCode, msg: any,
                                              done: (err?: Error, result?: any) => void) => {
                     switch (code) {
@@ -58,15 +60,15 @@ export class ScriptExecutor extends SafeEventEmitter {
                             break;
                         case Protocol.BackendMessageCode.RowDescription:
                             fields = msg.fields;
-                            parsers = getParsers(fields);
-                            current.fields = wrapRowDescription(fields);
+                            parsers = getParsers(typeMap, fields);
+                            current.fields = wrapRowDescription(typeMap, fields);
                             current.rows = [];
                             break;
                         case Protocol.BackendMessageCode.DataRow:
                             let row = msg.columns.map((x: Buffer) => x.toString('utf8'));
                             parseRow(parsers, row, options);
-                            if (options.objectRows)
-                                row = convertRowToObject(fields, row);
+                            if (options.objectRows && current.fields)
+                                row = convertRowToObject(current.fields, row);
                             this.emit('row', row);
                             current.rows = current.rows || [];
                             current.rows.push(row);

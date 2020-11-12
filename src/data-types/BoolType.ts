@@ -1,7 +1,10 @@
-import {DataType} from '../definitions';
+import {DataType, DataTypeOIDs} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
 
 export const BoolType: DataType = {
+
+    name: 'bool',
+    oid: DataTypeOIDs.Bool,
 
     parseBinary(v: Buffer): boolean {
         return !!v.readUInt8();
@@ -21,4 +24,11 @@ export const BoolType: DataType = {
         return typeof v === 'boolean';
     }
 
+}
+
+export const ArrayBoolType: DataType = {
+    ...BoolType,
+    name: '_bool',
+    oid: DataTypeOIDs.ArrayBool,
+    elementsOID: DataTypeOIDs.Bool
 }

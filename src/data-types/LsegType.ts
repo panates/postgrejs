@@ -1,4 +1,4 @@
-import {DataType, Rectangle, Maybe} from '../definitions';
+import {DataType, DataTypeOIDs, Rectangle, Maybe} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
 
 const LSEG_PATTERN1 = /^\[ *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *]$/;
@@ -7,6 +7,9 @@ const LSEG_PATTERN3 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.
 const LSEG_PATTERN4 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/
 
 export const LsegType: DataType = {
+
+    name: 'lseg',
+    oid: DataTypeOIDs.Lseg,
 
     parseBinary(v: Buffer): Rectangle {
         return {
@@ -45,4 +48,11 @@ export const LsegType: DataType = {
             typeof v.y2 === 'number';
     }
 
+}
+
+export const ArrayLsegType: DataType = {
+    ...LsegType,
+    name: '_lseg',
+    oid: DataTypeOIDs.ArrayLseg,
+    elementsOID: DataTypeOIDs.Lseg
 }

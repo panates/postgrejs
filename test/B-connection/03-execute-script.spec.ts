@@ -1,14 +1,14 @@
 import assert from 'assert';
 import '../_support/env';
 import {Connection} from '../../src';
-import {createTestSchema, fillTestSchema} from '../_support/createdb';
+import {createTestSchema} from '../_support/createdb';
 
 describe('Execute script (Simple Query)', function () {
 
     let connection: Connection;
 
     before(async () => {
-        connection = new Connection(process.env.DB_URL);
+        connection = new Connection();
         await connection.connect();
     })
 
@@ -108,10 +108,6 @@ describe('Execute script (Simple Query)', function () {
         assert.deepStrictEqual(row.f_circle, {x: -1.2, y: 3.5, r: 4.6});
         assert.deepStrictEqual(row.f_lseg, {x1: 1.2, y1: 3.5, x2: 4.6, y2: 5.2});
         assert.deepStrictEqual(row.f_box, {x1: 4.6, y1: 3, x2: -1.6, y2: 0.1});
-    });
-
-    it('fill test schema', async function () {
-        await fillTestSchema(connection);
     });
 
     it('should return all rows', async function () {

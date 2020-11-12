@@ -60,6 +60,8 @@ export class Backend {
             // Set offset to next message
             io.offset = offsetBookmark + len + 1;
         }
+        if (io.offset < io.length)
+            this._buf = io.readBuffer(io.length - io.offset);
     }
 
 }
@@ -190,8 +192,10 @@ function parseDataRow(io: BufferReader): Protocol.DataRowMessage {
             // Can be zero. As a special case, -1 indicates a NULL column value.
             // No value bytes follow in the NULL case.
             const l = io.readInt32BE();
-            const v = io.readBuffer(l);
-            out.columns.push(v);
+            if (l < 0)
+                out.columns.push(null);
+            else
+                out.columns.push(io.readBuffer(l));
         }
     }
     return out;

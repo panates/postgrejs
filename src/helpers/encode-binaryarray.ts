@@ -1,9 +1,9 @@
 import {SmartBuffer} from '../protocol/SmartBuffer';
-import {DataTypeOIDs, EncodeBinaryFunction, FetchOptions, OID} from '../definitions';
+import {DataTypeOIDs, EncodeBinaryFunction, DataMappingOptions, OID} from '../definitions';
 import {arrayCalculateDim} from './array-calculatedim';
 
 export function encodeBinaryArray(io: SmartBuffer, value: any[], itemOid: OID,
-                                  options: FetchOptions, encode: EncodeBinaryFunction): Buffer {
+                                  options: DataMappingOptions, encode: EncodeBinaryFunction): Buffer {
     itemOid = itemOid || DataTypeOIDs.Varchar;
     const dim = arrayCalculateDim(value);
     const ndims = dim.length;

@@ -1,7 +1,9 @@
-import {DecodeBinaryFunction, FetchOptions} from '../definitions';
+import {DecodeBinaryFunction, DataMappingOptions, Nullable} from '../definitions';
 import {BufferReader} from '../protocol/BufferReader';
 
-export function decodeBinaryArray(buf: Buffer, decoder: DecodeBinaryFunction, options: FetchOptions): any[] {
+export function decodeBinaryArray(buf: Buffer, decoder: DecodeBinaryFunction, options: DataMappingOptions): Nullable<any[]> {
+    if (!buf.length)
+        return null;
     const io = new BufferReader(buf);
     const ndims = io.readInt32BE();
     io.readInt32BE(); // hasNulls

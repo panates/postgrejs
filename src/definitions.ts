@@ -1,11 +1,222 @@
 import tls from "tls";
-import {Cursor} from './Cursor';
-import {SmartBuffer} from './protocol/SmartBuffer';
-import {Protocol} from './protocol/protocol';
-import DataFormat = Protocol.DataFormat;
+import type {Cursor} from './Cursor';
+import type {SmartBuffer} from './protocol/SmartBuffer';
+import type {Protocol} from './protocol/protocol';
+import type {PoolOptions} from 'lightning-pool';
+import {DataTypeMap} from './DataTypeMap';
+import {BindParam} from './BindParam';
 
 export type OID = number;
 export type Maybe<T> = T | undefined;
+export type Nullable<T> = T | null;
+export type DataFormat  = Protocol.DataFormat;
+
+export interface DatabaseConnectionParams {
+    host?: string;
+    port?: number;
+    user?: string;
+    password?: string | (() => string | Promise<string>);
+    database?: string;
+    applicationName?: string;
+    ssl?: tls.ConnectionOptions;
+    timezone?: string;
+    searchPath?: string;
+    connectTimeoutMs?: number;
+}
+
+export interface SocketOptions {
+    keepAlive?: boolean;
+}
+
+export type ConnectionConfiguration = DatabaseConnectionParams & SocketOptions;
+
+export interface PoolConfiguration extends ConnectionConfiguration, PoolOptions {
+}
+
+export enum ConnectionState {
+    CLOSED = 0,
+    CONNECTING = 1,
+    AUTHORIZING = 3,
+    READY = 2,
+    CLOSING = 10,
+}
+
+export interface DataMappingOptions {
+    /**
+     * If true UTC time will be used for date decoding, else system time offset will be used
+     * @default false
+     */
+    utcDates?: boolean;
+}
+
+export interface ScriptExecuteOptions extends DataMappingOptions {
+    /**
+     * Specifies if rows will be fetched as <FieldName, Value> pair objects or array of values
+     * @default false
+     */
+    objectRows?: boolean;
+    /**
+     * Data type map instance
+     * @default GlobalTypeMap
+     */
+    typeMap?: DataTypeMap;
+}
+
+export interface StatementPrepareOptions {
+    /**
+     * Specifies data type for each parameter
+     */
+    paramTypes?: OID[];
+    /**
+     * Data type map instance
+     * @default GlobalTypeMap
+     */
+    typeMap?: DataTypeMap;
+}
+
+export interface QueryOptions extends DataMappingOptions {
+    /**
+     * Specifies if rows will be fetched as <FieldName, Value> pair objects or array of values
+     * @default false
+     */
+    objectRows?: boolean;
+    /**
+     * Data type map instance
+     * @default GlobalTypeMap
+     */
+    typeMap?: DataTypeMap;
+    /**
+     * If true, returns Cursor instance instead of rows
+     */
+    cursor?: boolean;
+    /**
+     * Query execution parameters
+     */
+    params?: (BindParam | any)[];
+    /**
+     * Specifies transfer format (binary or text) for each column
+     * @default DataFormat.binary
+     */
+    columnFormat?: DataFormat | DataFormat[];
+    /**
+     * Specifies how many rows will be fetched. For Cursor, this value specifies how many rows will be fetched in a batch
+     * @default 100
+     */
+    fetchCount?: number;
+}
+
+export interface CommandResult {
+    /**
+     * Name of the command (INSERT, SELECT, UPDATE, etc.)
+     */
+    command?: string;
+    /**
+     * Contains information about fields in column order
+     */
+    fields?: FieldInfo[];
+    /**
+     * Contains array of row data
+     */
+    rows?: any[];
+    /**
+     * Time elapsed to execute command
+     */
+    executeTime?: number;
+    /**
+     * How many rows affected
+     */
+    rowsAffected?: number;
+}
+
+export interface ScriptResult {
+    /**
+     * Array of command result for each sql command in the script
+     */
+    results: CommandResult[];
+    /**
+     * Command count in the script
+     */
+    totalCommands: number;
+    /**
+     * Total execution time
+     */
+    totalTime: number;
+}
+
+export interface FieldInfo {
+    /**
+     * Name of the field
+     */
+    fieldName: string;
+    /**
+     * OID of the table
+     */
+    tableId?: number;
+    /**
+     * OID of the column
+     */
+    columnId?: number;
+    /**
+     * OID of the data type
+     */
+    dataTypeId: number;
+    /**
+     * Data length if data type has a fixed size
+     */
+    fixedSize?: number;
+    /**
+     * Modifier of the data type
+     */
+    modifier?: number;
+    /**
+     * Whether the data type is an array
+     */
+    isArray?: boolean;
+}
+
+export interface QueryResult extends CommandResult {
+    /**
+     * Cursor instance
+     */
+    cursor?: Cursor;
+}
+
+export type DecodeBinaryFunction = (buf: Buffer, options: DataMappingOptions) => any;
+export type EncodeBinaryFunction = (buf: SmartBuffer, v: any, options: DataMappingOptions) => void;
+export type ParseTextFunction = (v: any, options: DataMappingOptions) => any;
+export type EncodeTextFunction = (v: any, options: DataMappingOptions) => string;
+
+export type AnyParseFunction = ParseTextFunction | DecodeBinaryFunction;
+
+export interface DataType {
+    oid: OID;
+    name: string;
+    elementsOID?: OID;
+    arraySeparator?: string;
+    isType: (v: any) => boolean;
+    parseBinary: DecodeBinaryFunction;
+    parseText: ParseTextFunction;
+    encodeBinary?: EncodeBinaryFunction;
+    encodeText?: EncodeTextFunction;
+}
+
+export interface Point {
+    x: number,
+    y: number
+}
+
+export interface Circle {
+    x: number,
+    y: number,
+    r: number
+}
+
+export interface Rectangle {
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+}
 
 export const DataTypeOIDs = {
     Bool: 16,
@@ -119,110 +330,4 @@ export const DataTypeOIDs = {
     ArrayTimestamptz: 1185,
     ArrayUuid: 2951,
     ArrayJsonb: 3807,
-}
-
-export interface ConnectionConfiguration {
-    host?: string | null;
-    port?: number;
-    user?: string | null;
-    password?: string | (() => string | Promise<string>) | null;
-    database?: string | null;
-    schema?: string | null;
-    applicationName?: string | null;
-    fallbackApplicationName?: string | null;
-    ssl?: tls.ConnectionOptions;
-    /**
-     * Connect timeout in milliseconds
-     */
-    connectTimeoutMs?: number;
-    keepAlive?: boolean;
-    keepAliveInitialDelayMillis?: number;
-}
-
-export enum ConnectionState {
-    CLOSED = 0,
-    CONNECTING = 1,
-    AUTHORIZING = 3,
-    READY = 2,
-    CLOSING = 10,
-}
-
-export enum StatementState {
-    IDLE = 0,
-    PREPARING = 1,
-    EXECUTING = 1
-}
-
-export interface FetchOptions {
-    fetchAsString?: OID[];
-    fetchCount?: number;
-    objectRows?: boolean;
-    utcDates?: boolean;
-    columnFormat?: DataFormat | DataFormat[];
-}
-
-export interface ScriptExecuteOptions extends FetchOptions {
-}
-
-export interface CommandResult {
-    command?: string;
-    fields?: any[];
-    rows?: any[];
-    executeTime?: number;
-    rowsAffected?: number;
-}
-
-export interface ScriptResult {
-    results: CommandResult[];
-    totalCommands: number;
-    totalTime: number;
-}
-
-export interface QueryOptions extends FetchOptions {
-    params?: any[];
-    cursor?: boolean;
-}
-
-export type BindValue = string | Buffer | null;
-
-export interface QueryResult extends CommandResult {
-    cursor?: Cursor;
-    prepareTime?: number;
-    fetchTime?: number;
-    totalTime?: number;
-}
-
-export type DecodeBinaryFunction = (buf: Buffer, options: FetchOptions) => any;
-export type EncodeBinaryFunction = (buf: SmartBuffer, v: any, options: FetchOptions) => void;
-export type ParseTextFunction = (v: any, options: FetchOptions) => any;
-export type EncodeTextFunction = (v: any, options: FetchOptions) => string;
-
-export type AnyParseFunction = ParseTextFunction | DecodeBinaryFunction;
-
-export interface DataType {
-
-    isType: (v: any) => boolean;
-    parseBinary: DecodeBinaryFunction;
-    parseText: ParseTextFunction;
-    encodeBinary?: EncodeBinaryFunction;
-    encodeText?: EncodeTextFunction;
-    arraySeparator?: string;
-}
-
-export interface Point {
-    x: number,
-    y: number
-}
-
-export interface Circle {
-    x: number,
-    y: number,
-    r: number
-}
-
-export interface Rectangle {
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
 }
