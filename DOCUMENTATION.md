@@ -3,40 +3,39 @@
 # Contents
 
 - 1\. [Usage](#1-usage)
-    - 1.1 [Connecting](#1-1-connecting)
-        - 1.1.1 [Connection strings](#1-1-1-connection-strings)
-        - 1.1.2 [Environment variables](#1-1-2-environmentvariables)
-    - 1.2 [Pooling](#12pooling)
-        - 1.2.1 [Pool configuration](#1-2-1-poolcon-figuration)
-        - 1.2.2 [Obtaining a connection](#1-2-2-obtaining-a-connection)
-        - 1.2.3 [Shutting down the pool](#1-2-3-shutting-down-the-pool)
-    - 1.3 [Queries](#1-3-queries)        
-        - 1.3.1 [Simple query](#1-3-1-simple-query)
-        - 1.3.2 [Extended query](#1-3-2-simple-query)
-        - 1.3.3 [Prepared Statements](#1-3-3-prepared-statements)
-        - 1.3.4 [Using Cursors](#1-3-4-using-cursors)
-    - 1.4 [Transactions](#1-4-transactions)
-    - 1.5 [Registering data types](#1-5-registering-datatypes)
+    - 1.1 [Connecting](#11-connecting)
+        - 1.1.1 [Connection strings](#111-connection-strings)
+        - 1.1.2 [Environment variables](#112-environment-variables)
+    - 1.2 [Pooling](#12-pooling)
+        - 1.2.1 [Obtaining a connection](#121-obtaining-a-connection)
+        - 1.2.2 [Shutting down the pool](#122-shutting-down-the-pool)
+    - 1.3 [Queries](#13-queries)        
+        - 1.3.1 [Simple query](#131-simple-query)
+        - 1.3.2 [Extended query](#132-extended-query)
+        - 1.3.3 [Prepared Statements](#133-prepared-statements)
+        - 1.3.4 [Using Cursors](#134-using-cursors)
+    - 1.4 [Transactions](#14-transactions)
+    - 1.5 [Registering data types](#15-registering-data-types)
 - 2\. [API](#2-api)
-    - 2.1 [Classes](#2-1-classes)
-        - 2.1.1 [Connection](#2-1-1-connection)
-        - 2.1.2 [Pool](#2-1-2-pool)
-        - 2.1.3 [Cursor](#2-1-3-cursor)
-        - 2.1.4 [PreparedStatement](#2-1-4-prepared-statement)
-        - 2.1.5 [ScriptExecutor](#2-1-5-script-executor)
-        - 2.1.6 [BindParam](#2-1-6-bindparam)
-        - 2.1.7 [DataTypeMap](#2-1-7-datatypemap)
-    - 2.2 [Interfaces](#2-2-interfaces)
-        - 2.2.1 [ConnectionConfiguration](#2-2-1-connection-configuration)
-        - 2.2.2 [PoolConfiguration](#2-2-2-pool-configuration)
-        - 2.2.3 [DataMappingOptions](#2-2-3-datamappingoptions)
-        - 2.2.4 [ScriptExecuteOptions](#2-2-4-scriptexecuteoptions)
-        - 2.2.5 [ScriptResult](#2-2-5-scriptresult)
-        - 2.2.6 [CommandResult](#2-2-6-commandresult)
-        - 2.2.7 [FieldInfo](#2-2-7-fieldinfo)
-        - 2.2.8 [StatementPrepareOptions](#2-2-8-statementprepareoptions)
-        - 2.2.9 [QueryOptions](#2-2-9-queryoptions)
-        - 2.2.10 [QueryResult](#2-2-10-queryresult)
+    - 2.1 [Classes](#21-classes)
+        - 2.1.1 [Connection](#211-connection)
+        - 2.1.2 [Pool](#212-pool)
+        - 2.1.3 [Cursor](#213-cursor)
+        - 2.1.4 [PreparedStatement](#214-preparedstatement)
+        - 2.1.5 [ScriptExecutor](#215-scriptexecutor)
+        - 2.1.6 [BindParam](#216-bindparam)
+        - 2.1.7 [DataTypeMap](#217-datatypemap)
+    - 2.2 [Interfaces](#22-interfaces)
+        - 2.2.1 [ConnectionConfiguration](#221-connectionconfiguration)
+        - 2.2.2 [PoolConfiguration](#222-poolconfiguration)
+        - 2.2.3 [DataMappingOptions](#223-datamappingoptions)
+        - 2.2.4 [ScriptExecuteOptions](#224-scriptexecuteoptions)
+        - 2.2.5 [ScriptResult](#225-scriptresult)
+        - 2.2.6 [CommandResult](#226-commandresult)
+        - 2.2.7 [FieldInfo](#227-fieldinfo)
+        - 2.2.8 [StatementPrepareOptions](#228-statementprepareoptions)
+        - 2.2.9 [QueryOptions](#229-queryoptions)
+        - 2.2.10 [QueryResult](#2210-queryresult)
    
 # 1. Usage
 
@@ -46,7 +45,7 @@ If you want to establish a single session to a PostgreSQL server
 you need to use `Connection` class. If you require a connection pool use `Pool` class instead.
 
 
-*new Connection([config: String | [ConnectionConfiguration](#2-2-1-connectionconfiguration)]);*
+*new Connection([config: String | [ConnectionConfiguration](#221-connectionconfiguration)]);*
 
 ```ts
 import {Connection} from 'postgresql-client';
@@ -111,9 +110,9 @@ const connection = new Connection(); // Initialize using environment variables
 
 
 ## 1.2. Pooling
-`Pool` class is used to create a connection pool. Constructor accepts connection string or [PoolConfiguration](#2-2-2-poolconfiguration) interface
+`Pool` class is used to create a connection pool. Constructor accepts connection string or [PoolConfiguration](#222-poolconfiguration) interface
 
-*new Pool([config: String | [PoolConfiguration](#2-2-2-poolconfiguration)]);*
+*new Pool([config: String | [PoolConfiguration](#222-poolconfiguration)]);*
 
 ```ts
 import {Pool} from 'postgresql-client';
@@ -131,7 +130,7 @@ const qr = await pool.query('select * from my_table where id=1');
 await dbpool.close(); // Disconnect all connections and shutdown pool
 ```
 
-### 1.2.2. Obtaining a connection
+### 1.2.1. Obtaining a connection
 
 The pool returns an idle `Connection` instance when you call `pool.acquire()` function. 
 You must call `connection.release()` method when you done with the connection.    
@@ -155,7 +154,7 @@ if you don't execute your query in a transaction.
 So you don't need to take care of releasing the connection 
 every time.
 
-### 1.2.3. Shutting down the pool
+### 1.2.2. Shutting down the pool
 To shut down a pool call `pool.close()` method. 
 This will wait for active connections to get idle than will release all resources.
 If you define `terminateWait argument, the pool wait until the given period of time in ms, before force connections to close. 
@@ -175,9 +174,9 @@ We suggest to use `query()` method which uses *Extended query protocol* if you n
 
 To execute SQL scripts you can create a `ScriptExecutor` instance or just call `connection.execute()` or `pool.execute()` methods. 
 
-*pool.execute(sql: string, options?: [ScriptExecuteOptions](#2-2-4-scriptexecuteOptions)]): Promise\<[ScriptResult](#225scriptresult)>;*
+*pool.execute(sql: string, options?: [ScriptExecuteOptions](#224-scriptexecuteoptions)]): Promise\<[ScriptResult](#225-scriptresult)>;*
 
-*connection.execute(sql: string, options?: [ScriptExecuteOptions](#2-2-4-scriptexecuteOptions)]): Promise\<[ScriptResult](#225scriptresult)>;*
+*connection.execute(sql: string, options?: [ScriptExecuteOptions](#224-scriptexecuteoptions)]): Promise\<[ScriptResult](#225-scriptresult)>;*
 
 ```ts
 const qr = await connection.execute('BEGIN; update my_table set ref = ref+1; END;');
@@ -206,9 +205,9 @@ In the extended-query protocol, *prepared statements* and *portals* are used.
 Unlike simple query, extended query protocol supports parameter binding and binary data format.
 The only limit is you can execute one command at a time.
 
-*pool.query(sql: string, options?: [QueryOptions](#2-2-9-queryoptions)]): Promise\<[QueryResult](#2210queryresult)>;*
+*pool.query(sql: string, options?: [QueryOptions](#229-queryoptions)]): Promise\<[QueryResult](#2210-queryresult)>;*
 
-*connection.query(sql: string, options?: [QueryOptions](#2-2-9-queryoptions)]): Promise\<[QueryResult](#2210queryresult)>;*
+*connection.query(sql: string, options?: [QueryOptions](#229-queryoptions)]): Promise\<[QueryResult](#2210-queryresult)>;*
 
 
 ```ts
@@ -225,11 +224,11 @@ console.log(qr.rows);
 Prepared statements are great when you need executing a script more than once (etc. bulk insert or update).
 It dramatically reduces execution time.
 
-To create a [PreparedStatement](#2-1-4-preparedstatement) instance or just call `connection.prepare()` or `pool.prepare()` methods. 
+To create a [PreparedStatement](#214-preparedstatement) instance or just call `connection.prepare()` or `pool.prepare()` methods. 
 
-*pool.prepare(sql: string, options?: [StatementPrepareOptions](#2-2-8-statementprepareoptions)]): Promise\<[PreparedStatement](#214preparedstatement)>;*
+*pool.prepare(sql: string, options?: [StatementPrepareOptions](#228-statementprepareoptions)]): Promise\<[PreparedStatement](#214-preparedstatement)>;*
 
-*connection.prepare(sql: string, options?: [StatementPrepareOptions](#2-2-8-statementprepareoptions)]): Promise\<[PreparedStatement](#214preparedstatement)>;*
+*connection.prepare(sql: string, options?: [StatementPrepareOptions](#228-statementprepareoptions)]): Promise\<[PreparedStatement](#214-preparedstatement)>;*
 
 ```ts
 import {DataTypeOIDs} from 'postgresql-client'; 
@@ -263,6 +262,14 @@ await cursor.close(); // When you done, close the cursor to relase resources
 ```
 
 
+## 1.4. Transactions
+
+
+
+## 1.5. Registering data types
+
+
+
 # 2. API
 
 ## 2.1. Classes
@@ -270,7 +277,7 @@ await cursor.close(); // When you done, close the cursor to relase resources
 
 ### 2.1.1. Connection
 
-*new Connection([config: String | [ConnectionConfiguration](#2-2-1-connectionconfiguration)]);*
+*new Connection([config: String | [ConnectionConfiguration](#221-connectionconfiguration)]);*
 
 #### Properties
 
@@ -289,14 +296,14 @@ close(terminateWait?: number)*: Promise\<void>
 
 
 ***
-execute(sql: string, options?: [ScriptExecuteOptions](#2-2-4-scriptexecuteOptions)]): Promise\<[ScriptResult](#225scriptresult)>;
+execute(sql: string, options?: [ScriptExecuteOptions](#224-scriptexecuteoptions)]): Promise\<[ScriptResult](#225-scriptresult)>;
 
 
 ***
-query(sql: string, options?: [QueryOptions](#2-2-9-queryoptions)]): Promise\<[QueryResult](#2210queryresult)>;
+query(sql: string, options?: [QueryOptions](#229-queryoptions)]): Promise\<[QueryResult](#2210-queryresult)>;
 
 ***
-prepare(sql: string, options?: [StatementPrepareOptions](#2-2-8-statementprepareoptions)]): Promise\<[PreparedStatement](#214preparedstatement)>;
+prepare(sql: string, options?: [StatementPrepareOptions](#228-statementprepareoptions)]): Promise\<[PreparedStatement](#214-preparedstatement)>;
 
 
 #### Events
@@ -312,7 +319,7 @@ prepare(sql: string, options?: [StatementPrepareOptions](#2-2-8-statementprepare
 
 ### 2.1.2. Pool
 
-*new Pool([config: String | [PoolConfiguration](#2-2-2-poolconfiguration)]);*
+*new Pool([config: String | [PoolConfiguration](#222-poolconfiguration)]);*
 
 
 
@@ -355,7 +362,7 @@ prepare(sql: string, options?: [StatementPrepareOptions](#2-2-8-statementprepare
 
 ### 2.2.2. PoolConfiguration
 
-Extends [ConnectionConfiguration](#2-2-1-connectionconfiguration)
+Extends [ConnectionConfiguration](#221-connectionconfiguration)
 
 | Key               | Type        | Default |    Description        |
 |-------------------|-------------| --------|-----------------------|
@@ -381,7 +388,7 @@ Extends [ConnectionConfiguration](#2-2-1-connectionconfiguration)
 
 ### 2.2.4. ScriptExecuteOptions
 
-Extends [DataMappingOptions](#223DataMappingOptions)
+Extends [DataMappingOptions](#223-datamappingoptions)
 
 | Key          | Type        | Default |    Description        |
 |--------------|-------------| --------|-----------------------|
@@ -428,7 +435,7 @@ Extends [DataMappingOptions](#223DataMappingOptions)
 
 ### 2.2.9. QueryOptions
 
-Extends [DataMappingOptions](#223datamappingoptions)
+Extends [DataMappingOptions](#223-datamappingoptions)
 
 | Key          | Type         | Default |    Description        |
 |--------------|--------------| --------|-----------------------|
@@ -441,7 +448,7 @@ Extends [DataMappingOptions](#223datamappingoptions)
 
 ### 2.2.10. QueryResult
 
-Extends [CommandResult](#226commandresult)
+Extends [CommandResult](#226-commandresult)
 
 | Key          | Type         | Default |    Description        |
 |--------------|--------------| --------|-----------------------|
