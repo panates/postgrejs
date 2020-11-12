@@ -78,8 +78,9 @@ describe('Connection', function () {
         const server = net.createServer((socket) => {
             socket.destroy();
         });
-        server.listen(88, function () {
-            connection = new Connection('postgres://localhost:88')
+        const port = parseInt(process.env.FAKE_SERVER_PORT, 10) || 3000;
+        server.listen(port, function () {
+            connection = new Connection('postgres://localhost:' + port)
             assert.rejects(() =>
                 connection.connect(), /ECONNRESET/)
                 .then(done)
