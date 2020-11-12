@@ -135,7 +135,7 @@ await dbpool.close(); // Disconnect all connections and shutdown pool
 The pool returns an idle `Connection` instance when you call `pool.acquire()` function. 
 You must call `connection.release()` method when you done with the connection.    
 
-`pool.acquire(): Promise<Connection>;`
+_pool.acquire(): Promise<[Connection](#211-connection)>;_
 
 ```ts
   const connection = await dbpool.acquire();
@@ -159,7 +159,7 @@ To shut down a pool call `pool.close()` method.
 This will wait for active connections to get idle than will release all resources.
 If you define `terminateWait argument, the pool wait until the given period of time in ms, before force connections to close. 
 
-`pool.close(terminateWait?: number): Promise<void>;`
+_pool.close(terminateWait?: number): Promise<void>;_
 
 
 ## 1.3. Queries
