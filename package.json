@@ -9,7 +9,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sqbjs/panates-client.git"
+    "url": "https://github.com/panates/postgresql-client.git"
   },
   "keywords": [
     "javascript",
@@ -61,7 +61,6 @@
   "files": [
     "LICENSE",
     "README",
-    "DOCUMENTATION",
     "dist/"
   ],
   "nyc": {
