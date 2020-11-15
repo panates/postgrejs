@@ -61,6 +61,7 @@
   "files": [
     "LICENSE",
     "README",
+    "DOCUMENTATION",
     "dist/"
   ],
   "nyc": {
