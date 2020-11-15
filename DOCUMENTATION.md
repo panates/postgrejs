@@ -16,14 +16,16 @@
         - 1.3.4 [Using Cursors](#134-using-cursors)
     - 1.4 [Transaction management](#14-transaction-management)
     - 1.5 [Data types](#15-data-types)
+        - 1.5.1 [Type mappings](#151-type-mappings)
+        - 1.5.2 [Data transfer formats](#152-data-transfer-formats) 
 - 2\. [API](#2-api)
     - 2.1 [Classes](#21-classes)
         - 2.1.1 [Connection](#211-connection)
         - 2.1.2 [Pool](#212-pool)
         - 2.1.3 [Cursor](#213-cursor)
         - 2.1.4 [PreparedStatement](#214-preparedstatement)       
-        - 2.1.5 [BindParam](#216-bindparam)
-        - 2.1.6 [DataTypeMap](#217-datatypemap)
+        - 2.1.5 [BindParam](#215-bindparam)
+        - 2.1.6 [DataTypeMap](#216-datatypemap)
     - 2.2 [Interfaces](#22-interfaces)
         - 2.2.1 [ConnectionConfiguration](#221-connectionconfiguration)
         - 2.2.2 [PoolConfiguration](#222-poolconfiguration)
@@ -288,10 +290,74 @@ You can also check transaction status with `connection.inTransaction` getter.
 
 ## 1.5. Data types
 
+### 1.5.1 Type mappings
+ 
+The table below lists builtin data type mappings.
 
+| Posgtres type   | JS type             | Receive     | Send     | 
+|-----------------|:--------------------| ------------|----------|
+| bool            | boolean             | text,binary | binary   | 
+| int2            | number              | text,binary | binary   | 
+| int4            | number              | text,binary | binary   | 
+| int8            | BigInt              | text,binary | binary   | 
+| float4          | number              | text,binary | binary   | 
+| float8          | number              | text,binary | binary   | 
+| char            | string              | text,binary | binary   | 
+| bpchar          | string              | text,binary | binary   | 
+| varchar         | string              | text,binary | binary   | 
+| date            | Date                | text,binary | binary   | 
+| timestamp       | Date                | text,binary | binary   | 
+| timestamptz     | Date                | text,binary | binary   | 
+| oid             | number              | text,binary | binary   | 
+| bytea           | Buffer              | text,binary | binary   | 
+| json            | string              | text,binary | binary   | 
+| xml             | string              | text,binary | binary   | 
+| point           | Point               | text,binary | binary   | 
+| circle          | Circle              | text,binary | binary   | 
+| lseg            | Rectangle           | text,binary | binary   | 
+| box             | Rectangle           | text,binary | binary   | 
+| _bool           | boolean[]           | text,binary | binary   | 
+| _int2           | number[]            | text,binary | binary   | 
+| _int4           | number[]            | text,binary | binary   | 
+| _int8           | BigInt[]            | text,binary | binary   | 
+| _float4         | number[]            | text,binary | binary   | 
+| _float8         | number[]            | text,binary | binary   | 
+| _char           | string[]            | text,binary | binary   | 
+| _bpchar         | string[]            | text,binary | binary   | 
+| _varchar        | string[]            | text,binary | binary   | 
+| _date           | Date[]              | text,binary | binary   | 
+| _timestamp      | Date[]              | text,binary | binary   | 
+| _timestamptz    | Date[]              | text,binary | binary   | 
+| _oid            | number[]            | text,binary | binary   | 
+| _bytea          | Buffer[]            | text,binary | binary   | 
+| _json           | string[]            | text,binary | binary   | 
+| _xml            | string[]            | text,binary | binary   | 
+| _point          | Point[]             | text,binary | binary   | 
+| _circle         | Circle[]            | text,binary | binary   | 
+| _lseg           | Rectangle[]         | text,binary | binary   | 
+| _box            | Rectangle[]         | text,binary | binary   | 
 
+### 1.5.2 Data transfer formats
+PostgreSQL wire protocol offers `text` and `binary` data transfer formats.
+Most common libraries supports only `text` transfer format which is easy to implement but poses performance and memory problems.
+`postgresql-client` has rich data type mappings which supports both `text` and `binary` formats.
+The default format is set to `binary`. However, you can set the format to `text` for all columns or per column.
 
-Not documented yet
+Note that binary format is faster than text format. 
+If there is a type mapping for that postgres type, we don't suggest you text format.
+
+```ts
+const qr = await connection.query('select id, other_field from my_table',
+    {columnFormat: DataFormat.text});
+console.log(qr.rows);
+```
+
+```ts
+const qr = await connection.query('select id, other_field from my_table',
+    {columnFormat: [DataFormat.binary, DataFormat.text]});
+console.log(qr.rows);
+```
+
 
 
 # 2. API
@@ -333,9 +399,11 @@ await connection.connect();
 
 ##### .close()
 
-Closes connection. You can define how long time the connection will 
-wait for active queries before terminating the connection. 
-On the end of the given time, it forces to close the socket and than emits `terminate` event.
+For a single connection this call closes connection permanently.
+For a pooled connection it sends the connection back to the pool. 
+
+You can define how long time the connection will wait for active queries before closing. 
+At the end of time, it forces to close/release and emits `terminate` event.
 
 `close(terminateWait?: number): Promise<void>`
 
@@ -450,7 +518,7 @@ const statement = await connection.prepare(
   for (let i=0; i<100; i++) {
     await statement.execute({params: [i]});
   }
-  await connection.close();
+  await statement.close();
 ```
 
 
@@ -566,9 +634,7 @@ await connection.close();
 
 ### 2.1.2. Pool
 
-new Pool([con`fig: String | [PoolConfiguration](#222-poolconfiguration)]);*
-
-`new Connection([config: String | PoolConfiguration)`
+`new Pool([config: String | PoolConfiguration)`
 
 #### Properties
 
@@ -603,6 +669,117 @@ await connection.relese();
 
 
 
+##### .close()
+
+Shuts down the pool and destroys all resources.
+
+`close(terminateWait?: number): Promise<void>`
+
+````ts
+import {Pool} from 'postgresql-client';
+
+const pool = new Pool('postgres://localhost');
+const connection = await pool.acquire();
+// ...
+await pool.close(5000);
+````
+
+
+
+##### .execute()
+
+Acquires a connection from the pool and executes single or multiple SQL scripts using [Simple Query](https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.4) protocol.
+
+`execute(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult>;`
+
+| Argument     | Type        | Default  | Description                            | 
+|--------------|--------------| --------|--------------------|
+| sql          | string       |         | SQL script that will be executed | 
+| options      | [ScriptExecuteOptions](#224-scriptexecuteoptions) |         | Execute options | 
+
+- Returns [ScriptResult](#225-scriptresult)
+
+```ts
+import {Pool} from 'postgresql-client';
+
+const pool = new Pool('postgres://localhost');
+const executeResult = await pool.execute(  
+    'BEGIN; update my_table set ref=1 where id=1; END;');
+// ...
+await pool.close();
+```
+
+
+
+
+##### .query()
+
+Acquires a connection from the pool and executes single SQL script using [Extended Query](https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY) protocol.
+
+`query(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult>;`
+
+| Argument     | Type        | Default  | Description                            | 
+|--------------|--------------| --------|--------------------|
+| sql          | string       |         | SQL script that will be executed | 
+| options      | [QueryOptions](#229-queryoptions) |         | Execute options | 
+
+
+- Returns [QueryResult](#2210-queryresult)
+
+```ts
+import {Pool} from 'postgresql-client';
+
+const pool = new Pool('postgres://localhost');
+const queryResult = await pool.query(  
+    'select * from my_table', {
+      cursor: true,
+      utcDates: true
+    });
+  let row;
+  while ((row = queryResult.cursor.next())) {
+    // ....
+  }
+await pool.close();
+```
+
+
+##### .prepare()
+
+Acquires a connection from the pool and creates a [PreparedStatement](#214-preparedstatement) instance.
+
+`prepare(sql: string, options?: StatementPrepareOptions): Promise<PreparedStatement>`
+
+| Argument     | Type        | Default  | Description                            | 
+|--------------|--------------| --------|--------------------|
+| sql          | string       |         | SQL script that will be executed | 
+| options      | [StatementPrepareOptions](#228-statementprepareoptions) |         | Options | 
+
+- Returns [PreparedStatement](#214-preparedstatement)
+
+
+```ts
+import {Pool, DataTypeOIDs} from 'postgresql-client';
+
+const pool = new Pool('postgres://localhost');
+const statement = await pool.prepare(  
+    'insert into my_table (ref_number) ($1)', {
+      paramTypes:  [DataTypeOIDs.Int4]
+    });
+  // Bulk insert 100 rows
+  for (let i=0; i<100; i++) {
+    await statement.execute({params: [i]});
+  }
+  await statement.close();
+```
+
+
+##### .release()
+
+Releases a connection
+
+`release(connection: Connection): Promise<void>`
+
+
 
 ### 2.1.3. Cursor
 
@@ -610,13 +787,10 @@ await connection.relese();
 ### 2.1.4. PreparedStatement
 
 
-### 2.1.5. ScriptExecutor
+### 2.1.5. BindParam
 
 
-### 2.1.6. BindParam
-
-
-### 2.1.7. DataTypeMap
+### 2.1.6. DataTypeMap
 
 
 

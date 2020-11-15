@@ -1,4 +1,5 @@
 import {DataType, DataTypeOIDs} from '../definitions';
+import {SmartBuffer} from '../protocol/SmartBuffer';
 
 export const CharType: DataType = {
 
@@ -9,8 +10,8 @@ export const CharType: DataType = {
         return v.toString('utf8');
     },
 
-    encodeText(v): string {
-        return v ? ('' + v) : ' ';
+    encodeBinary(buf: SmartBuffer, v: string): void {
+        buf.writeString((v ? ('' + v) : ' ')[0], 'utf8');
     },
 
     parseText(v): string {
