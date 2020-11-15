@@ -4,7 +4,7 @@ import {Connection} from '../../src';
 import {createTestSchema} from '../_support/createdb';
 import {Cursor} from '../../src/Cursor';
 
-describe('Query (Extended Query)', function () {
+describe('query() (Extended Query)', function () {
 
     let connection: Connection;
 
@@ -15,10 +15,10 @@ describe('Query (Extended Query)', function () {
     })
 
     after(async () => {
-        await connection.close(0);
+        await connection.close();
     })
 
-    it('should query return QueryResult', async function () {
+    it('should return QueryResult', async function () {
         const result = await connection.query(`select * from test.regions`);
         assert.ok(result);
         assert.ok(result.fields);
@@ -31,7 +31,7 @@ describe('Query (Extended Query)', function () {
         assert.strictEqual(result.rows[0][1], 'US Region');
     });
 
-    it('should query return object rows', async function () {
+    it('should return object rows', async function () {
         const result = await connection.query(`select * from test.regions order by ID desc`,
             {objectRows: true});
         assert.ok(result);
@@ -65,6 +65,35 @@ describe('Query (Extended Query)', function () {
         assert.ok(result);
         assert.ok(result.cursor);
         assert.ok(result.cursor instanceof Cursor);
+    });
+
+    it('should select sql return data rows', async function () {
+        const result = await connection.query(`select * from test.data_types`,
+            {objectRows: true});
+        assert.ok(result);
+        assert.ok(result.rows);
+        const row = result.rows[0];
+        assert.ok(row);
+        assert.deepStrictEqual(row.id, 1);
+        assert.deepStrictEqual(row.f_int2, 1);
+        assert.deepStrictEqual(row.f_int4, 12345);
+        assert.deepStrictEqual(row.f_int8, BigInt('1234567890123'));
+        assert.deepStrictEqual(row.f_float4, 1.2);
+        assert.deepStrictEqual(row.f_float8, 5.12345);
+        assert.deepStrictEqual(row.f_char, 'a');
+        assert.deepStrictEqual(row.f_varchar, 'abcd');
+        assert.deepStrictEqual(row.f_text, 'abcde');
+        assert.deepStrictEqual(row.f_bpchar, 'abcdef');
+        assert.deepStrictEqual(row.f_json, '{"a": 1}');
+        assert.deepStrictEqual(row.f_xml, '<tag1>123</tag1>');
+        assert.deepStrictEqual(row.f_date, new Date('2010-03-22T00:00:00'));
+        assert.deepStrictEqual(row.f_timestamp, new Date('2020-01-10T15:45:12.123'));
+        assert.deepStrictEqual(row.f_timestamptz, new Date('2005-07-01T01:21:11.123+03:00'));
+        assert.deepStrictEqual(row.f_bytea, Buffer.from([65, 66, 67, 68, 69]));
+        assert.deepStrictEqual(row.f_point, {x: -1.2, y: 3.5});
+        assert.deepStrictEqual(row.f_circle, {x: -1.2, y: 3.5, r: 4.6});
+        assert.deepStrictEqual(row.f_lseg, {x1: 1.2, y1: 3.5, x2: 4.6, y2: 5.2});
+        assert.deepStrictEqual(row.f_box, {x1: 4.6, y1: 3, x2: -1.6, y2: 0.1});
     });
 
 });

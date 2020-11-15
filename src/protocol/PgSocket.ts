@@ -19,6 +19,8 @@ export interface SocketError extends Error {
     code: string;
 }
 
+export type Callback = (err?: Error) => void;
+
 export class PgSocket extends SafeEventEmitter {
     private _state = ConnectionState.CLOSED;
     private _socket?: net.Socket;
@@ -35,6 +37,8 @@ export class PgSocket extends SafeEventEmitter {
     }
 
     get state(): ConnectionState {
+        if (!this._socket || this._socket.destroyed)
+            this._state = ConnectionState.CLOSED;
         return this._state;
     }
 
@@ -111,36 +115,36 @@ export class PgSocket extends SafeEventEmitter {
         socket.destroy();
     }
 
-    sendParseMessage(args: Frontend.ParseMessageArgs): void {
-        this._send(this._frontend.getParseMessage(args));
+    sendParseMessage(args: Frontend.ParseMessageArgs, cb?: Callback): void {
+        this._send(this._frontend.getParseMessage(args), cb);
     }
 
-    sendBindMessage(args: Frontend.BindMessageArgs): void {
-        this._send(this._frontend.getBindMessage(args));
+    sendBindMessage(args: Frontend.BindMessageArgs, cb?: Callback): void {
+        this._send(this._frontend.getBindMessage(args), cb);
     }
 
-    sendDescribeMessage(args: Frontend.DescribeMessageArgs): void {
-        this._send(this._frontend.getDescribeMessage(args));
+    sendDescribeMessage(args: Frontend.DescribeMessageArgs, cb?: Callback): void {
+        this._send(this._frontend.getDescribeMessage(args), cb);
     }
 
-    sendExecuteMessage(args: Frontend.ExecuteMessageArgs): void {
-        this._send(this._frontend.getExecuteMessage(args));
+    sendExecuteMessage(args: Frontend.ExecuteMessageArgs, cb?: Callback): void {
+        this._send(this._frontend.getExecuteMessage(args), cb);
     }
 
-    sendCloseMessage(args: Frontend.CloseMessageArgs): void {
-        this._send(this._frontend.getCloseMessage(args));
+    sendCloseMessage(args: Frontend.CloseMessageArgs, cb?: Callback): void {
+        this._send(this._frontend.getCloseMessage(args), cb);
     }
 
-    sendQueryMessage(sql: string): void {
-        this._send(this._frontend.getQueryMessage(sql));
+    sendQueryMessage(sql: string, cb?: Callback): void {
+        this._send(this._frontend.getQueryMessage(sql), cb);
     }
 
-    sendFlushMessage(): void {
-        this._send(this._frontend.getFlushMessage());
+    sendFlushMessage(cb?: Callback): void {
+        this._send(this._frontend.getFlushMessage(), cb);
     }
 
-    sendTerminateMessage(): void {
-        this._send(this._frontend.getTerminateMessage());
+    sendTerminateMessage(cb?: Callback): void {
+        this._send(this._frontend.getTerminateMessage(), cb);
     }
 
     sendSyncMessage(): void {
@@ -241,7 +245,7 @@ export class PgSocket extends SafeEventEmitter {
                             this._state = ConnectionState.READY;
                             this.emit('ready');
                         } else
-                            this.emit('message', code);
+                            this.emit('message', code, data);
                         break;
                     case Protocol.BackendMessageCode.CommandComplete: {
                         const msg = this._handleCommandComplete(data);
@@ -339,10 +343,10 @@ export class PgSocket extends SafeEventEmitter {
         return result;
     }
 
-    protected _send(data: Buffer): void {
+    protected _send(data: Buffer, cb?: Callback): void {
         if (this._socket && this._socket.writable) {
             // console.log('>', JSON.stringify(data));
-            this._socket.write(data);
+            this._socket.write(data, cb);
         }
     }
 

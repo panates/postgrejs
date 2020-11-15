@@ -33,7 +33,7 @@ CREATE TABLE test.airports
 
 CREATE TABLE test.data_types
 (
-    id oid NOT NULL,
+    id SERIAL NOT NULL,
     f_bool bool,
     f_int2 int2,
     f_int4 int4,

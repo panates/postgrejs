@@ -11,8 +11,7 @@ describe('Pool', function () {
     })
 
     after(async () => {
-        if (pool)
-            await pool.close(0);
+        await pool.close(0);
     })
 
     it('should acquire connection', async function () {
@@ -21,7 +20,7 @@ describe('Pool', function () {
         assert.strictEqual(pool.totalConnections, 1);
         assert.strictEqual(pool.acquiredConnections, 1);
         assert.ok(connection);
-        await connection.release();
+        await connection.close();
         assert.strictEqual(pool.acquiredConnections, 0);
     });
 

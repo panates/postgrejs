@@ -1,11 +1,10 @@
 import {DataTypeMap} from './DataTypeMap';
 import {Protocol} from './protocol/protocol';
 import type {AnyParseFunction, DataMappingOptions, FieldInfo,} from './definitions';
-import {Connection} from './Connection';
-import TaskQueue from 'putil-taskqueue';
-import {PgSocket} from './protocol/PgSocket';
 import {parsePostgresArray} from './util/parse-array';
 import {decodeBinaryArray} from './util/decode-binaryarray';
+import {IntlConnection} from './IntlConnection';
+import {Connection} from './Connection';
 
 const DefaultColumnParser = (v: any) => v;
 
@@ -61,12 +60,8 @@ export function convertRowToObject(fields: FieldInfo[], row: any[]): any {
     return out;
 }
 
-export function getStatementQueue(connection: Connection): TaskQueue {
-    return connection['_statementQueue'] as TaskQueue;
-}
-
-export function getSocket(connection: Connection): PgSocket {
-    return connection['_socket'] as PgSocket;
+export function getIntlConnection(connection: Connection): IntlConnection {
+    return connection['_intlCon'] as IntlConnection;
 }
 
 export function wrapRowDescription(typeMap: DataTypeMap, fields: Protocol.RowDescription[]): FieldInfo[] {

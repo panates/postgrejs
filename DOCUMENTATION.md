@@ -14,17 +14,16 @@
         - 1.3.2 [Extended query](#132-extended-query)
         - 1.3.3 [Prepared Statements](#133-prepared-statements)
         - 1.3.4 [Using Cursors](#134-using-cursors)
-    - 1.4 [Transactions](#14-transactions)
-    - 1.5 [Registering data types](#15-registering-data-types)
+    - 1.4 [Transaction management](#14-transaction-management)
+    - 1.5 [Data types](#15-data-types)
 - 2\. [API](#2-api)
     - 2.1 [Classes](#21-classes)
         - 2.1.1 [Connection](#211-connection)
         - 2.1.2 [Pool](#212-pool)
         - 2.1.3 [Cursor](#213-cursor)
-        - 2.1.4 [PreparedStatement](#214-preparedstatement)
-        - 2.1.5 [ScriptExecutor](#215-scriptexecutor)
-        - 2.1.6 [BindParam](#216-bindparam)
-        - 2.1.7 [DataTypeMap](#217-datatypemap)
+        - 2.1.4 [PreparedStatement](#214-preparedstatement)       
+        - 2.1.5 [BindParam](#216-bindparam)
+        - 2.1.6 [DataTypeMap](#217-datatypemap)
     - 2.2 [Interfaces](#22-interfaces)
         - 2.2.1 [ConnectionConfiguration](#221-connectionconfiguration)
         - 2.2.2 [PoolConfiguration](#222-poolconfiguration)
@@ -272,12 +271,27 @@ await cursor.close(); // When you done, close the cursor to relase resources
 ```
 
 
-## 1.4. Transactions
+## 1.4. Transaction management
+
+To start a transaction in PostgreSQL you need to execute 'BEGIN' command. 
+'COMMIT' to apply changes and 'ROLLBACK' to revert. `Connection` class has `startTransaction()`, `commit()`, `rollback()`, 
+`savepoint()`, `rollbackToSavepoint()` shorthand methods which is typed and more test friendly.
+
+By default, PostgreSQL server executes SQL commands in auto-commit mode.
+`postgresql-client` has a high-level implementation to manage this.
+You can change this behaviour by setting `autoCommit` property to `false`. 
+After that all SQL scripts will be executed in transaction and 
+changes will not be applied until you call `commit()` or execute `COMMIT` command.
+
+You can also check transaction status with `connection.inTransaction` getter.
+
+
+## 1.5. Data types
 
 
 
-## 1.5. Registering data types
 
+Not documented yet
 
 
 # 2. API
@@ -287,33 +301,256 @@ await cursor.close(); // When you done, close the cursor to relase resources
 
 ### 2.1.1. Connection
 
-*new Connection([config: String | [ConnectionConfiguration](#221-connectionconfiguration)]);*
+`new Connection([config: String | ConnectionConfiguration)`
 
 #### Properties
 
-| Key             | Type                  | Readonly | Description                            | 
-|-----------------|:----------------------| ---------------------------------------|--------------------|
+| Key             | Type                  | Readonly | Description        | 
+|-----------------|:----------------------| ---------|--------------------|
+| config          | [ConnectionConfiguration](#221-connectionconfiguration) | true | Returns configuration object | 
+| inTransaction   | `boolean`             | true     | Returns true if connection is in a transaction | 
 | state           | `ConnectionState`     | true     | Returns current state of the connection | 
 
-#### Prototype Methods
-
-***
-connect()*: Promise\<void>
 
 
-***
-close(terminateWait?: number)*: Promise\<void>
+#### Methods
 
 
-***
-execute(sql: string, options?: [ScriptExecuteOptions](#224-scriptexecuteoptions)]): Promise\<[ScriptResult](#225-scriptresult)>;
+##### .connect()
+
+Connects to the server
+
+`connect(): Promise<void>`
+
+````ts
+import {Connection} from 'postgresql-client';
+
+const connection = new Connection('postgres://localhost');
+await connection.connect();
+// ...
+````
 
 
-***
-query(sql: string, options?: [QueryOptions](#229-queryoptions)]): Promise\<[QueryResult](#2210-queryresult)>;
+##### .close()
 
-***
-prepare(sql: string, options?: [StatementPrepareOptions](#228-statementprepareoptions)]): Promise\<[PreparedStatement](#214-preparedstatement)>;
+Closes connection. You can define how long time the connection will 
+wait for active queries before terminating the connection. 
+On the end of the given time, it forces to close the socket and than emits `terminate` event.
+
+`close(terminateWait?: number): Promise<void>`
+
+- terminateWait: On the end of the given time, it forces to close the socket and than emits `terminate` event.
+
+| Argument        | Type      | Default | Description                            | 
+|-----------------|-----------| --------|--------------------|
+| terminateWait   | `number`  | 10000   | Time in ms that the connection will wait for active queries before terminating | 
+
+
+
+```ts
+import {Connection} from 'postgresql-client';
+
+const connection = new Connection('postgres://localhost');
+await connection.connect();
+connection.on('close', ()=> {
+  console.log('Connection closed');
+});
+connection.on('terminate', ()=> {
+  console.warn('Connection forced to terminate!');
+});
+// ...
+await connection.close(30000); // will wait 30 secs before terminate the connection
+```
+
+
+##### .execute()
+
+Executes single or multiple SQL scripts using [Simple Query](https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.4) protocol.
+
+`execute(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult>;`
+
+| Argument     | Type        | Default  | Description                            | 
+|--------------|--------------| --------|--------------------|
+| sql          | string       |         | SQL script that will be executed | 
+| options      | [ScriptExecuteOptions](#224-scriptexecuteoptions) |         | Execute options | 
+
+- Returns [ScriptResult](#225-scriptresult)
+
+```ts
+import {Connection} from 'postgresql-client';
+
+const connection = new Connection('postgres://localhost');
+await connection.connect();
+const executeResult = await connection.execute(  
+    'BEGIN; update my_table set ref=1 where id=1; END;');
+// ...
+await connection.close();
+```
+
+
+
+
+##### .query()
+
+Executes single SQL script using [Extended Query](https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY) protocol.
+
+`query(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult>;`
+
+| Argument     | Type        | Default  | Description                            | 
+|--------------|--------------| --------|--------------------|
+| sql          | string       |         | SQL script that will be executed | 
+| options      | [QueryOptions](#229-queryoptions) |         | Execute options | 
+
+
+- Returns [QueryResult](#2210-queryresult)
+
+```ts
+import {Connection} from 'postgresql-client';
+
+const connection = new Connection('postgres://localhost');
+await connection.connect();
+const queryResult = await connection.query(  
+    'select * from my_table', {
+      cursor: true,
+      utcDates: true
+    });
+  let row;
+  while ((row = queryResult.cursor.next())) {
+    // ....
+  }
+await connection.close();
+```
+
+
+
+##### .prepare()
+
+Creates a [PreparedStatement](#214-preparedstatement) instance
+
+`prepare(sql: string, options?: StatementPrepareOptions): Promise<PreparedStatement>`
+
+| Argument     | Type        | Default  | Description                            | 
+|--------------|--------------| --------|--------------------|
+| sql          | string       |         | SQL script that will be executed | 
+| options      | [StatementPrepareOptions](#228-statementprepareoptions) |         | Options | 
+
+- Returns [PreparedStatement](#214-preparedstatement)
+
+
+```ts
+import {Connection, DataTypeOIDs} from 'postgresql-client';
+
+const connection = new Connection('postgres://localhost');
+await connection.connect();
+const statement = await connection.prepare(  
+    'insert into my_table (ref_number) ($1)', {
+      paramTypes:  [DataTypeOIDs.Int4]
+    });
+  // Bulk insert 100 rows
+  for (let i=0; i<100; i++) {
+    await statement.execute({params: [i]});
+  }
+  await connection.close();
+```
+
+
+
+##### .startTransaction()
+
+Starts a transaction
+
+`startTransaction(): Promise<void>`
+
+```ts
+import {Connection} from 'postgresql-client';
+
+const connection = new Connection('postgres://localhost');
+await connection.connect();
+await connection.startTransaction();
+const executeResult = await connection.execute(  
+    'update my_table set ref=1 where id=1');
+// ...... commit or rollback
+await connection.close();
+```
+
+
+##### .commit()
+
+Commits current transaction
+
+`commit(): Promise<void>`
+
+```ts
+import {Connection} from 'postgresql-client';
+
+const connection = new Connection('postgres://localhost');
+await connection.connect();
+await connection.startTransaction();
+const executeResult = await connection.execute(  
+    'update my_table set ref=1 where id=1');
+await connection.commit();
+await connection.close();
+```
+
+
+
+
+##### .rollback()
+
+Rolls back current transaction
+
+`commit(): Promise<void>`
+
+```ts
+import {Connection} from 'postgresql-client';
+
+const connection = new Connection('postgres://localhost');
+await connection.connect();
+await connection.startTransaction();
+const executeResult = await connection.execute(  
+    'update my_table set ref=1 where id=1');
+await connection.commit();
+await connection.close();
+```
+
+
+
+##### .savepoint()
+
+Starts transaction and creates a savepoint
+
+`savepoint(name: string): Promise<void>`
+
+
+| Argument     | Type        | Default  | Description                            | 
+|--------------|-------------| ---------|--------------------|
+| name         | string      |          | Name of the savepoint | 
+
+
+##### .rollbackToSavepoint()
+
+Rolls back current transaction to given savepoint
+
+`savepoint(name: string): Promise<void>`
+
+
+| Argument     | Type        | Default  | Description                            | 
+|--------------|-------------| ---------|--------------------|
+| name         | string      |          | Name of the savepoint | 
+
+
+```ts
+import {Connection} from 'postgresql-client';
+
+const connection = new Connection('postgres://localhost');
+await connection.connect();
+await connection.savepoint('my_save_point');
+const executeResult = await connection.execute(  
+    'update my_table set ref=1 where id=1');
+await connection.rollbackToSavepoint('my_save_point');
+await connection.close();
+```
+
 
 
 #### Events
@@ -329,7 +566,40 @@ prepare(sql: string, options?: [StatementPrepareOptions](#228-statementprepareop
 
 ### 2.1.2. Pool
 
-*new Pool([config: String | [PoolConfiguration](#222-poolconfiguration)]);*
+new Pool([con`fig: String | [PoolConfiguration](#222-poolconfiguration)]);*
+
+`new Connection([config: String | PoolConfiguration)`
+
+#### Properties
+
+| Key                 | Type                 | Readonly | Description        | 
+|---------------------|----------------------| ---------|--------------------|
+| config              | [PoolConfiguration](#222-poolconfiguration)] | true | Returns configuration object | 
+| acquiredConnections | `number`             | true     | Returns number of connections that are currently acquired | 
+| idleConnections     | `number`             | true     | Returns number of unused connections in the pool | 
+| acquiredConnections | `number`             | true     | Returns number of connections that are currently acquired | 
+| totalConnections    | `number`             | true     | Returns total number of connections in the pool regardless of whether they are idle or in use | 
+
+
+#### Methods
+
+
+##### .acquire()
+
+Obtains a connection from the connection pool
+
+`acquire(): Promise<PoolConnection>`
+
+- Returns [Connection](#211-connection)
+
+````ts
+import {Pool} from 'postgresql-client';
+
+const pool = new Pool('postgres://localhost');
+const connection = await pool.acquire();
+// ...
+await connection.relese();
+````
 
 
 

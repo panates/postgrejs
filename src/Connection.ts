@@ -1,102 +1,116 @@
-import TaskQueue from 'putil-taskqueue';
-import {PgSocket} from './protocol/PgSocket';
 import {SafeEventEmitter} from './SafeEventEmitter';
 import {
     ConnectionConfiguration,
-    ConnectionState, Maybe, OID, StatementPrepareOptions,
+    ConnectionState, StatementPrepareOptions,
     QueryOptions,
     QueryResult,
     ScriptExecuteOptions,
-    ScriptResult, DataTypeOIDs
+    ScriptResult, Maybe, OID, DataTypeOIDs
 } from './definitions';
+import type {Pool} from './Pool';
 import {PreparedStatement} from './PreparedStatement';
-import {ScriptExecutor} from './ScriptExecutor';
-import {BindParam} from './BindParam';
+import {IntlConnection} from './IntlConnection';
 import {GlobalTypeMap} from './DataTypeMap';
-import {getConnectionConfig} from './util/connection-config';
-import {escapeLiteral} from './util/escape-literal';
+import {BindParam} from './BindParam';
 
 export class Connection extends SafeEventEmitter {
-    protected _socket: PgSocket;
-    protected _statementQueue = new TaskQueue();
-    protected _activeQuery?: ScriptExecutor | PreparedStatement;
-    protected _config: ConnectionConfiguration;
+    private readonly _pool?: Pool;
+    private readonly _intlCon: IntlConnection;
+    private _closing = false;
 
-    constructor(config?: ConnectionConfiguration | string) {
+    constructor(pool: Pool, intlCon: IntlConnection)
+    constructor(config?: ConnectionConfiguration | string | IntlConnection)
+    constructor(arg0: any, arg1?: any) {
         super();
-        this._config = getConnectionConfig(config);
-        this._socket = new PgSocket(this._config);
-        this._socket.on('error', (err) => this._onError(err));
-        this._socket.on('close', () => this.emit('close'));
-        this._socket.on('connecting', () => this.emit('connecting'));
+        if (arg0 && typeof arg0.acquire === 'function') {
+            if (!(arg1 instanceof IntlConnection))
+                throw new TypeError('Invalid argument');
+            this._pool = arg0;
+            this._intlCon = arg1;
+        } else
+            this._intlCon = new IntlConnection(arg0);
+        this._intlCon.on('ready', (...args) => this.emit('ready', ...args));
+        this._intlCon.on('error', (...args) => this.emit('error', ...args));
+        this._intlCon.on('close', (...args) => this.emit('close', ...args));
+        this._intlCon.on('connecting', (...args) => this.emit('connecting', ...args));
+        this._intlCon.on('ready', (...args) => this.emit('ready', ...args));
+        this._intlCon.on('terminate', (...args) => this.emit('terminate', ...args));
+    }
+
+    /**
+     * Returns configuration object
+     */
+    get config(): ConnectionConfiguration {
+        return this._intlCon.config;
+    }
+
+    /**
+     * Returns true if connection is in a transaction
+     */
+    get inTransaction(): boolean {
+        return this._intlCon.inTransaction;
     }
 
     /**
      * Returns current state of the connection
      */
     get state(): ConnectionState {
-        return this._socket.state;
+        return this._intlCon.state;
     }
 
+    /**
+     * Connects to the server
+     */
     async connect(): Promise<void> {
-        await new Promise((resolve, reject) => {
-            if (this._socket.state === ConnectionState.READY)
-                return resolve();
-            const handleConnectError = (err) => reject(err);
-            this._socket.once('ready', () => {
-                this._socket.removeListener('error', handleConnectError);
-                resolve();
-                this.emit('ready');
-            });
-            this._socket.once('error', handleConnectError);
-            this._socket.connect();
-        });
-        if (this._config.searchPath)
-            await this.execute('SET search_path = ' + escapeLiteral(this._config.searchPath));
-        if (this._config.timezone)
-            await this.execute('SET timezone TO ' + escapeLiteral(this._config.timezone));
+        await this._intlCon.connect();
+        if (this.state === ConnectionState.READY)
+            this._closing = false;
     }
 
+    /**
+     * Closes connection. You can define how long time the connection will
+     * wait for active queries before terminating the connection.
+     * On the end of the given time, it forces to close the socket and than emits `terminate` event.
+     *
+     * @param terminateWait {number} - Determines how long the connection will wait for active queries before terminating.
+     */
     async close(terminateWait?: number): Promise<void> {
-        if (this.state === ConnectionState.CLOSED)
+        this._intlCon.statementQueue.clear();
+        if (this.state === ConnectionState.CLOSED || this._closing)
             return;
-        this._statementQueue.clear();
 
-        return new Promise(resolve => {
-            const close = () => {
-                this._socket.once('close', resolve);
-                this._closeSocket();
-            }
-            if (this._activeQuery) {
-                const terminate = () => {
-                    const activeQuery = this._activeQuery;
-                    this._activeQuery = undefined;
-                    this.emit('terminate', activeQuery);
-                    close();
-                }
-                const ms = terminateWait == null ? 10000 : terminateWait;
-                if (ms > 0) {
-                    const startTime = Date.now();
-                    const timer = setInterval(() => {
-                        if (!this._activeQuery || Date.now() > startTime + ms) {
-                            clearInterval(timer);
-                            terminate();
-                        }
-                    }, 50);
-                    return;
-                }
-                terminate();
-            } else
-                close();
-        });
+        this._closing = true;
+        // @ts-ignore
+        if (this._intlCon.refCount > 0 && typeof terminateWait === 'number' && terminateWait > 0) {
+            const startTime = Date.now();
+            return new Promise((resolve, reject) => {
+                const timer = setInterval(() => {
+                    if (this._intlCon.refCount <= 0 || Date.now() > startTime + terminateWait) {
+                        clearInterval(timer);
+                        if (this._intlCon.refCount > 0)
+                            this.emit('terminate');
+                        this._close()
+                            .then(resolve)
+                            .catch(reject);
+                    }
+                }, 50);
+            });
+        }
+        await this._close();
     }
 
-    async execute(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult> {
-        const script = new ScriptExecutor(this);
-        return script.execute(sql, options);
+    /**
+     * Executes single or multiple SQL scripts using Simple Query protocol.
+     *
+     * @param sql {string} - SQL script that will be executed
+     * @param options {ScriptExecuteOptions} - Execute options
+     */
+    execute(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult> {
+        return this._intlCon.execute(sql, options);
     }
 
     async query(sql: string, options?: QueryOptions): Promise<QueryResult> {
+        this._intlCon.assertConnected();
         const typeMap = options?.typeMap || GlobalTypeMap;
         const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
             prm instanceof BindParam ? prm.oid : typeMap.determine(prm) || DataTypeOIDs.Varchar
@@ -111,21 +125,63 @@ export class Connection extends SafeEventEmitter {
         }
     }
 
+    /**
+     * Creates a PreparedStatement instance
+     * @param sql {string} - SQL script that will be executed
+     * @param options {StatementPrepareOptions} - Options
+     */
     async prepare(sql: string, options?: StatementPrepareOptions): Promise<PreparedStatement> {
         return await PreparedStatement.prepare(this, sql, options);
     }
 
-    protected _closeSocket(): void {
-        if (this._socket.state === ConnectionState.CLOSED)
-            return;
-        this._socket.sendTerminateMessage();
-        this._socket.close();
+    /**
+     * Starts a transaction
+     */
+    async startTransaction(): Promise<void> {
+        await this.execute('BEGIN');
     }
 
-    protected _onError(err: Error): void {
-        if (this._socket.state !== ConnectionState.READY)
-            return;
-        this.emit('error', err);
+    /**
+     * Starts transaction and creates a savepoint
+     * @param name {string} - Name of the savepoint
+     */
+    async savepoint(name: string): Promise<void> {
+        if (!(name && name.match(/^[a-zA-Z]\w+$/)))
+            throw new Error(`Invalid savepoint "${name}`);
+        await this.execute('BEGIN; SAVEPOINT ' + name);
+    }
+
+    /**
+     * Commits current transaction
+     */
+    async commit(): Promise<void> {
+        await this.execute('COMMIT');
+    }
+
+    /**
+     * Rolls back current transaction
+     */
+    async rollback(): Promise<void> {
+        await this.execute('ROLLBACK');
+    }
+
+    /**
+     * Rolls back current transaction to given savepoint
+     * @param name {string} - Name of the savepoint
+     */
+    async rollbackToSavepoint(name: string): Promise<void> {
+        if (!(name && name.match(/^[a-zA-Z]\w+$/)))
+            throw new Error(`Invalid savepoint "${name}`);
+        await this.execute('ROLLBACK TO SAVEPOINT ' + name);
+    }
+
+    protected async _close(): Promise<void> {
+        if (this._pool) {
+            await this._pool.release(this);
+            this.emit('release');
+        } else
+            await this._intlCon.close();
+        this._closing = false;
     }
 
 }

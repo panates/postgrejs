@@ -2,7 +2,6 @@ export * from './DataTypeMap';
 export * from './definitions';
 export * from './Connection';
 export * from './Pool';
-export * from './ScriptExecutor';
 export * from './PreparedStatement';
 export * from './BindParam';
 export * from './util/stringify-arrayliteral';

@@ -3,12 +3,15 @@ import {ConnectionConfiguration} from '../definitions';
 import {configFromEnv} from './config-from-env';
 
 export function getConnectionConfig(config?: ConnectionConfiguration | string): ConnectionConfiguration {
-    if (typeof config === 'string')
-        return parseConnectionString(config);
-    const cfg = {...configFromEnv(), ...config};
+    const cfg = configFromEnv();
+    if (typeof config === 'string') {
+        Object.assign(cfg, parseConnectionString(config));
+    } else if (typeof config === 'object') {
+        Object.assign(cfg, config);
+    }
     if (cfg.host) {
         const x = parseConnectionString('' + cfg.host);
-        return {...cfg, ...x};
+        Object.assign(cfg, x);
     }
     return cfg;
 }

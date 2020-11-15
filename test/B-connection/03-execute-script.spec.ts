@@ -3,7 +3,7 @@ import '../_support/env';
 import {Connection} from '../../src';
 import {createTestSchema} from '../_support/createdb';
 
-describe('Execute script (Simple Query)', function () {
+describe('execute() (Simple Query)', function () {
 
     let connection: Connection;
 

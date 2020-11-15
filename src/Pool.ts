@@ -8,20 +8,22 @@ import {
     ScriptExecuteOptions,
     ScriptResult, StatementPrepareOptions
 } from './definitions';
-import {PoolConnection} from './PoolConnection';
 import {getConnectionConfig} from './util/connection-config';
 import {PreparedStatement} from './PreparedStatement';
 import {SafeEventEmitter} from './SafeEventEmitter';
+import {Connection} from './Connection';
+import {IntlConnection} from './IntlConnection';
+import {getIntlConnection} from './common';
 
 export class Pool extends SafeEventEmitter {
 
-    private readonly _pool: LightningPool<PoolConnection>;
+    private readonly _pool: LightningPool<IntlConnection>;
     readonly config: PoolConfiguration;
 
     constructor(config?: PoolConfiguration | string) {
         super();
         const cfg = getConnectionConfig(config) as PoolConfiguration;
-        this.config = cfg;
+        this.config = Object.freeze(cfg);
         const poolOptions: PoolOptions = {};
         poolOptions.acquireMaxRetries = coerceToInt(cfg.acquireMaxRetries, 0);
         poolOptions.acquireRetryWait = coerceToInt(cfg.acquireRetryWait, 2000);
@@ -33,26 +35,32 @@ export class Pool extends SafeEventEmitter {
         poolOptions.min = coerceToInt(cfg.min, 0);
         poolOptions.minIdle = coerceToInt(cfg.minIdle, 0);
         poolOptions.validation = coerceToBoolean(cfg.validation, false);
-        const poolFactory: IPoolFactory<PoolConnection> = {
+        const poolFactory: IPoolFactory<IntlConnection> = {
             create: async () => {
-                const connection = new PoolConnection(this, cfg);
-                connection.on('close', () => this.release(connection));
-                await connection.connect();
-                return connection;
+                const intlCon = new IntlConnection(cfg);
+                await intlCon.connect();
+                intlCon.on('close', () => this._pool.destroy(intlCon));
+                return intlCon;
             },
-            destroy: connection => connection.close(),
-            reset: async (connection: PoolConnection) => {
-                if (connection.state === ConnectionState.READY)
-                    await connection.execute('ROLLBACK;')
+            destroy: intlCon => intlCon.close(),
+            reset: async (intlCon: IntlConnection) => {
+                try {
+                    if (intlCon.state === ConnectionState.READY)
+                        await intlCon.execute('ROLLBACK;')
+                } finally {
+                    intlCon.removeAllListeners();
+                    intlCon.on('close', () => this._pool.destroy(intlCon));
+                }
+
             },
-            validate: async (connection: PoolConnection) => {
-                if (connection.state !== ConnectionState.READY)
+            validate: async (intlCon: IntlConnection) => {
+                if (intlCon.state !== ConnectionState.READY)
                     throw new Error('Connection is not active');
-                await connection.execute('select 1;');
+                await intlCon.execute('select 1;');
             },
         };
 
-        this._pool = createPool<PoolConnection>(poolFactory, poolOptions);
+        this._pool = createPool<IntlConnection>(poolFactory, poolOptions);
         this._pool.on('return', (...args) => this.emit('release', ...args));
         this._pool.on('error', (...args) => this.emit('error', ...args));
         this._pool.on('acquire', (...args) => this.emit('acquire', ...args));
@@ -75,18 +83,18 @@ export class Pool extends SafeEventEmitter {
     }
 
     /**
-     * Returns total number of connections in the pool
-     * regardless of whether they are idle or in use
+     * Returns total number of connections in the pool regardless of whether they are idle or in use
      */
     get totalConnections() {
         return this._pool.size;
     }
 
     /**
-     * Obtains a connection from the connection pool.
+     * Obtains a connection from the connection pool
      */
-    async acquire(): Promise<PoolConnection> {
-        return await this._pool.acquire();
+    async acquire(): Promise<Connection> {
+        const intlCon = await this._pool.acquire();
+        return new Connection(this, intlCon);
     }
 
     /**
@@ -146,8 +154,8 @@ export class Pool extends SafeEventEmitter {
     /**
      * Releases a connection
      */
-    async release(connection: PoolConnection): Promise<void> {
-        return this._pool.release(connection);
+    async release(connection: Connection): Promise<void> {
+        return this._pool.release(getIntlConnection(connection));
     }
 
 }

@@ -9,7 +9,7 @@ import {BindParam} from './BindParam';
 export type OID = number;
 export type Maybe<T> = T | undefined;
 export type Nullable<T> = T | null;
-export type DataFormat  = Protocol.DataFormat;
+export type DataFormat = Protocol.DataFormat;
 
 export interface DatabaseConnectionParams {
     host?: string;
@@ -22,6 +22,7 @@ export interface DatabaseConnectionParams {
     timezone?: string;
     searchPath?: string;
     connectTimeoutMs?: number;
+    autoCommit?: boolean;
 }
 
 export interface SocketOptions {
