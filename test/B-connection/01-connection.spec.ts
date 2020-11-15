@@ -1,6 +1,7 @@
 import assert from 'assert';
 import '../_support/env';
 import {Connection, ConnectionState} from '../../src';
+import {createTestSchema} from '../_support/createdb';
 
 describe('Connection', function () {
 
@@ -111,6 +112,13 @@ describe('Connection', function () {
         assert.deepStrictEqual(connection.inTransaction, true);
         await connection.rollback();
         assert.deepStrictEqual(connection.inTransaction, false);
+        await connection.close();
+    });
+
+    it('create test schema', async function () {
+        connection = new Connection();
+        await connection.connect();
+        await createTestSchema(connection);
         await connection.close();
     });
 
