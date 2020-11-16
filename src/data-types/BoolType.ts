@@ -4,8 +4,8 @@ import {SmartBuffer} from '../protocol/SmartBuffer';
 export const BoolType: DataType = {
 
     name: 'bool',
-    oid: DataTypeOIDs.Bool,
-    mappedType: 'boolean',
+    oid: DataTypeOIDs.bool,
+    jsType: 'boolean',
 
     parseBinary(v: Buffer): boolean {
         return !!v.readUInt8();
@@ -30,6 +30,6 @@ export const BoolType: DataType = {
 export const ArrayBoolType: DataType = {
     ...BoolType,
     name: '_bool',
-    oid: DataTypeOIDs.ArrayBool,
-    elementsOID: DataTypeOIDs.Bool
+    oid: DataTypeOIDs._bool,
+    elementsOID: DataTypeOIDs.bool
 }

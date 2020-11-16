@@ -34,7 +34,7 @@ describe('Pool', function () {
     });
 
     it('should create a prepared statement, execute and release connection', async function () {
-        const statement = await pool.prepare(`select $1`, {paramTypes: [DataTypeOIDs.Int4]});
+        const statement = await pool.prepare(`select $1`, {paramTypes: [DataTypeOIDs.int4]});
         assert.strictEqual(pool.acquiredConnections, 1);
         assert.ok(statement);
         const result = await statement.execute({params: [1234]});

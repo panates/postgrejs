@@ -3,8 +3,8 @@ import {DataType, DataTypeOIDs} from '../definitions';
 export const JsonType: DataType = {
 
     name: 'json',
-    oid: DataTypeOIDs.Json,
-    mappedType: 'string',
+    oid: DataTypeOIDs.json,
+    jsType: 'string',
 
     parseBinary(v: Buffer): string {
         return v.toString('utf8');
@@ -31,6 +31,6 @@ export const JsonType: DataType = {
 export const ArrayJsonType: DataType = {
     ...JsonType,
     name: '_json',
-    oid: DataTypeOIDs.ArrayJson,
-    elementsOID: DataTypeOIDs.Json
+    oid: DataTypeOIDs._json,
+    elementsOID: DataTypeOIDs.json
 }

@@ -5,8 +5,8 @@ import {readBigInt64BE} from '../util/bigint-methods';
 export const Int8Type: DataType = {
 
     name: 'int8',
-    oid: DataTypeOIDs.Int8,
-    mappedType: 'BigInt',
+    oid: DataTypeOIDs.int8,
+    jsType: 'BigInt',
 
     parseBinary(v: Buffer): bigint {
         if (typeof v.readBigInt64BE === 'function')
@@ -31,6 +31,6 @@ export const Int8Type: DataType = {
 export const ArrayInt8Type: DataType = {
     ...Int8Type,
     name: '_int8',
-    oid: DataTypeOIDs.ArrayInt8,
-    elementsOID: DataTypeOIDs.Int8
+    oid: DataTypeOIDs._int8,
+    elementsOID: DataTypeOIDs.int8
 }

@@ -75,24 +75,24 @@ GlobalTypeMap.register(CircleType, ArrayCircleType);
 GlobalTypeMap.register(LsegType, ArrayLsegType);
 GlobalTypeMap.register(BoxType, ArrayBoxType);
 
-GlobalTypeMap.register({...VarcharType, name: 'bpchar', oid: DataTypeOIDs.Bpchar});
+GlobalTypeMap.register({...VarcharType, name: 'bpchar', oid: DataTypeOIDs.bpchar});
 GlobalTypeMap.register({
     ...ArrayVarcharType,
     name: '_bpchar',
-    oid: DataTypeOIDs.ArrayBpchar,
-    elementsOID: DataTypeOIDs.Bpchar
+    oid: DataTypeOIDs._bpchar,
+    elementsOID: DataTypeOIDs.bpchar
 });
-GlobalTypeMap.register({...VarcharType, name: 'text', oid: DataTypeOIDs.Text});
+GlobalTypeMap.register({...VarcharType, name: 'text', oid: DataTypeOIDs.text});
 GlobalTypeMap.register({
     ...ArrayVarcharType,
     name: '_text',
-    oid: DataTypeOIDs.ArrayText,
-    elementsOID: DataTypeOIDs.Text
+    oid: DataTypeOIDs._text,
+    elementsOID: DataTypeOIDs.text
 });
-GlobalTypeMap.register({...VarcharType, name: 'xml', oid: DataTypeOIDs.Xml});
+GlobalTypeMap.register({...VarcharType, name: 'xml', oid: DataTypeOIDs.xml});
 GlobalTypeMap.register({
     ...ArrayVarcharType,
     name: '_xml',
-    oid: DataTypeOIDs.ArrayXml,
-    elementsOID: DataTypeOIDs.Xml
+    oid: DataTypeOIDs._xml,
+    elementsOID: DataTypeOIDs.xml
 });

@@ -6,6 +6,7 @@ import {decodeBinaryArray} from './util/decode-binaryarray';
 import {IntlConnection} from './IntlConnection';
 import {Connection} from './Connection';
 import DataFormat = Protocol.DataFormat;
+import {DataTypeNames} from './definitions';
 
 const DefaultColumnParser = (v: any) => v;
 
@@ -75,23 +76,25 @@ export function wrapRowDescription(typeMap: DataTypeMap, fields: Protocol.RowDes
             tableId: f.tableId,
             columnId: f.columnId,
             dataTypeId: f.dataTypeId,
-            dataTypeName: '',
-            mappedType: cf === DataFormat.binary ? 'Buffer' : 'string'
+            dataTypeName: DataTypeNames[f.dataTypeId] || '',
+            jsType: cf === DataFormat.binary ? 'Buffer' : 'string'
         };
+        x.isArray = x.dataTypeName.startsWith('_');
+        if (x.isArray) {
+            x.elementDataTypeName = x.dataTypeName.substring(1);
+            for (const oid of Object.keys(DataTypeNames)) {
+                if (DataTypeNames[oid] === x.elementDataTypeName)
+                    x.elementDataTypeId = parseInt(oid, 10);
+            }
+        }
         if (f.fixedSize && f.fixedSize > 0)
             x.fixedSize = f.fixedSize;
         if (f.modifier && f.modifier > 0)
             x.modifier = f.modifier;
         const reg = typeMap.get(x.dataTypeId);
         if (reg) {
-            x.mappedType = reg.mappedType;
-            x.dataTypeName = reg.name;
-            if (reg.elementsOID) {
-                x.elementDataTypeId = reg.elementsOID;
-                x.isArray = true;
-            }
+            x.jsType = reg.jsType;
         }
-
         return x;
     });
 }

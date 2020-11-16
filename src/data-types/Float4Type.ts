@@ -4,8 +4,8 @@ import {SmartBuffer} from '../protocol/SmartBuffer';
 export const Float4Type: DataType = {
 
     name: 'float4',
-    oid: DataTypeOIDs.Float4,
-    mappedType: 'number',
+    oid: DataTypeOIDs.float4,
+    jsType: 'number',
 
     parseBinary(v: Buffer): number {
         return Math.round((v.readFloatBE(0) + Number.EPSILON) * 100) / 100;
@@ -26,6 +26,6 @@ export const Float4Type: DataType = {
 export const ArrayFloat4Type: DataType = {
     ...Float4Type,
     name: '_float4',
-    oid: DataTypeOIDs.ArrayFloat4,
-    elementsOID: DataTypeOIDs.Float4
+    oid: DataTypeOIDs._float4,
+    elementsOID: DataTypeOIDs.float4
 }

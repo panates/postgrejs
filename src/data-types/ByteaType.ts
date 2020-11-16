@@ -5,8 +5,8 @@ import {SmartBuffer} from '../protocol/SmartBuffer';
 export const ByteaType: DataType = {
 
     name: 'bytea',
-    oid: DataTypeOIDs.Bytea,
-    mappedType: 'Buffer',
+    oid: DataTypeOIDs.bytea,
+    jsType: 'Buffer',
 
     parseBinary(v: Buffer): Buffer {
         return v;
@@ -28,6 +28,6 @@ export const ByteaType: DataType = {
 export const ArrayByteaType: DataType = {
     ...ByteaType,
     name: '_bytea',
-    oid: DataTypeOIDs.ArrayBytea,
-    elementsOID: DataTypeOIDs.Bytea
+    oid: DataTypeOIDs._bytea,
+    elementsOID: DataTypeOIDs.bytea
 }

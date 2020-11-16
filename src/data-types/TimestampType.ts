@@ -9,8 +9,8 @@ const timeMul = 4294967296;
 export const TimestampType: DataType = {
 
     name: 'timestamp',
-    oid: DataTypeOIDs.Timestamp,
-    mappedType: 'Date',
+    oid: DataTypeOIDs.timestamp,
+    jsType: 'Date',
 
     parseBinary(v: Buffer, options: DataMappingOptions): Date | number {
         const hi = v.readInt32BE();
@@ -66,6 +66,6 @@ export const TimestampType: DataType = {
 export const ArrayTimestampType: DataType = {
     ...TimestampType,
     name: '_timestamp',
-    oid: DataTypeOIDs.ArrayTimestamp,
-    elementsOID: DataTypeOIDs.Timestamp
+    oid: DataTypeOIDs._timestamp,
+    elementsOID: DataTypeOIDs.timestamp
 }

@@ -6,8 +6,8 @@ import {fastParseInt} from '../util/fast-parseint';
 export const Int2Type: DataType = {
 
     name: 'int2',
-    oid: DataTypeOIDs.Int2,
-    mappedType: 'number',
+    oid: DataTypeOIDs.int2,
+    jsType: 'number',
 
     parseBinary(v: Buffer): number {
         return v.readInt16BE(0);
@@ -29,6 +29,6 @@ export const Int2Type: DataType = {
 export const ArrayInt2Type: DataType = {
     ...Int2Type,
     name: '_int2',
-    oid: DataTypeOIDs.ArrayInt2,
-    elementsOID: DataTypeOIDs.Int2
+    oid: DataTypeOIDs._int2,
+    elementsOID: DataTypeOIDs.int2
 }

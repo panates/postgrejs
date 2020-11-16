@@ -7,8 +7,8 @@ const POINT_PATTERN2 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 export const PointType: DataType = {
 
     name: 'point',
-    oid: DataTypeOIDs.Point,
-    mappedType: 'object',
+    oid: DataTypeOIDs.point,
+    jsType: 'object',
 
     parseBinary(v: Buffer): Point {
         return {
@@ -43,6 +43,6 @@ export const PointType: DataType = {
 export const ArrayPointType: DataType = {
     ...PointType,
     name: '_point',
-    oid: DataTypeOIDs.ArrayPoint,
-    elementsOID: DataTypeOIDs.Point
+    oid: DataTypeOIDs._point,
+    elementsOID: DataTypeOIDs.point
 }

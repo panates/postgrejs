@@ -8,8 +8,8 @@ const BOX_PATTERN3 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?
 export const BoxType: DataType = {
 
     name: 'box',
-    oid: DataTypeOIDs.Box,
-    mappedType: 'object',
+    oid: DataTypeOIDs.box,
+    jsType: 'object',
     arraySeparator: ';',
 
     parseBinary(v: Buffer): Rectangle {
@@ -54,6 +54,6 @@ export const BoxType: DataType = {
 export const ArrayBoxType: DataType = {
     ...BoxType,
     name: '_box',
-    oid: DataTypeOIDs.ArrayBox,
-    elementsOID: DataTypeOIDs.Box
+    oid: DataTypeOIDs._box,
+    elementsOID: DataTypeOIDs.box
 }

@@ -9,8 +9,8 @@ const CIRCLE_PATTERN4 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/
 export const CircleType: DataType = {
 
     name: 'circle',
-    oid: DataTypeOIDs.Circle,
-    mappedType: 'object',
+    oid: DataTypeOIDs.circle,
+    jsType: 'object',
 
     parseBinary(v: Buffer): Circle {
         return {
@@ -50,6 +50,6 @@ export const CircleType: DataType = {
 export const ArrayCircleType: DataType = {
     ...CircleType,
     name: '_circle',
-    oid: DataTypeOIDs.ArrayCircle,
-    elementsOID: DataTypeOIDs.Circle
+    oid: DataTypeOIDs._circle,
+    elementsOID: DataTypeOIDs.circle
 }

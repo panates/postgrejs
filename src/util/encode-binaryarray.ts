@@ -4,7 +4,7 @@ import {arrayCalculateDim} from './array-calculatedim';
 
 export function encodeBinaryArray(io: SmartBuffer, value: any[], itemOid: OID,
                                   options: DataMappingOptions, encode: EncodeBinaryFunction): void {
-    itemOid = itemOid || DataTypeOIDs.Varchar;
+    itemOid = itemOid || DataTypeOIDs.varchar;
     const dim = arrayCalculateDim(value);
     const ndims = dim.length;
     const zeroOffset = io.offset;

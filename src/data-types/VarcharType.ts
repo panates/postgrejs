@@ -4,8 +4,8 @@ import {SmartBuffer} from '../protocol/SmartBuffer';
 export const VarcharType: DataType = {
 
     name: 'varchar',
-    oid: DataTypeOIDs.Varchar,
-    mappedType: 'string',
+    oid: DataTypeOIDs.varchar,
+    jsType: 'string',
 
     parseBinary(v: Buffer): string {
         return v.toString('utf8');
@@ -28,6 +28,6 @@ export const VarcharType: DataType = {
 export const ArrayVarcharType: DataType = {
     ...VarcharType,
     name: '_varchar',
-    oid: DataTypeOIDs.ArrayVarchar,
-    elementsOID: DataTypeOIDs.Varchar
+    oid: DataTypeOIDs._varchar,
+    elementsOID: DataTypeOIDs.varchar
 }

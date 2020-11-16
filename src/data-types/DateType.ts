@@ -8,8 +8,8 @@ const timeShift = 946684800000;
 export const DateType: DataType = {
 
     name: 'date',
-    oid: DataTypeOIDs.Date,
-    mappedType: 'Date',
+    oid: DataTypeOIDs.date,
+    jsType: 'Date',
 
     parseBinary(v: Buffer, options: DataMappingOptions): Date | number {
         const t = v.readInt32BE();
@@ -59,6 +59,6 @@ export const DateType: DataType = {
 export const ArrayDateType: DataType = {
     ...DateType,
     name: '_date',
-    oid: DataTypeOIDs.ArrayDate,
-    elementsOID: DataTypeOIDs.Date
+    oid: DataTypeOIDs._date,
+    elementsOID: DataTypeOIDs.date
 }

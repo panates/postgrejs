@@ -4,8 +4,8 @@ import {SmartBuffer} from '../protocol/SmartBuffer';
 export const Float8Type: DataType = {
 
     name: 'float8',
-    oid: DataTypeOIDs.Float8,
-    mappedType: 'number',
+    oid: DataTypeOIDs.float8,
+    jsType: 'number',
 
     parseBinary(v: Buffer): number {
         return v.readDoubleBE(0);
@@ -26,6 +26,6 @@ export const Float8Type: DataType = {
 export const ArrayFloat8Type: DataType = {
     ...Float8Type,
     name: '_float8',
-    oid: DataTypeOIDs.ArrayFloat8,
-    elementsOID: DataTypeOIDs.Float8
+    oid: DataTypeOIDs._float8,
+    elementsOID: DataTypeOIDs.float8
 }

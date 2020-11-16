@@ -4,8 +4,8 @@ import {SmartBuffer} from '../protocol/SmartBuffer';
 export const CharType: DataType = {
 
     name: 'char',
-    oid: DataTypeOIDs.Char,
-    mappedType: 'string',
+    oid: DataTypeOIDs.char,
+    jsType: 'string',
 
     parseBinary(v: Buffer): string {
         return v.toString('utf8');
@@ -28,6 +28,6 @@ export const CharType: DataType = {
 export const ArrayCharType: DataType = {
     ...CharType,
     name: '_char',
-    oid: DataTypeOIDs.ArrayChar,
-    elementsOID: DataTypeOIDs.Char
+    oid: DataTypeOIDs._char,
+    elementsOID: DataTypeOIDs.char
 }

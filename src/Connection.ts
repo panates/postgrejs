@@ -127,7 +127,7 @@ export class Connection extends SafeEventEmitter {
         this._intlCon.assertConnected();
         const typeMap = options?.typeMap || GlobalTypeMap;
         const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
-            prm instanceof BindParam ? prm.oid : typeMap.determine(prm) || DataTypeOIDs.Varchar
+            prm instanceof BindParam ? prm.oid : typeMap.determine(prm) || DataTypeOIDs.varchar
         );
         const statement = await this.prepare(sql, {paramTypes, typeMap});
         try {
