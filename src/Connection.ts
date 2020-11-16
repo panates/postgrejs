@@ -66,6 +66,13 @@ export class Connection extends SafeEventEmitter {
     }
 
     /**
+     * Returns information parameters for current session
+     */
+    get sessionParameters(): Record<string, string> {
+        return this._intlCon.sessionParameters;
+    }
+
+    /**
      * Returns secret key of current session
      */
     get secretKey(): Maybe<number> {

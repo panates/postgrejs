@@ -56,6 +56,10 @@ export class IntlConnection extends SafeEventEmitter {
         return this.socket.secretKey;
     }
 
+    get sessionParameters(): Record<string, string> {
+        return this.socket.sessionParameters;
+    }
+
     async connect(): Promise<void> {
         if (this.socket.state === ConnectionState.READY)
             return;

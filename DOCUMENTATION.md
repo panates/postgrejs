@@ -378,6 +378,7 @@ console.log(qr.rows);
 | state           | `ConnectionState`     | true     | Returns current state of the connection | 
 | processID       | `number`              | true     | Returns processId of current session | 
 | secretKey       | `number`              | true     | Returns secret key of current session | 
+| sessionParameters | `object`            | true     | Returns information parameters for current session | 
 
 
 

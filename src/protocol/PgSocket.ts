@@ -26,7 +26,7 @@ export class PgSocket extends SafeEventEmitter {
     private _socket?: net.Socket;
     private _backend = new Backend();
     private _frontend = new Frontend();
-    private _sessionParameters: any;
+    private _sessionParameters: Record<string, string> = {};
     private _saslSession?: SASL.Session;
     private _processID?: number;
     private _secretKey?: number;
@@ -49,6 +49,10 @@ export class PgSocket extends SafeEventEmitter {
 
     get secretKey(): Maybe<number> {
         return this._secretKey;
+    }
+
+    get sessionParameters(): Record<string, string> {
+        return this._sessionParameters;
     }
 
     connect() {
