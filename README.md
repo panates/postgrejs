@@ -81,7 +81,7 @@ Documentation for detailed usage is [here](DOCUMENTATION.md)
 
 ## Support
 You can report bugs and discuss features on the [GitHub issues](https://github.com/panates/postgresql-client/issues) page
-When you open an issue please provide version of NodeJS, PostgreSQL server an
+When you open an issue please provide version of NodeJS and PostgreSQL server.
 
 
 ## Node Compatibility

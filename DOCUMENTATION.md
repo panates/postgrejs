@@ -807,7 +807,7 @@ Releases a connection
 | database        | `string`              |           | Database name to be connected          |
 | applicationName | `string`              |           | The name of your application to attach with your session |
 | typesMap        | `DataTypeMap`         | *GlobalTypeMap* |Data type map instance |
-| ssl             | `tls.ConnectionOptions|           | SSL configuration | 
+| ssl             | `tls.ConnectionOptions`|           | SSL configuration | 
 | timezone        | `string`              |           | Timezone to be set on start. (Equivalent to SET timezone TO ....) |
 | searchPath      | `string`              |           | Search path to be set on start. (Equivalent to SET search_path = ....) |
 | connectTimeoutMs| `number`              | 30000     | Connection timeout value in millis | 

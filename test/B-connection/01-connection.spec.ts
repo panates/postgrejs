@@ -18,6 +18,18 @@ describe('Connection', function () {
         assert.strictEqual(connection.state, ConnectionState.READY);
     });
 
+    it('should get process id', async function () {
+        connection = new Connection();
+        await connection.connect();
+        assert.ok(connection.processID > 0);
+    });
+
+    it('should get secret key', async function () {
+        connection = new Connection();
+        await connection.connect();
+        assert.ok(connection.secretKey > 0);
+    });
+
     it('should execute simple query', async function () {
         connection = new Connection();
         await connection.connect();

@@ -27,9 +27,9 @@ export class PgSocket extends SafeEventEmitter {
     private _backend = new Backend();
     private _frontend = new Frontend();
     private _sessionParameters: any;
+    private _saslSession?: SASL.Session;
     private _processID?: number;
     private _secretKey?: number;
-    private _saslSession?: SASL.Session;
 
     constructor(public options: ConnectionConfiguration) {
         super();
@@ -40,6 +40,15 @@ export class PgSocket extends SafeEventEmitter {
         if (!this._socket || this._socket.destroyed)
             this._state = ConnectionState.CLOSED;
         return this._state;
+    }
+
+
+    get processID(): Maybe<number> {
+        return this._processID;
+    }
+
+    get secretKey(): Maybe<number> {
+        return this._secretKey;
     }
 
     connect() {

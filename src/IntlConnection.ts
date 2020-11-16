@@ -4,7 +4,7 @@ import {SafeEventEmitter} from './SafeEventEmitter';
 import {
     CommandResult,
     ConnectionConfiguration,
-    ConnectionState, ScriptExecuteOptions, ScriptResult
+    ConnectionState, Maybe, ScriptExecuteOptions, ScriptResult
 } from './definitions';
 import {getConnectionConfig} from './util/connection-config';
 import {Protocol} from './protocol/protocol';
@@ -42,6 +42,14 @@ export class IntlConnection extends SafeEventEmitter {
 
     get refCount(): number {
         return this._refCount;
+    }
+
+    get processID(): Maybe<number> {
+        return this.socket.processID;
+    }
+
+    get secretKey(): Maybe<number> {
+        return this.socket.secretKey;
     }
 
     async connect(): Promise<void> {

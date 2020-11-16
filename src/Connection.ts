@@ -59,6 +59,20 @@ export class Connection extends SafeEventEmitter {
     }
 
     /**
+     * Returns processId of current session
+     */
+    get processID(): Maybe<number> {
+        return this._intlCon.processID;
+    }
+
+    /**
+     * Returns secret key of current session
+     */
+    get secretKey(): Maybe<number> {
+        return this._intlCon.secretKey;
+    }
+
+    /**
      * Connects to the server
      */
     async connect(): Promise<void> {
