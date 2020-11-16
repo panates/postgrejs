@@ -4,6 +4,7 @@ export * from './Connection';
 export * from './Pool';
 export * from './PreparedStatement';
 export * from './BindParam';
+export * from './Cursor';
 export * from './util/stringify-arrayliteral';
 export * from './util/stringify-for-sql';
 export * from './util/escape-literal';
