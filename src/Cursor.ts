@@ -2,7 +2,7 @@ import TaskQueue from 'putil-taskqueue';
 import DoublyLinked from 'doublylinked';
 import {SafeEventEmitter} from './SafeEventEmitter';
 import {Portal} from './Portal';
-import {AnyParseFunction, FieldInfo, QueryOptions} from './definitions';
+import {AnyParseFunction, FieldInfo, Maybe, QueryOptions, Row} from './definitions';
 
 import {PreparedStatement} from './PreparedStatement';
 import {convertRowToObject, parseRow} from './common';
@@ -31,13 +31,25 @@ export class Cursor extends SafeEventEmitter {
         this.fields = fields;
     }
 
-    async next(): Promise<any> {
+    async next(): Promise<Maybe<Row>> {
         if (!this._rows.length) {
             if (this._closed)
                 return;
             await this._fetchRows();
         }
         return this._rows.shift();
+    }
+
+    async fetch(nRows: number): Promise<Row[]> {
+        const out: Row[] = [];
+        for (let i = 0; i < nRows; i++) {
+            if (!this._rows.length)
+                await this._fetchRows();
+            if (this._rows.length)
+                out.push(this._rows.shift());
+            else break;
+        }
+        return out;
     }
 
     async close(): Promise<void> {

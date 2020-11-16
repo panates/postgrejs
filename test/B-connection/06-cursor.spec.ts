@@ -17,7 +17,7 @@ describe('Cursor support', function () {
         await connection.close(0);
     })
 
-    it('should fetch rows', async function () {
+    it('should next() fetch next row', async function () {
         const result = await connection.query(`select * from test.airports order by id`,
             {objectRows: false, cursor: true});
         const cursor = result.cursor;
@@ -27,13 +27,24 @@ describe('Cursor support', function () {
         await cursor.close();
     });
 
-    it('should fetch rows as object', async function () {
+    it('should next() fetch next row as object', async function () {
         const result = await connection.query(`select * from test.airports order by id`,
             {objectRows: true, cursor: true});
         const cursor = result.cursor;
         assert.ok(cursor);
         const row = await cursor.next();
-        assert.deepStrictEqual(row.id, 'AIGRE');
+        assert.deepStrictEqual(row && row.id, 'AIGRE');
+        await cursor.close();
+    });
+
+    it('should fetch() fetch multiple rows', async function () {
+        const result = await connection.query(`select * from test.airports order by id`,
+            {objectRows: false, cursor: true, fetchCount: 5});
+        const cursor = result.cursor;
+        assert.ok(cursor);
+        const rows = await cursor.fetch(10);
+        assert.strictEqual(rows.length, 10);
+        assert.deepStrictEqual(rows[0][0], 'AIGRE');
         await cursor.close();
     });
 

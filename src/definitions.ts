@@ -10,6 +10,7 @@ export type OID = number;
 export type Maybe<T> = T | undefined;
 export type Nullable<T> = T | null;
 export type DataFormat = Protocol.DataFormat;
+export type Row = any;
 
 export interface DatabaseConnectionParams {
     host?: string;
