@@ -31,6 +31,10 @@ export class Cursor extends SafeEventEmitter {
         this.fields = fields;
     }
 
+    get isClosed(): boolean {
+        return this._closed;
+    }
+
     async next(): Promise<Maybe<Row>> {
         if (!this._rows.length) {
             if (this._closed)
