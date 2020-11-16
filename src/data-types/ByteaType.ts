@@ -6,6 +6,7 @@ export const ByteaType: DataType = {
 
     name: 'bytea',
     oid: DataTypeOIDs.Bytea,
+    mappedType: 'Buffer',
 
     parseBinary(v: Buffer): Buffer {
         return v;

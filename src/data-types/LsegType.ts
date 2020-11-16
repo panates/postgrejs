@@ -10,6 +10,7 @@ export const LsegType: DataType = {
 
     name: 'lseg',
     oid: DataTypeOIDs.Lseg,
+    mappedType: 'object',
 
     parseBinary(v: Buffer): Rectangle {
         return {

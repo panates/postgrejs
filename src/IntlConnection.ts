@@ -4,13 +4,17 @@ import {SafeEventEmitter} from './SafeEventEmitter';
 import {
     CommandResult,
     ConnectionConfiguration,
-    ConnectionState, Maybe, ScriptExecuteOptions, ScriptResult
+    ConnectionState,
+    Maybe,
+    ScriptExecuteOptions,
+    ScriptResult
 } from './definitions';
 import {getConnectionConfig} from './util/connection-config';
 import {Protocol} from './protocol/protocol';
 import {GlobalTypeMap} from './DataTypeMap';
 import {convertRowToObject, getParsers, parseRow, wrapRowDescription} from './common';
 import {escapeLiteral} from './util/escape-literal';
+import DataFormat = Protocol.DataFormat;
 
 export class IntlConnection extends SafeEventEmitter {
     protected _refCount = 0;
@@ -123,7 +127,7 @@ export class IntlConnection extends SafeEventEmitter {
                         case Protocol.BackendMessageCode.RowDescription:
                             fields = msg.fields;
                             parsers = getParsers(typeMap, fields);
-                            current.fields = wrapRowDescription(typeMap, fields);
+                            current.fields = wrapRowDescription(typeMap, fields, DataFormat.text);
                             current.rows = [];
                             break;
                         case Protocol.BackendMessageCode.DataRow:

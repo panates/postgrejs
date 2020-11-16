@@ -8,6 +8,7 @@ export const PointType: DataType = {
 
     name: 'point',
     oid: DataTypeOIDs.Point,
+    mappedType: 'object',
 
     parseBinary(v: Buffer): Point {
         return {

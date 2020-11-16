@@ -10,6 +10,7 @@ export const CircleType: DataType = {
 
     name: 'circle',
     oid: DataTypeOIDs.Circle,
+    mappedType: 'object',
 
     parseBinary(v: Buffer): Circle {
         return {

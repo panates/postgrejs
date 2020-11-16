@@ -9,6 +9,7 @@ export const DateType: DataType = {
 
     name: 'date',
     oid: DataTypeOIDs.Date,
+    mappedType: 'Date',
 
     parseBinary(v: Buffer, options: DataMappingOptions): Date | number {
         const t = v.readInt32BE();

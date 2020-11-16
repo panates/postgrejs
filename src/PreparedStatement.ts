@@ -1,21 +1,19 @@
 import {
     AnyParseFunction,
-    CommandResult,
-    Maybe, OID, StatementPrepareOptions,
+    CommandResult, DEFAULT_COLUMN_FORMAT,
+    FieldInfo,
+    Maybe,
+    OID,
     QueryOptions,
-    QueryResult, FieldInfo
+    QueryResult,
+    StatementPrepareOptions
 } from './definitions';
 import {Connection} from './Connection';
 import {SafeEventEmitter} from './SafeEventEmitter';
 import {Protocol} from './protocol/protocol';
 import {Cursor} from './Cursor';
 import {Portal} from './Portal';
-import {
-    convertRowToObject, getIntlConnection,
-    getParsers,
-    parseRow,
-    wrapRowDescription
-} from './common';
+import {convertRowToObject, getIntlConnection, getParsers, parseRow, wrapRowDescription} from './common';
 import {GlobalTypeMap} from './DataTypeMap';
 
 let statementCounter = 0;
@@ -126,7 +124,7 @@ export class PreparedStatement extends SafeEventEmitter {
 
             if (fields) {
                 parsers = getParsers(typeMap, fields);
-                resultFields = wrapRowDescription(typeMap, fields);
+                resultFields = wrapRowDescription(typeMap, fields, options.columnFormat || DEFAULT_COLUMN_FORMAT);
                 if (options.cursor) {
                     result.cursor = new Cursor(
                         this,

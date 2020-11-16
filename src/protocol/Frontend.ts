@@ -1,7 +1,7 @@
 import {Protocol} from './protocol';
 import {SASL} from './sasl';
 import {SmartBuffer} from './SmartBuffer';
-import {Maybe, OID, QueryOptions} from '../definitions';
+import {DEFAULT_COLUMN_FORMAT, Maybe, OID, QueryOptions} from '../definitions';
 import {DataTypeMap} from '../DataTypeMap';
 import {encodeBinaryArray} from '../util/encode-binaryarray';
 import {stringifyArrayLiteral} from '..';
@@ -135,7 +135,7 @@ export class Frontend {
             .writeCString(args.statement || '', 'utf8');
         const {params, paramTypes, queryOptions} = args;
         const columnFormat = queryOptions.columnFormat != null ? queryOptions.columnFormat :
-            DataFormat.binary;
+            DEFAULT_COLUMN_FORMAT;
 
         if (params && params.length) {
             io.writeInt16BE(params.length);

@@ -5,6 +5,7 @@ import {parsePostgresArray} from './util/parse-array';
 import {decodeBinaryArray} from './util/decode-binaryarray';
 import {IntlConnection} from './IntlConnection';
 import {Connection} from './Connection';
+import DataFormat = Protocol.DataFormat;
 
 const DefaultColumnParser = (v: any) => v;
 
@@ -18,13 +19,13 @@ export function getParsers(typeMap: DataTypeMap, fields: Protocol.RowDescription
         const dataTypeReg = typeMap.get(f.dataTypeId);
         if (dataTypeReg) {
             const isArray = !!dataTypeReg.elementsOID;
-            if (f.format === Protocol.DataFormat.binary) {
+            if (f.format === DataFormat.binary) {
                 const decode = dataTypeReg.parseBinary;
                 if (decode) {
                     parsers[i] = !isArray ? decode :
                         (v: Buffer, options: DataMappingOptions) => decodeBinaryArray(v, decode, options);
                 }
-            } else if (f.format === Protocol.DataFormat.text) {
+            } else if (f.format === DataFormat.text) {
                 const parse = dataTypeReg.parseText;
                 if (parse) {
                     parsers[i] = !isArray ? parse :
@@ -64,21 +65,31 @@ export function getIntlConnection(connection: Connection): IntlConnection {
     return connection['_intlCon'] as IntlConnection;
 }
 
-export function wrapRowDescription(typeMap: DataTypeMap, fields: Protocol.RowDescription[]): FieldInfo[] {
-    return fields.map(f => {
+export function wrapRowDescription(typeMap: DataTypeMap, fields: Protocol.RowDescription[],
+                                   columnFormat: DataFormat | DataFormat[]): FieldInfo[] {
+
+    return fields.map((f, idx) => {
+        const cf = Array.isArray(columnFormat) ? columnFormat[idx] : columnFormat;
         const x: FieldInfo = {
             fieldName: f.fieldName,
             tableId: f.tableId,
             columnId: f.columnId,
-            dataTypeId: f.dataTypeId
+            dataTypeId: f.dataTypeId,
+            mappedType: cf === DataFormat.binary ? 'Buffer' : 'string'
         };
         if (f.fixedSize && f.fixedSize > 0)
             x.fixedSize = f.fixedSize;
         if (f.modifier && f.modifier > 0)
             x.modifier = f.modifier;
         const reg = typeMap.get(x.dataTypeId);
-        if (reg && reg.elementsOID)
-            x.isArray = true;
+        if (reg) {
+            x.mappedType = reg.mappedType;
+            if (reg.elementsOID) {
+                x.elementDataTypeId = reg.elementsOID;
+                x.isArray = true;
+            }
+        }
+
         return x;
     });
 }

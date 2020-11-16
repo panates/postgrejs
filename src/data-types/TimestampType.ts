@@ -10,6 +10,7 @@ export const TimestampType: DataType = {
 
     name: 'timestamp',
     oid: DataTypeOIDs.Timestamp,
+    mappedType: 'Date',
 
     parseBinary(v: Buffer, options: DataMappingOptions): Date | number {
         const hi = v.readInt32BE();

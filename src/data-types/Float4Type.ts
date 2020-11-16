@@ -5,6 +5,7 @@ export const Float4Type: DataType = {
 
     name: 'float4',
     oid: DataTypeOIDs.Float4,
+    mappedType: 'number',
 
     parseBinary(v: Buffer): number {
         return Math.round((v.readFloatBE(0) + Number.EPSILON) * 100) / 100;

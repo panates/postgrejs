@@ -5,6 +5,7 @@ export const Float8Type: DataType = {
 
     name: 'float8',
     oid: DataTypeOIDs.Float8,
+    mappedType: 'number',
 
     parseBinary(v: Buffer): number {
         return v.readDoubleBE(0);

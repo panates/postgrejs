@@ -7,6 +7,7 @@ export const Int2Type: DataType = {
 
     name: 'int2',
     oid: DataTypeOIDs.Int2,
+    mappedType: 'number',
 
     parseBinary(v: Buffer): number {
         return v.readInt16BE(0);

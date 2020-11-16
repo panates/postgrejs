@@ -5,6 +5,7 @@ export const CharType: DataType = {
 
     name: 'char',
     oid: DataTypeOIDs.Char,
+    mappedType: 'string',
 
     parseBinary(v: Buffer): string {
         return v.toString('utf8');

@@ -1,16 +1,20 @@
 import tls from "tls";
 import type {Cursor} from './Cursor';
 import type {SmartBuffer} from './protocol/SmartBuffer';
-import type {Protocol} from './protocol/protocol';
+import {Protocol} from './protocol/protocol';
 import type {PoolOptions} from 'lightning-pool';
 import {DataTypeMap} from './DataTypeMap';
 import {BindParam} from './BindParam';
 
+import DataFormat = Protocol.DataFormat;
+
 export type OID = number;
 export type Maybe<T> = T | undefined;
 export type Nullable<T> = T | null;
-export type DataFormat = Protocol.DataFormat;
+export {DataFormat};
 export type Row = any;
+
+export const DEFAULT_COLUMN_FORMAT = DataFormat.binary;
 
 export interface DatabaseConnectionParams {
     host?: string;
@@ -163,6 +167,14 @@ export interface FieldInfo {
      */
     dataTypeId: number;
     /**
+     * OID of the elements data type if field is an array
+     */
+    elementDataTypeId?: number;
+    /**
+     * JS type name that data type mapped
+     */
+    mappedType: string;
+    /**
      * Data length if data type has a fixed size
      */
     fixedSize?: number;
@@ -194,6 +206,7 @@ export interface DataType {
     oid: OID;
     name: string;
     elementsOID?: OID;
+    mappedType: string;
     arraySeparator?: string;
     isType: (v: any) => boolean;
     parseBinary: DecodeBinaryFunction;

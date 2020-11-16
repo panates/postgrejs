@@ -1,5 +1,5 @@
 import {Connection} from './Connection';
-import {Maybe, QueryOptions} from './definitions';
+import {DEFAULT_COLUMN_FORMAT, Maybe, QueryOptions} from './definitions';
 import {Protocol} from './protocol/protocol';
 import {PreparedStatement} from './PreparedStatement';
 import {GlobalTypeMap} from './DataTypeMap';
@@ -16,7 +16,7 @@ export class Portal {
 
     private readonly _statement: PreparedStatement;
     private readonly _name?: string;
-    private _columnFormat: Protocol.DataFormat | Protocol.DataFormat[] = Protocol.DataFormat.binary;
+    private _columnFormat: Protocol.DataFormat | Protocol.DataFormat[] = DEFAULT_COLUMN_FORMAT;
 
     constructor(statement: PreparedStatement, name: string) {
         this._statement = statement;

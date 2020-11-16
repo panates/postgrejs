@@ -5,6 +5,7 @@ export const VarcharType: DataType = {
 
     name: 'varchar',
     oid: DataTypeOIDs.Varchar,
+    mappedType: 'string',
 
     parseBinary(v: Buffer): string {
         return v.toString('utf8');

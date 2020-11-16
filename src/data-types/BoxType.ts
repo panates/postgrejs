@@ -9,6 +9,7 @@ export const BoxType: DataType = {
 
     name: 'box',
     oid: DataTypeOIDs.Box,
+    mappedType: 'object',
     arraySeparator: ';',
 
     parseBinary(v: Buffer): Rectangle {

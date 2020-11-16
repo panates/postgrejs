@@ -4,6 +4,7 @@ export const JsonType: DataType = {
 
     name: 'json',
     oid: DataTypeOIDs.Json,
+    mappedType: 'string',
 
     parseBinary(v: Buffer): string {
         return v.toString('utf8');

@@ -7,7 +7,7 @@ import {
     DataMappingOptions,
     escapeLiteral,
     stringifyValueForSQL,
-    DataTypeOIDs
+    DataTypeOIDs, QueryResult
 } from '../../src';
 import {Protocol} from '../../src/protocol/protocol';
 
@@ -31,7 +31,7 @@ describe('Data type encode/decode', function () {
 
     async function parseTest(dataTypeId: number, input: any[], output: any[],
                              opts: { columnFormat: DataFormat },
-                             mappingOptions?: DataMappingOptions) {
+                             mappingOptions?: DataMappingOptions): Promise<QueryResult> {
         const reg = GlobalTypeMap.get(dataTypeId);
         if (!reg)
             throw new Error(`Data type "${dataTypeId}" is not registered.`);
@@ -48,16 +48,24 @@ describe('Data type encode/decode', function () {
         const resp = await connection.query(sql, {...mappingOptions, columnFormat: opts.columnFormat});
         assert.ok(resp && resp.rows);
 
-        if (reg.elementsOID)
+        if (reg.elementsOID) {
+            assert.strictEqual(resp.fields[0].dataTypeId, reg.oid);
+            assert.strictEqual(resp.fields[0].mappedType, reg.mappedType);
+            if (reg.oid !== DataTypeOIDs.Char)
+                assert.strictEqual(resp.fields[0].elementDataTypeId, reg.elementsOID);
             assert.deepStrictEqual(resp.rows[0][0], output);
-        else
+        } else
             for (const [i, v] of output.entries()) {
+                assert.strictEqual(resp.fields[i].mappedType, reg.mappedType);
+                if (reg.oid !== DataTypeOIDs.Char)
+                    assert.strictEqual(resp.fields[i].dataTypeId, reg.oid);
                 assert.deepStrictEqual(resp.rows[0][i], v);
             }
+        return resp;
     }
 
     async function encodeTest(dataTypeId: number, input: any[], output?: any[],
-                              mappingOptions?: DataMappingOptions) {
+                              mappingOptions?: DataMappingOptions): Promise<QueryResult> {
         const reg = GlobalTypeMap.get(dataTypeId);
         if (!reg)
             throw new Error(`Data type "0x${dataTypeId.toString(16)}" is not registered.`);
@@ -72,15 +80,23 @@ describe('Data type encode/decode', function () {
                 .join(', ');
             params = input.map(v => new BindParam(dataTypeId, v));
         }
-        const resp = await connection.query(sql, {...mappingOptions, params});
+        const resp: QueryResult = await connection.query(sql, {...mappingOptions, params});
         assert.ok(resp && resp.rows);
         output = output === undefined ? input : output;
-        if (reg.elementsOID)
+        if (reg.elementsOID) {
+            assert.strictEqual(resp.fields[0].dataTypeId, reg.oid);
+            assert.strictEqual(resp.fields[0].mappedType, reg.mappedType);
+            if (reg.oid !== DataTypeOIDs.Char)
+                assert.strictEqual(resp.fields[0].elementDataTypeId, reg.elementsOID);
             assert.deepStrictEqual(resp.rows[0][0], output);
-        else
+        } else
             for (const [i, v] of output.entries()) {
+                assert.strictEqual(resp.fields[i].mappedType, reg.mappedType);
+                if (reg.oid !== DataTypeOIDs.Char)
+                    assert.strictEqual(resp.fields[i].dataTypeId, reg.oid);
                 assert.deepStrictEqual(resp.rows[0][i], v);
             }
+        return resp;
     }
 
     /* ---------------- */

@@ -7,6 +7,7 @@ export const Int4Type: DataType = {
 
     name: 'int4',
     oid: DataTypeOIDs.Int4,
+    mappedType: 'number',
 
     parseBinary(v: Buffer): number {
         return v.readInt32BE(0);

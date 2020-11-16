@@ -6,6 +6,7 @@ export const Int8Type: DataType = {
 
     name: 'int8',
     oid: DataTypeOIDs.Int8,
+    mappedType: 'BigInt',
 
     parseBinary(v: Buffer): bigint {
         if (typeof v.readBigInt64BE === 'function')

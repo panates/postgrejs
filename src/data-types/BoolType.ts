@@ -5,6 +5,7 @@ export const BoolType: DataType = {
 
     name: 'bool',
     oid: DataTypeOIDs.Bool,
+    mappedType: 'boolean',
 
     parseBinary(v: Buffer): boolean {
         return !!v.readUInt8();

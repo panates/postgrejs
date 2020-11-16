@@ -7,6 +7,7 @@ export const OidType: DataType = {
 
     name: 'oid',
     oid: DataTypeOIDs.Oid,
+    mappedType: 'number',
 
     parseBinary(v: Buffer): number {
         return v.readUInt32BE(0);
