@@ -75,6 +75,7 @@ export function wrapRowDescription(typeMap: DataTypeMap, fields: Protocol.RowDes
             tableId: f.tableId,
             columnId: f.columnId,
             dataTypeId: f.dataTypeId,
+            dataTypeName: '',
             mappedType: cf === DataFormat.binary ? 'Buffer' : 'string'
         };
         if (f.fixedSize && f.fixedSize > 0)
@@ -84,6 +85,7 @@ export function wrapRowDescription(typeMap: DataTypeMap, fields: Protocol.RowDes
         const reg = typeMap.get(x.dataTypeId);
         if (reg) {
             x.mappedType = reg.mappedType;
+            x.dataTypeName = reg.name;
             if (reg.elementsOID) {
                 x.elementDataTypeId = reg.elementsOID;
                 x.isArray = true;

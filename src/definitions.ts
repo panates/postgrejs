@@ -167,6 +167,10 @@ export interface FieldInfo {
      */
     dataTypeId: number;
     /**
+     * Name of the data type
+     */
+    dataTypeName: string;
+    /**
      * OID of the elements data type if field is an array
      */
     elementDataTypeId?: number;
