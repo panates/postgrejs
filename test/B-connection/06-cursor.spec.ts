@@ -58,6 +58,7 @@ describe('Cursor support', function () {
         while (await cursor.next()) {
         }
         assert.strictEqual(closed, true);
+        assert.strictEqual(cursor.isClosed, true);
     });
 
     it('should emit "close" event', async function () {
@@ -70,6 +71,7 @@ describe('Cursor support', function () {
         await cursor.next();
         await cursor.close();
         assert.strictEqual(closed, true);
+        assert.strictEqual(cursor.isClosed, true);
     });
 
     it('should emit "fetch" event', async function () {
