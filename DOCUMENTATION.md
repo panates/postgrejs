@@ -376,6 +376,8 @@ console.log(qr.rows);
 | config          | [ConnectionConfiguration](#221-connectionconfiguration) | true | Returns configuration object | 
 | inTransaction   | `boolean`             | true     | Returns true if connection is in a transaction | 
 | state           | `ConnectionState`     | true     | Returns current state of the connection | 
+| processID       | `number`              | true     | Returns processId of current session | 
+| secretKey       | `number`              | true     | Returns secret key of current session | 
 
 
 
