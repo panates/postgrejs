@@ -49,22 +49,22 @@ await db.close(); // Disconnect all connections and shutdown pool
 
 - Pure JavaScript library completely written in TypeScript
 - Supports both single connection and pooling
-- Supports named Prepared Statements
+- Named Prepared Statements
 - Extended cursor support with fast double-link cache
 - Extensible data-types and type mapping
-- Extended bind parameter support
-- Fast array support with binary encoding/decoding
+- Extended bind parameters
+- Multidimensional arrays with fast binary encoding/decoding
 - Low memory utilization and boosted performance with Shared Buffers
-- Full binary wire protocol support for all data types
-- Already supports text wire protocol
-- Built-in ScriptExecutor which allows executing multiple scripts at once
+- Full binary and text wire protocol support for all data types
+- Supports Clear text, MD5 and SASL password algorithms
+- Can return both array and object rows
 - Asynchronous Promise based api
 - Strictly typed
-- Can return both array and object rows
 
 
 ## Roadmap
 - Support multiple active cursors
+- Extended field info in query result
 
 ## Installation
 
