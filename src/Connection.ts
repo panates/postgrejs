@@ -158,45 +158,38 @@ export class Connection extends SafeEventEmitter {
     /**
      * Starts a transaction
      */
-    async startTransaction(): Promise<void> {
-        if (!this.inTransaction)
-            await this.execute('BEGIN');
+    startTransaction(): Promise<void> {
+        return this._intlCon.startTransaction();
     }
 
     /**
      * Starts transaction and creates a savepoint
      * @param name {string} - Name of the savepoint
      */
-    async savepoint(name: string): Promise<void> {
-        if (!(name && name.match(/^[a-zA-Z]\w+$/)))
-            throw new Error(`Invalid savepoint "${name}`);
-        await this.execute('BEGIN; SAVEPOINT ' + name);
+    savepoint(name: string): Promise<void> {
+        return this._intlCon.savepoint(name);
     }
 
     /**
      * Commits current transaction
      */
-    async commit(): Promise<void> {
-        if (this.inTransaction)
-            await this.execute('COMMIT');
+    commit(): Promise<void> {
+        return this._intlCon.commit();
     }
 
     /**
      * Rolls back current transaction
      */
-    async rollback(): Promise<void> {
-        if (this.inTransaction)
-            await this.execute('ROLLBACK');
+    rollback(): Promise<void> {
+        return this._intlCon.rollback();
     }
 
     /**
      * Rolls back current transaction to given savepoint
      * @param name {string} - Name of the savepoint
      */
-    async rollbackToSavepoint(name: string): Promise<void> {
-        if (!(name && name.match(/^[a-zA-Z]\w+$/)))
-            throw new Error(`Invalid savepoint "${name}`);
-        await this.execute('ROLLBACK TO SAVEPOINT ' + name);
+    rollbackToSavepoint(name: string): Promise<void> {
+        return this._intlCon.rollbackToSavepoint(name);
     }
 
     protected async _close(): Promise<void> {

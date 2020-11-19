@@ -102,9 +102,19 @@ export class PreparedStatement extends SafeEventEmitter {
 
     async execute(options: QueryOptions = {}): Promise<QueryResult> {
         const intoCon = getIntlConnection(this.connection);
-        if (this.connection.config.autoCommit == false && !this.connection.inTransaction)
-            await this.connection.execute('BEGIN');
-        return intoCon.statementQueue.enqueue<QueryResult>(() => this._execute(options));
+        const autoCommit = options.autoCommit != null ? options.autoCommit : intoCon.config.autoCommit;
+        if (autoCommit == false)
+            await intoCon.startTransaction();
+        try {
+            const result = await intoCon.statementQueue.enqueue<QueryResult>(() => this._execute(options));
+            if (autoCommit == true)
+                await intoCon.commit();
+            return result;
+        } catch (e) {
+            if (autoCommit == true)
+                await intoCon.rollback();
+            throw e;
+        }
     }
 
     async close(): Promise<void> {
@@ -177,6 +187,7 @@ export class PreparedStatement extends SafeEventEmitter {
                 result.rowsAffected = executeResult.rowCount;
 
             result.executeTime = Date.now() - startTime;
+
             return result;
         } finally {
             intoCon.unref();

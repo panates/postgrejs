@@ -57,6 +57,11 @@ export interface DataMappingOptions {
 
 export interface ScriptExecuteOptions extends DataMappingOptions {
     /**
+     * Specifies weather execute query in auto-commit mode
+     * @default false
+     */
+    autoCommit?: boolean;
+    /**
      * Specifies if rows will be fetched as <FieldName, Value> pair objects or array of values
      * @default false
      */
@@ -81,6 +86,11 @@ export interface StatementPrepareOptions {
 }
 
 export interface QueryOptions extends DataMappingOptions {
+    /**
+     * Specifies weather execute query in auto-commit mode
+     * @default false
+     */
+    autoCommit?: boolean;
     /**
      * Specifies if rows will be fetched as <FieldName, Value> pair objects or array of values
      * @default false

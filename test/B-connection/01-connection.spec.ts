@@ -158,7 +158,7 @@ describe('Connection', function () {
         await connection.close();
     });
 
-    it('should automatically start transaction when autoCommit = false (query)', async function () {
+    it('should automatically start transaction when connection.options.autoCommit = false', async function () {
         connection = new Connection({autoCommit: false});
         await connection.connect();
         assert.strictEqual(connection.inTransaction, false);
@@ -176,6 +176,52 @@ describe('Connection', function () {
 
         x = await connection.query('select * from test.dummy_table1 where id = 3');
         assert.strictEqual(connection.inTransaction, true);
+        assert.strictEqual(x.rows.length, 0);
+
+        await connection.close();
+    });
+
+    it('should automatically start transaction when connection.execute() options.autoCommit = false', async function () {
+        connection = new Connection();
+        await connection.connect();
+        assert.strictEqual(connection.inTransaction, false);
+
+        await connection.execute('insert into test.dummy_table1 (id) values (3)', {autoCommit: false});
+        assert.strictEqual(connection.inTransaction, true);
+
+        let x = await connection.execute('select * from test.dummy_table1 where id = 3', {autoCommit: false});
+        assert.strictEqual(connection.inTransaction, true);
+        assert.strictEqual(x.results[0].rows.length, 1);
+        assert.strictEqual(x.results[0].rows[0][0], 3);
+
+        await connection.query('ROLLBACK');
+        assert.strictEqual(connection.inTransaction, false);
+
+        x = await connection.execute('select * from test.dummy_table1 where id = 3');
+        assert.strictEqual(connection.inTransaction, false);
+        assert.strictEqual(x.results[0].rows.length, 0);
+
+        await connection.close();
+    });
+
+    it('should automatically start transaction when connection.query() options.autoCommit = false', async function () {
+        connection = new Connection();
+        await connection.connect();
+        assert.strictEqual(connection.inTransaction, false);
+
+        await connection.query('insert into test.dummy_table1 (id) values (3)', {autoCommit: false});
+        assert.strictEqual(connection.inTransaction, true);
+
+        let x = await connection.query('select * from test.dummy_table1 where id = 3', {autoCommit: false});
+        assert.strictEqual(connection.inTransaction, true);
+        assert.strictEqual(x.rows.length, 1);
+        assert.strictEqual(x.rows[0][0], 3);
+
+        await connection.query('ROLLBACK');
+        assert.strictEqual(connection.inTransaction, false);
+
+        x = await connection.query('select * from test.dummy_table1 where id = 3');
+        assert.strictEqual(connection.inTransaction, false);
         assert.strictEqual(x.rows.length, 0);
 
         await connection.close();

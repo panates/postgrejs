@@ -109,15 +109,19 @@ export class IntlConnection extends SafeEventEmitter {
                     totalTime: 0,
                     results: [],
                 };
-                if (this.config.autoCommit)
+                const opts = options || {};
+                const autoCommit = opts.autoCommit != null ? opts.autoCommit : this.config.autoCommit;
+                const commit = autoCommit == true && this.inTransaction;
+                if (autoCommit == false)
                     sql = 'BEGIN;' + sql;
+                else if (commit)
+                    sql += ';\nCOMMIT;';
 
                 this.socket.sendQueryMessage(sql);
                 let currentStart = Date.now();
                 let parsers;
                 let current: CommandResult = {command: undefined};
                 let fields: Protocol.RowDescription[];
-                const opts = options || {};
                 const typeMap = opts.typeMap || GlobalTypeMap;
                 let commandIdx = 0;
                 return this.socket.capture(async (code: Protocol.BackendMessageCode, msg: any,
@@ -144,8 +148,8 @@ export class IntlConnection extends SafeEventEmitter {
                             current.rows.push(row);
                             break;
                         case Protocol.BackendMessageCode.CommandComplete:
-                            // Ignore BEGIN command that we added at first
-                            if (this.config.autoCommit && commandIdx++ == 0)
+                            // Ignore BEGIN command that we added to sql
+                            if (autoCommit == false && commandIdx++ == 0)
                                 break;
                             current.command = msg.command;
                             if (current.command === 'DELETE' ||
@@ -162,6 +166,9 @@ export class IntlConnection extends SafeEventEmitter {
                         case Protocol.BackendMessageCode.ReadyForQuery:
                             this.transactionStatus = msg.status;
                             result.totalTime = Date.now() - startTime;
+                            // Ignore COMMIT command that we added to sql
+                            if (commit)
+                                result.results.pop();
                             done(undefined, result);
                     }
                 });
@@ -169,6 +176,33 @@ export class IntlConnection extends SafeEventEmitter {
                 this.unref();
             }
         });
+    }
+
+    async startTransaction(): Promise<void> {
+        if (!this.inTransaction)
+            await this.execute('BEGIN', {autoCommit: false});
+    }
+
+    async savepoint(name: string): Promise<void> {
+        if (!(name && name.match(/^[a-zA-Z]\w+$/)))
+            throw new Error(`Invalid savepoint "${name}`);
+        await this.execute('BEGIN; SAVEPOINT ' + name, {autoCommit: false});
+    }
+
+    async commit(): Promise<void> {
+        if (this.inTransaction)
+            await this.execute('COMMIT', {autoCommit: false});
+    }
+
+    async rollback(): Promise<void> {
+        if (this.inTransaction)
+            await this.execute('ROLLBACK', {autoCommit: false});
+    }
+
+    async rollbackToSavepoint(name: string): Promise<void> {
+        if (!(name && name.match(/^[a-zA-Z]\w+$/)))
+            throw new Error(`Invalid savepoint "${name}`);
+        await this.execute('ROLLBACK TO SAVEPOINT ' + name, {autoCommit: false});
     }
 
     ref(): void {
