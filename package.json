@@ -25,7 +25,7 @@
   ],
   "dependencies": {
     "doublylinked": "^2.4.3",
-    "lightning-pool": "^3.0.0",
+    "lightning-pool": "^3.0.1",
     "postgres-bytea": "^3.0.0",
     "putil-taskqueue": "^2.5.1",
     "putil-varhelpers": "^1.2.2"
