@@ -41,7 +41,7 @@ export class PreparedStatement extends SafeEventEmitter {
         intoCon.assertConnected();
         const socket = intoCon.socket;
         const statement = new PreparedStatement(connection, sql, options?.paramTypes);
-        await intoCon.statementQueue.enqueue<void>(() => {
+        await intoCon.statementQueue.enqueue<void>(async () => {
             intoCon.ref();
             try {
                 socket.sendParseMessage({
@@ -50,17 +50,32 @@ export class PreparedStatement extends SafeEventEmitter {
                     paramTypes: statement.paramTypes
                 });
                 socket.sendFlushMessage();
-                return socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error, result?: CommandResult) => void) => {
-                    switch (code) {
-                        case Protocol.BackendMessageCode.NoticeResponse:
-                            break;
-                        case Protocol.BackendMessageCode.ParseComplete:
-                            done();
-                            break;
-                        default:
-                            done(new Error(`Server returned unexpected response message (0x${code.toString(16)})`));
-                    }
-                });
+                try {
+                    await socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error, result?: CommandResult) => void) => {
+                        switch (code) {
+                            case Protocol.BackendMessageCode.NoticeResponse:
+                                break;
+                            case Protocol.BackendMessageCode.ParseComplete:
+                                done();
+                                break;
+                            default:
+                                done(new Error(`Server returned unexpected response message (0x${code.toString(16)})`));
+                        }
+                    });
+                } finally {
+                    socket.sendSyncMessage();
+                    await socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error, result?: CommandResult) => void) => {
+                        switch (code) {
+                            case Protocol.BackendMessageCode.NoticeResponse:
+                                break;
+                            case Protocol.BackendMessageCode.ReadyForQuery:
+                                done();
+                                break;
+                            default:
+                                done(new Error(`Server returned unexpected response message (0x${code.toString(16)})`));
+                        }
+                    });
+                }
             } finally {
                 intoCon.unref();
             }

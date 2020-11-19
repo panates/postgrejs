@@ -1,8 +1,7 @@
 import assert from 'assert';
 import '../_support/env';
-import {Connection} from '../../src';
+import {Connection, Cursor} from '../../src';
 import {createTestSchema} from '../_support/createdb';
-import {Cursor} from '../../src/Cursor';
 
 describe('query() (Extended Query)', function () {
 
@@ -94,6 +93,11 @@ describe('query() (Extended Query)', function () {
         assert.deepStrictEqual(row.f_circle, {x: -1.2, y: 3.5, r: 4.6});
         assert.deepStrictEqual(row.f_lseg, {x1: 1.2, y1: 3.5, x2: 4.6, y2: 5.2});
         assert.deepStrictEqual(row.f_box, {x1: 4.6, y1: 3, x2: -1.6, y2: 0.1});
+    });
+
+    it('should not crash protocol on invalid query ', async function () {
+        await assert.rejects(() => connection.query(`invalid sql`));
+        await connection.execute('select 1');
     });
 
 });

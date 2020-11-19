@@ -72,7 +72,7 @@
     "clean": "npm run clean:src && npm run clean:dist",
     "clean:dist": "ts-cleanup -d dist --remove-dirs --all",
     "clean:src": "ts-cleanup -s src --all | ts-cleanup -s test",
-    "build": "tsc -b tsconfig-build.json",
+    "build": "npm run clean | tsc -b tsconfig-build.json",
     "compile": "tsc -b tsconfig.json",
     "lint": "eslint src/** --fix --no-error-on-unmatched-pattern",
     "travis-cover": "nyc --reporter lcovonly npm run test"

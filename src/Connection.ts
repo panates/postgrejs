@@ -159,7 +159,8 @@ export class Connection extends SafeEventEmitter {
      * Starts a transaction
      */
     async startTransaction(): Promise<void> {
-        await this.execute('BEGIN');
+        if (!this.inTransaction)
+            await this.execute('BEGIN');
     }
 
     /**
@@ -176,14 +177,16 @@ export class Connection extends SafeEventEmitter {
      * Commits current transaction
      */
     async commit(): Promise<void> {
-        await this.execute('COMMIT');
+        if (this.inTransaction)
+            await this.execute('COMMIT');
     }
 
     /**
      * Rolls back current transaction
      */
     async rollback(): Promise<void> {
-        await this.execute('ROLLBACK');
+        if (this.inTransaction)
+            await this.execute('ROLLBACK');
     }
 
     /**
