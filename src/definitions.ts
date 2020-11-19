@@ -2,7 +2,7 @@ import tls from "tls";
 import type {Cursor} from './Cursor';
 import type {SmartBuffer} from './protocol/SmartBuffer';
 import {Protocol} from './protocol/protocol';
-import type {PoolOptions} from 'lightning-pool';
+import type {PoolConfiguration as LPoolConfiguration} from 'lightning-pool';
 import {DataTypeMap} from './DataTypeMap';
 import {BindParam} from './BindParam';
 
@@ -36,7 +36,7 @@ export interface SocketOptions {
 
 export type ConnectionConfiguration = DatabaseConnectionParams & SocketOptions;
 
-export interface PoolConfiguration extends ConnectionConfiguration, PoolOptions {
+export interface PoolConfiguration extends ConnectionConfiguration, LPoolConfiguration {
 }
 
 export enum ConnectionState {

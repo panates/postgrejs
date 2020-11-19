@@ -24,17 +24,17 @@
     "rdbms"
   ],
   "dependencies": {
-    "doublylinked": "^2.4.0",
-    "lightning-pool": "^2.3.0",
+    "doublylinked": "^2.4.3",
+    "lightning-pool": "^3.0.0",
     "postgres-bytea": "^3.0.0",
     "putil-taskqueue": "^2.5.1",
     "putil-varhelpers": "^1.2.2"
   },
   "devDependencies": {
     "@types/mocha": "^8.0.4",
-    "@types/node": "^14.14.7",
-    "@typescript-eslint/eslint-plugin": "^4.7.0",
-    "@typescript-eslint/parser": "^4.7.0",
+    "@types/node": "^14.14.8",
+    "@typescript-eslint/eslint-plugin": "^4.8.1",
+    "@typescript-eslint/parser": "^4.8.1",
     "babel-eslint": "^10.1.0",
     "dotenv": "^8.2.0",
     "eslint": "^7.13.0",

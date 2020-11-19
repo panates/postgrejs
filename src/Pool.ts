@@ -1,4 +1,8 @@
-import {createPool, IPoolFactory, Pool as LightningPool, PoolOptions, PoolState} from 'lightning-pool';
+import {
+    PoolFactory,
+    Pool as LightningPool,
+    PoolConfiguration as LPoolConfiguration
+} from 'lightning-pool';
 import {coerceToBoolean, coerceToInt} from 'putil-varhelpers';
 import {
     PoolConfiguration,
@@ -24,7 +28,7 @@ export class Pool extends SafeEventEmitter {
         super();
         const cfg = getConnectionConfig(config) as PoolConfiguration;
         this.config = Object.freeze(cfg);
-        const poolOptions: PoolOptions = {};
+        const poolOptions: LPoolConfiguration = {};
         poolOptions.acquireMaxRetries = coerceToInt(cfg.acquireMaxRetries, 0);
         poolOptions.acquireRetryWait = coerceToInt(cfg.acquireRetryWait, 2000);
         poolOptions.acquireTimeoutMillis = coerceToInt(cfg.acquireTimeoutMillis, 0);
@@ -35,7 +39,7 @@ export class Pool extends SafeEventEmitter {
         poolOptions.min = coerceToInt(cfg.min, 0);
         poolOptions.minIdle = coerceToInt(cfg.minIdle, 0);
         poolOptions.validation = coerceToBoolean(cfg.validation, false);
-        const poolFactory: IPoolFactory<IntlConnection> = {
+        const poolFactory: PoolFactory<IntlConnection> = {
             create: async () => {
                 const intlCon = new IntlConnection(cfg);
                 await intlCon.connect();
@@ -60,7 +64,7 @@ export class Pool extends SafeEventEmitter {
             },
         };
 
-        this._pool = createPool<IntlConnection>(poolFactory, poolOptions);
+        this._pool = new LightningPool<IntlConnection>(poolFactory, poolOptions);
         this._pool.on('return', (...args) => this.emit('release', ...args));
         this._pool.on('error', (...args) => this.emit('error', ...args));
         this._pool.on('acquire', (...args) => this.emit('acquire', ...args));
@@ -101,23 +105,8 @@ export class Pool extends SafeEventEmitter {
      * Shuts down the pool and destroys all resources.
      */
     async close(terminateWait?: number): Promise<void> {
-        if (this._pool.state === PoolState.CLOSED)
-            return;
-        this._pool.close(false, () => 0);
-        return new Promise(resolve => {
-            const ms = terminateWait == null ? 10000 : terminateWait;
-            if (ms > 0) {
-                const startTime = Date.now();
-                const timer = setInterval(() => {
-                    if (this._pool.acquired === 0 || Date.now() > startTime + ms) {
-                        clearInterval(timer);
-                        this._pool.close(true, resolve);
-                    }
-                }, 50);
-                return;
-            }
-            this._pool.close(true, resolve);
-        });
+        const ms = terminateWait == null ? 10000 : terminateWait;
+        return this._pool.close(ms);
     }
 
     /**
