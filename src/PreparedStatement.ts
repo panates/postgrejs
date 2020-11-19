@@ -150,6 +150,7 @@ export class PreparedStatement extends SafeEventEmitter {
             if (fields) {
                 parsers = getParsers(typeMap, fields);
                 resultFields = wrapRowDescription(typeMap, fields, options.columnFormat || DEFAULT_COLUMN_FORMAT);
+                result.fields = resultFields;
                 if (options.cursor) {
                     result.cursor = new Cursor(
                         this,
@@ -161,7 +162,6 @@ export class PreparedStatement extends SafeEventEmitter {
                     portal = undefined;
                     return result;
                 }
-                result.fields = resultFields;
             }
             const executeResult = await portal.execute(options.fetchCount);
             result.executeTime = Date.now() - t;
