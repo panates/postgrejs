@@ -113,6 +113,7 @@ export class IntlConnection extends SafeEventEmitter {
                     sql = 'BEGIN;' + sql;
 
                 this.socket.sendQueryMessage(sql);
+                this.socket.sendSyncMessage();
                 let currentStart = Date.now();
                 let parsers;
                 let current: CommandResult = {command: undefined};
