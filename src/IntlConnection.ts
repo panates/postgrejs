@@ -75,12 +75,12 @@ export class IntlConnection extends SafeEventEmitter {
             this.socket.connect();
         });
         let startupCommand = '';
-        if (this.config.searchPath)
-            startupCommand += 'SET search_path = ' + escapeLiteral(this.config.searchPath) + ';';
+        if (this.config.schema)
+            startupCommand += 'SET search_path = ' + escapeLiteral(this.config.schema) + ';';
         if (this.config.timezone)
             startupCommand += 'SET timezone TO ' + escapeLiteral(this.config.timezone) + ';';
         if (startupCommand)
-            await this.execute(startupCommand);
+            await this.execute(startupCommand, {autoCommit: true});
     }
 
     async close(): Promise<void> {
@@ -210,7 +210,7 @@ export class IntlConnection extends SafeEventEmitter {
                             current.rowsAffected = msg.rowCount;
                         current.executeTime = Date.now() - currentStart;
                         if (current.rows)
-                            current.rowType = opts.objectRows && current.fields ? 'object': 'array';                         
+                            current.rowType = opts.objectRows && current.fields ? 'object' : 'array';
                         result.results.push(current);
                         if (cb) cb('command-complete', current);
                         current = {command: undefined};

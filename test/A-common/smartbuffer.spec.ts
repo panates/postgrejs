@@ -26,7 +26,7 @@ describe('SmartBuffer', function () {
             } catch (e) {
                 done(e);
             }
-        }, 150).unref();
+        }, 150);
 
     });
 

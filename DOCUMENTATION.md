@@ -102,7 +102,7 @@ Configuration object and connection strings are optional for both `Connection` a
 If no argument given while creating an instance,
 same [environment variables](https://www.postgresql.org/docs/9.1/libpq-envars.html) as libpq will be used to establish connection.
 
-Current supported environment variables are [PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD, PGAPPNAME, PGTZ, PGCONNECT_TIMEOUT, PGSEARCHPATH]
+Current supported environment variables are [PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD, PGAPPNAME, PGTZ, PGCONNECT_TIMEOUT, PGSCHEMA]
 
 ```ts
 const connection = new Connection(); // Initialize using environment variables
@@ -812,7 +812,7 @@ Releases a connection
 | typesMap        | `DataTypeMap`         | *GlobalTypeMap* |Data type map instance |
 | ssl             | `tls.ConnectionOptions`|           | SSL configuration | 
 | timezone        | `string`              |           | Timezone to be set on start. (Equivalent to SET timezone TO ....) |
-| searchPath      | `string`              |           | Search path to be set on start. (Equivalent to SET search_path = ....) |
+| schema          | `string`              |           | Default schema to be set on start. (Equivalent to SET search_path = ....) |
 | connectTimeoutMs| `number`              | 30000     | Connection timeout value in millis | 
 | keepAlive       | `boolean`             | true      | Socket keep alive value | 
 

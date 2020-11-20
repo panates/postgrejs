@@ -17,8 +17,8 @@ export function configFromEnv(): DatabaseConnectionParams {
         result.applicationName = env.PGAPPNAME;
     if (env.PGTZ)
         result.timezone = env.PGTZ;
-    if (env.PGSEARCHPATH)
-        result.searchPath = env.PGSEARCHPATH;
+    if (env.PGSCHEMA)
+        result.schema = env.PGSCHEMA;
     if (env.PGCONNECT_TIMEOUT)
         result.connectTimeoutMs = parseInt(env.PGCONNECT_TIMEOUT, 10);
 

@@ -26,7 +26,7 @@ export interface DatabaseConnectionParams {
     applicationName?: string;
     ssl?: tls.ConnectionOptions;
     timezone?: string;
-    searchPath?: string;
+    schema?: string;
     connectTimeoutMs?: number;
     autoCommit?: boolean;
 }
