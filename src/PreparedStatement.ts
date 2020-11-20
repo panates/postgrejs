@@ -15,6 +15,7 @@ import {Cursor} from './Cursor';
 import {Portal} from './Portal';
 import {convertRowToObject, getIntlConnection, getParsers, parseRow, wrapRowDescription} from './common';
 import {GlobalTypeMap} from './DataTypeMap';
+import {coerceToBoolean} from "putil-varhelpers";
 
 let statementCounter = 0;
 let portalCounter = 0;
@@ -102,19 +103,16 @@ export class PreparedStatement extends SafeEventEmitter {
 
     async execute(options: QueryOptions = {}): Promise<QueryResult> {
         const intoCon = getIntlConnection(this.connection);
-        const autoCommit = options.autoCommit != null ? options.autoCommit : intoCon.config.autoCommit;
-        if (autoCommit == false)
+        const transactionCommand = this.sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bROLLBACK\b)/i) &&
+            !this.sql.match(/^\bROLLBACK TO SAVEPOINT\b/i);
+        const autoCommit = coerceToBoolean(options.autoCommit != null ?
+            options.autoCommit : intoCon.config.autoCommit, true);
+        if (!autoCommit && !transactionCommand)
             await intoCon.startTransaction();
-        try {
-            const result = await intoCon.statementQueue.enqueue<QueryResult>(() => this._execute(options));
-            if (autoCommit == true)
-                await intoCon.commit();
-            return result;
-        } catch (e) {
-            if (autoCommit == true)
-                await intoCon.rollback();
-            throw e;
-        }
+        const result = await intoCon.statementQueue.enqueue<QueryResult>(() => this._execute(options));
+        if (autoCommit && !transactionCommand)
+            await intoCon.commit();
+        return result;
     }
 
     async close(): Promise<void> {

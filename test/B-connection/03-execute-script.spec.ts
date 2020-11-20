@@ -17,7 +17,7 @@ describe('execute() (Simple Query)', function () {
     })
 
     it('should execute sql script', async function () {
-        const result = await connection.execute(`select 1`);
+        const result = await connection.execute(`select 1;`);
         assert.ok(result);
         assert.strictEqual(result.totalCommands, 1);
         assert.strictEqual(result.results.length, 1);
