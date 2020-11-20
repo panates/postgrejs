@@ -31,6 +31,10 @@ export class Cursor extends SafeEventEmitter {
         this.fields = fields;
     }
 
+    get rowType(): 'array' | 'object' {
+        return this._queryOptions.objectRows ? 'object' : 'array';
+    }
+
     get isClosed(): boolean {
         return this._closed;
     }
