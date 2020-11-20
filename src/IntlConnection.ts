@@ -209,6 +209,8 @@ export class IntlConnection extends SafeEventEmitter {
                             current.command === 'UPDATE')
                             current.rowsAffected = msg.rowCount;
                         current.executeTime = Date.now() - currentStart;
+                        if (current.rows)
+                            current.rowType = opts.objectRows && current.fields ? 'object': 'array';                         
                         result.results.push(current);
                         if (cb) cb('command-complete', current);
                         current = {command: undefined};

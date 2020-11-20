@@ -168,6 +168,7 @@ export class PreparedStatement extends SafeEventEmitter {
             if (resultFields && parsers && executeResult.rows) {
                 if (!result.command)
                     result.command = 'SELECT';
+                result.rowType = options.objectRows ? 'object' : 'array';
                 const rows = result.rows = executeResult.rows;
                 const l = rows.length;
                 let row;

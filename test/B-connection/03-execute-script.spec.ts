@@ -51,6 +51,7 @@ describe('execute() (Simple Query)', function () {
         const result = await connection.execute(`select 1 as one, 'two'::varchar as two `);
         assert.ok(result);
         assert.ok(result.results[0].rows);
+        assert.strictEqual(result.results[0].rowType, 'array');
         assert.ok(Array.isArray(result.results[0].rows[0]));
         assert.deepStrictEqual(result.results[0].rows[0], [1, 'two']);
     });
@@ -60,6 +61,7 @@ describe('execute() (Simple Query)', function () {
             {objectRows: true});
         assert.ok(result);
         assert.ok(result.results[0].rows);
+        assert.strictEqual(result.results[0].rowType, 'object');
         assert.ok(!Array.isArray(result.results[0].rows[0]));
         assert.deepStrictEqual(result.results[0].rows[0], {one: 1, two: 'two'});
     });

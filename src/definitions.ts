@@ -136,6 +136,10 @@ export interface CommandResult {
      */
     rows?: any[];
     /**
+     * Contains row type
+     */
+    rowType?: 'array' | 'object';
+    /**
      * Time elapsed to execute command
      */
     executeTime?: number;

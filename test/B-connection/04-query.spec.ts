@@ -46,6 +46,7 @@ describe('query() (Extended Query)', function () {
             {fetchCount: 10});
         assert.ok(result);
         assert.strictEqual(result.command, 'SELECT');
+        assert.strictEqual(result.rowType, 'array');
         assert.strictEqual(result.rows.length, 10);
     });
 
@@ -54,6 +55,7 @@ describe('query() (Extended Query)', function () {
             {params: ['ARGNT'], objectRows: true});
         assert.ok(result);
         assert.strictEqual(result.command, 'SELECT');
+        assert.strictEqual(result.rowType, 'object');
         assert.strictEqual(result.rows.length, 1);
         assert.strictEqual(result.rows[0].id, 'ARGNT');
     });
