@@ -149,6 +149,7 @@ export class PreparedStatement extends SafeEventEmitter {
                 parsers = getParsers(typeMap, fields);
                 resultFields = wrapRowDescription(typeMap, fields, options.columnFormat || DEFAULT_COLUMN_FORMAT);
                 result.fields = resultFields;
+                result.rowType = options.objectRows ? 'object' : 'array';
                 if (options.cursor) {
                     result.cursor = new Cursor(
                         this,
@@ -168,7 +169,6 @@ export class PreparedStatement extends SafeEventEmitter {
             if (resultFields && parsers && executeResult.rows) {
                 if (!result.command)
                     result.command = 'SELECT';
-                result.rowType = options.objectRows ? 'object' : 'array';
                 const rows = result.rows = executeResult.rows;
                 const l = rows.length;
                 let row;
