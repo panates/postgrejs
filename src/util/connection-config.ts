@@ -52,8 +52,8 @@ export function parseConnectionString(str: string): ConnectionConfiguration {
     if (parsed.query.db)
         cfg.database = decodeURI(getFirst(parsed.query.db));
 
-    if (parsed.query['schema'])
-        cfg.schema = decodeURI(getFirst(parsed.query['schema']));
+    if (parsed.query.schema)
+        cfg.schema = decodeURI(getFirst(parsed.query.schema));
 
     if (parsed.query.application_name)
         cfg.applicationName = decodeURI(getFirst(parsed.query.application_name));
