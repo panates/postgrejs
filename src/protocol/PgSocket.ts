@@ -5,9 +5,10 @@ import {SafeEventEmitter} from '../SafeEventEmitter';
 import {Backend} from './Backend';
 import {Frontend} from './Frontend';
 import {Protocol} from './protocol';
-import {ConnectionConfiguration, ConnectionState, Maybe} from '../definitions';
+import {Callback, ConnectionConfiguration, ConnectionState, Maybe} from '../definitions';
 import {DatabaseError} from './DatabaseError';
 import {SASL} from './sasl';
+import promisify from 'putil-promisify';
 
 const DEFAULT_PORT_NUMBER = 5432;
 const COMMAND_RESULT_PATTERN = /^([^\d]+)(?: (\d+)(?: (\d+))?)?$/;
@@ -18,8 +19,6 @@ export type CaptureCallback = (code: Protocol.BackendMessageCode, msg: any,
 export interface SocketError extends Error {
     code: string;
 }
-
-export type Callback = (err?: Error) => void;
 
 export class PgSocket extends SafeEventEmitter {
     private _state = ConnectionState.CLOSED;
@@ -180,8 +179,8 @@ export class PgSocket extends SafeEventEmitter {
             };
             const msgHandler = (code: Protocol.BackendMessageCode, msg: any) => {
                 const x = callback(code, msg, done);
-                if (typeof x['catch'] === 'function')
-                    x['catch'](err => done(err));
+                if (promisify.isPromise(x))
+                    (x as Promise<void>).catch(err => done(err));
             };
             this.once('error', errorHandler);
             this.on('message', msgHandler);
@@ -228,45 +227,45 @@ export class PgSocket extends SafeEventEmitter {
     }
 
     protected _handleError(err: SocketError): void {
-        if (this._state != ConnectionState.READY) {
+        if (this._state !== ConnectionState.READY) {
             this._socket?.end();
         }
         this.emit('error', err);
     }
 
     protected _handleData(data: Buffer): void {
-        this._backend.parse(data, (code: Protocol.BackendMessageCode, data?: any) => {
+        this._backend.parse(data, (code: Protocol.BackendMessageCode, payload?: any) => {
             try {
                 switch (code) {
                     case Protocol.BackendMessageCode.Authentication:
-                        this._handleAuthenticationMessage(data);
+                        this._handleAuthenticationMessage(payload);
                         break;
                     case Protocol.BackendMessageCode.ErrorResponse:
-                        this.emit('error', new DatabaseError(data));
+                        this.emit('error', new DatabaseError(payload));
                         break;
                     case Protocol.BackendMessageCode.NoticeResponse:
-                        this.emit('notice', data);
+                        this.emit('notice', payload);
                         break;
                     case Protocol.BackendMessageCode.ParameterStatus:
-                        this._handleParameterStatus(data as Protocol.ParameterStatusMessage)
+                        this._handleParameterStatus(payload as Protocol.ParameterStatusMessage)
                         break;
                     case Protocol.BackendMessageCode.BackendKeyData:
-                        this._handleBackendKeyData(data as Protocol.BackendKeyDataMessage)
+                        this._handleBackendKeyData(payload as Protocol.BackendKeyDataMessage)
                         break;
                     case Protocol.BackendMessageCode.ReadyForQuery:
-                        if (this._state != ConnectionState.READY) {
+                        if (this._state !== ConnectionState.READY) {
                             this._state = ConnectionState.READY;
                             this.emit('ready');
                         } else
-                            this.emit('message', code, data);
+                            this.emit('message', code, payload);
                         break;
                     case Protocol.BackendMessageCode.CommandComplete: {
-                        const msg = this._handleCommandComplete(data);
+                        const msg = this._handleCommandComplete(payload);
                         this.emit('message', code, msg);
                         break;
                     }
                     default:
-                        this.emit('message', code, data);
+                        this.emit('message', code, payload);
                 }
             } catch (e) {
                 this._handleError(e);

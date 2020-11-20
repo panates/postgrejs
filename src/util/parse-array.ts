@@ -10,7 +10,7 @@ export function parsePostgresArray(s: string, opts?: {
     const transform = opts?.transform;
     const len = s.length;
     let idx = 0;
-    let out: any[] = [];
+    const out: any[] = [];
 
     const iterate = (arr: any[]): void => {
         let c;

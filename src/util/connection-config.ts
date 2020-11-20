@@ -35,13 +35,13 @@ export function parseConnectionString(str: string): ConnectionConfiguration {
     if (parsed.port)
         cfg.port = parseInt(parsed.port, 10);
 
-    if (parsed.protocol == 'socket:' || parsed.protocol == 'unix:') {
+    if (parsed.protocol === 'socket:' || parsed.protocol === 'unix:') {
         if (!cfg.host.startsWith('/'))
             cfg.host = '/' + cfg.host;
         cfg.host += decodeURI(parsed.pathname || '');
         if (parsed.query.db)
             cfg.database = decodeURI(getFirst(parsed.query.db));
-    } else if (parsed.protocol == 'pg:' || parsed.protocol == 'postgres:') {
+    } else if (parsed.protocol === 'pg:' || parsed.protocol === 'postgres:') {
         if (parsed.pathname)
             cfg.database = decodeURI(parsed.pathname.substring(1));
     }

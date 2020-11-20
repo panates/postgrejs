@@ -68,7 +68,7 @@ export class SmartBuffer extends BufferReader {
     }
 
     ensureCapacity(len: number): this {
-        let endOffset = this.offset + len;
+        const endOffset = this.offset + len;
         if (this.capacity < endOffset) {
             if (endOffset > this.maxSize)
                 throw new Error('Buffer limit exceeded.');
@@ -81,7 +81,7 @@ export class SmartBuffer extends BufferReader {
         return this;
     }
 
-    fill(value: number = 0, len: number = 1): this {
+    fill(value = 0, len = 1): this {
         this.ensureCapacity(len);
         this.buffer.fill(value, this.offset, this.offset + len);
         this.offset += len;

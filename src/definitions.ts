@@ -13,6 +13,7 @@ export type Maybe<T> = T | undefined;
 export type Nullable<T> = T | null;
 export {DataFormat};
 export type Row = any;
+export type Callback = (err?: Error, value?: any) => void;
 
 export const DEFAULT_COLUMN_FORMAT = DataFormat.binary;
 
@@ -307,6 +308,7 @@ export const DataTypeOIDs = {
     anyarray: 2277,
     void: 2278,
     trigger: 2279,
+    // eslint-disable-next-line camelcase
     language_handler: 2280,
     internal: 2281,
     anyelement: 2283,

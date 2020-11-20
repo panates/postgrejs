@@ -54,8 +54,8 @@ export class Backend {
             }
 
             const parser = MessageParsers[code];
-            const data = parser && parser(io, code, len);
-            callback(code, data);
+            const v = parser && parser(io, code, len);
+            callback(code, v);
 
             // Set offset to next message
             io.offset = offsetBookmark + len + 1;

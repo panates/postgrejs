@@ -1,5 +1,6 @@
 import {fastParseInt} from './fast-parseint';
 
+// eslint-disable-next-line
 const TIMESTAMP_PATTERN = /^(\d{4})-?(0[1-9]|1[012])?-?([123]0|[012][1-9]|31)?(?:[T ]?([01][0-9]|2[0-3]):?([0-5][0-9]):?([0-5][0-9])?(?:\.(\d+))?(?:(Z)|(?:([+-])([01]?[0-9]|2[0-3]):?([0-5][0-9])?))?)?$/;
 const INFINITY_PATTERN = /^-?infinity$/;
 

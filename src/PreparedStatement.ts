@@ -132,7 +132,7 @@ export class PreparedStatement extends SafeEventEmitter {
         try {
             const result: QueryResult = {command: undefined};
             const startTime = Date.now();
-            let t = Date.now();
+            const t = Date.now();
 
             // Create portal
             const portalName = 'P_' + (++portalCounter);
@@ -142,8 +142,8 @@ export class PreparedStatement extends SafeEventEmitter {
             const fields = await portal.retrieveFields();
 
             const typeMap = options.typeMap || GlobalTypeMap;
-            let parsers: Maybe<AnyParseFunction[]> = undefined;
-            let resultFields: Maybe<FieldInfo[]> = undefined;
+            let parsers: Maybe<AnyParseFunction[]>;
+            let resultFields: Maybe<FieldInfo[]>;
 
             if (fields) {
                 parsers = getParsers(typeMap, fields);
@@ -200,8 +200,8 @@ export class PreparedStatement extends SafeEventEmitter {
         intoCon.ref();
         try {
             const socket = intoCon.socket;
-            await socket.sendCloseMessage({type: 'S', name: this.name});
-            await socket.sendSyncMessage();
+            socket.sendCloseMessage({type: 'S', name: this.name});
+            socket.sendSyncMessage();
             await socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error) => void) => {
                 switch (code) {
                     case Protocol.BackendMessageCode.NoticeResponse:

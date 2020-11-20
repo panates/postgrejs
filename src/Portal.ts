@@ -45,7 +45,7 @@ export class Portal {
                 portal: this.name,
                 paramTypes: this._statement.paramTypes,
                 params,
-                queryOptions: queryOptions
+                queryOptions
             });
             socket.sendFlushMessage();
             return await socket.capture(async (code: Protocol.BackendMessageCode, msg: any,
@@ -97,10 +97,12 @@ export class Portal {
         intoCon.ref();
         try {
             const socket = intoCon.socket;
-            await socket.sendExecuteMessage({portal: this.name, fetchCount: fetchCount || 100});
-            await socket.sendFlushMessage();
+            socket.sendExecuteMessage({portal: this.name, fetchCount: fetchCount || 100});
+            socket.sendFlushMessage();
             const rows: any = [];
-            return await socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error, result?: PortalExecuteResult) => void) => {
+            return await socket.capture(async (code: Protocol.BackendMessageCode,
+                                               msg: any,
+                                               done: (err?: Error, result?: PortalExecuteResult) => void) => {
                 switch (code) {
                     case Protocol.BackendMessageCode.NoticeResponse:
                         break;
@@ -140,8 +142,8 @@ export class Portal {
         intoCon.ref();
         try {
             const socket = intoCon.socket;
-            await socket.sendCloseMessage({type: 'P', name: this.name});
-            await socket.sendSyncMessage();
+            socket.sendCloseMessage({type: 'P', name: this.name});
+            socket.sendSyncMessage();
             return await socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error) => void) => {
                 switch (code) {
                     case Protocol.BackendMessageCode.NoticeResponse:

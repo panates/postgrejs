@@ -140,7 +140,7 @@ export class Frontend {
         if (params && params.length) {
             io.writeInt16BE(params.length);
             const formatOffset = io.offset;
-            for (const v of params) {
+            for (let i = 0; i < params.length; i++) {
                 io.writeInt16BE(Protocol.DataFormat.text); // Preserve
             }
 

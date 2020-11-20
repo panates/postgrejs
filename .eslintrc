@@ -40,7 +40,7 @@
         "@typescript-eslint/no-use-before-define": "off",
         "@typescript-eslint/no-var-requires": "off",
         "@typescript-eslint/no-shadow": "error",
-        "@typescript-eslint/prefer-for-of": "error",
+        "@typescript-eslint/prefer-for-of": "off",
         "@typescript-eslint/prefer-function-type": "error",
         "@typescript-eslint/quotes": "off",
         "@typescript-eslint/triple-slash-reference": "off",
@@ -85,7 +85,7 @@
           }
         ],
         "new-parens": "error",
-        "no-bitwise": "error",
+        "no-bitwise": "off",
         "no-caller": "error",
         "no-cond-assign": "off",
         "no-console": "error",

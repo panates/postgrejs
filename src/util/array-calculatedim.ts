@@ -1,7 +1,7 @@
 export function arrayCalculateDim(arr: any[]): number[] {
     if (!arr || arr.length === 0)
         return [0];
-    let dim = [arr.length];
+    const dim = [arr.length];
     const iterate = (a: any[], level: number): void => {
         for (let i = 0; i < a.length; i++) {
             if (Array.isArray(a[i])) {

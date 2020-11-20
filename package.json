@@ -28,7 +28,8 @@
     "lightning-pool": "^3.0.1",
     "postgres-bytea": "^3.0.0",
     "putil-taskqueue": "^2.5.1",
-    "putil-varhelpers": "^1.2.2"
+    "putil-varhelpers": "^1.2.2",
+    "putil-promisify": "^1.8.2"
   },
   "devDependencies": {
     "@types/mocha": "^8.0.4",
@@ -72,9 +73,9 @@
     "clean": "npm run clean:src && npm run clean:dist",
     "clean:dist": "ts-cleanup -d dist --remove-dirs --all",
     "clean:src": "ts-cleanup -s src --all | ts-cleanup -s test",
-    "build": "npm run clean | tsc -b tsconfig-build.json",
+    "build": "npm run clean | npm run lint | tsc -b tsconfig-build.json",
     "compile": "tsc -b tsconfig.json",
-    "lint": "eslint src/** --fix --no-error-on-unmatched-pattern",
+    "lint": "eslint src/** --no-error-on-unmatched-pattern",
     "travis-cover": "nyc --reporter lcovonly npm run test"
   }
 }

@@ -20,14 +20,8 @@ export function readBigInt64BE(buf: Buffer, offset = 0): bigint {
             last);
 }
 
-export function writeBigUInt64BE(buf: Buffer, value, offset = 0) {
-    return writeBigU_Int64BE(buf, value, offset);
-}
-
-// https://github.com/nodejs/node/blob/v13.9.0/lib/internal/buffer.js
-function writeBigU_Int64BE(buf: Buffer, value: bigint, offset: number) {
-    // checkInt(value, min, max, buf, offset, 7);
-
+export function writeBigUInt64BE(buf: Buffer, value: BigInt, offset = 0) {
+    // @ts-ignore
     let lo = Number(value & beAnd);
     buf[offset + 7] = lo;
     lo = lo >> 8;
@@ -36,6 +30,7 @@ function writeBigU_Int64BE(buf: Buffer, value: bigint, offset: number) {
     buf[offset + 5] = lo;
     lo = lo >> 8;
     buf[offset + 4] = lo;
+    // @ts-ignore
     let hi = Number(value >> big32 & beAnd);
     buf[offset + 3] = hi;
     hi = hi >> 8;
@@ -46,4 +41,3 @@ function writeBigU_Int64BE(buf: Buffer, value: bigint, offset: number) {
     buf[offset] = hi;
     return offset + 8;
 }
-

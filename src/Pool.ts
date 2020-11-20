@@ -10,7 +10,7 @@ import {
     QueryOptions,
     QueryResult,
     ScriptExecuteOptions,
-    ScriptResult, StatementPrepareOptions
+    ScriptResult, StatementPrepareOptions,
 } from './definitions';
 import {getConnectionConfig} from './util/connection-config';
 import {PreparedStatement} from './PreparedStatement';
@@ -43,7 +43,7 @@ export class Pool extends SafeEventEmitter {
             create: async () => {
                 const intlCon = new IntlConnection(cfg);
                 await intlCon.connect();
-                intlCon.on('close', () => this._pool.destroy(intlCon));
+                intlCon.on('close', () => this._pool.destroy(intlCon, () => 0));
                 return intlCon;
             },
             destroy: intlCon => intlCon.close(),
@@ -53,7 +53,7 @@ export class Pool extends SafeEventEmitter {
                         await intlCon.execute('ROLLBACK;')
                 } finally {
                     intlCon.removeAllListeners();
-                    intlCon.on('close', () => this._pool.destroy(intlCon));
+                    intlCon.on('close', () => this._pool.destroy(intlCon, () => 0));
                 }
 
             },
@@ -136,14 +136,13 @@ export class Pool extends SafeEventEmitter {
     async prepare(sql: string, options?: StatementPrepareOptions): Promise<PreparedStatement> {
         const connection = await this.acquire();
         const statement = await connection.prepare(sql, options);
-        statement.once('close', () => this.release(connection).catch(() => 0));
+        statement.once('close', () =>
+            /* eslint-disable-next-line @typescript-eslint/no-misused-promises*/
+            this.release(connection).catch(() => 0));
         return statement;
     }
 
-    /**
-     * Releases a connection
-     */
-    async release(connection: Connection): Promise<void> {
+    release(connection: Connection): any {
         return this._pool.release(getIntlConnection(connection));
     }
 

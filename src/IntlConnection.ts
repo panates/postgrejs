@@ -201,7 +201,7 @@ export class IntlConnection extends SafeEventEmitter {
                         break;
                     case Protocol.BackendMessageCode.CommandComplete:
                         // Ignore BEGIN command that we added to sql
-                        if (beginAtFirst && commandIdx++ == 0)
+                        if (beginAtFirst && commandIdx++ === 0)
                             break;
                         current.command = msg.command;
                         if (current.command === 'DELETE' ||

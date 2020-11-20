@@ -63,7 +63,7 @@ export function convertRowToObject(fields: FieldInfo[], row: any[]): any {
 }
 
 export function getIntlConnection(connection: Connection): IntlConnection {
-    return connection['_intlCon'] as IntlConnection;
+    return (connection as any)._intlCon as IntlConnection;
 }
 
 export function wrapRowDescription(typeMap: DataTypeMap, fields: Protocol.RowDescription[],
