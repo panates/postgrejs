@@ -18,7 +18,7 @@ import DataFormat = Protocol.DataFormat;
 import {coerceToBoolean} from 'putil-varhelpers';
 import _debug from 'debug';
 
-const debug = _debug('pgc:intlconnection');
+const debug = _debug('pgc:intlcon');
 
 export class IntlConnection extends SafeEventEmitter {
     protected _refCount = 0;
