@@ -16,6 +16,9 @@ import {convertRowToObject, getParsers, parseRow, wrapRowDescription} from './co
 import {escapeLiteral} from './util/escape-literal';
 import DataFormat = Protocol.DataFormat;
 import {coerceToBoolean} from 'putil-varhelpers';
+import _debug from 'debug';
+
+const debug = _debug('pgc:intlconnection');
 
 export class IntlConnection extends SafeEventEmitter {
     protected _refCount = 0;
@@ -64,12 +67,12 @@ export class IntlConnection extends SafeEventEmitter {
     async connect(): Promise<void> {
         if (this.socket.state === ConnectionState.READY)
             return;
-        await new Promise((resolve, reject) => {
+        debug('connecting');
+        await new Promise<void>((resolve, reject) => {
             const handleConnectError = (err) => reject(err);
             this.socket.once('ready', () => {
                 this.socket.removeListener('error', handleConnectError);
                 resolve();
-                this.emit('ready');
             });
             this.socket.once('error', handleConnectError);
             this.socket.connect();
@@ -81,11 +84,14 @@ export class IntlConnection extends SafeEventEmitter {
             startupCommand += 'SET timezone TO ' + escapeLiteral(this.config.timezone) + ';';
         if (startupCommand)
             await this.execute(startupCommand, {autoCommit: true});
+        debug('[%s] ready', this.processID);
+        this.emit('ready');
     }
 
     async close(): Promise<void> {
         if (this.state === ConnectionState.CLOSED)
             return;
+        debug('[%s] closing', this.processID);
         this.statementQueue.clear();
         return new Promise(resolve => {
             if (this.socket.state === ConnectionState.CLOSED)
@@ -94,6 +100,7 @@ export class IntlConnection extends SafeEventEmitter {
             this.socket.sendTerminateMessage(
                 () => {
                     this.socket.close();
+                    debug('[%s] closed', this.processID);
                     this.emit('close');
                 });
         });
@@ -135,10 +142,13 @@ export class IntlConnection extends SafeEventEmitter {
 
     ref(): void {
         this._refCount++;
+        debug('[%s] ref %d', this.processID, this._refCount);
     }
 
     unref(): boolean {
-        return !--this._refCount;
+        this._refCount--;
+        debug('[%s] unref %d', this.processID, this._refCount);
+        return !this._refCount;
     }
 
     assertConnected(): void {
@@ -151,6 +161,7 @@ export class IntlConnection extends SafeEventEmitter {
     protected async _execute(sql: string, options?: ScriptExecuteOptions, cb?: (event: string, ...args: any[]) => void): Promise<ScriptResult> {
         this.ref();
         try {
+            debug('[%s] execute | %s', this.processID, sql.substring(0, 30));
             const startTime = Date.now();
             const result: ScriptResult = {
                 totalCommands: 0,
@@ -234,6 +245,7 @@ export class IntlConnection extends SafeEventEmitter {
     protected _onError(err: Error): void {
         if (this.socket.state !== ConnectionState.READY)
             return;
+        debug('[%s] error | %s', this.processID, err.message);
         this.emit('error', err);
     }
 

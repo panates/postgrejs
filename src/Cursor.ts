@@ -3,9 +3,11 @@ import DoublyLinked from 'doublylinked';
 import {SafeEventEmitter} from './SafeEventEmitter';
 import {Portal} from './Portal';
 import {AnyParseFunction, FieldInfo, Maybe, QueryOptions, Row} from './definitions';
-
 import {PreparedStatement} from './PreparedStatement';
 import {convertRowToObject, parseRow} from './common';
+import _debug from 'debug';
+
+const debug = _debug('pgc:cursor');
 
 export class Cursor extends SafeEventEmitter {
 
@@ -29,6 +31,7 @@ export class Cursor extends SafeEventEmitter {
         this._parsers = parsers;
         this._queryOptions = queryOptions;
         this.fields = fields;
+        debug('[%s] constructor', this._portal.name);
     }
 
     get rowType(): 'array' | 'object' {
@@ -63,6 +66,7 @@ export class Cursor extends SafeEventEmitter {
     async close(): Promise<void> {
         if (this._closed)
             return;
+        debug('[%s] close', this._portal.name);
         await this._portal.close();
         await this._statement.close();
         this.emit('close');
@@ -72,6 +76,7 @@ export class Cursor extends SafeEventEmitter {
     private async _fetchRows(): Promise<void> {
         const portal = this._portal;
         await this._taskQueue.enqueue(async () => {
+            debug('[%s] fetching rows', this._portal.name);
             const queryOptions = this._queryOptions;
             const r = await portal.execute(queryOptions.fetchCount || 100);
             if (r && r.rows && r.rows.length) {
@@ -87,6 +92,7 @@ export class Cursor extends SafeEventEmitter {
                     }
                 }
                 this._rows.push(...r.rows);
+                debug('[%s] %d rows fetched', this._portal.name, r.rows.length);
                 this.emit('fetch', r.rows);
             } else {
                 await this.close();

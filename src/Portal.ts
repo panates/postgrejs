@@ -4,6 +4,9 @@ import {Protocol} from './protocol/protocol';
 import {PreparedStatement} from './PreparedStatement';
 import {GlobalTypeMap} from './DataTypeMap';
 import {getIntlConnection} from './common';
+import _debug from 'debug';
+
+const debug = _debug('pgc:portal');
 
 export interface PortalExecuteResult {
     code: Protocol.BackendMessageCode;
@@ -33,6 +36,7 @@ export class Portal {
 
     async bind(params: Maybe<any[]>,
                queryOptions: QueryOptions): Promise<void> {
+        debug('[%s] bind', this.name);
         const intoCon = getIntlConnection(this.connection);
         intoCon.ref();
         try {
@@ -66,6 +70,7 @@ export class Portal {
     }
 
     async retrieveFields(): Promise<Protocol.RowDescription[]> {
+        debug('[%s] retrieveFields', this.name);
         const intoCon = getIntlConnection(this.connection);
         intoCon.ref();
         try {
@@ -93,6 +98,7 @@ export class Portal {
     }
 
     async execute(fetchCount?: number): Promise<PortalExecuteResult> {
+        debug('[%s] execute', this.name);
         const intoCon = getIntlConnection(this.connection);
         intoCon.ref();
         try {
@@ -138,6 +144,7 @@ export class Portal {
     }
 
     async close(): Promise<void> {
+        debug('[%s] close', this.name);
         const intoCon = getIntlConnection(this.connection);
         intoCon.ref();
         try {
