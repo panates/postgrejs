@@ -61,7 +61,8 @@ export class Pool extends SafeEventEmitter {
                         await intlCon.execute('ROLLBACK;')
                 } finally {
                     intlCon.removeAllListeners();
-                    intlCon.on('close', () => this._pool.destroy(intlCon, () => 0));
+                    intlCon.once('close', () => this._pool.destroy(intlCon, () => 0));
+                    (intlCon as any)._refCount = 0;
                 }
 
             },

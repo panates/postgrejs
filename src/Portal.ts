@@ -24,6 +24,7 @@ export class Portal {
     constructor(statement: PreparedStatement, name: string) {
         this._statement = statement;
         this._name = name;
+        debug('[%s] constructor', this.name);
     }
 
     get connection(): Connection {

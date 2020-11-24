@@ -16,6 +16,9 @@ import {Portal} from './Portal';
 import {convertRowToObject, getIntlConnection, getParsers, parseRow, wrapRowDescription} from './common';
 import {GlobalTypeMap} from './DataTypeMap';
 import {coerceToBoolean} from "putil-varhelpers";
+import _debug from 'debug';
+
+const debug = _debug('pgc:statement');
 
 let statementCounter = 0;
 let portalCounter = 0;
@@ -30,7 +33,7 @@ export class PreparedStatement extends SafeEventEmitter {
     constructor(connection: Connection, sql: string, paramTypes?: OID[]) {
         super();
         this._connection = connection;
-        this._name = 'S_' + (statementCounter++);
+        this._name = 'S_' + (++statementCounter);
         this._sql = sql;
         this._paramTypes = paramTypes;
     }
@@ -77,6 +80,7 @@ export class PreparedStatement extends SafeEventEmitter {
                         }
                     });
                 }
+                debug('[%s] prepared | %s', statement.name, sql);
             } finally {
                 intoCon.unref();
             }
@@ -102,6 +106,7 @@ export class PreparedStatement extends SafeEventEmitter {
     }
 
     async execute(options: QueryOptions = {}): Promise<QueryResult> {
+        debug('[%s] execute', this.name);
         const intoCon = getIntlConnection(this.connection);
         const transactionCommand = this.sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bROLLBACK\b)/i) &&
             !this.sql.match(/^\bROLLBACK TO SAVEPOINT\b/i);
@@ -116,7 +121,9 @@ export class PreparedStatement extends SafeEventEmitter {
     }
 
     async close(): Promise<void> {
-        if (--this._refCount > 0) return;
+        --this._refCount;
+        debug('[%s] close | refCount = %d', this.name, this._refCount);
+        if (this._refCount > 0) return;
         const intoCon = getIntlConnection(this.connection);
         await intoCon.statementQueue.enqueue<void>(() => this._close());
     }
@@ -128,6 +135,7 @@ export class PreparedStatement extends SafeEventEmitter {
     protected async _execute(options: QueryOptions = {}): Promise<QueryResult> {
         let portal: Maybe<Portal>;
         const intoCon = getIntlConnection(this.connection);
+        debug('[%s] _execute', this.name);
         intoCon.ref();
         try {
             const result: QueryResult = {command: undefined};
@@ -221,6 +229,7 @@ export class PreparedStatement extends SafeEventEmitter {
         } finally {
             intoCon.unref();
         }
+        debug('[%s] closed');
         this.emit('close');
     }
 

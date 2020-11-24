@@ -12,6 +12,9 @@ import {PreparedStatement} from './PreparedStatement';
 import {IntlConnection} from './IntlConnection';
 import {GlobalTypeMap} from './DataTypeMap';
 import {BindParam} from './BindParam';
+import _debug from 'debug';
+
+const debug = _debug('pgc:intlcon');
 
 export class Connection extends SafeEventEmitter {
     private readonly _pool?: Pool;
@@ -99,17 +102,21 @@ export class Connection extends SafeEventEmitter {
         this._intlCon.statementQueue.clear();
         if (this.state === ConnectionState.CLOSED || this._closing)
             return;
+        debug('[%s] closing', this.processID);
 
         this._closing = true;
         // @ts-ignore
         if (this._intlCon.refCount > 0 && typeof terminateWait === 'number' && terminateWait > 0) {
             const startTime = Date.now();
             return new Promise((resolve, reject) => {
+                debug('[%s] waiting active queries', this.processID);
                 const timer = setInterval(() => {
                     if (this._intlCon.refCount <= 0 || Date.now() > startTime + terminateWait) {
                         clearInterval(timer);
-                        if (this._intlCon.refCount > 0)
+                        if (this._intlCon.refCount > 0) {
+                            debug('[%s] terminate', this.processID);
                             this.emit('terminate');
+                        }
                         this._close()
                             .then(resolve)
                             .catch(reject);
@@ -132,6 +139,7 @@ export class Connection extends SafeEventEmitter {
 
     async query(sql: string, options?: QueryOptions): Promise<QueryResult> {
         this._intlCon.assertConnected();
+        debug('[%s] query | %s', this.processID, sql);
         const typeMap = options?.typeMap || GlobalTypeMap;
         const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
             prm instanceof BindParam ? prm.oid : typeMap.determine(prm) || DataTypeOIDs.varchar
@@ -152,6 +160,7 @@ export class Connection extends SafeEventEmitter {
      * @param options {StatementPrepareOptions} - Options
      */
     async prepare(sql: string, options?: StatementPrepareOptions): Promise<PreparedStatement> {
+        debug('[%s] prepare', this.processID);
         return await PreparedStatement.prepare(this, sql, options);
     }
 

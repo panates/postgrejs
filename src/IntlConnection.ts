@@ -161,7 +161,7 @@ export class IntlConnection extends SafeEventEmitter {
     protected async _execute(sql: string, options?: ScriptExecuteOptions, cb?: (event: string, ...args: any[]) => void): Promise<ScriptResult> {
         this.ref();
         try {
-            debug('[%s] execute | %s', this.processID, sql.substring(0, 30));
+            debug('[%s] execute | %s', this.processID, sql);
             const startTime = Date.now();
             const result: ScriptResult = {
                 totalCommands: 0,

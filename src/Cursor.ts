@@ -74,6 +74,8 @@ export class Cursor extends SafeEventEmitter {
     }
 
     private async _fetchRows(): Promise<void> {
+        if (this._closed)
+            throw new Error(`Can not fetch from closed cursor "${this._portal.name}"`);
         const portal = this._portal;
         await this._taskQueue.enqueue(async () => {
             debug('[%s] fetching rows', this._portal.name);
