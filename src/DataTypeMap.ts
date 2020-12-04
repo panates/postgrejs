@@ -22,6 +22,7 @@ import {ArrayLsegType, LsegType} from './data-types/LsegType';
 import {ArrayPointType, PointType} from './data-types/PointType';
 import {ArrayCircleType, CircleType} from './data-types/CircleType';
 import {ArrayBoxType, BoxType} from './data-types/BoxType';
+import {ArrayNumericType, NumericType} from './data-types/NumericType';
 
 export class DataTypeMap {
     private _items: Record<OID, DataType> = {};
@@ -58,6 +59,7 @@ export const GlobalTypeMap = new DataTypeMap();
 GlobalTypeMap.register(BoolType, ArrayBoolType);
 GlobalTypeMap.register(Int4Type, ArrayInt4Type, Int8Type, ArrayInt8Type, Int2Type, ArrayInt2Type);
 GlobalTypeMap.register(Float8Type, ArrayFloat8Type, Float4Type, ArrayFloat4Type);
+GlobalTypeMap.register(NumericType, ArrayNumericType);
 
 GlobalTypeMap.register(VarcharType, ArrayVarcharType);
 GlobalTypeMap.register(CharType, ArrayCharType);
