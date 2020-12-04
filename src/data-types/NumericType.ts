@@ -3,7 +3,7 @@ import {DataType, DataTypeOIDs} from '../definitions';
 const NUMERIC_NEG = 0x4000;
 const NUMERIC_NAN = 0xC000;
 const DEC_DIGITS = 4;
-const round_powers = [0, 1000, 100, 10];
+const ROUND_POWERS = [0, 1000, 100, 10];
 
 export const NumericType: DataType = {
 
@@ -17,7 +17,7 @@ export const NumericType: DataType = {
         const sign = v.readInt16BE(4);
         const scale = v.readInt16BE(6);
 
-        if (sign == NUMERIC_NAN)
+        if (sign === NUMERIC_NAN)
             return NaN;
 
         const digits: number[] = [];
@@ -78,7 +78,7 @@ function numberBytesToString(digits: number[], scale: number, weight: number, si
     /*
      * Output a dash for negative values
      */
-    let out = sign == NUMERIC_NEG ? '-' : '';
+    let out = sign === NUMERIC_NEG ? '-' : '';
 
     /*
      * Output all digits before the decimal point
@@ -122,8 +122,8 @@ function digitToString(idx: number, digits: number[], alwaysPutIt: boolean): str
     let dig = (idx >= 0 && idx < digits.length) ? digits[idx] : 0;
     // Each dig represents 4 decimal digits (e.g. 9999)
     // If we continue the number, then we need to print 0 as 0000 (alwaysPutIt parameter is true)
-    for (let p = 1; p < round_powers.length; p++) {
-        const pow = round_powers[p];
+    for (let p = 1; p < ROUND_POWERS.length; p++) {
+        const pow = ROUND_POWERS[p];
         const d1 = Math.trunc(dig / pow);
         dig -= d1 * pow;
         const putit = (d1 > 0);
