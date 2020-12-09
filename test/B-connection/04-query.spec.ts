@@ -60,6 +60,14 @@ describe('query() (Extended Query)', function () {
         assert.strictEqual(result.rows[0].id, 'ARGNT');
     });
 
+    it('should wrap undefined parameters to null ', async function () {
+        const result = await connection.query(`select $1`,
+            {params: [null], objectRows: false});
+        assert.ok(result);
+        assert.strictEqual(result.rows.length, 1);
+        assert.strictEqual(result.rows[0][0], null);
+    });
+
     it('should return cursor', async function () {
         const result = await connection.query(`select * from test.airports`,
             {objectRows: true, cursor: true});

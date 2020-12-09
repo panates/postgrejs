@@ -141,15 +141,17 @@ export class Frontend {
             io.writeInt16BE(params.length);
             const formatOffset = io.offset;
             for (let i = 0; i < params.length; i++) {
-                io.writeInt16BE(Protocol.DataFormat.text); // Preserve
+                io.writeInt16BE(0); // Preserve
             }
 
             // Write parameter values
             io.writeUInt16BE(params.length);
             for (let i = 0; i < params?.length; i++) {
                 let v = params[i];
-                if (v == null)
+                if (v == null) {
                     io.writeInt32BE(-1);
+                    continue;
+                }
 
                 const dataTypeOid = paramTypes ? paramTypes[i] : undefined;
                 const dt = dataTypeOid ? args.typeMap.get(dataTypeOid) : undefined;
