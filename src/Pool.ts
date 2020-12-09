@@ -46,7 +46,7 @@ export class Pool extends SafeEventEmitter {
             create: async () => {
                 const intlCon = new IntlConnection(cfg);
                 await intlCon.connect();
-                intlCon.on('close', () => this._pool.destroy(intlCon, () => 0));
+                intlCon.on('close', () => this._pool.destroy(intlCon));
                 debug('created connection %s', intlCon.processID);
                 return intlCon;
             },
@@ -61,7 +61,7 @@ export class Pool extends SafeEventEmitter {
                         await intlCon.execute('ROLLBACK;')
                 } finally {
                     intlCon.removeAllListeners();
-                    intlCon.once('close', () => this._pool.destroy(intlCon, () => 0));
+                    intlCon.once('close', () => this._pool.destroy(intlCon));
                     (intlCon as any)._refCount = 0;
                 }
 
@@ -117,7 +117,7 @@ export class Pool extends SafeEventEmitter {
      */
     async close(terminateWait?: number): Promise<void> {
         const ms = terminateWait == null ? 10000 : terminateWait;
-        return this._pool.close(ms);
+        return this._pool.closeAsync(ms);
     }
 
     /**
@@ -154,8 +154,8 @@ export class Pool extends SafeEventEmitter {
         return statement;
     }
 
-    release(connection: Connection): any {
-        return this._pool.release(getIntlConnection(connection));
+    release(connection: Connection): Promise<void> {
+        return this._pool.releaseAsync(getIntlConnection(connection));
     }
 
 }
