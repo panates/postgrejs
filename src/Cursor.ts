@@ -53,6 +53,8 @@ export class Cursor extends SafeEventEmitter {
 
     async fetch(nRows: number): Promise<Row[]> {
         const out: Row[] = [];
+        if (this._closed)
+            return out;
         for (let i = 0; i < nRows; i++) {
             if (!this._rows.length)
                 await this._fetchRows();
@@ -75,7 +77,7 @@ export class Cursor extends SafeEventEmitter {
 
     private async _fetchRows(): Promise<void> {
         if (this._closed)
-            throw new Error(`Can not fetch from closed cursor "${this._portal.name}"`);
+            return;
         const portal = this._portal;
         await this._taskQueue.enqueue(async () => {
             debug('[%s] fetching rows', this._portal.name);
