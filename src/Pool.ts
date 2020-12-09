@@ -149,8 +149,7 @@ export class Pool extends SafeEventEmitter {
         const connection = await this.acquire();
         const statement = await connection.prepare(sql, options);
         statement.once('close', () =>
-            /* eslint-disable-next-line @typescript-eslint/no-misused-promises*/
-            this.release(connection).catch(() => 0));
+            this._pool.release(getIntlConnection(connection)));
         return statement;
     }
 
