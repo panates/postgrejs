@@ -64,7 +64,7 @@ insert into test.data_types
    f_char, f_varchar, f_text, f_bpchar, f_json, f_xml, f_date, f_timestamp,
    f_timestamptz, f_bytea, f_point, f_circle, f_lseg, f_box)
 values
-  (1, true, 1, 12345, 1234567890123, 1.2, 5.12345, 1.12345, 1.123,
+  (1, true, 1, 12345, 9007199254740995, 1.2, 5.12345, 1.12345, 1.123,
     'a', 'abcd', 'abcde', 'abcdef',
    '{"a": 1}', '<tag1>123</tag1>', '2010-03-22', '2020-01-10 15:45:12.123',
     '2005-07-01 01:21:11.123+03:00', 'ABCDE', '(-1.2, 3.5)', '<(-1.2, 3.5), 4.6>',

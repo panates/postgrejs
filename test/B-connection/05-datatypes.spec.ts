@@ -30,7 +30,7 @@ describe('Data type encode/decode', function () {
     })
 
     async function parseTest(dataTypeId: number, input: any[], output: any[],
-                             opts: { columnFormat: DataFormat},
+                             opts: { columnFormat: DataFormat },
                              mappingOptions?: DataMappingOptions): Promise<QueryResult> {
         const reg = GlobalTypeMap.get(dataTypeId);
         if (!reg)
@@ -55,11 +55,16 @@ describe('Data type encode/decode', function () {
                 assert.strictEqual(resp.fields[0].elementDataTypeId, reg.elementsOID);
             assert.deepStrictEqual(resp.rows[0][0], output);
         } else
-            for (const [i, v] of output.entries()) {
+            for (let [i, v] of output.entries()) {
                 assert.strictEqual(resp.fields[i].jsType, reg.jsType);
                 if (reg.oid !== DataTypeOIDs.char)
                     assert.strictEqual(resp.fields[i].dataTypeId, reg.oid);
-                assert.deepStrictEqual(resp.rows[0][i], v);
+                let n = resp.rows[0][i];
+                if (typeof n === 'bigint')
+                    n = '' + n;
+                if (typeof v === 'bigint')
+                    v = '' + v;
+                assert.deepStrictEqual(n, v);
             }
         return resp;
     }
@@ -240,19 +245,24 @@ describe('Data type encode/decode', function () {
     /* ---------------- */
 
     it('should parse "int8" field (text)', async function () {
-        await parseTest(DataTypeOIDs.int8, ['1', '-2'], [BigInt(1), -BigInt(2)],
+        await parseTest(DataTypeOIDs.int8,
+            ['9007199254740995', '-9007199254740996'],
+            [BigInt('9007199254740995'), -BigInt('9007199254740996')],
             {columnFormat: DataFormat.text});
     });
 
     it('should parse "int8" field (binary)', async function () {
-        await parseTest(DataTypeOIDs.int8, ['1', '-2'], [BigInt(1), -BigInt(2)],
+        await parseTest(DataTypeOIDs.int8, ['9007199254740995', '-9007199254740995'],
+            [BigInt('9007199254740995'), -BigInt('9007199254740995')],
             {columnFormat: DataFormat.binary});
     });
 
     it('should parse "int8" array field (text)', async function () {
         const input = [
-            [[-BigInt(1), BigInt(5), null], [BigInt(100), BigInt(150), null]],
-            [[-BigInt(10), BigInt(500), BigInt(0)], [null, BigInt(2), null]]
+            [[-BigInt('9007199254740995'), BigInt('9007199254740996'), null],
+                [BigInt('9007199254740997'), BigInt('9007199254740998'), null]],
+            [[-BigInt('9007199254740999'), BigInt('9007199254740997'),
+                BigInt('9007199254740995')], [null, BigInt('9007199254740994'), null]]
         ];
         await parseTest(DataTypeOIDs._int8, input, input,
             {columnFormat: DataFormat.text});
@@ -260,25 +270,32 @@ describe('Data type encode/decode', function () {
 
     it('should parse "int8" array field (binary)', async function () {
         const input = [
-            [[-BigInt(1), BigInt(5), null], [BigInt(100), BigInt(150), null]],
-            [[-BigInt(10), BigInt(500), BigInt(0)], [null, BigInt(2), null]]
+            [[-BigInt('9007199254740995'), BigInt('9007199254740996'), null],
+                [BigInt('9007199254740997'), BigInt('9007199254740998'), null]],
+            [[-BigInt('9007199254740999'), BigInt('9007199254740997'),
+                BigInt('9007199254740995')], [null, BigInt('9007199254740994'), null]]
         ];
         await parseTest(DataTypeOIDs._int8, input, input,
             {columnFormat: DataFormat.binary});
     });
 
     it('should encode "int8" param', async function () {
-        await encodeTest(DataTypeOIDs.int8, [-BigInt(1), BigInt(5)]);
+        await encodeTest(DataTypeOIDs.int8,
+            [-BigInt('9007199254740995'), BigInt('9007199254740996')]);
     });
 
     it('should encode "int8" array param', async function () {
         const input = [
-            [[-BigInt(1), BigInt(5)], [BigInt(100), BigInt(150)]],
-            [[-BigInt(10), BigInt(500), BigInt(0)], [null, BigInt(2)]]
+            [[-BigInt('9007199254740995'), BigInt('9007199254740996'), null],
+                [BigInt('9007199254740997'), BigInt('9007199254740998'), null]],
+            [[-BigInt('9007199254740999'), BigInt('9007199254740997'),
+                BigInt('9007199254740995')], [null, BigInt('9007199254740994'), null]]
         ];
         const output = [
-            [[-BigInt(1), BigInt(5), null], [BigInt(100), BigInt(150), null]],
-            [[-BigInt(10), BigInt(500), BigInt(0)], [null, BigInt(2), null]]
+            [[-BigInt('9007199254740995'), BigInt('9007199254740996'), null],
+                [BigInt('9007199254740997'), BigInt('9007199254740998'), null]],
+            [[-BigInt('9007199254740999'), BigInt('9007199254740997'),
+                BigInt('9007199254740995')], [null, BigInt('9007199254740994'), null]]
         ];
         await encodeTest(DataTypeOIDs._int8, input, output);
     });
@@ -382,7 +399,7 @@ describe('Data type encode/decode', function () {
     });
 
     it('should parse "numeric" field (binary)', async function () {
-        await parseTest(DataTypeOIDs.numeric,  ['12345.123456789', '-1232.567'], [12345.123456789, -1232.567],
+        await parseTest(DataTypeOIDs.numeric, ['12345.123456789', '-1232.567'], [12345.123456789, -1232.567],
             {columnFormat: DataFormat.binary});
     });
 

@@ -86,7 +86,7 @@ describe('query() (Extended Query)', function () {
         assert.deepStrictEqual(row.id, 1);
         assert.deepStrictEqual(row.f_int2, 1);
         assert.deepStrictEqual(row.f_int4, 12345);
-        assert.deepStrictEqual(row.f_int8, BigInt('1234567890123'));
+        assert.deepStrictEqual(row.f_int8, BigInt('9007199254740995'));
         assert.deepStrictEqual(row.f_float4, 1.2);
         assert.deepStrictEqual(row.f_float8, 5.12345);
         assert.deepStrictEqual(row.f_char, 'a');
