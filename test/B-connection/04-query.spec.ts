@@ -3,7 +3,9 @@ import '../_support/env';
 import {Connection, Cursor} from '../../src';
 import {createTestSchema} from '../_support/create-db';
 
-(BigInt.prototype as any).toJSON = function() { return this.toString(); };
+(BigInt.prototype as any).toJSON = function () {
+    return this.toString();
+};
 
 describe('query() (Extended Query)', function () {
 
@@ -50,6 +52,13 @@ describe('query() (Extended Query)', function () {
         assert.strictEqual(result.command, 'SELECT');
         assert.strictEqual(result.rowType, 'array');
         assert.strictEqual(result.rows.length, 10);
+    });
+
+    it('should check "fetchCount" value range', async function () {
+        await assert.rejects(() =>
+            connection.query(`select * from customers`, {fetchCount: -1}))
+        await assert.rejects(() =>
+            connection.query(`select * from customers`, {fetchCount: 4294967296}))
     });
 
     it('should use bind parameters', async function () {
