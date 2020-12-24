@@ -1,0 +1,51 @@
+{
+  "name": "countries",
+  "fields": [
+    {
+      "fieldName": "code",
+      "dataType": "varchar",
+      "jsType": "string"
+    },
+    {
+      "fieldName": "name",
+      "dataType": "varchar",
+      "jsType": "string"
+    },
+    {
+      "fieldName": "phone_code",
+      "dataType": "varchar",
+      "jsType": "string"
+    },
+    {
+      "fieldName": "continent_code",
+      "dataType": "varchar",
+      "jsType": "string"
+    }
+  ],
+  "rows": [
+    {
+      "code": "DE",
+      "name": "Germany",
+      "phone_code": "+49",
+      "continent_code": "EU"
+    },
+    {
+      "code": "CA",
+      "name": "Canada",
+      "phone_code": "+1",
+      "continent_code": "AM"
+    },
+    {
+      "code": "TR",
+      "name": "Turkey",
+      "phone_code": "+90",
+      "continent_code": "AS"
+    },
+    {
+      "code": "US",
+      "name": "United States",
+      "phone_code": "+1",
+      "continent_code": "AM"
+    }
+  ]
+}

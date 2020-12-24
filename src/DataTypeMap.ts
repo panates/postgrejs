@@ -25,7 +25,8 @@ import {ArrayBoxType, BoxType} from './data-types/BoxType';
 import {ArrayNumericType, NumericType} from './data-types/NumericType';
 
 export class DataTypeMap {
-    private _items: Record<OID, DataType> = {};
+    private _itemsByOID: Record<OID, DataType> = {};
+    private _items: DataType[] = [];
 
     constructor(other?: DataTypeMap) {
         if (other instanceof DataTypeMap)
@@ -33,16 +34,22 @@ export class DataTypeMap {
     }
 
     get(oid: OID): DataType {
-        return this._items[oid];
+        return this._itemsByOID[oid];
     }
 
     register(...dataTypes: DataType[]): void {
-        dataTypes.every(t => this._items[t.oid] = t);
+        for (const t of dataTypes) {
+            this._itemsByOID[t.oid] = t;
+            const i = this._items.findIndex(tt => tt.oid === t.oid);
+            if (i >= 0)
+                this._items[i] = t;
+            else this._items.push(t);
+        }
     }
 
     determine(value: any): Maybe<OID> {
         const valueIsArray = Array.isArray(value);
-        for (const t of Object.values(this._items)) {
+        for (const t of this._items) {
             if (valueIsArray) {
                 if (t.elementsOID && t.isType(value[0]))
                     return t.oid;

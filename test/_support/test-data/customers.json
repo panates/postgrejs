@@ -1,0 +1,837 @@
+{
+  "name": "customers",
+  "fields": [
+    {
+      "fieldName": "id",
+      "dataType": "integer",
+      "jsType": "number"
+    },
+    {
+      "fieldName": "given_name",
+      "dataType": "varchar",
+      "jsType": "string"
+    },
+    {
+      "fieldName": "family_name",
+      "dataType": "varchar",
+      "jsType": "string"
+    },
+    {
+      "fieldName": "birth_date",
+      "dataType": "date",
+      "jsType": "Date"
+    },
+    {
+      "fieldName": "city",
+      "dataType": "varchar",
+      "jsType": "string"
+    },
+    {
+      "fieldName": "country_code",
+      "dataType": "varchar",
+      "jsType": "string"
+    }
+  ],
+  "rows": [
+    {
+      "ID": 1,
+      "given_name": "Wynne",
+      "family_name": "Silva",
+      "birth_date": "1976-08-13T00:08:37-07:00",
+      "city": "Norman",
+      "country_code": "US"
+    },
+    {
+      "ID": 2,
+      "given_name": "Erica",
+      "family_name": "Fowler",
+      "birth_date": "2018-06-18T00:01:49-07:00",
+      "city": "Diyarbakır",
+      "country_code": "TR"
+    },
+    {
+      "ID": 3,
+      "given_name": "Belle",
+      "family_name": "Marsh",
+      "birth_date": "1996-02-06T04:20:46-08:00",
+      "city": "Erciş",
+      "country_code": "TR"
+    },
+    {
+      "ID": 4,
+      "given_name": "Burke",
+      "family_name": "Kidd",
+      "birth_date": "2006-04-22T17:01:02-07:00",
+      "city": "Dallas",
+      "country_code": "US"
+    },
+    {
+      "ID": 5,
+      "given_name": "Clinton",
+      "family_name": "Collier",
+      "birth_date": "2009-11-09T12:33:57-08:00",
+      "city": "Balıkesir",
+      "country_code": "TR"
+    },
+    {
+      "ID": 6,
+      "given_name": "Maxwell",
+      "family_name": "Mcfarland",
+      "birth_date": "1994-10-11T10:09:54-07:00",
+      "city": "Butte",
+      "country_code": "US"
+    },
+    {
+      "ID": 7,
+      "given_name": "Olympia",
+      "family_name": "Miles",
+      "birth_date": "1980-05-18T09:37:40-07:00",
+      "city": "Smoky Lake",
+      "country_code": "CA"
+    },
+    {
+      "ID": 8,
+      "given_name": "Isaiah",
+      "family_name": "Crosby",
+      "birth_date": "2002-12-22T19:33:45-08:00",
+      "city": "Marystown",
+      "country_code": "CA"
+    },
+    {
+      "ID": 9,
+      "given_name": "Imani",
+      "family_name": "Wolf",
+      "birth_date": "1970-01-20T02:34:32-08:00",
+      "city": "Owensboro",
+      "country_code": "US"
+    },
+    {
+      "ID": 10,
+      "given_name": "Charity",
+      "family_name": "Mack",
+      "birth_date": "1962-06-24T21:31:40-07:00",
+      "city": "Cincinnati",
+      "country_code": "US"
+    },
+    {
+      "ID": 11,
+      "given_name": "Yoko",
+      "family_name": "Pacheco",
+      "birth_date": "1996-01-10T11:31:01-08:00",
+      "city": "Lüneburg",
+      "country_code": "DE"
+    },
+    {
+      "ID": 12,
+      "given_name": "Emi",
+      "family_name": "Bennett",
+      "birth_date": "1970-05-29T06:58:03-07:00",
+      "city": "Pointe-au-Pic",
+      "country_code": "CA"
+    },
+    {
+      "ID": 13,
+      "given_name": "Katelyn",
+      "family_name": "Compton",
+      "birth_date": "1996-05-07T09:41:29-07:00",
+      "city": "San Antonio",
+      "country_code": "US"
+    },
+    {
+      "ID": 14,
+      "given_name": "Prescott",
+      "family_name": "Mercer",
+      "birth_date": "1977-10-01T19:35:16-07:00",
+      "city": "Springfield",
+      "country_code": "US"
+    },
+    {
+      "ID": 15,
+      "given_name": "Molly",
+      "family_name": "Gill",
+      "birth_date": "1988-06-19T09:55:29-07:00",
+      "city": "Bandırma",
+      "country_code": "TR"
+    },
+    {
+      "ID": 16,
+      "given_name": "Branden",
+      "family_name": "Duran",
+      "birth_date": "2013-03-30T05:14:00-07:00",
+      "city": "Miami",
+      "country_code": "US"
+    },
+    {
+      "ID": 17,
+      "given_name": "Cain",
+      "family_name": "Compton",
+      "birth_date": "1970-05-12T02:38:08-07:00",
+      "city": "Grand Island",
+      "country_code": "US"
+    },
+    {
+      "ID": 18,
+      "given_name": "Darrel",
+      "family_name": "Frank",
+      "birth_date": "2014-04-01T02:12:20-07:00",
+      "city": "West Jordan",
+      "country_code": "US"
+    },
+    {
+      "ID": 19,
+      "given_name": "Brian",
+      "family_name": "Pierce",
+      "birth_date": "1998-04-23T17:22:51-07:00",
+      "city": "Valley East",
+      "country_code": "CA"
+    },
+    {
+      "ID": 20,
+      "given_name": "Harding",
+      "family_name": "Russell",
+      "birth_date": "1967-02-01T12:50:21-08:00",
+      "city": "Auburn",
+      "country_code": "US"
+    },
+    {
+      "ID": 21,
+      "given_name": "Geoffrey",
+      "family_name": "Johnston",
+      "birth_date": "1986-11-13T06:39:45-08:00",
+      "city": "Rae-Edzo",
+      "country_code": "CA"
+    },
+    {
+      "ID": 22,
+      "given_name": "Raja",
+      "family_name": "Mercado",
+      "birth_date": "1961-09-13T04:37:00-07:00",
+      "city": "Great Falls",
+      "country_code": "US"
+    },
+    {
+      "ID": 23,
+      "given_name": "Chiquita",
+      "family_name": "Cantrell",
+      "birth_date": "2002-08-17T14:19:33-07:00",
+      "city": "Honolulu",
+      "country_code": "US"
+    },
+    {
+      "ID": 24,
+      "given_name": "Paloma",
+      "family_name": "Moody",
+      "birth_date": "2016-03-11T02:40:47-08:00",
+      "city": "Bellevue",
+      "country_code": "US"
+    },
+    {
+      "ID": 25,
+      "given_name": "Rudyard",
+      "family_name": "Mccall",
+      "birth_date": "2018-01-05T17:47:46-08:00",
+      "city": "Anchorage",
+      "country_code": "US"
+    },
+    {
+      "ID": 26,
+      "given_name": "Timon",
+      "family_name": "Suarez",
+      "birth_date": "1989-02-06T21:34:41-08:00",
+      "city": "Germersheim",
+      "country_code": "DE"
+    },
+    {
+      "ID": 27,
+      "given_name": "Lucy",
+      "family_name": "Lindsay",
+      "birth_date": "1986-07-12T21:04:21-07:00",
+      "city": "Bad Oldesloe",
+      "country_code": "DE"
+    },
+    {
+      "ID": 28,
+      "given_name": "Benedict",
+      "family_name": "Lang",
+      "birth_date": "2016-05-27T15:27:31-07:00",
+      "city": "Merritt",
+      "country_code": "CA"
+    },
+    {
+      "ID": 29,
+      "given_name": "Galvin",
+      "family_name": "Gilliam",
+      "birth_date": "2017-10-29T21:12:39-07:00",
+      "city": "Falkensee",
+      "country_code": "DE"
+    },
+    {
+      "ID": 30,
+      "given_name": "Anthony",
+      "family_name": "Langley",
+      "birth_date": "1987-07-03T05:09:14-07:00",
+      "city": "New Sarepta",
+      "country_code": "CA"
+    },
+    {
+      "ID": 31,
+      "given_name": "Vielka",
+      "family_name": "Johnson",
+      "birth_date": "1962-12-11T00:27:03-08:00",
+      "city": "Pictou",
+      "country_code": "CA"
+    },
+    {
+      "ID": 32,
+      "given_name": "Alexa",
+      "family_name": "Calhoun",
+      "birth_date": "1962-06-09T01:12:07-07:00",
+      "city": "Bathurst",
+      "country_code": "CA"
+    },
+    {
+      "ID": 33,
+      "given_name": "Emi",
+      "family_name": "Davidson",
+      "birth_date": "1999-07-19T23:09:50-07:00",
+      "city": "Karapınar",
+      "country_code": "TR"
+    },
+    {
+      "ID": 34,
+      "given_name": "Mohammad",
+      "family_name": "Rutledge",
+      "birth_date": "1964-03-23T04:54:11-08:00",
+      "city": "Gravelbourg",
+      "country_code": "CA"
+    },
+    {
+      "ID": 35,
+      "given_name": "Tatum",
+      "family_name": "Mckenzie",
+      "birth_date": "1963-11-22T07:01:23-08:00",
+      "city": "Bremen",
+      "country_code": "DE"
+    },
+    {
+      "ID": 36,
+      "given_name": "Macaulay",
+      "family_name": "Murphy",
+      "birth_date": "1997-07-27T06:31:17-07:00",
+      "city": "West Jordan",
+      "country_code": "US"
+    },
+    {
+      "ID": 37,
+      "given_name": "Hoyt",
+      "family_name": "Gibbs",
+      "birth_date": "1988-09-05T20:49:27-07:00",
+      "city": "Saarlouis",
+      "country_code": "DE"
+    },
+    {
+      "ID": 38,
+      "given_name": "Aspen",
+      "family_name": "Glover",
+      "birth_date": "1983-03-25T13:14:11-08:00",
+      "city": "Pemberton",
+      "country_code": "CA"
+    },
+    {
+      "ID": 39,
+      "given_name": "Idola",
+      "family_name": "Dennis",
+      "birth_date": "1977-04-10T16:49:08-08:00",
+      "city": "Cuxhaven",
+      "country_code": "DE"
+    },
+    {
+      "ID": 40,
+      "given_name": "Ira",
+      "family_name": "Olsen",
+      "birth_date": "2020-03-19T00:39:59-07:00",
+      "city": "Hamburg",
+      "country_code": "DE"
+    },
+    {
+      "ID": 41,
+      "given_name": "Dieter",
+      "family_name": "Gaines",
+      "birth_date": "1994-02-01T16:02:02-08:00",
+      "city": "Birecik",
+      "country_code": "TR"
+    },
+    {
+      "ID": 42,
+      "given_name": "Drake",
+      "family_name": "Holloway",
+      "birth_date": "2007-10-15T14:17:49-07:00",
+      "city": "Kuşadası",
+      "country_code": "TR"
+    },
+    {
+      "ID": 43,
+      "given_name": "Wade",
+      "family_name": "Cherry",
+      "birth_date": "1968-07-02T02:59:10-07:00",
+      "city": "Mersin",
+      "country_code": "TR"
+    },
+    {
+      "ID": 44,
+      "given_name": "Tiger",
+      "family_name": "Bridges",
+      "birth_date": "1975-03-13T07:10:53-07:00",
+      "city": "Akhisar",
+      "country_code": "TR"
+    },
+    {
+      "ID": 45,
+      "given_name": "Janna",
+      "family_name": "Farrell",
+      "birth_date": "1966-02-02T21:41:40-08:00",
+      "city": "Kiel",
+      "country_code": "DE"
+    },
+    {
+      "ID": 46,
+      "given_name": "Caleb",
+      "family_name": "Mills",
+      "birth_date": "1978-01-07T07:57:34-08:00",
+      "city": "Gölcük",
+      "country_code": "TR"
+    },
+    {
+      "ID": 47,
+      "given_name": "Mannix",
+      "family_name": "Franco",
+      "birth_date": "1975-12-08T19:14:32-08:00",
+      "city": "Inuvik",
+      "country_code": "CA"
+    },
+    {
+      "ID": 48,
+      "given_name": "Tad",
+      "family_name": "Webster",
+      "birth_date": "2019-01-07T09:37:45-08:00",
+      "city": "Bear",
+      "country_code": "US"
+    },
+    {
+      "ID": 49,
+      "given_name": "Yuli",
+      "family_name": "Mcintosh",
+      "birth_date": "1994-11-08T09:27:51-08:00",
+      "city": "Şereflikoçhisar",
+      "country_code": "TR"
+    },
+    {
+      "ID": 50,
+      "given_name": "Liberty",
+      "family_name": "Carrillo",
+      "birth_date": "2007-03-21T19:13:19-07:00",
+      "city": "Husum",
+      "country_code": "DE"
+    },
+    {
+      "ID": 51,
+      "given_name": "May",
+      "family_name": "Blake",
+      "birth_date": "2005-01-07T03:03:07-08:00",
+      "city": "Halberstadt",
+      "country_code": "DE"
+    },
+    {
+      "ID": 52,
+      "given_name": "Darrel",
+      "family_name": "Obrien",
+      "birth_date": "1962-08-04T04:10:01-07:00",
+      "city": "Lourdes",
+      "country_code": "CA"
+    },
+    {
+      "ID": 53,
+      "given_name": "Leila",
+      "family_name": "Glenn",
+      "birth_date": "2006-02-26T13:04:39-08:00",
+      "city": "Werder",
+      "country_code": "DE"
+    },
+    {
+      "ID": 54,
+      "given_name": "Dora",
+      "family_name": "Castro",
+      "birth_date": "1970-11-02T16:53:58-08:00",
+      "city": "South Portland",
+      "country_code": "US"
+    },
+    {
+      "ID": 55,
+      "given_name": "Phoebe",
+      "family_name": "Finley",
+      "birth_date": "1986-01-27T16:59:57-08:00",
+      "city": "Akron",
+      "country_code": "US"
+    },
+    {
+      "ID": 56,
+      "given_name": "Scarlett",
+      "family_name": "Britt",
+      "birth_date": "1983-06-23T17:16:46-07:00",
+      "city": "Şereflikoçhisar",
+      "country_code": "TR"
+    },
+    {
+      "ID": 57,
+      "given_name": "Charlotte",
+      "family_name": "Gentry",
+      "birth_date": "2016-05-18T05:43:08-07:00",
+      "city": "Juneau",
+      "country_code": "US"
+    },
+    {
+      "ID": 58,
+      "given_name": "Ainsley",
+      "family_name": "Cantu",
+      "birth_date": "1995-06-16T02:18:45-07:00",
+      "city": "Beausejour",
+      "country_code": "CA"
+    },
+    {
+      "ID": 59,
+      "given_name": "Sheila",
+      "family_name": "Hill",
+      "birth_date": "1963-02-22T21:40:41-08:00",
+      "city": "Balıkesir",
+      "country_code": "TR"
+    },
+    {
+      "ID": 60,
+      "given_name": "Quinlan",
+      "family_name": "Acosta",
+      "birth_date": "1982-07-12T19:43:59-07:00",
+      "city": "Orhangazi",
+      "country_code": "TR"
+    },
+    {
+      "ID": 61,
+      "given_name": "Odette",
+      "family_name": "Tate",
+      "birth_date": "1987-02-21T03:53:34-08:00",
+      "city": "Flin Flon",
+      "country_code": "CA"
+    },
+    {
+      "ID": 62,
+      "given_name": "Armando",
+      "family_name": "Reid",
+      "birth_date": "1976-10-04T19:49:37-07:00",
+      "city": "Memphis",
+      "country_code": "US"
+    },
+    {
+      "ID": 63,
+      "given_name": "Dexter",
+      "family_name": "Morris",
+      "birth_date": "2019-01-17T06:55:21-08:00",
+      "city": "Campbellton",
+      "country_code": "CA"
+    },
+    {
+      "ID": 64,
+      "given_name": "Axel",
+      "family_name": "Avila",
+      "birth_date": "2015-12-19T14:37:34-08:00",
+      "city": "Bremerhaven",
+      "country_code": "DE"
+    },
+    {
+      "ID": 65,
+      "given_name": "Julian",
+      "family_name": "Rios",
+      "birth_date": "1978-06-29T14:12:08-07:00",
+      "city": "Dallas",
+      "country_code": "US"
+    },
+    {
+      "ID": 66,
+      "given_name": "Herrod",
+      "family_name": "Sheppard",
+      "birth_date": "2009-07-31T17:32:48-07:00",
+      "city": "Gulfport",
+      "country_code": "US"
+    },
+    {
+      "ID": 67,
+      "given_name": "Phelan",
+      "family_name": "Velasquez",
+      "birth_date": "2020-01-02T04:34:23-08:00",
+      "city": "Fort Smith",
+      "country_code": "US"
+    },
+    {
+      "ID": 68,
+      "given_name": "Madaline",
+      "family_name": "Frazier",
+      "birth_date": "2012-11-13T17:30:32-08:00",
+      "city": "Augusta",
+      "country_code": "US"
+    },
+    {
+      "ID": 69,
+      "given_name": "Clare",
+      "family_name": "Shepard",
+      "birth_date": "1968-03-05T09:33:13-08:00",
+      "city": "Siverek",
+      "country_code": "TR"
+    },
+    {
+      "ID": 70,
+      "given_name": "Gabriel",
+      "family_name": "Clayton",
+      "birth_date": "2005-07-26T10:50:38-07:00",
+      "city": "Pangnirtung",
+      "country_code": "CA"
+    },
+    {
+      "ID": 71,
+      "given_name": "Talon",
+      "family_name": "Williams",
+      "birth_date": "1999-06-28T10:39:13-07:00",
+      "city": "Istanbul",
+      "country_code": "TR"
+    },
+    {
+      "ID": 72,
+      "given_name": "Cameron",
+      "family_name": "Schwartz",
+      "birth_date": "1992-08-03T20:21:58-07:00",
+      "city": "Iqaluit",
+      "country_code": "CA"
+    },
+    {
+      "ID": 73,
+      "given_name": "Signe",
+      "family_name": "Hancock",
+      "birth_date": "1972-04-24T03:47:08-08:00",
+      "city": "Bremen",
+      "country_code": "DE"
+    },
+    {
+      "ID": 74,
+      "given_name": "Lyle",
+      "family_name": "Stephens",
+      "birth_date": "1965-06-19T09:01:03-07:00",
+      "city": "Kumluca",
+      "country_code": "TR"
+    },
+    {
+      "ID": 75,
+      "given_name": "Karen",
+      "family_name": "Berg",
+      "birth_date": "1963-07-12T13:46:13-07:00",
+      "city": "Bergama",
+      "country_code": "TR"
+    },
+    {
+      "ID": 76,
+      "given_name": "Hannah",
+      "family_name": "Oconnor",
+      "birth_date": "1992-07-01T23:08:11-07:00",
+      "city": "Worcester",
+      "country_code": "US"
+    },
+    {
+      "ID": 77,
+      "given_name": "Ursa",
+      "family_name": "Tanner",
+      "birth_date": "1969-05-10T21:45:57-07:00",
+      "city": "Aklavik",
+      "country_code": "CA"
+    },
+    {
+      "ID": 78,
+      "given_name": "Aidan",
+      "family_name": "Hopper",
+      "birth_date": "1966-10-26T16:51:46-07:00",
+      "city": "Naumburg",
+      "country_code": "DE"
+    },
+    {
+      "ID": 79,
+      "given_name": "Arsenio",
+      "family_name": "Durham",
+      "birth_date": "2019-09-28T10:21:23-07:00",
+      "city": "Lörrach",
+      "country_code": "DE"
+    },
+    {
+      "ID": 80,
+      "given_name": "Rachel",
+      "family_name": "Drake",
+      "birth_date": "1962-09-18T05:42:07-07:00",
+      "city": "Wilmont",
+      "country_code": "CA"
+    },
+    {
+      "ID": 81,
+      "given_name": "Maxine",
+      "family_name": "Hooper",
+      "birth_date": "2018-01-12T18:26:23-08:00",
+      "city": "Butte",
+      "country_code": "US"
+    },
+    {
+      "ID": 82,
+      "given_name": "Riley",
+      "family_name": "Fitzpatrick",
+      "birth_date": "1998-09-07T00:28:13-07:00",
+      "city": "Haßloch",
+      "country_code": "DE"
+    },
+    {
+      "ID": 83,
+      "given_name": "Erasmus",
+      "family_name": "Austin",
+      "birth_date": "1965-11-19T22:53:36-08:00",
+      "city": "Montague",
+      "country_code": "CA"
+    },
+    {
+      "ID": 84,
+      "given_name": "Raphael",
+      "family_name": "Moreno",
+      "birth_date": "1979-12-13T22:07:10-08:00",
+      "city": "Bergen",
+      "country_code": "DE"
+    },
+    {
+      "ID": 85,
+      "given_name": "Tiger",
+      "family_name": "Macdonald",
+      "birth_date": "1976-06-25T19:51:37-07:00",
+      "city": "Rendsburg",
+      "country_code": "DE"
+    },
+    {
+      "ID": 86,
+      "given_name": "Oliver",
+      "family_name": "Terry",
+      "birth_date": "1974-09-21T14:49:39-07:00",
+      "city": "Clarksville",
+      "country_code": "US"
+    },
+    {
+      "ID": 87,
+      "given_name": "Alfreda",
+      "family_name": "Ayers",
+      "birth_date": "2013-06-15T19:23:43-07:00",
+      "city": "Langenhagen",
+      "country_code": "DE"
+    },
+    {
+      "ID": 88,
+      "given_name": "Ryan",
+      "family_name": "Fowler",
+      "birth_date": "2014-11-08T20:45:07-08:00",
+      "city": "Kahramanmaraş",
+      "country_code": "TR"
+    },
+    {
+      "ID": 89,
+      "given_name": "Shad",
+      "family_name": "Lynn",
+      "birth_date": "2000-06-06T21:03:35-07:00",
+      "city": "Lebach",
+      "country_code": "DE"
+    },
+    {
+      "ID": 90,
+      "given_name": "Cain",
+      "family_name": "Garner",
+      "birth_date": "2002-07-22T07:41:32-07:00",
+      "city": "Bensheim",
+      "country_code": "DE"
+    },
+    {
+      "ID": 91,
+      "given_name": "Tanner",
+      "family_name": "Perkins",
+      "birth_date": "1962-10-11T05:00:26-07:00",
+      "city": "Ergani",
+      "country_code": "TR"
+    },
+    {
+      "ID": 92,
+      "given_name": "Libby",
+      "family_name": "Potts",
+      "birth_date": "1992-12-28T11:06:33-08:00",
+      "city": "Duluth",
+      "country_code": "US"
+    },
+    {
+      "ID": 93,
+      "given_name": "Dominic",
+      "family_name": "Monroe",
+      "birth_date": "2008-11-06T03:08:12-08:00",
+      "city": "Montague",
+      "country_code": "CA"
+    },
+    {
+      "ID": 94,
+      "given_name": "Kadeem",
+      "family_name": "Tyson",
+      "birth_date": "2011-06-09T20:28:50-07:00",
+      "city": "Charlottetown",
+      "country_code": "CA"
+    },
+    {
+      "ID": 95,
+      "given_name": "Stewart",
+      "family_name": "Mccray",
+      "birth_date": "2014-04-17T02:55:53-07:00",
+      "city": "Riesa",
+      "country_code": "DE"
+    },
+    {
+      "ID": 96,
+      "given_name": "Paki",
+      "family_name": "Kirk",
+      "birth_date": "1977-04-16T22:45:24-08:00",
+      "city": "Rock Springs",
+      "country_code": "US"
+    },
+    {
+      "ID": 97,
+      "given_name": "Deanna",
+      "family_name": "Mclean",
+      "birth_date": "2013-12-24T15:59:02-08:00",
+      "city": "Watson Lake",
+      "country_code": "CA"
+    },
+    {
+      "ID": 98,
+      "given_name": "Britanni",
+      "family_name": "Frye",
+      "birth_date": "1976-03-10T04:14:37-08:00",
+      "city": "Minneapolis",
+      "country_code": "US"
+    },
+    {
+      "ID": 99,
+      "given_name": "Callum",
+      "family_name": "Ratliff",
+      "birth_date": "1960-08-29T08:09:22-07:00",
+      "city": "Zwickau",
+      "country_code": "DE"
+    },
+    {
+      "ID": 100,
+      "given_name": "Xerxes",
+      "family_name": "Gilliam",
+      "birth_date": "1989-10-02T20:12:46-07:00",
+      "city": "Baunatal",
+      "country_code": "DE"
+    }
+  ]
+}

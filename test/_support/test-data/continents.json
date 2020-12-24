@@ -1,0 +1,29 @@
+{
+  "name": "continents",
+  "fields": [
+    {
+      "fieldName": "code",
+      "dataType": "varchar",
+      "jsType": "string"
+    },
+    {
+      "fieldName": "name",
+      "dataType": "varchar",
+      "jsType": "string"
+    }
+  ],
+  "rows": [
+    {
+      "code": "EU",
+      "name": "Europe"
+    },
+    {
+      "code": "AS",
+      "name": "Asia"
+    },
+    {
+      "code": "AM",
+      "name": "America"
+    }
+  ]
+}

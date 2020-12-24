@@ -1,7 +1,7 @@
 import assert from 'assert';
 import '../_support/env';
 import {Connection, ConnectionState} from '../../src';
-import {createTestSchema} from '../_support/createdb';
+import {createTestSchema} from '../_support/create-db';
 
 describe('Connection', function () {
 

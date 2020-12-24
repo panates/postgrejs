@@ -1,7 +1,7 @@
 import assert from 'assert';
 import '../_support/env';
 import {Connection} from '../../src';
-import {createTestSchema} from '../_support/createdb';
+import {createTestSchema} from '../_support/create-db';
 
 describe('execute() (Simple Query)', function () {
 
@@ -113,11 +113,11 @@ describe('execute() (Simple Query)', function () {
     });
 
     it('should return all rows', async function () {
-        const result = await connection.execute(`select * from test.regions`,
+        const result = await connection.execute(`select * from countries`,
             {objectRows: true});
         assert.ok(result);
         assert.ok(result.results[0].rows);
-        assert.strictEqual(result.results[0].rows.length, 5);
+        assert.strictEqual(result.results[0].rows.length, 4);
     });
 
 });

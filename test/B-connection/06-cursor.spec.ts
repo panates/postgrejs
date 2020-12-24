@@ -1,7 +1,7 @@
 import assert from 'assert';
 import '../_support/env';
 import {Connection} from '../../src';
-import {createTestSchema} from '../_support/createdb';
+import {createTestSchema} from '../_support/create-db';
 
 describe('Cursor support', function () {
 
@@ -18,38 +18,38 @@ describe('Cursor support', function () {
     })
 
     it('should next() fetch next row', async function () {
-        const result = await connection.query(`select * from test.airports order by id`,
+        const result = await connection.query(`select * from customers order by id`,
             {objectRows: false, cursor: true});
         const cursor = result.cursor;
         assert.ok(cursor);
         const row = await cursor.next();
-        assert.deepStrictEqual(row[0], 'AIGRE');
+        assert.deepStrictEqual(row[0], 1);
         await cursor.close();
     });
 
     it('should next() fetch next row as object', async function () {
-        const result = await connection.query(`select * from test.airports order by id`,
+        const result = await connection.query(`select * from customers order by id`,
             {objectRows: true, cursor: true});
         const cursor = result.cursor;
         assert.ok(cursor);
         const row = await cursor.next();
-        assert.deepStrictEqual(row && row.id, 'AIGRE');
+        assert.deepStrictEqual(row && row.id, 1);
         await cursor.close();
     });
 
     it('should fetch() fetch multiple rows', async function () {
-        const result = await connection.query(`select * from test.airports order by id`,
+        const result = await connection.query(`select * from customers order by id`,
             {objectRows: false, cursor: true, fetchCount: 5});
         const cursor = result.cursor;
         assert.ok(cursor);
         const rows = await cursor.fetch(10);
         assert.strictEqual(rows.length, 10);
-        assert.deepStrictEqual(rows[0][0], 'AIGRE');
+        assert.deepStrictEqual(rows[0][0], 1);
         await cursor.close();
     });
 
     it('should automatically close cursor after fetching all rows', async function () {
-        const result = await connection.query(`select * from test.airports limit 10`,
+        const result = await connection.query(`select * from customers limit 10`,
             {objectRows: true, cursor: true});
         const cursor = result.cursor;
         assert.ok(cursor);
@@ -62,7 +62,7 @@ describe('Cursor support', function () {
     });
 
     it('should emit "close" event', async function () {
-        const result = await connection.query(`select * from test.airports order by id`,
+        const result = await connection.query(`select * from customers order by id`,
             {objectRows: true, cursor: true});
         const cursor = result.cursor;
         assert.ok(cursor);
@@ -75,7 +75,7 @@ describe('Cursor support', function () {
     });
 
     it('should emit "fetch" event', async function () {
-        const result = await connection.query(`select * from test.airports limit 10`,
+        const result = await connection.query(`select * from customers limit 10`,
             {objectRows: true, cursor: true});
         const cursor = result.cursor;
         assert.ok(cursor);
