@@ -800,6 +800,17 @@ describe('Data type encode/decode', function () {
             {columnFormat: DataFormat.text}, {utcDates: true});
     });
 
+    it('should parse "date" field (text, fetchAsString)', async function () {
+        const input = [
+            '2020-10-22', '2020-10-22T23:45:00', 'epoch', 'infinity', '-infinity',
+        ];
+        const output = [
+            '2020-10-22', '2020-10-22', '1970-01-01', 'infinity', '-infinity',
+        ];
+        await parseTest(DataTypeOIDs.date, input, output,
+            {columnFormat: DataFormat.text}, {fetchAsString: [DataTypeOIDs.date]});
+    });
+
     it('should parse "date" field (binary)', async function () {
         const input = [
             '2020-10-22',
@@ -830,6 +841,17 @@ describe('Data type encode/decode', function () {
         ];
         await parseTest(DataTypeOIDs.date, input, output,
             {columnFormat: DataFormat.binary}, {utcDates: true});
+    });
+
+    it('should parse "date" field (binary, fetchAsString)', async function () {
+        const input = [
+            '2020-10-22', '2020-10-22T23:45:00', 'epoch', 'infinity', '-infinity',
+        ];
+        const output = [
+            '2020-10-22', '2020-10-22', '1970-01-01', 'infinity', '-infinity',
+        ];
+        await parseTest(DataTypeOIDs.date, input, output,
+            {columnFormat: DataFormat.binary}, {fetchAsString: [DataTypeOIDs.date]});
     });
 
     it('should parse "date" array field (text)', async function () {
@@ -950,6 +972,23 @@ describe('Data type encode/decode', function () {
             {columnFormat: DataFormat.text}, {utcDates: true});
     });
 
+    it('should parse "timestamp" field (text, fetchAsString)', async function () {
+        const input = [
+            '2020-10-22',
+            '2020-10-22T23:45:00',
+            '2020-10-22T23:45:00+03:00',
+            'epoch', 'infinity', '-infinity',
+        ];
+        const output = [
+            '2020-10-22 00:00:00',
+            '2020-10-22 23:45:00',
+            '2020-10-22 23:45:00',
+            '1970-01-01 00:00:00', 'infinity', '-infinity',
+        ];
+        await parseTest(DataTypeOIDs.timestamp, input, output,
+            {columnFormat: DataFormat.text}, {fetchAsString: [DataTypeOIDs.timestamp]});
+    });
+
     it('should parse "timestamp" field (binary)', async function () {
         const input = [
             '2020-10-22',
@@ -984,6 +1023,23 @@ describe('Data type encode/decode', function () {
         ];
         await parseTest(DataTypeOIDs.timestamp, input, output,
             {columnFormat: DataFormat.binary}, {utcDates: true});
+    });
+
+    it('should parse "timestamp" field (binary, fetchAsString)', async function () {
+        const input = [
+            '2020-10-22',
+            '2020-10-22T23:45:00',
+            '2020-10-22T23:45:00+03:00',
+            'epoch', 'infinity', '-infinity',
+        ];
+        const output = [
+            '2020-10-22 00:00:00',
+            '2020-10-22 23:45:00',
+            '2020-10-22 23:45:00',
+            '1970-01-01 00:00:00', 'infinity', '-infinity',
+        ];
+        await parseTest(DataTypeOIDs.timestamp, input, output,
+            {columnFormat: DataFormat.binary}, {fetchAsString: [DataTypeOIDs.timestamp]});
     });
 
     it('should parse "timestamp" array field (text)', async function () {
@@ -1102,6 +1158,21 @@ describe('Data type encode/decode', function () {
             {columnFormat: DataFormat.text}, {utcDates: true});
     });
 
+    it('should parse "timestamptz" field (text, fetchAsString)', async function () {
+        const input = [
+            '2020-10-22T23:45:12.123Z',
+            '2020-10-22T23:45:00+01:00',
+            'epoch', 'infinity', '-infinity',
+        ];
+        const output = [
+            '2020-10-22 23:45:12.123Z',
+            '2020-10-22 22:45:00.000Z',
+            '1970-01-01 00:00:00.000Z', 'infinity', '-infinity',
+        ];
+        await parseTest(DataTypeOIDs.timestamptz, input, output,
+            {columnFormat: DataFormat.text}, {fetchAsString: [DataTypeOIDs.timestamptz]});
+    });
+
     it('should parse "timestamptz" field (binary)', async function () {
         const input = [
             '2020-10-22T23:45:00Z',
@@ -1116,6 +1187,21 @@ describe('Data type encode/decode', function () {
         ];
         await parseTest(DataTypeOIDs.timestamptz, input, output,
             {columnFormat: DataFormat.binary});
+    });
+
+    it('should parse "timestamptz" field (binary, fetchAsString)', async function () {
+        const input = [
+            '2020-10-22T23:45:12.123Z',
+            '2020-10-22T23:45:00+01:00',
+            'epoch', 'infinity', '-infinity',
+        ];
+        const output = [
+            '2020-10-22 23:45:12.123Z',
+            '2020-10-22 22:45:00.000Z',
+            '1970-01-01 00:00:00.000Z', 'infinity', '-infinity',
+        ];
+        await parseTest(DataTypeOIDs.timestamptz, input, output,
+            {columnFormat: DataFormat.binary}, {fetchAsString: [DataTypeOIDs.timestamptz]});
     });
 
     it('should parse "timestamptz" field (binary, utcDates)', async function () {

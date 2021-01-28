@@ -12,20 +12,22 @@ export const TimestampType: DataType = {
     oid: DataTypeOIDs.timestamp,
     jsType: 'Date',
 
-    parseBinary(v: Buffer, options: DataMappingOptions): Date | number {
+    parseBinary(v: Buffer, options: DataMappingOptions): Date | number | string {
+        const fetchAsString = options.fetchAsString &&
+            options.fetchAsString.includes(DataTypeOIDs.timestamp);
         const hi = v.readInt32BE();
         const lo = v.readUInt32BE(4);
-        if (lo === 0xffffffff && hi === 0x7fffffff) return Infinity;
-        if (lo === 0x00000000 && hi === -0x80000000) return -Infinity;
+        if (lo === 0xffffffff && hi === 0x7fffffff)
+            return fetchAsString ? 'infinity' : Infinity;
+        if (lo === 0x00000000 && hi === -0x80000000)
+            return fetchAsString ? '-infinity' : -Infinity;
 
         // Shift from 2000 to 1970
-        const d = new Date((lo + hi * timeMul) / 1000 + timeShift);
-        // We created Date object with timestamp number which is always utc
-        if (options.utcDates)
-            return d;
-        // Create date with local timezone
-        return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(),
-            d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds(), d.getUTCMilliseconds());
+        let d = new Date((lo + hi * timeMul) / 1000 + timeShift);
+        if (fetchAsString || !options.utcDates)
+            d = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(),
+                d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds(), d.getUTCMilliseconds());
+        return fetchAsString ? dateToTimestampString(d) : d;
     },
 
     encodeBinary(buf: SmartBuffer, v: Date | number | string, options: DataMappingOptions): void {
@@ -53,7 +55,9 @@ export const TimestampType: DataType = {
         buf.writeUInt32BE(lo);
     },
 
-    parseText(v: string, options: DataMappingOptions): Date | number {
+    parseText(v: string, options: DataMappingOptions): Date | number | string {
+        if (options.fetchAsString && options.fetchAsString.includes(DataTypeOIDs.timestamp))
+            return v;
         return parseDateTime(v, true, false, options.utcDates);
     },
 
@@ -61,6 +65,19 @@ export const TimestampType: DataType = {
         return v instanceof Date;
     }
 
+}
+
+function padZero(v: number): string {
+    return v < 9 ? '0' + v : '' + v;
+}
+
+function dateToTimestampString(d: Date): string {
+    return d.getFullYear() + '-' +
+        padZero(d.getMonth() + 1) + '-' +
+        padZero(d.getDate()) + ' ' +
+        padZero(d.getHours()) + ':' +
+        padZero(d.getMinutes()) + ':' +
+        padZero(d.getSeconds());
 }
 
 export const ArrayTimestampType: DataType = {

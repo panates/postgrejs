@@ -54,6 +54,8 @@ export interface DataMappingOptions {
      * @default false
      */
     utcDates?: boolean;
+
+    fetchAsString?: OID[];
 }
 
 export interface ScriptExecuteOptions extends DataMappingOptions {

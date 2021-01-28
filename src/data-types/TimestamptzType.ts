@@ -1,4 +1,4 @@
-import {DataType, DataTypeOIDs, DataMappingOptions, Maybe} from '../definitions';
+import {DataType, DataTypeOIDs, DataMappingOptions} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
 // noinspection ES6PreferShortImport
 import {parseDateTime} from '../util/parse-datetime';
@@ -12,20 +12,22 @@ export const TimestamptzType: DataType = {
     oid: DataTypeOIDs.timestamptz,
     jsType: 'Date',
 
-    parseBinary(v: Buffer, options: DataMappingOptions): Date | number {
+    parseBinary(v: Buffer, options: DataMappingOptions): Date | number | string {
+        const fetchAsString = options.fetchAsString &&
+            options.fetchAsString.includes(DataTypeOIDs.timestamptz);
         const hi = v.readInt32BE();
         const lo = v.readUInt32BE(4);
-        if (lo === 0xffffffff && hi === 0x7fffffff) return Infinity;
-        if (lo === 0x00000000 && hi === -0x80000000) return -Infinity;
+        if (lo === 0xffffffff && hi === 0x7fffffff)
+            return fetchAsString ? 'infinity' : Infinity;
+        if (lo === 0x00000000 && hi === -0x80000000)
+            return fetchAsString ? '-infinity' : -Infinity;
 
         // Shift from 2000 to 1970
-        const d = new Date((lo + hi * timeMul) / 1000 + timeShift);
-        // We created Date object with timestamp number which is always utc
-        if (options.utcDates)
-            return d;
-        // Create date with local timezone
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate(),
-            d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds());
+        let d = new Date((lo + hi * timeMul) / 1000 + timeShift);
+        if (fetchAsString || !options.utcDates)
+            d = new Date(d.getFullYear(), d.getMonth(), d.getDate(),
+                d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds());
+        return fetchAsString ? dateToTimestamptzString(d) : d;
     },
 
     encodeBinary(buf: SmartBuffer, v: Date | number | string, options: DataMappingOptions): void {
@@ -51,14 +53,28 @@ export const TimestamptzType: DataType = {
         buf.writeUInt32BE(lo);
     },
 
-    parseText(v: string, options: DataMappingOptions): Maybe<Date | number> {
-        return parseDateTime(v, true, true, options.utcDates);
+    parseText(v: string, options: DataMappingOptions): Date | number | string {
+        const d = parseDateTime(v, true, true, options.utcDates);
+        if (options.fetchAsString && options.fetchAsString.includes(DataTypeOIDs.timestamptz)) {
+            if (d instanceof Date)
+                return dateToTimestamptzString(d);
+            if (d === Infinity)
+                return 'infinity';
+            if (d === -Infinity)
+                return '-infinity';
+            return '';
+        }
+        return d;
     },
 
     isType(v: any): boolean {
         return v instanceof Date;
     }
 
+}
+
+function dateToTimestamptzString(d: Date): string {
+    return d.toISOString().replace('T', ' ');
 }
 
 export const ArrayTimestamptzType: DataType = {
