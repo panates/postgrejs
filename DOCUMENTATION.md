@@ -906,6 +906,7 @@ Extends [DataMappingOptions](#223-datamappingoptions)
 | params       | `(BindParam  | any)[]` | Query execution parameters |
 | columnFormat | `DataFormat` `DataFormat[]`| 1 (binary)  | Specifies transfer format (binary or text) for each column |
 | fetchCount   | `number`     | 100     | Specifies how many rows will be fetched. For Cursor, this value specifies how many rows will be fetched in a batch |
+| fetchAsString| `OID[]`      |         | Specifies which data types will be fetched as string |
 
 ### 2.2.10. QueryResult
 
