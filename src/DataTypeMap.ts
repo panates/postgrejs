@@ -23,6 +23,7 @@ import {ArrayPointType, PointType} from './data-types/PointType';
 import {ArrayCircleType, CircleType} from './data-types/CircleType';
 import {ArrayBoxType, BoxType} from './data-types/BoxType';
 import {ArrayNumericType, NumericType} from './data-types/NumericType';
+import {ArrayUuidType, UuidType} from './data-types/UuidType';
 
 export class DataTypeMap {
     private _itemsByOID: Record<OID, DataType> = {};
@@ -74,6 +75,8 @@ GlobalTypeMap.register(CharType, ArrayCharType);
 GlobalTypeMap.register(TimestamptzType, ArrayTimestamptzType);
 GlobalTypeMap.register(TimestampType, ArrayTimestampType);
 GlobalTypeMap.register(DateType, ArrayDateType);
+
+GlobalTypeMap.register(UuidType, ArrayUuidType);
 
 GlobalTypeMap.register(OidType, ArrayOidType);
 GlobalTypeMap.register(JsonType, ArrayJsonType);
