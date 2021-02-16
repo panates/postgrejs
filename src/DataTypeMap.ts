@@ -69,14 +69,11 @@ GlobalTypeMap.register(Int4Type, ArrayInt4Type, Int8Type, ArrayInt8Type, Int2Typ
 GlobalTypeMap.register(Float8Type, ArrayFloat8Type, Float4Type, ArrayFloat4Type);
 GlobalTypeMap.register(NumericType, ArrayNumericType);
 
-GlobalTypeMap.register(VarcharType, ArrayVarcharType);
-GlobalTypeMap.register(CharType, ArrayCharType);
+GlobalTypeMap.register(UuidType, ArrayUuidType);
 
 GlobalTypeMap.register(TimestamptzType, ArrayTimestamptzType);
 GlobalTypeMap.register(TimestampType, ArrayTimestampType);
 GlobalTypeMap.register(DateType, ArrayDateType);
-
-GlobalTypeMap.register(UuidType, ArrayUuidType);
 
 GlobalTypeMap.register(OidType, ArrayOidType);
 GlobalTypeMap.register(JsonType, ArrayJsonType);
@@ -86,6 +83,9 @@ GlobalTypeMap.register(PointType, ArrayPointType);
 GlobalTypeMap.register(CircleType, ArrayCircleType);
 GlobalTypeMap.register(LsegType, ArrayLsegType);
 GlobalTypeMap.register(BoxType, ArrayBoxType);
+
+GlobalTypeMap.register(VarcharType, ArrayVarcharType);
+GlobalTypeMap.register(CharType, ArrayCharType);
 
 GlobalTypeMap.register({...VarcharType, name: 'bpchar', oid: DataTypeOIDs.bpchar});
 GlobalTypeMap.register({

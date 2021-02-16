@@ -72,6 +72,22 @@ describe('query() (Extended Query)', function () {
         assert.strictEqual(result.rows[0].given_name, 'Wynne');
     });
 
+    it('should detect bool value when binding parameters', async function () {
+        const result = await connection.query(`select f_bool from data_types where f_bool = $1`,
+            {params: [true], objectRows: false});
+        assert.ok(result);
+        assert.strictEqual(result.rows.length, 1);
+        assert.strictEqual(result.rows[0][0], true);
+    });
+
+    it('should detect uuid value when binding parameters', async function () {
+        const result = await connection.query(`select f_uuid from data_types where f_uuid = $1`,
+            {params: ['87d48838-02b3-4e26-8fec-bcc8c00e3772'], objectRows: false});
+        assert.ok(result);
+        assert.strictEqual(result.rows.length, 1);
+        assert.strictEqual(result.rows[0][0], '87d48838-02b3-4e26-8fec-bcc8c00e3772');
+    });
+
     it('should use bind array parameters', async function () {
         let result = await connection.query(`select * from customers where id = ANY($1)`,
             {params: [[1, 2, 3]], objectRows: true});

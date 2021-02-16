@@ -30,7 +30,7 @@ export const UuidType: DataType = {
 
     isType(v: any): boolean {
         return typeof v === 'string' &&
-            !GUID_PATTERN.test(v);
+            GUID_PATTERN.test(v);
     }
 
 }
