@@ -174,7 +174,7 @@ export class IntlConnection extends SafeEventEmitter {
             const autoCommit = coerceToBoolean(opts.autoCommit != null ?
                 opts.autoCommit : this.config.autoCommit, true);
             const beginAtFirst = !autoCommit && !transactionCommand;
-            const commitLast = autoCommit && !transactionCommand;
+            const commitLast = this.inTransaction && autoCommit && !transactionCommand;
             if (beginAtFirst)
                 sql = 'BEGIN;\n' + sql;
             if (commitLast)
