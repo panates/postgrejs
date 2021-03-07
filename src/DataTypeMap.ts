@@ -94,6 +94,15 @@ GlobalTypeMap.register({
     oid: DataTypeOIDs._bpchar,
     elementsOID: DataTypeOIDs.bpchar
 });
+
+GlobalTypeMap.register({...VarcharType, name: 'name', oid: DataTypeOIDs.name});
+GlobalTypeMap.register({
+    ...ArrayVarcharType,
+    name: '_name',
+    oid: DataTypeOIDs._name,
+    elementsOID: DataTypeOIDs.name
+});
+
 GlobalTypeMap.register({...VarcharType, name: 'text', oid: DataTypeOIDs.text});
 GlobalTypeMap.register({
     ...ArrayVarcharType,
