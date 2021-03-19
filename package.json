@@ -28,6 +28,7 @@
     "doublylinked": "^2.4.3",
     "lightning-pool": "^3.1.0",
     "postgres-bytea": "^3.0.0",
+    "putil-merge": "^3.6.4",
     "putil-promisify": "^1.8.2",
     "putil-taskqueue": "^2.5.1",
     "putil-varhelpers": "^1.6.0"

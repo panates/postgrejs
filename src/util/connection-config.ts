@@ -1,18 +1,22 @@
 import url from "url";
 import {ConnectionConfiguration} from '../definitions';
 import {configFromEnv} from './config-from-env';
+import merge from 'putil-merge';
 
 export function getConnectionConfig(config?: ConnectionConfiguration | string): ConnectionConfiguration {
     const cfg = configFromEnv();
     if (typeof config === 'string') {
-        Object.assign(cfg, parseConnectionString(config));
+        merge(cfg, parseConnectionString(config))
     } else if (typeof config === 'object') {
-        Object.assign(cfg, config);
+        merge(cfg, config);
     }
     if (cfg.host) {
         const x = parseConnectionString('' + cfg.host);
-        Object.assign(cfg, x);
+        merge(cfg, x);
     }
+    cfg.user = cfg.user || 'postgres';
+    cfg.database = cfg.database || 'postgres';
+    cfg.host = cfg.host || '127.0.0.1';
     return cfg;
 }
 
