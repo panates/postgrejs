@@ -306,10 +306,12 @@ The table below lists builtin data type mappings.
 | bpchar          | string              | text,binary | binary   | 
 | varchar         | string              | text,binary | binary   | 
 | date            | Date                | text,binary | binary   | 
+| time            | Date                | text,binary | binary   | 
 | timestamp       | Date                | text,binary | binary   | 
 | timestamptz     | Date                | text,binary | binary   | 
 | oid             | number              | text,binary | binary   | 
 | bytea           | Buffer              | text,binary | binary   | 
+| uuid            | string              | text,binary | binary   | 
 | json            | string              | text,binary | binary   | 
 | xml             | string              | text,binary | binary   | 
 | point           | Point               | text,binary | binary   | 
@@ -326,8 +328,10 @@ The table below lists builtin data type mappings.
 | _bpchar         | string[]            | text,binary | binary   | 
 | _varchar        | string[]            | text,binary | binary   | 
 | _date           | Date[]              | text,binary | binary   | 
+| _time           | Date[]              | text,binary | binary   | 
 | _timestamp      | Date[]              | text,binary | binary   | 
 | _timestamptz    | Date[]              | text,binary | binary   | 
+| _uuid           | string[]            | text,binary | binary   | 
 | _oid            | number[]            | text,binary | binary   | 
 | _bytea          | Buffer[]            | text,binary | binary   | 
 | _json           | string[]            | text,binary | binary   | 
