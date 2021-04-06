@@ -82,7 +82,7 @@ export class PgSocket extends SafeEventEmitter {
                         const tslOptions = {...options.ssl, socket};
                         if (options.host && net.isIP(options.host) === 0)
                             tslOptions.servername = options.host;
-                        const tlsSocket = this._socket = tls.connect({...options.ssl, socket});
+                        const tlsSocket = this._socket = tls.connect(tslOptions);
                         tlsSocket.once('error', errorHandler);
                         tlsSocket.once('secureConnect', () => {
                             this._removeListeners();
