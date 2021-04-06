@@ -23,7 +23,7 @@ export function parseDateTime(str: string, parseTime?: boolean, parseTimeZone?: 
     if (args[1] > 0)
         args[1]--;
 
-    if (parseTime && m[9]) {
+    if (parseTimeZone && parseTime && m[9]) {
         const r = m[9] === '-' ? -1 : 1;
         args[3] -= (fastParseInt(m[10]) || 0) * r;
         args[4] -= (fastParseInt(m[11]) || 0) * r;
