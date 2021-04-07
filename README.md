@@ -62,10 +62,6 @@ await db.close(); // Disconnect all connections and shutdown pool
 - Strictly typed
 
 
-## Roadmap
-- Support multiple active cursors
-- Extended field info in query result
-
 ## Installation
 
 ```bash
