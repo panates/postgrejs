@@ -47,7 +47,7 @@ export const TimeType: DataType = {
 
     isType(v: any): boolean {
         return ((v instanceof Date) &&
-            (v.getFullYear() == 1970 && v.getMonth() === 0 && v.getDate() === 1)) ||
+            (v.getFullYear() === 1970 && v.getMonth() === 0 && v.getDate() === 1)) ||
             (typeof v === 'string' && STRICT_TIME_PATTERN.test(v));
     }
 

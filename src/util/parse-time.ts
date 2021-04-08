@@ -7,7 +7,7 @@ export const STRICT_TIME_PATTERN = /^([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9]
 export const TIME_PATTERN = /^([01][0-9]|2[0-3]):?([0-5][0-9]):?([0-5][0-9])?(?:\.(\d+))?(?:(Z)|(?:([+-])([01]?[0-9]|2[0-3]):?([0-5][0-9])?))?$/;
 
 export function parseTime(str: string, parseTimeZone?: boolean, utc?: boolean): Date {
-    let m = str.match(TIME_PATTERN);
+    const m = str.match(TIME_PATTERN);
     if (!m)
         return new Date('invalid');
 
