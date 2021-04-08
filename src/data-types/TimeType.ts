@@ -1,7 +1,7 @@
 import {DataType, DataTypeOIDs, DataMappingOptions} from '../definitions';
 import {SmartBuffer} from '../protocol/SmartBuffer';
 // noinspection ES6PreferShortImport
-import {parseTime} from '../util/parse-time';
+import {parseTime, STRICT_TIME_PATTERN} from '../util/parse-time';
 
 const timeMul = 4294967296;
 
@@ -46,8 +46,9 @@ export const TimeType: DataType = {
     },
 
     isType(v: any): boolean {
-        return (v instanceof Date) &&
-            (v.getFullYear() == 1970 && v.getMonth() === 0 && v.getDate() === 1);
+        return ((v instanceof Date) &&
+            (v.getFullYear() == 1970 && v.getMonth() === 0 && v.getDate() === 1)) ||
+            (typeof v === 'string' && STRICT_TIME_PATTERN.test(v));
     }
 
 }

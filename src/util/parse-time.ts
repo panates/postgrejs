@@ -1,7 +1,10 @@
 import {fastParseInt} from './fast-parseint';
 
 // eslint-disable-next-line
-export const TIME_PATTERN = /([01][0-9]|2[0-3]):?([0-5][0-9]):?([0-5][0-9])?(?:\.(\d+))?(?:(Z)|(?:([+-])([01]?[0-9]|2[0-3]):?([0-5][0-9])?))?$/;
+// noinspection RegExpUnnecessaryNonCapturingGroup
+export const STRICT_TIME_PATTERN = /^([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])(?:\.(\d+))?(?:(Z)|(?:([+-])([01]?[0-9]|2[0-3]):?([0-5][0-9])?))?$/;
+// noinspection RegExpUnnecessaryNonCapturingGroup
+export const TIME_PATTERN = /^([01][0-9]|2[0-3]):?([0-5][0-9]):?([0-5][0-9])?(?:\.(\d+))?(?:(Z)|(?:([+-])([01]?[0-9]|2[0-3]):?([0-5][0-9])?))?$/;
 
 export function parseTime(str: string, parseTimeZone?: boolean, utc?: boolean): Date {
     let m = str.match(TIME_PATTERN);
