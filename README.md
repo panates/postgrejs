@@ -8,6 +8,30 @@
 
 Professional PostgreSQL client written in TypeScript.
 
+## Features
+
+- Pure JavaScript library completely written in TypeScript
+- Supports both single connection and pooling
+- Named Prepared Statements
+- Extended cursor support with fast double-link cache
+- Extensible data-types and type mapping
+- Extended bind parameters
+- Multidimensional arrays with fast binary encoding/decoding
+- Low memory utilization and boosted performance with Shared Buffers
+- Full binary and text wire protocol support for all data types
+- Supports Clear text, MD5 and SASL password algorithms
+- Can return both array and object rows
+- Asynchronous Promise based api
+- Strictly typed
+
+## Installation
+
+```bash
+$ npm install postgresql-client --save
+```
+
+## Documentation
+Documentation for detailed usage is [here](DOCUMENTATION.md)
 
 ```ts
 import {Connection} from 'postgresql-client';
@@ -45,31 +69,6 @@ while ((row = cursor.next())) {
 await db.close(); // Disconnect all connections and shutdown pool
 ```
 
-## Features
-
-- Pure JavaScript library completely written in TypeScript
-- Supports both single connection and pooling
-- Named Prepared Statements
-- Extended cursor support with fast double-link cache
-- Extensible data-types and type mapping
-- Extended bind parameters
-- Multidimensional arrays with fast binary encoding/decoding
-- Low memory utilization and boosted performance with Shared Buffers
-- Full binary and text wire protocol support for all data types
-- Supports Clear text, MD5 and SASL password algorithms
-- Can return both array and object rows
-- Asynchronous Promise based api
-- Strictly typed
-
-
-## Installation
-
-```bash
-$ npm install postgresql-client --save
-```
-
-## Documentation
-Documentation for detailed usage is [here](DOCUMENTATION.md) 
 
 ## Support
 You can report bugs and discuss features on the [GitHub issues](https://github.com/panates/postgresql-client/issues) page
