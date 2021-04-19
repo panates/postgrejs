@@ -47,7 +47,7 @@
     "npm-run-path": "^4.0.1",
     "nyc": "^15.1.0",
     "ts-cleanup": "^0.2.2",
-    "ts-loader": "^8.0.17",
+    "ts-loader": "^9.0.0",
     "ts-mocha": "^8.0.0",
     "ts-node": "^9.1.1",
     "tsconfig-paths": "^3.9.0",
