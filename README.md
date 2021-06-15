@@ -37,7 +37,7 @@ Documentation for detailed usage is [here](DOCUMENTATION.md)
 import {Connection} from 'postgresql-client';
 
 const connection = new Connection('postgres://localhost');
-
+await connection.connect();
 const result = await connection.query(
     'select * from cities where name like $1',
     {values: ['%york%']});
