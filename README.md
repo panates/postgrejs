@@ -40,7 +40,7 @@ const connection = new Connection('postgres://localhost');
 await connection.connect();
 const result = await connection.query(
     'select * from cities where name like $1',
-    {values: ['%york%']});
+    {params: ['%york%']});
 const rows = result.rows;
 await connection.close(); // Disconnect
 ```
@@ -59,7 +59,7 @@ const db = new Pool({
 
 const result = await db.query(
     'select * from cities where name like $1',
-    {values: ['%york%'], cursor: true});
+    {params: ['%york%'], cursor: true});
 const cursor = result.cursor;
 let row;
 while ((row = cursor.next())) {
