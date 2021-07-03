@@ -72,6 +72,12 @@ describe('query() (Extended Query)', function () {
         assert.strictEqual(result.rows[0].given_name, 'Wynne');
     });
 
+    it('should pass null value to bind parameters', async function () {
+        const result = await connection.query(`select * from customers where id=$1`,
+            {params: [null], objectRows: true});
+        assert.ok(result);
+    });
+
     it('should detect bool value when binding parameters', async function () {
         const result = await connection.query(`select f_bool from data_types where f_bool = $1`,
             {params: [true], objectRows: false});

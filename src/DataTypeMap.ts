@@ -50,6 +50,8 @@ export class DataTypeMap {
     }
 
     determine(value: any): Maybe<OID> {
+        if (value == null)
+            return DataTypeOIDs.unknown;
         const valueIsArray = Array.isArray(value);
         for (const t of this._items) {
             if (valueIsArray) {
