@@ -13,6 +13,7 @@ import {IntlConnection} from './IntlConnection';
 import {GlobalTypeMap} from './DataTypeMap';
 import {BindParam} from './BindParam';
 import _debug from 'debug';
+import {DatabaseError} from './protocol/DatabaseError';
 
 const debug = _debug('pgc:intlcon');
 
@@ -134,7 +135,10 @@ export class Connection extends SafeEventEmitter {
      * @param options {ScriptExecuteOptions} - Execute options
      */
     execute(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult> {
-        return this._intlCon.execute(sql, options);
+        return this._intlCon.execute(sql, options)
+            .catch((e: DatabaseError) => {
+                throw this._handleError(e, sql);
+            });
     }
 
     async query(sql: string, options?: QueryOptions): Promise<QueryResult> {
@@ -144,7 +148,10 @@ export class Connection extends SafeEventEmitter {
         const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
             prm instanceof BindParam ? prm.oid : typeMap.determine(prm) || DataTypeOIDs.varchar
         );
-        const statement = await this.prepare(sql, {paramTypes, typeMap});
+        const statement = await this.prepare(sql, {paramTypes, typeMap})
+            .catch((e: DatabaseError) => {
+                throw this._handleError(e, sql);
+            });
         try {
             const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm =>
                 prm instanceof BindParam ? prm.value : prm);
@@ -208,6 +215,20 @@ export class Connection extends SafeEventEmitter {
         } else
             await this._intlCon.close();
         this._closing = false;
+    }
+
+    protected _handleError(err: DatabaseError, script: string): DatabaseError {
+        if (err.position) {
+            let s = script.substring(0, err.position - 1);
+            err.lineNr = s ? (s.match(/\n/g) || []).length : 0;
+            const lineStart = s.lastIndexOf('\n') + 1;
+            const lineEnd = script.indexOf('\n', lineStart);
+            s = script.substring(0, lineStart);
+            err.colNr = err.position - s.length;
+            err.line = lineEnd > 0 ? script.substring(lineStart, lineEnd) :
+                script.substring(lineStart);
+        }
+        return err;
     }
 
 }
