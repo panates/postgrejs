@@ -21,7 +21,7 @@ export class DatabaseError extends Error {
     constructor(msg: Protocol.ErrorResponseMessage) {
         super(msg.message);
         Object.assign(this, {
-            msg,
+            ...msg,
             line: undefined,
             file: undefined,
             routine: undefined
