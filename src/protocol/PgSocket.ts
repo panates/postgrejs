@@ -226,7 +226,7 @@ export class PgSocket extends SafeEventEmitter {
         this.emit('close');
     }
 
-    protected _handleError(err: SocketError): void {
+    protected _handleError(err: unknown): void {
         if (this._state !== ConnectionState.READY) {
             this._socket?.end();
         }
