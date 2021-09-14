@@ -1,5 +1,6 @@
 import {EncodeTextFunction, DataMappingOptions} from '../definitions';
 import {escapeLiteral} from './escape-literal';
+import {UuidType} from '../data-types/UuidType';
 
 export function stringifyArrayForSQL(v: any[], options?: DataMappingOptions, encode?: EncodeTextFunction): string {
     const arr = v.map(x => stringifyValueForSQL(x, options, encode));
@@ -19,6 +20,8 @@ export function stringifyValueForSQL(v: any, options?: DataMappingOptions, encod
         return '' + v;
     if (typeof v === 'bigint')
         return v.toString();
+    if (typeof v === 'string' && UuidType.isType(v))
+        return escapeLiteral('' + v) + '::uuid';
     if (typeof v === 'object')
         return escapeLiteral(JSON.stringify(v));
     return escapeLiteral('' + v);
