@@ -1,4 +1,5 @@
 import {DatabaseConnectionParams} from '../definitions';
+import {toIntDef} from 'putil-varhelpers';
 
 export function configFromEnv(): DatabaseConnectionParams {
     const env = process.env;
@@ -6,7 +7,7 @@ export function configFromEnv(): DatabaseConnectionParams {
 
     result.host = env.PGHOST || env.PGHOSTADDR;
     if (env.PGPORT)
-        result.port = parseInt(env.PGPORT, 10) || 5432;
+        result.port = toIntDef(env.PGPORT, 5432);
     if (env.PGDATABASE)
         result.database = env.PGDATABASE;
     if (env.PGUSER)
@@ -20,7 +21,7 @@ export function configFromEnv(): DatabaseConnectionParams {
     if (env.PGSCHEMA)
         result.schema = env.PGSCHEMA;
     if (env.PGCONNECT_TIMEOUT)
-        result.connectTimeoutMs = parseInt(env.PGCONNECT_TIMEOUT, 10);
+        result.connectTimeoutMs = toIntDef(env.PGCONNECT_TIMEOUT, 30000);
 
     return result;
 }

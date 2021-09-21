@@ -28,7 +28,18 @@ export interface DatabaseConnectionParams {
     timezone?: string;
     schema?: string;
     connectTimeoutMs?: number;
+    /**
+     * Specifies weather execute query in auto-commit mode
+     * @default false
+     */
     autoCommit?: boolean;
+    /**
+     * When on, if a statement in a transaction block generates an error,
+     * the error is ignored and the transaction continues.
+     * When off (the default), a statement in a transaction block that generates an error aborts the entire transaction
+     * @default true
+     */
+    onErrorRollback?: boolean;
 }
 
 export interface SocketOptions {
@@ -61,7 +72,7 @@ export interface DataMappingOptions {
 export interface ScriptExecuteOptions extends DataMappingOptions {
     /**
      * Specifies weather execute query in auto-commit mode
-     * @default false
+     * @default true
      */
     autoCommit?: boolean;
     /**
@@ -74,6 +85,13 @@ export interface ScriptExecuteOptions extends DataMappingOptions {
      * @default GlobalTypeMap
      */
     typeMap?: DataTypeMap;
+    /**
+     * When on, if a statement in a transaction block generates an error,
+     * the error is ignored and the transaction continues.
+     * When off (the default), a statement in a transaction block that generates an error aborts the entire transaction
+     * @default true
+     */
+    onErrorRollback?: boolean;
 }
 
 export interface StatementPrepareOptions {
@@ -91,7 +109,7 @@ export interface StatementPrepareOptions {
 export interface QueryOptions extends DataMappingOptions {
     /**
      * Specifies weather execute query in auto-commit mode
-     * @default false
+     * @default true
      */
     autoCommit?: boolean;
     /**
@@ -122,6 +140,13 @@ export interface QueryOptions extends DataMappingOptions {
      * @default 100
      */
     fetchCount?: number;
+    /**
+     * When on, if a statement in a transaction block generates an error,
+     * the error is ignored and the transaction continues.
+     * When off (the default), a statement in a transaction block that generates an error aborts the entire transaction
+     * @default true
+     */
+    onErrorRollback?: boolean;
 }
 
 export interface CommandResult {

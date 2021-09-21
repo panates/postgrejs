@@ -161,6 +161,8 @@ describe('Connection', function () {
     it('should automatically start transaction when connection.options.autoCommit = false', async function () {
         connection = new Connection({autoCommit: false});
         await connection.connect();
+        await connection.execute('delete from test.dummy_table1', {autoCommit: true});
+
         assert.strictEqual(connection.inTransaction, false);
 
         await connection.query('insert into test.dummy_table1 (id) values (3)');
@@ -224,6 +226,42 @@ describe('Connection', function () {
         assert.strictEqual(connection.inTransaction, false);
         assert.strictEqual(x.rows.length, 0);
 
+        await connection.close();
+    });
+
+    it('should continue transaction on error', async function () {
+        connection = new Connection();
+        await connection.connect();
+        assert.strictEqual(connection.inTransaction, false);
+
+        await connection.execute('delete from test.dummy_table1');
+
+        await connection.startTransaction();
+        try {
+            await connection.execute('invalid sql');
+        } catch (e) {
+        }
+
+        await connection.execute('insert into test.dummy_table1 (id) values (5)');
+
+        let x = await connection.query('select count(*) from test.dummy_table1', {autoCommit: false});
+        assert.strictEqual(x.rows.length, 1);
+        assert.strictEqual(x.rows[0][0], 1);
+        /*
+                await connection.startTransaction();
+                try {
+                    await connection.execute('savepoint sv1');
+                    await connection.execute('invalid sql');
+                } catch (e) {
+                }
+                try {
+                    await connection.execute('select 1');
+                } catch (e) {
+                    await connection.execute('rollback to sv1');
+                }
+                await connection.execute('select 2');
+                await connection.execute('select 3');
+        */
         await connection.close();
     });
 

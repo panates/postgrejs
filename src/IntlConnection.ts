@@ -23,6 +23,7 @@ const debug = _debug('pgc:intlcon');
 export class IntlConnection extends SafeEventEmitter {
     protected _refCount = 0;
     protected _config: ConnectionConfiguration;
+    protected _onErrorSavePoint: string;
     transactionStatus = 'I';
     socket: PgSocket;
     statementQueue = new TaskQueue();
@@ -34,6 +35,7 @@ export class IntlConnection extends SafeEventEmitter {
         this.socket.on('error', (err) => this._onError(err));
         this.socket.on('close', () => this.emit('close'));
         this.socket.on('connecting', () => this.emit('connecting'));
+        this._onErrorSavePoint = 'SP_' + (Math.round(Math.random() * 100000000));
     }
 
     get config(): ConnectionConfiguration {
@@ -109,7 +111,38 @@ export class IntlConnection extends SafeEventEmitter {
     async execute(sql: string, options?: ScriptExecuteOptions, cb?: (event: string, ...args: any[]) => void): Promise<ScriptResult> {
         this.assertConnected();
         return this.statementQueue.enqueue<ScriptResult>(async (): Promise<ScriptResult> => {
-            return this._execute(sql, options, cb);
+            const transactionCommand = sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i);
+            let beginFirst = false;
+            let commitLast = false;
+            if (!transactionCommand) {
+                if (!this.inTransaction &&
+                    (options?.autoCommit != null ? options?.autoCommit : this.config.autoCommit) === false) {
+                    beginFirst = true;
+                }
+                if (this.inTransaction && options?.autoCommit)
+                    commitLast = true;
+            }
+            if (beginFirst)
+                await this._execute('BEGIN');
+
+            const onErrorRollback = !transactionCommand &&
+                (options?.onErrorRollback != null ? options.onErrorRollback :
+                    coerceToBoolean(this.config.onErrorRollback, true));
+
+            if (this.inTransaction && onErrorRollback)
+                await this._execute('SAVEPOINT ' + this._onErrorSavePoint);
+            try {
+                const result = await this._execute(sql, options, cb);
+                if (commitLast)
+                    await this._execute('COMMIT');
+                else if (this.inTransaction && onErrorRollback)
+                    await this._execute('RELEASE ' + this._onErrorSavePoint + ';');
+                return result;
+            } catch (e: any) {
+                if (this.inTransaction && onErrorRollback)
+                    await this._execute('ROLLBACK TO ' + this._onErrorSavePoint + ';');
+                throw e;
+            }
         });
     }
 
@@ -169,26 +202,14 @@ export class IntlConnection extends SafeEventEmitter {
                 results: [],
             };
             const opts = options || {};
-            const transactionCommand = sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bROLLBACK\b)/i) &&
-                !sql.match(/^\bROLLBACK TO SAVEPOINT\b/i);
-            const autoCommit = coerceToBoolean(opts.autoCommit != null ?
-                opts.autoCommit : this.config.autoCommit, true);
-            const beginAtFirst = !autoCommit && !transactionCommand;
-            const commitLast = this.inTransaction && autoCommit && !transactionCommand;
-            if (beginAtFirst)
-                sql = 'BEGIN;\n' + sql;
-            if (commitLast)
-                sql += ';\nCOMMIT;';
-
             this.socket.sendQueryMessage(sql);
             let currentStart = Date.now();
             let parsers;
             let current: CommandResult = {command: undefined};
             let fields: Protocol.RowDescription[];
             const typeMap = opts.typeMap || GlobalTypeMap;
-            let commandIdx = 0;
-            return this.socket.capture(async (code: Protocol.BackendMessageCode, msg: any,
-                                              done: (err?: Error, result?: any) => void) => {
+            return await this.socket.capture(async (code: Protocol.BackendMessageCode, msg: any,
+                                                    done: (err?: Error, result?: any) => void) => {
                 switch (code) {
                     case Protocol.BackendMessageCode.NoticeResponse:
                     case Protocol.BackendMessageCode.CopyInResponse:
@@ -212,8 +233,6 @@ export class IntlConnection extends SafeEventEmitter {
                         break;
                     case Protocol.BackendMessageCode.CommandComplete:
                         // Ignore BEGIN command that we added to sql
-                        if (beginAtFirst && commandIdx++ === 0)
-                            break;
                         current.command = msg.command;
                         if (current.command === 'DELETE' ||
                             current.command === 'INSERT' ||
@@ -231,8 +250,6 @@ export class IntlConnection extends SafeEventEmitter {
                         this.transactionStatus = msg.status;
                         result.totalTime = Date.now() - startTime;
                         // Ignore COMMIT command that we added to sql
-                        if (commitLast)
-                            result.results.pop();
                         result.totalCommands = result.results.length;
                         done(undefined, result);
                 }

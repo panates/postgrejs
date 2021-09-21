@@ -28,6 +28,7 @@ export class PreparedStatement extends SafeEventEmitter {
     private readonly _sql: string = '';
     private readonly _name: string = '';
     private readonly _paramTypes: Maybe<Maybe<OID>[]>;
+    protected _onErrorSavePoint: string;
     private _refCount = 0;
 
     constructor(connection: Connection, sql: string, paramTypes?: OID[]) {
@@ -36,6 +37,7 @@ export class PreparedStatement extends SafeEventEmitter {
         this._name = 'S_' + (++statementCounter);
         this._sql = sql;
         this._paramTypes = paramTypes;
+        this._onErrorSavePoint = 'SP_' + (Math.round(Math.random() * 100000000));
     }
 
     static async prepare(connection: Connection,
@@ -107,17 +109,41 @@ export class PreparedStatement extends SafeEventEmitter {
 
     async execute(options: QueryOptions = {}): Promise<QueryResult> {
         debug('[%s] execute', this.name);
-        const intoCon = getIntlConnection(this.connection);
-        const transactionCommand = this.sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bROLLBACK\b)/i) &&
-            !this.sql.match(/^\bROLLBACK TO SAVEPOINT\b/i);
-        const autoCommit = coerceToBoolean(options.autoCommit != null ?
-            options.autoCommit : intoCon.config.autoCommit, true);
-        if (!autoCommit && !transactionCommand)
-            await intoCon.startTransaction();
-        const result = await intoCon.statementQueue.enqueue<QueryResult>(() => this._execute(options));
-        if (autoCommit && !transactionCommand)
-            await intoCon.commit();
-        return result;
+        const intlCon = getIntlConnection(this.connection);
+
+        const transactionCommand = this.sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i);
+        let beginFirst = false;
+        let commitLast = false;
+        if (!transactionCommand) {
+            if (!intlCon.inTransaction &&
+                (options?.autoCommit != null ? options?.autoCommit : intlCon.config.autoCommit) === false) {
+                beginFirst = true;
+            }
+            if (intlCon.inTransaction && options?.autoCommit)
+                commitLast = true;
+        }
+        if (beginFirst)
+            await intlCon.execute('BEGIN');
+
+        const onErrorRollback = !transactionCommand &&
+            (options?.onErrorRollback != null ? options.onErrorRollback :
+                coerceToBoolean(intlCon.config.onErrorRollback, true));
+
+        if (intlCon.inTransaction && onErrorRollback)
+            await intlCon.execute('SAVEPOINT ' + this._onErrorSavePoint);
+        try {
+            const result = await intlCon.statementQueue.enqueue<QueryResult>(() =>
+                this._execute(options));
+            if (commitLast)
+                await intlCon.execute('COMMIT');
+            else if (intlCon.inTransaction && onErrorRollback)
+                await intlCon.execute('RELEASE ' + this._onErrorSavePoint + ';');
+            return result;
+        } catch (e: any) {
+            if (intlCon.inTransaction && onErrorRollback)
+                await intlCon.execute('ROLLBACK TO ' + this._onErrorSavePoint + ';');
+            throw e;
+        }
     }
 
     async close(): Promise<void> {
@@ -134,9 +160,9 @@ export class PreparedStatement extends SafeEventEmitter {
 
     protected async _execute(options: QueryOptions = {}): Promise<QueryResult> {
         let portal: Maybe<Portal>;
-        const intoCon = getIntlConnection(this.connection);
+        const intlCon = getIntlConnection(this.connection);
         debug('[%s] _execute', this.name);
-        intoCon.ref();
+        intlCon.ref();
         try {
             const result: QueryResult = {command: undefined};
             const startTime = Date.now();
@@ -197,7 +223,7 @@ export class PreparedStatement extends SafeEventEmitter {
 
             return result;
         } finally {
-            intoCon.unref();
+            intlCon.unref();
             if (portal)
                 await portal.close();
         }
