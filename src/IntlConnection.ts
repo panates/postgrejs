@@ -173,6 +173,12 @@ export class IntlConnection extends SafeEventEmitter {
         await this.execute('ROLLBACK TO SAVEPOINT ' + name, {autoCommit: false});
     }
 
+    async releaseSavepoint(name: string): Promise<void> {
+        if (!(name && name.match(/^[a-zA-Z]\w+$/)))
+            throw new Error(`Invalid savepoint "${name}`);
+        await this.execute('RELEASE SAVEPOINT ' + name, {autoCommit: false});
+    }
+
     ref(): void {
         this._refCount++;
         debug('[%s] ref %d', this.processID, this._refCount);

@@ -179,14 +179,6 @@ export class Connection extends SafeEventEmitter {
     }
 
     /**
-     * Starts transaction and creates a savepoint
-     * @param name {string} - Name of the savepoint
-     */
-    savepoint(name: string): Promise<void> {
-        return this._intlCon.savepoint(name);
-    }
-
-    /**
      * Commits current transaction
      */
     commit(): Promise<void> {
@@ -201,11 +193,29 @@ export class Connection extends SafeEventEmitter {
     }
 
     /**
+     * Starts transaction and creates a savepoint
+     * @param name {string} - Name of the savepoint
+     */
+    async savepoint(name: string): Promise<void> {
+        if (!this._intlCon.inTransaction)
+            await this._intlCon.startTransaction();
+        return this._intlCon.savepoint(name);
+    }
+
+    /**
      * Rolls back current transaction to given savepoint
      * @param name {string} - Name of the savepoint
      */
     rollbackToSavepoint(name: string): Promise<void> {
         return this._intlCon.rollbackToSavepoint(name);
+    }
+
+    /**
+     * Releases savepoint
+     * @param name {string} - Name of the savepoint
+     */
+    releaseSavepoint(name: string): Promise<void> {
+        return this._intlCon.releaseSavepoint(name);
     }
 
     protected async _close(): Promise<void> {
