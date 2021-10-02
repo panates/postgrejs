@@ -26,7 +26,8 @@ export const Int8Type: DataType = {
     },
 
     isType(v: any): boolean {
-        return v instanceof BigInt || typeof v === 'number';
+        return typeof v === 'bigint' ||
+            (typeof v === 'number' && Number.isInteger(v));
     }
 
 }
