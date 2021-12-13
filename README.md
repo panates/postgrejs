@@ -31,7 +31,7 @@ $ npm install postgresql-client --save
 ```
 
 ## Documentation
-Documentation for detailed usage is [here](DOCUMENTATION.md)
+Please read [DOCUMENTATION](DOCUMENTATION.md) for detailed usage.
 
 ```ts
 import {Connection} from 'postgresql-client';
