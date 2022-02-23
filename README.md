@@ -11,7 +11,8 @@ Professional PostgreSQL client written in TypeScript.
 ## Features
 
 - Pure JavaScript library completely written in TypeScript
-- Supports both single connection and pooling
+- Both single connection and advanced pooling support
+- Both CommonJS and ESM modules
 - Named Prepared Statements
 - Extended cursor support with fast double-link cache
 - Extensible data-types and type mapping
