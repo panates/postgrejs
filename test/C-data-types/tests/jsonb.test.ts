@@ -7,14 +7,14 @@ export function createTests(conn: () => Connection) {
     it('should parse "json" field (text)', async function () {
         const output = [{"a": 1}, {"a": 2}];
         const input = toStringArray(output);
-        await testParse(conn(), DataTypeOIDs.json, input, output,
+        await testParse(conn(), DataTypeOIDs.jsonb, input, output,
             {columnFormat: DataFormat.text});
     });
 
     it('should parse "json" field (binary)', async function () {
         const output = [{"a": 1}, {"a": 2}];
         const input = toStringArray(output);
-        await testParse(conn(), DataTypeOIDs.json, input, output,
+        await testParse(conn(), DataTypeOIDs.jsonb, input, output,
             {columnFormat: DataFormat.binary});
     });
 
@@ -40,7 +40,7 @@ export function createTests(conn: () => Connection) {
 
     it('should encode "json" param', async function () {
         const input = [{a: 1}, {a: 2}];
-        await testEncode(conn(), DataTypeOIDs.json, input, input);
+        await testEncode(conn(), DataTypeOIDs.jsonb, input, input);
     });
 
     it('should encode "json" array param', async function () {

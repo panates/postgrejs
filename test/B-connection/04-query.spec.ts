@@ -11,13 +11,13 @@ describe('query() (Extended Query)', function () {
 
     let connection: Connection;
 
-    before(async () => {
+    beforeAll(async () => {
         connection = new Connection();
         await connection.connect();
         await createTestSchema(connection);
     })
 
-    after(async () => {
+    afterAll(async () => {
         await connection.close();
     })
 
@@ -149,7 +149,7 @@ describe('query() (Extended Query)', function () {
         assert.deepStrictEqual(row.f_varchar, 'abcd');
         assert.deepStrictEqual(row.f_text, 'abcde');
         assert.deepStrictEqual(row.f_bpchar, 'abcdef');
-        assert.deepStrictEqual(row.f_json, '{"a": 1}');
+        assert.deepStrictEqual(row.f_json, {"a": 1});
         assert.deepStrictEqual(row.f_xml, '<tag1>123</tag1>');
         assert.deepStrictEqual(row.f_date, new Date('2010-03-22T00:00:00'));
         assert.deepStrictEqual(row.f_timestamp, new Date('2020-01-10T15:45:12.123'));

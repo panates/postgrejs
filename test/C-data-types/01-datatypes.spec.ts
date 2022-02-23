@@ -8,13 +8,13 @@ describe('Data type encode/decode', function () {
     let connection: Connection;
     process.env.PGTZ = 'Europe/Istanbul';
 
-    before(async () => {
+    beforeAll(async () => {
         connection = new Connection();
         await connection.connect();
         await connection.execute('SET SESSION timezone TO \'Europe/Berlin\'');
     })
 
-    after(async () => {
+    afterAll(async () => {
         process.env.TZ = '';
         await connection.close(0);
     })

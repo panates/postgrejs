@@ -7,13 +7,13 @@ describe('Cursor support', function () {
 
     let connection: Connection;
 
-    before(async () => {
+    beforeAll(async () => {
         connection = new Connection();
         await connection.connect();
         await createTestSchema(connection);
     })
 
-    after(async () => {
+    afterAll(async () => {
         await connection.close(0);
     })
 

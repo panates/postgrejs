@@ -6,11 +6,11 @@ describe('Pool', function () {
 
     let pool: Pool;
 
-    before(async () => {
+    beforeAll(async () => {
         pool = new Pool();
     })
 
-    after(async () => {
+    afterAll(async () => {
         await pool.close(0);
     })
 

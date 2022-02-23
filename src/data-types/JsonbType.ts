@@ -1,15 +1,19 @@
 import {DataMappingOptions, DataType, DataTypeOIDs} from '../definitions';
+import {BufferReader} from '../protocol/BufferReader';
 
-export const JsonType: DataType = {
+export const JsonbType: DataType = {
 
-    name: 'json',
-    oid: DataTypeOIDs.json,
+    name: 'jsonb',
+    oid: DataTypeOIDs.jsonb,
     jsType: 'string',
 
-    parseBinary(v: Buffer, options: DataMappingOptions): string {
-        const content = v.toString('utf8');
+    parseBinary(v: Buffer, options: DataMappingOptions): object | string | null {
+        const buf = new BufferReader(v);
+        if (buf.readUInt8() !== 1)
+            throw new Error('Unexpected Jsonb version value in header');
         const fetchAsString = options.fetchAsString &&
-            options.fetchAsString.includes(DataTypeOIDs.jsonb);
+            options.fetchAsString.includes(DataTypeOIDs.json);
+        const content = buf.readLString(buf.length - buf.offset);
         if (fetchAsString)
             return content;
         return content ? JSON.parse(content) : undefined;
@@ -20,17 +24,16 @@ export const JsonType: DataType = {
             return JSON.stringify(v);
         if (typeof v === 'boolean')
             return v ? 'true' : 'false';
-        return '' + v;
+        return '\x0001' + v;
     },
 
     parseText(v: string, options: DataMappingOptions): object | string | null {
         const fetchAsString = options.fetchAsString &&
-            options.fetchAsString.includes(DataTypeOIDs.jsonb);
+            options.fetchAsString.includes(DataTypeOIDs.json);
         if (fetchAsString)
             return v;
         return v ? JSON.parse(v) : null;
     },
-
 
     isType(v: any): boolean {
         return v && typeof v === 'object';
@@ -38,9 +41,9 @@ export const JsonType: DataType = {
 
 }
 
-export const ArrayJsonType: DataType = {
-    ...JsonType,
-    name: '_json',
-    oid: DataTypeOIDs._json,
-    elementsOID: DataTypeOIDs.json
+export const ArrayJsonbType: DataType = {
+    ...JsonbType,
+    name: '_jsonb',
+    oid: DataTypeOIDs._jsonb,
+    elementsOID: DataTypeOIDs.jsonb
 }

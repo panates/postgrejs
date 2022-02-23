@@ -6,7 +6,7 @@ describe('Parse connection string', function () {
 
     const oldEnv = {...process.env};
 
-    after(() => {
+    afterAll(() => {
         process.env = oldEnv;
     });
 

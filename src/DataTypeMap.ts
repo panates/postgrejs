@@ -17,6 +17,7 @@ import {ArrayTimestamptzType, TimestamptzType} from './data-types/TimestamptzTyp
 import {ArrayCharType, CharType} from './data-types/CharType';
 import {ArrayVarcharType, VarcharType} from './data-types/VarcharType';
 import {ArrayJsonType, JsonType} from './data-types/JsonType';
+import {ArrayJsonbType, JsonbType} from './data-types/JsonbType';
 import {ArrayByteaType, ByteaType} from './data-types/ByteaType';
 import {ArrayLsegType, LsegType} from './data-types/LsegType';
 import {ArrayPointType, PointType} from './data-types/PointType';
@@ -81,6 +82,7 @@ GlobalTypeMap.register(TimeType, ArrayTimeType);
 
 GlobalTypeMap.register(OidType, ArrayOidType);
 GlobalTypeMap.register(JsonType, ArrayJsonType);
+GlobalTypeMap.register(JsonbType, ArrayJsonbType);
 GlobalTypeMap.register(ByteaType, ArrayByteaType);
 
 GlobalTypeMap.register(PointType, ArrayPointType);
