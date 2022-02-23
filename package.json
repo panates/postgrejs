@@ -23,6 +23,25 @@
     "database",
     "rdbms"
   ],
+  "type": "module",
+  "main": "cjs/index.js",
+  "module": "esm/index.mjs",
+  "types": "esm/index.d.ts",
+  "exports": {
+    ".": "./cjs/index.js",
+    "./cjs": "./cjs/index.js",
+    "./esm": "./esm/index.mjs"
+  },
+  "engines": {
+    "node": ">=14.0",
+    "npm": ">=7.0.0"
+  },
+  "files": [
+    "cjs/",
+    "esm/",
+    "LICENSE",
+    "README.md"
+  ],
   "dependencies": {
     "debug": "^4.3.1",
     "doublylinked": "^2.4.3",
@@ -45,39 +64,28 @@
     "eslint-config-google": "^0.14.0",
     "jest": "^27.5.1",
     "ts-cleanup": "^0.2.2",
+    "tsc-esm": "^1.0.4",
     "ts-jest": "^27.1.3",
     "ts-loader": "^9.0.0",
     "ts-node": "^10.0.0",
     "tsconfig-paths": "^3.9.0",
     "typescript": "^4.5.5"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "engines": {
-    "node": ">= 10.0"
-  },
-  "directories": {
-    "lib": "dist",
-    "test": "test"
-  },
-  "files": [
-    "LICENSE",
-    "README",
-    "dist/"
-  ],
-  "nyc": {
-    "temp-dir": "./coverage/.nyc_output"
-  },
   "scripts": {
-    "test": "TS_NODE_PROJECT='./test/tsconfig.json' mocha -r ts-node/register --reporter spec test/**/*.spec.ts",
-    "cover": "nyc --reporter=cobertura --reporter html --reporter text npm run test",
-    "clean": "npm run clean:src && npm run clean:dist",
-    "clean:dist": "ts-cleanup -d dist --remove-dirs --all",
-    "clean:src": "ts-cleanup -s src --all | ts-cleanup -s test",
-    "prebuild": "npm run clean && npm run lint",
-    "build": "tsc -b tsconfig-build.json",
     "compile": "tsc -b tsconfig.json",
-    "lint": "eslint src/** --no-error-on-unmatched-pattern",
-    "travis-cover": "nyc --reporter lcovonly npm run test"
+    "lint": "eslint --no-error-on-unmatched-pattern",
+    "clean": "npm run clean:src && npm run clean:dist",
+    "clean:dist": "rimraf cjs esm coverage",
+    "clean:src": "ts-cleanup -s src --all | ts-cleanup -s test",
+    "prebuild": "npm run clean:dist && npm run lint",
+    "build": "npm run build:cjs && npm run build:esm",
+    "build:cjs": "tsc -b tsconfig.build-cjs.json",
+    "build:esm": "tsc -b tsconfig.build-esm.json && tsc-esm -p tsconfig.build-esm.json",
+    "postbuild": "cp package.cjs.json ./cjs/package.json",
+    "test": "jest",
+    "cover": "rimraf coverage",
+    "precover": "jest --maxWorkers=1 --coverage",
+    "precitest": "rimraf coverage",
+    "citest": "jest --coverage --coverageReporters=lcov"
   }
 }
