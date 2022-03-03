@@ -24,7 +24,7 @@ module.exports = {
     }
   },
   extensionsToTreatAsEsm: ['.ts'],
-  coverageDirectory: "<rootDir>/coverage/",
+  coverageDirectory: '<rootDir>/coverage/'
 };
 
 

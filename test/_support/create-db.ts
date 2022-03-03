@@ -93,6 +93,7 @@ const dataFiles: any[] = [
 export async function createTestSchema(connection: Connection) {
     if (testDbCreated)
         return;
+    
     await connection.execute(schemaSql);
     /* Create tables */
     for (const table of dataFiles) {
