@@ -83,8 +83,8 @@
     "build:esm": "tsc -b tsconfig.build-esm.json && tsc-esm -p tsconfig.build-esm.json",
     "postbuild": "cp package.cjs.json ./cjs/package.json",
     "test": "jest",
-    "cover": "rimraf coverage",
-    "precover": "jest --maxWorkers=1 --coverage",
+    "precover": "rimraf coverage",
+    "cover": "jest --maxWorkers=1 --coverage",
     "precitest": "rimraf coverage",
     "citest": "jest --coverage --coverageReporters=lcov"
   }
