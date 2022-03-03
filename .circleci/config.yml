@@ -20,6 +20,14 @@ jobs:
         type: string
     docker:
       - image: circleci/node:<< parameters.version >>
+      - image: circleci/postgres:10
+        environment:
+          POSTGRES_DB: test
+          POSTGRES_USER: postgres
+    environment:
+      NODE_ENV: test
+      POSTGRES_USER: postgres
+      POSTGRES_DB: test
     steps:
       - checkout
       - restore_cache:
