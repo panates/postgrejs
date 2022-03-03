@@ -20,10 +20,11 @@ jobs:
         type: string
     docker:
       - image: circleci/node:<< parameters.version >>
-      - image: circleci/postgres:10
+      - image: cimg/postgres:14.0
         environment:
           POSTGRES_DB: test
           POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
     environment:
       NODE_ENV: test
       POSTGRES_USER: postgres
