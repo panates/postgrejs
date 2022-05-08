@@ -12,7 +12,6 @@ Professional PostgreSQL client written in TypeScript.
 
 - Pure JavaScript library completely written in TypeScript
 - Both single connection and advanced pooling support
-- Both CommonJS and ESM modules
 - Named Prepared Statements
 - Extended cursor support with fast double-link cache
 - Extensible data-types and type mapping
@@ -24,6 +23,7 @@ Professional PostgreSQL client written in TypeScript.
 - Can return both array and object rows
 - Asynchronous Promise based api
 - Strictly typed
+- Supports both CommonJS and ESM module systems
 
 ## Installation
 
@@ -75,10 +75,8 @@ await db.close(); // Disconnect all connections and shutdown pool
 You can report bugs and discuss features on the [GitHub issues](https://github.com/panates/postgresql-client/issues) page
 When you open an issue please provide version of NodeJS and PostgreSQL server.
 
-
 ## Node Compatibility
-
-- node >= 10.x
+- node >= 14.x
  
   
 ### License
