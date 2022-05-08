@@ -2,7 +2,7 @@
   
 [![NPM Version][npm-image]][npm-url]
 [![NPM Downloads][downloads-image]][downloads-url]
-[![Build Status][travis-image]][travis-url]
+[![CircleCI][circleci-image]][circleci-url]
 [![Test Coverage][coveralls-image]][coveralls-url]
 
 
@@ -84,8 +84,8 @@ postgresql-client is available under [MIT](LICENSE) license.
 
 [npm-image]: https://img.shields.io/npm/v/postgresql-client.svg
 [npm-url]: https://npmjs.org/package/postgresql-client
-[travis-image]: https://img.shields.io/travis/panates/postgresql-client/master.svg
-[travis-url]: https://travis-ci.com/panates/postgresql-client
+[circleci-image]: https://circleci.com/gh/panates/postgresql-client/tree/master.svg?style=shield
+[circleci-url]: https://circleci.com/gh/panates/postgresql-client/tree/master
 [coveralls-image]: https://img.shields.io/coveralls/panates/postgresql-client/master.svg
 [coveralls-url]: https://coveralls.io/r/panates/postgresql-client
 [downloads-image]: https://img.shields.io/npm/dm/postgresql-client.svg
