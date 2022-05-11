@@ -23,6 +23,6 @@ export function stringifyValueForSQL(v: any, options?: DataMappingOptions, encod
     if (typeof v === 'string' && UuidType.isType(v))
         return escapeLiteral('' + v) + '::uuid';
     if (typeof v === 'object')
-        return escapeLiteral(JSON.stringify(v));
+        return escapeLiteral(JSON.stringify(v)) + '::json';
     return escapeLiteral('' + v);
 }
