@@ -91,7 +91,7 @@ export class PreparedStatement extends SafeEventEmitter {
       } finally {
         intoCon.unref();
       }
-    });
+    }).toPromise();
     statement._refCount = 1;
     return statement;
   }
@@ -138,7 +138,7 @@ export class PreparedStatement extends SafeEventEmitter {
       await intlCon.execute('SAVEPOINT ' + this._onErrorSavePoint);
     try {
       const result = await intlCon.statementQueue.enqueue<QueryResult>(() =>
-        this._execute(options));
+        this._execute(options)).toPromise();
       if (commitLast)
         await intlCon.execute('COMMIT');
       else if (intlCon.inTransaction && onErrorRollback)
@@ -156,7 +156,7 @@ export class PreparedStatement extends SafeEventEmitter {
     debug('[%s] close | refCount = %d', this.name, this._refCount);
     if (this._refCount > 0) return;
     const intoCon = getIntlConnection(this.connection);
-    await intoCon.statementQueue.enqueue<void>(() => this._close());
+    await intoCon.statementQueue.enqueue<void>(() => this._close()).toPromise();
   }
 
   async cancel(): Promise<void> {

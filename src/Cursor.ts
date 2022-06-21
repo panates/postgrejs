@@ -1,6 +1,6 @@
 import _debug from 'debug';
 import DoublyLinked from 'doublylinked';
-import TaskQueue from 'putil-taskqueue';
+import {TaskQueue} from 'power-tasks';
 import {convertRowToObject, parseRow} from './common.js';
 import {AnyParseFunction, FieldInfo, Maybe, QueryOptions, Row} from './definitions.js';
 import {Portal} from './Portal.js';
@@ -15,7 +15,7 @@ export class Cursor extends SafeEventEmitter {
   private readonly _portal: Portal;
   private readonly _parsers: AnyParseFunction[];
   private readonly _queryOptions: QueryOptions;
-  private _taskQueue = new TaskQueue();
+  private _taskQueue = new TaskQueue({concurrency: 1});
   private _rows = new DoublyLinked();
   private _closed = false;
   readonly fields: FieldInfo[];
@@ -101,7 +101,7 @@ export class Cursor extends SafeEventEmitter {
       } else {
         await this.close();
       }
-    });
+    }).toPromise();
   }
 
 }

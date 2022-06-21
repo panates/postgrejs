@@ -1,5 +1,5 @@
 import _debug from 'debug';
-import TaskQueue from 'putil-taskqueue';
+import {TaskQueue} from 'power-tasks';
 import {coerceToBoolean} from 'putil-varhelpers';
 import {convertRowToObject, getParsers, parseRow, wrapRowDescription} from './common.js';
 import {GlobalTypeMap} from './DataTypeMap.js';
@@ -26,7 +26,7 @@ export class IntlConnection extends SafeEventEmitter {
   protected _onErrorSavePoint: string;
   transactionStatus = 'I';
   socket: PgSocket;
-  statementQueue = new TaskQueue();
+  statementQueue = new TaskQueue({concurrency: 1});
 
   constructor(config?: ConnectionConfiguration | string) {
     super();
@@ -94,7 +94,7 @@ export class IntlConnection extends SafeEventEmitter {
     if (this.state === ConnectionState.CLOSED)
       return;
     debug('[%s] closing', this.processID);
-    this.statementQueue.clear();
+    this.statementQueue.clearQueue();
     return new Promise(resolve => {
       if (this.socket.state === ConnectionState.CLOSED)
         return;
@@ -110,7 +110,7 @@ export class IntlConnection extends SafeEventEmitter {
 
   async execute(sql: string, options?: ScriptExecuteOptions, cb?: (event: string, ...args: any[]) => void): Promise<ScriptResult> {
     this.assertConnected();
-    return this.statementQueue.enqueue<ScriptResult>(async (): Promise<ScriptResult> => {
+    return this.statementQueue.enqueue(async (): Promise<ScriptResult> => {
       const transactionCommand = sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i);
       let beginFirst = false;
       let commitLast = false;
@@ -143,7 +143,7 @@ export class IntlConnection extends SafeEventEmitter {
           await this._execute('ROLLBACK TO ' + this._onErrorSavePoint + ';');
         throw e;
       }
-    });
+    }).toPromise();
   }
 
   async startTransaction(): Promise<void> {

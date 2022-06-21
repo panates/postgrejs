@@ -100,7 +100,7 @@ export class Connection extends SafeEventEmitter {
    * @param terminateWait {number} - Determines how long the connection will wait for active queries before terminating.
    */
   async close(terminateWait?: number): Promise<void> {
-    this._intlCon.statementQueue.clear();
+    this._intlCon.statementQueue.clearQueue();
     if (this.state === ConnectionState.CLOSED || this._closing)
       return;
     debug('[%s] closing', this.processID);
