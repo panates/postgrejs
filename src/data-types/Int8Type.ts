@@ -1,18 +1,16 @@
-import {DataType, DataTypeOIDs} from '../definitions.js';
-import {SmartBuffer} from '../protocol/SmartBuffer.js';
-import {readBigInt64BE} from '../util/bigint-methods.js';
+import { DataType, DataTypeOIDs } from "../definitions.js";
+import { SmartBuffer } from "../protocol/SmartBuffer.js";
+import { readBigInt64BE } from "../util/bigint-methods.js";
 
 const maxSafeInteger = BigInt(Number.MAX_SAFE_INTEGER);
 
 export const Int8Type: DataType = {
-
-  name: 'int8',
+  name: "int8",
   oid: DataTypeOIDs.int8,
-  jsType: 'BigInt',
+  jsType: "BigInt",
 
   parseBinary(buf: Buffer): bigint | number {
-    const v = typeof buf.readBigInt64BE === 'function' ?
-      buf.readBigInt64BE(0) : readBigInt64BE(buf);
+    const v = typeof buf.readBigInt64BE === "function" ? buf.readBigInt64BE(0) : readBigInt64BE(buf);
     return v >= -maxSafeInteger && v <= maxSafeInteger ? Number(v) : v;
   },
 
@@ -26,15 +24,13 @@ export const Int8Type: DataType = {
   },
 
   isType(v: any): boolean {
-    return typeof v === 'bigint' ||
-      (typeof v === 'number' && Number.isInteger(v));
-  }
-
-}
+    return typeof v === "bigint" || (typeof v === "number" && Number.isInteger(v));
+  },
+};
 
 export const ArrayInt8Type: DataType = {
   ...Int8Type,
-  name: '_int8',
+  name: "_int8",
   oid: DataTypeOIDs._int8,
-  elementsOID: DataTypeOIDs.int8
-}
+  elementsOID: DataTypeOIDs.int8,
+};

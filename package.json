@@ -89,11 +89,14 @@
     "build:cjs": "tsc -b tsconfig.build-cjs.json",
     "build:esm": "tsc -b tsconfig.build-esm.json && tsc-esm -p tsconfig.build-esm.json",
     "postbuild": "cp package.cjs.json ./cjs/package.json",
-    "test": "jest",
+    "test": "npm run lint && npm run check && jest",
     "precover": "rimraf coverage",
     "cover": "jest --maxWorkers=1 --coverage",
     "precitest": "rimraf coverage",
     "citest": "jest --coverage --coverageReporters=lcov",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "check": "tsc --pretty && npm run prettier:check",
+    "prettier": "prettier --write --list-different .",
+    "prettier:check": "prettier --check ."
   }
 }

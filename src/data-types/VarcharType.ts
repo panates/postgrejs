@@ -1,33 +1,31 @@
-import {DataType, DataTypeOIDs} from '../definitions.js';
-import {SmartBuffer} from '../protocol/SmartBuffer.js';
+import { DataType, DataTypeOIDs } from "../definitions.js";
+import { SmartBuffer } from "../protocol/SmartBuffer.js";
 
 export const VarcharType: DataType = {
-
-  name: 'varchar',
+  name: "varchar",
   oid: DataTypeOIDs.varchar,
-  jsType: 'string',
+  jsType: "string",
 
   parseBinary(v: Buffer): string {
-    return v.toString('utf8');
+    return v.toString("utf8");
   },
 
   encodeBinary(buf: SmartBuffer, v: string): void {
-    buf.writeString('' + v, 'utf8');
+    buf.writeString("" + v, "utf8");
   },
 
   parseText(v): string {
-    return '' + v;
+    return "" + v;
   },
 
   isType(v: any): boolean {
-    return typeof v === 'string';
-  }
-
-}
+    return typeof v === "string";
+  },
+};
 
 export const ArrayVarcharType: DataType = {
   ...VarcharType,
-  name: '_varchar',
+  name: "_varchar",
   oid: DataTypeOIDs._varchar,
-  elementsOID: DataTypeOIDs.varchar
-}
+  elementsOID: DataTypeOIDs.varchar,
+};

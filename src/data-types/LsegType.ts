@@ -1,23 +1,22 @@
-import {DataType, DataTypeOIDs, Maybe, Rectangle} from '../definitions.js';
-import {SmartBuffer} from '../protocol/SmartBuffer.js';
+import { DataType, DataTypeOIDs, Maybe, Rectangle } from "../definitions.js";
+import { SmartBuffer } from "../protocol/SmartBuffer.js";
 
 const LSEG_PATTERN1 = /^\[ *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *]$/;
 const LSEG_PATTERN2 = /^\( *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *\)$/;
 const LSEG_PATTERN3 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\)$/;
-const LSEG_PATTERN4 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/
+const LSEG_PATTERN4 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 
 export const LsegType: DataType = {
-
-  name: 'lseg',
+  name: "lseg",
   oid: DataTypeOIDs.lseg,
-  jsType: 'object',
+  jsType: "object",
 
   parseBinary(v: Buffer): Rectangle {
     return {
       x1: v.readDoubleBE(0),
       y1: v.readDoubleBE(8),
       x2: v.readDoubleBE(16),
-      y2: v.readDoubleBE(24)
+      y2: v.readDoubleBE(24),
     };
   },
 
@@ -29,10 +28,8 @@ export const LsegType: DataType = {
   },
 
   parseText(v: string): Maybe<Rectangle> {
-    const m = v.match(LSEG_PATTERN1) || v.match(LSEG_PATTERN2) ||
-      v.match(LSEG_PATTERN3) || v.match(LSEG_PATTERN4);
-    if (!m)
-      return undefined;
+    const m = v.match(LSEG_PATTERN1) || v.match(LSEG_PATTERN2) || v.match(LSEG_PATTERN3) || v.match(LSEG_PATTERN4);
+    if (!m) return undefined;
     return {
       x1: parseFloat(m[1]),
       y1: parseFloat(m[2]),
@@ -42,18 +39,19 @@ export const LsegType: DataType = {
   },
 
   isType(v: any): boolean {
-    return typeof v === 'object' &&
-      typeof v.x1 === 'number' &&
-      typeof v.y1 === 'number' &&
-      typeof v.x2 === 'number' &&
-      typeof v.y2 === 'number';
-  }
-
-}
+    return (
+      typeof v === "object" &&
+      typeof v.x1 === "number" &&
+      typeof v.y1 === "number" &&
+      typeof v.x2 === "number" &&
+      typeof v.y2 === "number"
+    );
+  },
+};
 
 export const ArrayLsegType: DataType = {
   ...LsegType,
-  name: '_lseg',
+  name: "_lseg",
   oid: DataTypeOIDs._lseg,
-  elementsOID: DataTypeOIDs.lseg
-}
+  elementsOID: DataTypeOIDs.lseg,
+};

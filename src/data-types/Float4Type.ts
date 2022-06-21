@@ -1,31 +1,29 @@
-import {DataType, DataTypeOIDs} from '../definitions.js';
-import {SmartBuffer} from '../protocol/SmartBuffer.js';
+import { DataType, DataTypeOIDs } from "../definitions.js";
+import { SmartBuffer } from "../protocol/SmartBuffer.js";
 
 export const Float4Type: DataType = {
-
-  name: 'float4',
+  name: "float4",
   oid: DataTypeOIDs.float4,
-  jsType: 'number',
+  jsType: "number",
 
   parseBinary(v: Buffer): number {
     return Math.round((v.readFloatBE(0) + Number.EPSILON) * 100) / 100;
   },
 
   encodeBinary(buf: SmartBuffer, v: number | string): void {
-    buf.writeFloatBE(typeof v === 'number' ? v : parseFloat(v));
+    buf.writeFloatBE(typeof v === "number" ? v : parseFloat(v));
   },
 
   parseText: parseFloat,
 
   isType(v: any): boolean {
-    return typeof v === 'number';
-  }
-
-}
+    return typeof v === "number";
+  },
+};
 
 export const ArrayFloat4Type: DataType = {
   ...Float4Type,
-  name: '_float4',
+  name: "_float4",
   oid: DataTypeOIDs._float4,
-  elementsOID: DataTypeOIDs.float4
-}
+  elementsOID: DataTypeOIDs.float4,
+};

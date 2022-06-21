@@ -1,20 +1,23 @@
 import crypto from "crypto";
-import net from 'net';
-import promisify from 'putil-promisify';
-import tls from 'tls';
-import {Callback, ConnectionConfiguration, ConnectionState, Maybe} from '../definitions.js';
-import {SafeEventEmitter} from '../SafeEventEmitter.js';
-import {Backend} from './Backend.js';
-import {DatabaseError} from './DatabaseError.js';
-import {Frontend} from './Frontend.js';
-import {Protocol} from './protocol.js';
-import {SASL} from './sasl.js';
+import net from "net";
+import promisify from "putil-promisify";
+import tls from "tls";
+import { Callback, ConnectionConfiguration, ConnectionState, Maybe } from "../definitions.js";
+import { SafeEventEmitter } from "../SafeEventEmitter.js";
+import { Backend } from "./Backend.js";
+import { DatabaseError } from "./DatabaseError.js";
+import { Frontend } from "./Frontend.js";
+import { Protocol } from "./protocol.js";
+import { SASL } from "./sasl.js";
 
 const DEFAULT_PORT_NUMBER = 5432;
 const COMMAND_RESULT_PATTERN = /^([^\d]+)(?: (\d+)(?: (\d+))?)?$/;
 
-export type CaptureCallback = (code: Protocol.BackendMessageCode, msg: any,
-                               done: (err: Maybe<Error>, result?: any) => void) => void | Promise<void>;
+export type CaptureCallback = (
+  code: Protocol.BackendMessageCode,
+  msg: any,
+  done: (err: Maybe<Error>, result?: any) => void
+) => void | Promise<void>;
 
 export interface SocketError extends Error {
   code: string;
@@ -36,11 +39,9 @@ export class PgSocket extends SafeEventEmitter {
   }
 
   get state(): ConnectionState {
-    if (!this._socket || this._socket.destroyed)
-      this._state = ConnectionState.CLOSED;
+    if (!this._socket || this._socket.destroyed) this._state = ConnectionState.CLOSED;
     return this._state;
   }
-
 
   get processID(): Maybe<number> {
     return this._processID;
@@ -55,11 +56,10 @@ export class PgSocket extends SafeEventEmitter {
   }
 
   connect() {
-    if (this._socket)
-      return;
+    if (this._socket) return;
     this._state = ConnectionState.CONNECTING;
     const options = this.options;
-    const socket = this._socket = new net.Socket();
+    const socket = (this._socket = new net.Socket());
 
     const errorHandler = (err) => {
       this._state = ConnectionState.CLOSED;
@@ -67,48 +67,43 @@ export class PgSocket extends SafeEventEmitter {
       this._reset();
       socket.destroy();
       this._socket = undefined;
-      this.emit('error', err);
-    }
+      this.emit("error", err);
+    };
 
     const connectHandler = () => {
       socket.setTimeout(0);
-      if (this.options.keepAlive || this.options.keepAlive == null)
-        socket.setKeepAlive(true);
+      if (this.options.keepAlive || this.options.keepAlive == null) socket.setKeepAlive(true);
       if (options.ssl) {
         socket.write(this._frontend.getSSLRequestMessage());
-        socket.once('data', (x) => {
+        socket.once("data", (x) => {
           this._removeListeners();
-          if (x.toString() === 'S') {
-            const tslOptions = {...options.ssl, socket};
-            if (options.host && net.isIP(options.host) === 0)
-              tslOptions.servername = options.host;
-            const tlsSocket = this._socket = tls.connect(tslOptions);
-            tlsSocket.once('error', errorHandler);
-            tlsSocket.once('secureConnect', () => {
+          if (x.toString() === "S") {
+            const tslOptions = { ...options.ssl, socket };
+            if (options.host && net.isIP(options.host) === 0) tslOptions.servername = options.host;
+            const tlsSocket = (this._socket = tls.connect(tslOptions));
+            tlsSocket.once("error", errorHandler);
+            tlsSocket.once("secureConnect", () => {
               this._removeListeners();
               this._handleConnect();
             });
             return;
           }
-          if (x.toString() === 'N')
-            return errorHandler(new Error('Server does not support SSL connections'));
-          return errorHandler(new Error('There was an error establishing an SSL connection'));
+          if (x.toString() === "N") return errorHandler(new Error("Server does not support SSL connections"));
+          return errorHandler(new Error("There was an error establishing an SSL connection"));
         });
       } else {
         this._handleConnect();
       }
-    }
+    };
 
     socket.setNoDelay(true);
-    socket.setTimeout(options.connectTimeoutMs || 30000,
-      () => errorHandler(new Error('Connection timed out')));
-    socket.once('error', errorHandler);
-    socket.once('connect', connectHandler);
+    socket.setTimeout(options.connectTimeoutMs || 30000, () => errorHandler(new Error("Connection timed out")));
+    socket.once("error", errorHandler);
+    socket.once("connect", connectHandler);
 
-    this.emit('connecting');
-    if (options.host && options.host.startsWith('/'))
-      socket.connect(options.host);
-    else socket.connect(options.port || DEFAULT_PORT_NUMBER, options.host || 'localhost');
+    this.emit("connecting");
+    if (options.host && options.host.startsWith("/")) socket.connect(options.host);
+    else socket.connect(options.port || DEFAULT_PORT_NUMBER, options.host || "localhost");
   }
 
   close(): void {
@@ -118,12 +113,11 @@ export class PgSocket extends SafeEventEmitter {
       this._reset();
       return;
     }
-    if (this._state === ConnectionState.CLOSING)
-      return;
+    if (this._state === ConnectionState.CLOSING) return;
     const socket = this._socket;
     this._state = ConnectionState.CLOSING;
     this._removeListeners();
-    socket.once('close', () => this._handleClose());
+    socket.once("close", () => this._handleClose());
     socket.destroy();
   }
 
@@ -164,36 +158,32 @@ export class PgSocket extends SafeEventEmitter {
   }
 
   capture(callback: CaptureCallback): Promise<any> {
-
     return new Promise((resolve, reject) => {
       const done = (err?: Error, result?: any) => {
-        this.removeListener('error', errorHandler);
-        this.removeListener('message', msgHandler);
-        if (err)
-          reject(err);
+        this.removeListener("error", errorHandler);
+        this.removeListener("message", msgHandler);
+        if (err) reject(err);
         else resolve(result);
-      }
+      };
       const errorHandler = (err: Error) => {
-        this.removeListener('message', msgHandler);
+        this.removeListener("message", msgHandler);
         reject(err);
       };
       const msgHandler = (code: Protocol.BackendMessageCode, msg: any) => {
         const x = callback(code, msg, done);
-        if (promisify.isPromise(x))
-          (x as Promise<void>).catch(err => done(err));
+        if (promisify.isPromise(x)) (x as Promise<void>).catch((err) => done(err));
       };
-      this.once('error', errorHandler);
-      this.on('message', msgHandler);
+      this.once("error", errorHandler);
+      this.on("message", msgHandler);
     });
   }
 
   protected _removeListeners(): void {
-    if (!this._socket)
-      return;
-    this._socket.removeAllListeners('error');
-    this._socket.removeAllListeners('connect');
-    this._socket.removeAllListeners('data');
-    this._socket.removeAllListeners('close');
+    if (!this._socket) return;
+    this._socket.removeAllListeners("error");
+    this._socket.removeAllListeners("connect");
+    this._socket.removeAllListeners("data");
+    this._socket.removeAllListeners("close");
   }
 
   protected _reset(): void {
@@ -206,31 +196,32 @@ export class PgSocket extends SafeEventEmitter {
 
   protected _handleConnect(): void {
     const socket = this._socket;
-    if (!socket)
-      return;
+    if (!socket) return;
     this._state = ConnectionState.AUTHORIZING;
     this._reset();
-    socket.on('data', (data: Buffer) => this._handleData(data));
-    socket.on('error', (err: SocketError) => this._handleError(err));
-    socket.on('close', () => this._handleClose());
-    this._send(this._frontend.getStartupMessage({
-      user: this.options.user || 'postgres',
-      database: this.options.database || ''
-    }));
+    socket.on("data", (data: Buffer) => this._handleData(data));
+    socket.on("error", (err: SocketError) => this._handleError(err));
+    socket.on("close", () => this._handleClose());
+    this._send(
+      this._frontend.getStartupMessage({
+        user: this.options.user || "postgres",
+        database: this.options.database || "",
+      })
+    );
   }
 
   protected _handleClose(): void {
     this._reset();
     this._socket = undefined;
     this._state = ConnectionState.CLOSED;
-    this.emit('close');
+    this.emit("close");
   }
 
   protected _handleError(err: unknown): void {
     if (this._state !== ConnectionState.READY) {
       this._socket?.end();
     }
-    this.emit('error', err);
+    this.emit("error", err);
   }
 
   protected _handleData(data: Buffer): void {
@@ -241,31 +232,30 @@ export class PgSocket extends SafeEventEmitter {
             this._handleAuthenticationMessage(payload);
             break;
           case Protocol.BackendMessageCode.ErrorResponse:
-            this.emit('error', new DatabaseError(payload));
+            this.emit("error", new DatabaseError(payload));
             break;
           case Protocol.BackendMessageCode.NoticeResponse:
-            this.emit('notice', payload);
+            this.emit("notice", payload);
             break;
           case Protocol.BackendMessageCode.ParameterStatus:
-            this._handleParameterStatus(payload as Protocol.ParameterStatusMessage)
+            this._handleParameterStatus(payload as Protocol.ParameterStatusMessage);
             break;
           case Protocol.BackendMessageCode.BackendKeyData:
-            this._handleBackendKeyData(payload as Protocol.BackendKeyDataMessage)
+            this._handleBackendKeyData(payload as Protocol.BackendKeyDataMessage);
             break;
           case Protocol.BackendMessageCode.ReadyForQuery:
             if (this._state !== ConnectionState.READY) {
               this._state = ConnectionState.READY;
-              this.emit('ready');
-            } else
-              this.emit('message', code, payload);
+              this.emit("ready");
+            } else this.emit("message", code, payload);
             break;
           case Protocol.BackendMessageCode.CommandComplete: {
             const msg = this._handleCommandComplete(payload);
-            this.emit('message', code, msg);
+            this.emit("message", code, msg);
             break;
           }
           default:
-            this.emit('message', code, payload);
+            this.emit("message", code, payload);
         }
       } catch (e) {
         this._handleError(e);
@@ -275,47 +265,43 @@ export class PgSocket extends SafeEventEmitter {
 
   protected _resolvePassword(cb: (password: string) => void): void {
     (async (): Promise<void> => {
-      const pass = typeof this.options.password === 'function' ?
-        await this.options.password() : this.options.password;
-      cb(pass || '');
-    })().catch(err => this._handleError(err));
+      const pass = typeof this.options.password === "function" ? await this.options.password() : this.options.password;
+      cb(pass || "");
+    })().catch((err) => this._handleError(err));
   }
 
   protected _handleAuthenticationMessage(msg?: any): void {
     if (!msg) {
-      this.emit('authenticate');
+      this.emit("authenticate");
       return;
     }
 
     switch (msg.kind) {
       case Protocol.AuthenticationMessageKind.CleartextPassword:
-        this._resolvePassword(password => {
+        this._resolvePassword((password) => {
           this._send(this._frontend.getPasswordMessage(password));
         });
         break;
       case Protocol.AuthenticationMessageKind.MD5Password:
-        this._resolvePassword((password => {
-          const md5 = (x: any) =>
-            crypto.createHash('md5').update(x, 'utf8').digest('hex');
+        this._resolvePassword((password) => {
+          const md5 = (x: any) => crypto.createHash("md5").update(x, "utf8").digest("hex");
           const l = md5(password + this.options.user);
           const r = md5(Buffer.concat([Buffer.from(l), msg.salt]));
-          const pass = 'md5' + r;
+          const pass = "md5" + r;
           this._send(this._frontend.getPasswordMessage(pass));
-        }));
+        });
         break;
       case Protocol.AuthenticationMessageKind.SASL: {
-        if (!msg.mechanisms.includes('SCRAM-SHA-256'))
-          throw new Error('SASL: Only mechanism SCRAM-SHA-256 is currently supported');
-        const saslSession = this._saslSession =
-          SASL.createSession(this.options.user || '', 'SCRAM-SHA-256');
+        if (!msg.mechanisms.includes("SCRAM-SHA-256"))
+          throw new Error("SASL: Only mechanism SCRAM-SHA-256 is currently supported");
+        const saslSession = (this._saslSession = SASL.createSession(this.options.user || "", "SCRAM-SHA-256"));
         this._send(this._frontend.getSASLMessage(saslSession));
         break;
       }
       case Protocol.AuthenticationMessageKind.SASLContinue: {
         const saslSession = this._saslSession;
-        if (!saslSession)
-          throw new Error('SASL: Session not started yet');
-        this._resolvePassword(password => {
+        if (!saslSession) throw new Error("SASL: Session not started yet");
+        this._resolvePassword((password) => {
           SASL.continueSession(saslSession, password, msg.data);
           const buf = this._frontend.getSASLFinalMessage(saslSession);
           this._send(buf);
@@ -324,8 +310,7 @@ export class PgSocket extends SafeEventEmitter {
       }
       case Protocol.AuthenticationMessageKind.SASLFinal: {
         const session = this._saslSession;
-        if (!session)
-          throw new Error('SASL: Session not started yet');
+        if (!session) throw new Error("SASL: Session not started yet");
         SASL.finalizeSession(session, msg.data);
         this._saslSession = undefined;
         break;
@@ -345,13 +330,12 @@ export class PgSocket extends SafeEventEmitter {
   protected _handleCommandComplete(msg: any): Protocol.CommandCompleteMessage {
     const m = msg.command && msg.command.match(COMMAND_RESULT_PATTERN);
     const result: Protocol.CommandCompleteMessage = {
-      command: m[1]
-    }
+      command: m[1],
+    };
     if (m[3] != null) {
       result.oid = parseInt(m[2], 10);
       result.rowCount = parseInt(m[3], 10);
-    } else if (m[2])
-      result.rowCount = parseInt(m[2], 10);
+    } else if (m[2]) result.rowCount = parseInt(m[2], 10);
     return result;
   }
 
@@ -361,5 +345,4 @@ export class PgSocket extends SafeEventEmitter {
       this._socket.write(data, cb);
     }
   }
-
 }

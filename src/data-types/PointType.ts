@@ -1,19 +1,18 @@
-import {DataType, DataTypeOIDs, Maybe, Point} from '../definitions.js';
-import {SmartBuffer} from '../protocol/SmartBuffer.js';
+import { DataType, DataTypeOIDs, Maybe, Point } from "../definitions.js";
+import { SmartBuffer } from "../protocol/SmartBuffer.js";
 
 const POINT_PATTERN1 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\)$/;
 const POINT_PATTERN2 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 
 export const PointType: DataType = {
-
-  name: 'point',
+  name: "point",
   oid: DataTypeOIDs.point,
-  jsType: 'object',
+  jsType: "object",
 
   parseBinary(v: Buffer): Point {
     return {
       x: v.readDoubleBE(0),
-      y: v.readDoubleBE(8)
+      y: v.readDoubleBE(8),
     };
   },
 
@@ -24,25 +23,21 @@ export const PointType: DataType = {
 
   parseText(v: string): Maybe<Point> {
     const m = v.match(POINT_PATTERN1) || v.match(POINT_PATTERN2);
-    if (!m)
-      return undefined;
+    if (!m) return undefined;
     return {
       x: parseFloat(m[1]),
-      y: parseFloat(m[2])
+      y: parseFloat(m[2]),
     };
   },
 
   isType(v: any): boolean {
-    return typeof v === 'object' &&
-      typeof v.x === 'number' &&
-      typeof v.y === 'number';
-  }
-
-}
+    return typeof v === "object" && typeof v.x === "number" && typeof v.y === "number";
+  },
+};
 
 export const ArrayPointType: DataType = {
   ...PointType,
-  name: '_point',
+  name: "_point",
   oid: DataTypeOIDs._point,
-  elementsOID: DataTypeOIDs.point
-}
+  elementsOID: DataTypeOIDs.point,
+};

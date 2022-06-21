@@ -6,12 +6,7 @@
   },
   "overrides": [
     {
-      "files": [
-        "**/*.ts",
-        "**/*.tsx",
-        "**/*.mts",
-        "**/*.cts"
-      ],
+      "files": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
       "extends": [
         "plugin:@typescript-eslint/recommended",
         "plugin:@typescript-eslint/recommended-requiring-type-checking",
@@ -24,13 +19,7 @@
         "project": "tsconfig.json",
         "sourceType": "module"
       },
-      "plugins": [
-        "@typescript-eslint",
-        "simple-import-sort",
-        "import",
-        "unused-imports",
-        "security"
-      ],
+      "plugins": ["@typescript-eslint", "simple-import-sort", "import", "unused-imports", "security"],
       "rules": {
         "import/no-cycle": 2,
         "import/no-unresolved": "off",
@@ -44,16 +33,7 @@
         "simple-import-sort/imports": [
           "error",
           {
-            "groups": [
-              [
-                "^\\u0000",
-                "^\\w",
-                "^@\\w",
-                "^#\\w",
-                "^\\..",
-                "^\\."
-              ]
-            ]
+            "groups": [["^\\u0000", "^\\w", "^@\\w", "^#\\w", "^\\..", "^\\."]]
           }
         ],
         "@typescript-eslint/interface-name-prefix": "off",
@@ -88,20 +68,14 @@
         "@typescript-eslint/no-inferrable-types": "off",
         "@typescript-eslint/no-misused-promises": "off",
         "@typescript-eslint/no-unsafe-argument": "off",
-        "arrow-parens": [
-          "off",
-          "as-needed"
-        ],
+        "arrow-parens": ["off", "as-needed"],
         "camelcase": "error",
         "comma-dangle": "off",
         "complexity": "off",
         "constructor-super": "error",
         "curly": "off",
         "dot-notation": "error",
-        "eqeqeq": [
-          "error",
-          "smart"
-        ],
+        "eqeqeq": ["error", "smart"],
         "guard-for-in": "error",
         "id-blacklist": "error",
         "id-match": "error",
@@ -133,37 +107,31 @@
         "no-unused-expressions": "error",
         "no-unused-labels": "error",
         "object-shorthand": "error",
-        "one-var": [
-          "error",
-          "never"
-        ],
+        "one-var": ["error", "never"],
         "prefer-arrow/prefer-arrow-functions": "off",
         "radix": "error",
         "space-before-function-paren": "off",
-        "spaced-comment": [ "error", "always", {
-          "line": {
-            "markers": ["#region", "#endregion", "region", "endregion"]
+        "spaced-comment": [
+          "error",
+          "always",
+          {
+            "line": {
+              "markers": ["#region", "#endregion", "region", "endregion"]
+            }
           }
-        }],
+        ],
         "use-isnan": "error",
         "valid-typeof": "off",
         "prefer-rest-params": "off"
       }
     },
     {
-      "files": [
-        "**/*.js",
-        "**/*.mjs",
-        "**/*.cjs"
-      ],
+      "files": ["**/*.js", "**/*.mjs", "**/*.cjs"],
       "env": {
         "node": true,
         "es6": true
       },
-      "extends": [
-        "eslint:recommended",
-        "google"
-      ],
+      "extends": ["eslint:recommended", "google"],
       "parser": "@babel/eslint-parser",
       "parserOptions": {
         "ecmaVersion": 6,

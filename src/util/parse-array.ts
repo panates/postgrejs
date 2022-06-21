@@ -1,12 +1,14 @@
-import {Maybe} from '../definitions.js';
+import { Maybe } from "../definitions.js";
 
-export function parsePostgresArray(s: string, opts?: {
-  transform?: (v: string) => any,
-  separator?: string
-}): Maybe<any[]> {
-  if (!s)
-    return;
-  const sep = (opts?.separator || ',').substring(0, 1);
+export function parsePostgresArray(
+  s: string,
+  opts?: {
+    transform?: (v: string) => any;
+    separator?: string;
+  }
+): Maybe<any[]> {
+  if (!s) return;
+  const sep = (opts?.separator || ",").substring(0, 1);
   const transform = opts?.transform;
   const len = s.length;
   let idx = 0;
@@ -15,42 +17,40 @@ export function parsePostgresArray(s: string, opts?: {
   const iterate = (arr: any[]): void => {
     let c;
     let exactlyValue = false;
-    let token = '';
-    let quote = '';
+    let token = "";
+    let quote = "";
     while (idx < len) {
       c = s.charAt(idx++);
 
       if (!quote) {
-        if (!token && c === '{') {
+        if (!token && c === "{") {
           const a: any[] = [];
           arr.push(a);
           iterate(a);
           continue;
         }
 
-        if (c === '}' || c === sep) {
+        if (c === "}" || c === sep) {
           if (token) {
-            if (token === 'NULL' && !exactlyValue)
-              arr.push(null);
+            if (token === "NULL" && !exactlyValue) arr.push(null);
             else arr.push(transform ? transform(token) : token);
             exactlyValue = false;
           }
-          token = '';
-          if (c === '}')
-            return;
+          token = "";
+          if (c === "}") return;
           continue;
         }
       }
 
-      if (c === '\\') {
+      if (c === "\\") {
         c = s.charAt(idx++);
         token += c;
         continue;
       }
 
-      if (c === '"' || c === '\'') {
+      if (c === '"' || c === "'") {
         if (quote && quote === c) {
-          quote = '';
+          quote = "";
         } else {
           exactlyValue = true;
           quote = c;
@@ -60,7 +60,7 @@ export function parsePostgresArray(s: string, opts?: {
 
       token += c;
     }
-  }
+  };
   iterate(out);
   return out.length ? out[0] : undefined;
 }

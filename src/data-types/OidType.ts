@@ -1,12 +1,11 @@
-import {DataType, DataTypeOIDs} from '../definitions.js';
-import {SmartBuffer} from '../protocol/SmartBuffer.js';
-import {fastParseInt} from '../util/fast-parseint.js';
+import { DataType, DataTypeOIDs } from "../definitions.js";
+import { SmartBuffer } from "../protocol/SmartBuffer.js";
+import { fastParseInt } from "../util/fast-parseint.js";
 
 export const OidType: DataType = {
-
-  name: 'oid',
+  name: "oid",
   oid: DataTypeOIDs.oid,
-  jsType: 'number',
+  jsType: "number",
 
   parseBinary(v: Buffer): number {
     return v.readUInt32BE(0);
@@ -19,15 +18,13 @@ export const OidType: DataType = {
   parseText: fastParseInt,
 
   isType(v: any): boolean {
-    return typeof v === 'number' &&
-      Number.isInteger(v) && v >= 0;
-  }
-
-}
+    return typeof v === "number" && Number.isInteger(v) && v >= 0;
+  },
+};
 
 export const ArrayOidType: DataType = {
   ...OidType,
-  name: '_oid',
+  name: "_oid",
   oid: DataTypeOIDs._oid,
-  elementsOID: DataTypeOIDs.oid
-}
+  elementsOID: DataTypeOIDs.oid,
+};

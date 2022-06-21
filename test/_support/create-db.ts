@@ -1,7 +1,7 @@
-import {Connection} from '../../src';
-import {stringifyValueForSQL} from '../../src';
+import { Connection } from "../../src";
+import { stringifyValueForSQL } from "../../src";
 
-const schema = process.env.PGSCHEMA || 'test';
+const schema = process.env.PGSCHEMA || "test";
 let testDbCreated = false;
 
 const schemaSql = `
@@ -82,32 +82,31 @@ values
    '{"a": 1}', '{"a": 1}', '<tag1>123</tag1>', '2010-03-22', '2020-01-10 15:45:12.123',
     '2005-07-01 01:21:11.123+03:00', 'ABCDE', '(-1.2, 3.5)', '<(-1.2, 3.5), 4.6>',
     '[(1.2, 3.5), (4.6, 5.2)]', '((-1.6, 3.0), (4.6, 0.1))', '87d48838-02b3-4e26-8fec-bcc8c00e3772');
-`
+`;
 
 const dataFiles: any[] = [
-    require('./test-data/continents.json'),
-    require('./test-data/countries.json'),
-    require('./test-data/customers.json')
+  require("./test-data/continents.json"),
+  require("./test-data/countries.json"),
+  require("./test-data/customers.json"),
 ];
 
 export async function createTestSchema(connection: Connection) {
-    if (testDbCreated)
-        return;
-    
-    await connection.execute(schemaSql);
-    /* Create tables */
-    for (const table of dataFiles) {
-        /* Insert rows */
-        const keys = Object.keys(table.rows[0]);
-        const fields = keys.map(f => f.toLowerCase());
-        let sql = '';
-        for (const row of table.rows) {
-            const values = keys.map(x => stringifyValueForSQL(row[x]));
-            const insertSql = 'insert into test.' + table.name +
-                ' (' + fields.join(',') + ') values (' + values.join(',') + ');\n';
-            sql += insertSql;
-        }
-        await connection.execute(sql);
+  if (testDbCreated) return;
+
+  await connection.execute(schemaSql);
+  /* Create tables */
+  for (const table of dataFiles) {
+    /* Insert rows */
+    const keys = Object.keys(table.rows[0]);
+    const fields = keys.map((f) => f.toLowerCase());
+    let sql = "";
+    for (const row of table.rows) {
+      const values = keys.map((x) => stringifyValueForSQL(row[x]));
+      const insertSql =
+        "insert into test." + table.name + " (" + fields.join(",") + ") values (" + values.join(",") + ");\n";
+      sql += insertSql;
     }
-    testDbCreated = true;
+    await connection.execute(sql);
+  }
+  testDbCreated = true;
 }

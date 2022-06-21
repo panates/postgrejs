@@ -1,12 +1,11 @@
-import decodeBytea from 'postgres-bytea';
-import {DataType, DataTypeOIDs} from '../definitions.js';
-import {SmartBuffer} from '../protocol/SmartBuffer.js';
+import decodeBytea from "postgres-bytea";
+import { DataType, DataTypeOIDs } from "../definitions.js";
+import { SmartBuffer } from "../protocol/SmartBuffer.js";
 
 export const ByteaType: DataType = {
-
-  name: 'bytea',
+  name: "bytea",
   oid: DataTypeOIDs.bytea,
-  jsType: 'Buffer',
+  jsType: "Buffer",
 
   parseBinary(v: Buffer): Buffer {
     return v;
@@ -20,14 +19,12 @@ export const ByteaType: DataType = {
 
   isType(v: any): boolean {
     return v instanceof Buffer;
-  }
-
-}
-
+  },
+};
 
 export const ArrayByteaType: DataType = {
   ...ByteaType,
-  name: '_bytea',
+  name: "_bytea",
   oid: DataTypeOIDs._bytea,
-  elementsOID: DataTypeOIDs.bytea
-}
+  elementsOID: DataTypeOIDs.bytea,
+};

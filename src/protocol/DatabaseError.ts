@@ -1,4 +1,4 @@
-import {Protocol} from './protocol.js';
+import { Protocol } from "./protocol.js";
 
 export class DatabaseError extends Error {
   severity?: string;
@@ -24,9 +24,8 @@ export class DatabaseError extends Error {
       ...msg,
       line: undefined,
       file: undefined,
-      routine: undefined
+      routine: undefined,
     });
-    if (msg.position)
-      this.position = parseInt(msg.position, 10) || undefined;
+    if (msg.position) this.position = parseInt(msg.position, 10) || undefined;
   }
 }

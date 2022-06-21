@@ -1,7 +1,6 @@
-import {Nullable} from '../definitions.js';
+import { Nullable } from "../definitions.js";
 
 export namespace Protocol {
-
   export const VERSION_MAJOR = 3;
   export const VERSION_MINOR = 0;
 
@@ -30,7 +29,7 @@ export namespace Protocol {
     ParseComplete = 0x31, // 1
     PortalSuspended = 0x73, // s
     ReadyForQuery = 0x5a, // Z
-    RowDescription = 0x54 // T
+    RowDescription = 0x54, // T
   }
 
   export enum FrontendMessageCode {
@@ -47,25 +46,25 @@ export namespace Protocol {
     PasswordMessage = 0x70, // p
     Query = 0x51, // Q
     Sync = 0x53, // S
-    Terminate = 0x58 // X
+    Terminate = 0x58, // X
   }
 
   export enum AuthenticationMessageKind {
-    KerberosV5 = 'KerberosV5',
-    CleartextPassword = 'CleartextPassword',
-    MD5Password = 'MD5Password',
-    SCMCredential = 'SCMCredential',
-    GSS = 'GSS',
-    SSPI = 'SSPI',
-    GSSContinue = 'GSSContinue',
-    SASL = 'SASL',
-    SASLContinue = 'SASLContinue',
-    SASLFinal = 'SASLFinal',
+    KerberosV5 = "KerberosV5",
+    CleartextPassword = "CleartextPassword",
+    MD5Password = "MD5Password",
+    SCMCredential = "SCMCredential",
+    GSS = "GSS",
+    SSPI = "SSPI",
+    GSSContinue = "GSSContinue",
+    SASL = "SASL",
+    SASLContinue = "SASLContinue",
+    SASLFinal = "SASLFinal",
   }
 
   export enum DataFormat {
     text = 0,
-    binary = 1
+    binary = 1,
   }
 
   export interface AuthenticationRequiredMessage {
@@ -81,7 +80,7 @@ export namespace Protocol {
   }
 
   export interface AuthenticationMD5PasswordMessage extends AuthenticationRequiredMessage {
-    kind: AuthenticationMessageKind.MD5Password
+    kind: AuthenticationMessageKind.MD5Password;
     salt: Buffer;
   }
 
@@ -117,7 +116,6 @@ export namespace Protocol {
     data: string;
   }
 
-
   export interface BackendKeyDataMessage {
     processID: number;
     secretKey: number;
@@ -139,9 +137,7 @@ export namespace Protocol {
     columnFormats?: DataFormat[];
   }
 
-  export interface DataRow {
-
-  }
+  export interface DataRow {}
 
   export interface DataRowMessage {
     columnCount: number;
@@ -203,7 +199,6 @@ export namespace Protocol {
   }
 
   export interface RowDescriptionMessage {
-    fields: RowDescription[]
+    fields: RowDescription[];
   }
-
 }
