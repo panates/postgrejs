@@ -5,6 +5,7 @@
     "noEmit": false,
     "declaration": false,
     "outDir": "cjs",
-    "module": "CommonJS"
+    "module": "CommonJS",
+    "moduleResolution": "node"
   }
 }

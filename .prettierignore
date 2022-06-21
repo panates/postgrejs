@@ -1,0 +1,26 @@
+/node_modules
+/cjs
+/esm
+/coverage
+/.idea
+/.circleci
+/.husky
+/.DS_Store
+/.nyc_output
+/.github
+**/*.md
+
+# IDEs and editors
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json

@@ -1,4 +1,4 @@
-import {fastParseInt} from './fast-parseint';
+import {fastParseInt} from './fast-parseint.js';
 
 // eslint-disable-next-line
 // noinspection RegExpUnnecessaryNonCapturingGroup

@@ -8,27 +8,52 @@
     {
       "files": [
         "**/*.ts",
-        "**/*.tsx"
+        "**/*.tsx",
+        "**/*.mts",
+        "**/*.cts"
       ],
       "extends": [
         "plugin:@typescript-eslint/recommended",
-        "plugin:@typescript-eslint/recommended-requiring-type-checking"
+        "plugin:@typescript-eslint/recommended-requiring-type-checking",
+        "plugin:import/recommended",
+        "plugin:import/typescript"
       ],
       "parser": "@typescript-eslint/parser",
       "parserOptions": {
-        "ecmaVersion": 2018,
+        "ecmaVersion": 2020,
         "project": "tsconfig.json",
         "sourceType": "module"
       },
       "plugins": [
-        "@typescript-eslint"
+        "@typescript-eslint",
+        "simple-import-sort",
+        "import",
+        "unused-imports",
+        "security"
       ],
       "rules": {
+        "import/no-cycle": 2,
+        "import/no-unresolved": "off",
         "@typescript-eslint/array-type": "error",
         "@typescript-eslint/explicit-member-accessibility": [
           "off",
           {
             "accessibility": "explicit"
+          }
+        ],
+        "simple-import-sort/imports": [
+          "error",
+          {
+            "groups": [
+              [
+                "^\\u0000",
+                "^\\w",
+                "^@\\w",
+                "^#\\w",
+                "^\\..",
+                "^\\."
+              ]
+            ]
           }
         ],
         "@typescript-eslint/interface-name-prefix": "off",
@@ -41,7 +66,7 @@
         "@typescript-eslint/no-var-requires": "off",
         "@typescript-eslint/no-shadow": "error",
         "@typescript-eslint/prefer-for-of": "off",
-        "@typescript-eslint/prefer-function-type": "error",
+        "@typescript-eslint/prefer-function-type": "off",
         "@typescript-eslint/quotes": "off",
         "@typescript-eslint/triple-slash-reference": "off",
         "@typescript-eslint/unified-signatures": "off",
@@ -59,6 +84,10 @@
         "@typescript-eslint/ban-types": "off",
         "@typescript-eslint/ban-ts-comment": "off",
         "@typescript-eslint/restrict-template-expressions": "off",
+        "@typescript-eslint/unbound-method": "off",
+        "@typescript-eslint/no-inferrable-types": "off",
+        "@typescript-eslint/no-misused-promises": "off",
+        "@typescript-eslint/no-unsafe-argument": "off",
         "arrow-parens": [
           "off",
           "as-needed"
@@ -85,7 +114,7 @@
           }
         ],
         "new-parens": "error",
-        "no-bitwise": "off",
+        "no-bitwise": "error",
         "no-caller": "error",
         "no-cond-assign": "off",
         "no-console": "error",
@@ -111,7 +140,11 @@
         "prefer-arrow/prefer-arrow-functions": "off",
         "radix": "error",
         "space-before-function-paren": "off",
-        "spaced-comment": "error",
+        "spaced-comment": [ "error", "always", {
+          "line": {
+            "markers": ["#region", "#endregion", "region", "endregion"]
+          }
+        }],
         "use-isnan": "error",
         "valid-typeof": "off",
         "prefer-rest-params": "off"
@@ -119,7 +152,9 @@
     },
     {
       "files": [
-        "**/*.js"
+        "**/*.js",
+        "**/*.mjs",
+        "**/*.cjs"
       ],
       "env": {
         "node": true,
@@ -129,10 +164,11 @@
         "eslint:recommended",
         "google"
       ],
-      "parser": "babel-eslint",
+      "parser": "@babel/eslint-parser",
       "parserOptions": {
         "ecmaVersion": 6,
         "sourceType": "module",
+        "requireConfigFile": false,
         "ecmaFeatures": {
           "jsx": true,
           "modules": true,

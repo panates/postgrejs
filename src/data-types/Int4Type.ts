@@ -1,34 +1,33 @@
-import {DataType, DataTypeOIDs} from '../definitions';
-import {SmartBuffer} from '../protocol/SmartBuffer';
-// noinspection ES6PreferShortImport
-import {fastParseInt} from '../util/fast-parseint';
+import {DataType, DataTypeOIDs} from '../definitions.js';
+import {SmartBuffer} from '../protocol/SmartBuffer.js';
+import {fastParseInt} from '../util/fast-parseint.js';
 
 export const Int4Type: DataType = {
 
-    name: 'int4',
-    oid: DataTypeOIDs.int4,
-    jsType: 'number',
+  name: 'int4',
+  oid: DataTypeOIDs.int4,
+  jsType: 'number',
 
-    parseBinary(v: Buffer): number {
-        return v.readInt32BE(0);
-    },
+  parseBinary(v: Buffer): number {
+    return v.readInt32BE(0);
+  },
 
-    encodeBinary(buf: SmartBuffer, v: number): void {
-        buf.writeInt32BE(fastParseInt(v));
-    },
+  encodeBinary(buf: SmartBuffer, v: number): void {
+    buf.writeInt32BE(fastParseInt(v));
+  },
 
-    parseText: fastParseInt,
+  parseText: fastParseInt,
 
-    isType(v: any): boolean {
-        return typeof v === 'number' &&
-            Number.isInteger(v);
-    }
+  isType(v: any): boolean {
+    return typeof v === 'number' &&
+      Number.isInteger(v);
+  }
 
 }
 
 export const ArrayInt4Type: DataType = {
-    ...Int4Type,
-    name: '_int4',
-    oid: DataTypeOIDs._int4,
-    elementsOID: DataTypeOIDs.int4
+  ...Int4Type,
+  name: '_int4',
+  oid: DataTypeOIDs._int4,
+  elementsOID: DataTypeOIDs.int4
 }
