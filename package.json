@@ -25,15 +25,15 @@
   ],
   "type": "module",
   "main": "cjs/index.js",
-  "module": "esm/index.mjs",
+  "module": "esm/index.js",
   "types": "esm/index.d.ts",
   "exports": {
     ".": {
       "require": "./cjs/index.js",
-      "default": "./esm/index.mjs"
+      "default": "./esm/index.js"
     },
     "./cjs": "./cjs/index.js",
-    "./esm": "./esm/index.mjs"
+    "./esm": "./esm/index.js"
   },
   "engines": {
     "node": ">=14.0",
@@ -67,6 +67,7 @@
     "eslint-config-google": "^0.14.0",
     "husky": "^8.0.1",
     "jest": "^28.1.1",
+    "rimraf": "^3.0.2",
     "ts-cleanup": "^0.2.4",
     "ts-jest": "^28.0.5",
     "ts-loader": "^9.3.0",
