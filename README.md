@@ -32,7 +32,11 @@ $ npm install postgresql-client --save
 ```
 
 ## Documentation
-Please read [DOCUMENTATION](DOCUMENTATION.md) for detailed usage.
+Please read :small_orange_diamond: [DOCUMENTATION](DOCUMENTATION.md) :small_orange_diamond: for detailed usage.
+
+## Example usage
+
+### Establish a single connection, execute a simple query
 
 ```ts
 import {Connection} from 'postgresql-client';
@@ -46,6 +50,7 @@ const rows = result.rows;
 await connection.close(); // Disconnect
 ```
 
+### Establish a pooled connection, create a cursor
 ```ts
 import {Pool} from 'postgresql-client';
 
@@ -69,6 +74,9 @@ while ((row = cursor.next())) {
 
 await db.close(); // Disconnect all connections and shutdown pool
 ```
+
+#### Check [DOCUMENTATION](DOCUMENTATION.md) for other examples.
+
 
 
 ## Support
