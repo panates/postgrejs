@@ -95,7 +95,7 @@ await statement.close(); // When you done, close the statement to relase resourc
 
 
 
-## Data types mappings
+## Type mappings
 The table below lists builtin data type mappings.
 
 | Posgtres type | JS type     | Receive     | Send     | 
