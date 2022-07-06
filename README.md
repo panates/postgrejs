@@ -156,7 +156,7 @@ When you open an issue please provide version of NodeJS and PostgreSQL server.
 - node >= 14.x
  
   
-### License
+## License
 postgresql-client is available under [MIT](LICENSE) license.
 
 [npm-image]: https://img.shields.io/npm/v/postgresql-client.svg
