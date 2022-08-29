@@ -7,5 +7,6 @@
     "outDir": "cjs",
     "module": "CommonJS",
     "moduleResolution": "node"
-  }
+  },
+  "include": ["src"]
 }
