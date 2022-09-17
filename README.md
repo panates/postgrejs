@@ -6,24 +6,30 @@
 [![Test Coverage][coveralls-image]][coveralls-url]
 
 
-Professional PostgreSQL client written in TypeScript.
+Enterprise level PostgreSQL client for NodeJs and modern Web Browsers.
+
+
+## Library
+
+- Pure JavaScript library completely written in TypeScript
+- Works with both CommonJS and ESM module systems
+- Well tested
+- Strictly typed
+- Asynchronous Promise based api
 
 ## Features
 
-- Pure JavaScript library completely written in TypeScript
 - Both single connection and advanced pooling support
 - Named Prepared Statements
-- Extended cursor support with fast double-link cache
+- Cursors with fast double-link cache
+- Full binary wire protocol support for all data types
 - Extensible data-types and type mapping
-- Extended bind parameters
+- Bind parameters with OID mappings
 - Multidimensional arrays with fast binary encoding/decoding
 - Low memory utilization and boosted performance with Shared Buffers
-- Full binary and text wire protocol support for all data types
 - Supports Clear text, MD5 and SASL password algorithms
 - Can return both array and object rows
-- Asynchronous Promise based api
-- Strictly typed
-- Supports both CommonJS and ESM module systems
+
 
 ## Installation
 

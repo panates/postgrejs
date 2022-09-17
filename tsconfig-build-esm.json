@@ -5,8 +5,7 @@
     "declaration": true,
     "noEmit": false,
     "module": "ESNext",
-    "outDir": "esm",
-    "moduleResolution": "NodeNext"
+    "outDir": "esm"
   },
   "include": ["src"]
 }

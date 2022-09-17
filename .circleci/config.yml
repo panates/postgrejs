@@ -7,11 +7,9 @@ workflows:
   main:
     jobs:
       - test:
-          version: '15'
+          version: '16.17.0'
       - test:
-          version: '16'
-      - test:
-          version: '17'
+          version: '18.9.0'
 
 jobs:
   test:
@@ -19,7 +17,7 @@ jobs:
       version:
         type: string
     docker:
-      - image: circleci/node:<< parameters.version >>
+      - image: cimg/node:<< parameters.version >>
       - image: cimg/postgres:14.0
         environment:
           POSTGRES_DB: test
@@ -38,6 +36,7 @@ jobs:
           key: v1-deps-{{ checksum "package-lock.json" }}
           paths:
             - node_modules
+      - run: sudo npm install npm -g
       - run: npm install
       - run: npm run lint
       - run: npm run citest

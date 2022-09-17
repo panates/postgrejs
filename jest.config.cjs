@@ -5,12 +5,10 @@ module.exports = {
   detectOpenHandles: true,
   maxWorkers: 1,
   coveragePathIgnorePatterns: [
-    '/build/',
-    '/dist/',
-    '/packages/oracle/',
+    '/cjs/',
+    '/esm/',
     '/node_modules/',
-    '_support',
-    '_shared'
+    '_support'
   ],
   coverageReporters: ['lcov', 'text'],
   coverageDirectory: '<rootDir>/coverage/',

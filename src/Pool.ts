@@ -1,5 +1,9 @@
 import _debug from "debug";
-import { Pool as LightningPool, PoolConfiguration as LPoolConfiguration, PoolFactory } from "lightning-pool";
+import {
+  Pool as LightningPool,
+  PoolConfiguration as LPoolConfiguration,
+  PoolFactory
+} from "lightning-pool";
 import { coerceToBoolean, coerceToInt } from "putil-varhelpers";
 import { getIntlConnection } from "./common.js";
 import { Connection } from "./Connection.js";
