@@ -1,10 +1,8 @@
-import assert from "assert";
-import "../_support/env";
-import { escapeLiteral } from "../../src";
+import { escapeLiteral } from "postgresql-client";
 
 describe("Escape literal", function () {
   function testLiteral(str: string, required: string): void {
-    assert.strictEqual(escapeLiteral(str), required);
+    expect(escapeLiteral(str)).toStrictEqual(required);
   }
 
   it("No special characters", function () {

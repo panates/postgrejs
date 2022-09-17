@@ -1,5 +1,5 @@
-import { Connection, DataFormat, DataTypeOIDs } from "../../../src";
-import { testEncode, testParse } from "./_testers";
+import { Connection, DataFormat, DataTypeOIDs } from "postgresql-client";
+import { testEncode, testParse } from "./_testers.js";
 
 const toStringArray = (arr) => arr.map((o) => (o ? JSON.stringify(o) : null));
 

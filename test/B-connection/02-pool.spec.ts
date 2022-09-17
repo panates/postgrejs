@@ -1,6 +1,4 @@
-import assert from "assert";
-import "../_support/env";
-import { DataTypeOIDs, Pool } from "../../src";
+import { DataTypeOIDs, Pool } from "postgresql-client";
 
 describe("Pool", function () {
   let pool: Pool;
@@ -14,53 +12,53 @@ describe("Pool", function () {
   });
 
   it("should acquire connection", async function () {
-    assert.strictEqual(pool.totalConnections, 0);
+    expect(pool.totalConnections).toStrictEqual(0);
     const connection = await pool.acquire();
-    assert.strictEqual(pool.totalConnections, 1);
-    assert.strictEqual(pool.acquiredConnections, 1);
-    assert.ok(connection);
+    expect(pool.totalConnections).toStrictEqual(1);
+    expect(pool.acquiredConnections).toStrictEqual(1);
+    expect(connection).toBeDefined();
     await connection.close();
-    assert.strictEqual(pool.acquiredConnections, 0);
+    expect(pool.acquiredConnections).toStrictEqual(0);
   });
 
   it("should execute simple query", async function () {
     const result = await pool.execute(`select 1`);
-    assert.strictEqual(pool.acquiredConnections, 0);
-    assert.ok(result);
-    assert.strictEqual(result.totalCommands, 1);
-    assert.strictEqual(result.results.length, 1);
-    assert.strictEqual(result.results[0].command, "SELECT");
+    expect(pool.acquiredConnections).toStrictEqual(0);
+    expect(result).toBeDefined();
+    expect(result.totalCommands).toStrictEqual(1);
+    expect(result.results.length).toStrictEqual(1);
+    expect(result.results[0].command).toStrictEqual("SELECT");
   });
 
   it("should create a prepared statement, execute and release connection", async function () {
-    const statement = await pool.prepare(`select $1`, { paramTypes: [DataTypeOIDs.int4] });
-    assert.strictEqual(pool.acquiredConnections, 1);
-    assert.ok(statement);
-    const result = await statement.execute({ params: [1234] });
-    assert.strictEqual(pool.acquiredConnections, 1);
-    assert.ok(result);
-    assert.strictEqual(result.rows[0][0], 1234);
+    const statement = await pool.prepare(`select $1`, {paramTypes: [DataTypeOIDs.int4]});
+    expect(pool.acquiredConnections).toStrictEqual(1);
+    expect(statement).toBeDefined();
+    const result = await statement.execute({params: [1234]});
+    expect(pool.acquiredConnections).toStrictEqual(1);
+    expect(result).toBeDefined();
+    expect(result.rows[0][0]).toStrictEqual(1234);
     await new Promise((resolve, reject) => {
       pool.once("release", resolve);
       statement.close().catch(reject);
     });
-    assert.strictEqual(pool.acquiredConnections, 0);
+    expect(pool.acquiredConnections).toStrictEqual(0);
   });
 
   it("should execute extended query", async function () {
-    const result = await pool.query(`select $1`, { params: [1234] });
-    assert.strictEqual(pool.acquiredConnections, 0);
-    assert.ok(result);
-    assert.ok(result.fields);
-    assert.ok(result.rows);
-    assert.strictEqual(result.command, "SELECT");
-    assert.strictEqual(result.rows[0][0], 1234);
+    const result = await pool.query(`select $1`, {params: [1234]});
+    expect(pool.acquiredConnections).toStrictEqual(0);
+    expect(result).toBeDefined();
+    expect(result.fields).toBeDefined();
+    expect(result.rows).toBeDefined();
+    expect(result.command).toStrictEqual("SELECT");
+    expect(result.rows[0][0]).toStrictEqual(1234);
   });
 
   it("should close all connections and shutdown pool", async function () {
-    assert.strictEqual(pool.totalConnections, 1);
-    assert.strictEqual(pool.acquiredConnections, 0);
+    expect(pool.totalConnections).toStrictEqual(1);
+    expect(pool.acquiredConnections).toStrictEqual(0);
     await pool.close();
-    assert.strictEqual(pool.totalConnections, 0);
+    expect(pool.totalConnections).toStrictEqual(0);
   });
 });

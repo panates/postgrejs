@@ -1,5 +1,5 @@
-import { Connection, DataFormat, DataTypeOIDs } from "../../../src";
-import { testEncode, testParse } from "./_testers";
+import { Connection, DataFormat, DataTypeOIDs } from "postgresql-client";
+import { testEncode, testParse } from "./_testers.js";
 
 export function createTests(conn: () => Connection) {
   it('should parse "timestamp" field (text)', async function () {
@@ -12,7 +12,7 @@ export function createTests(conn: () => Connection) {
       Infinity,
       -Infinity,
     ];
-    await testParse(conn(), DataTypeOIDs.timestamp, input, output, { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs.timestamp, input, output, {columnFormat: DataFormat.text});
   });
 
   it('should parse "timestamp" field (text, utcDates)', async function () {
@@ -26,12 +26,12 @@ export function createTests(conn: () => Connection) {
       -Infinity,
     ];
     await testParse(
-      conn(),
-      DataTypeOIDs.timestamp,
-      input,
-      output,
-      { columnFormat: DataFormat.text },
-      { utcDates: true }
+        conn(),
+        DataTypeOIDs.timestamp,
+        input,
+        output,
+        {columnFormat: DataFormat.text},
+        {utcDates: true}
     );
   });
 
@@ -46,12 +46,12 @@ export function createTests(conn: () => Connection) {
       "-infinity",
     ];
     await testParse(
-      conn(),
-      DataTypeOIDs.timestamp,
-      input,
-      output,
-      { columnFormat: DataFormat.text },
-      { fetchAsString: [DataTypeOIDs.timestamp] }
+        conn(),
+        DataTypeOIDs.timestamp,
+        input,
+        output,
+        {columnFormat: DataFormat.text},
+        {fetchAsString: [DataTypeOIDs.timestamp]}
     );
   });
 
@@ -65,7 +65,7 @@ export function createTests(conn: () => Connection) {
       Infinity,
       -Infinity,
     ];
-    await testParse(conn(), DataTypeOIDs.timestamp, input, output, { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs.timestamp, input, output, {columnFormat: DataFormat.binary});
   });
 
   it('should parse "timestamp" field (binary, utcDates)', async function () {
@@ -79,12 +79,12 @@ export function createTests(conn: () => Connection) {
       -Infinity,
     ];
     await testParse(
-      conn(),
-      DataTypeOIDs.timestamp,
-      input,
-      output,
-      { columnFormat: DataFormat.binary },
-      { utcDates: true }
+        conn(),
+        DataTypeOIDs.timestamp,
+        input,
+        output,
+        {columnFormat: DataFormat.binary},
+        {utcDates: true}
     );
   });
 
@@ -99,12 +99,12 @@ export function createTests(conn: () => Connection) {
       "-infinity",
     ];
     await testParse(
-      conn(),
-      DataTypeOIDs.timestamp,
-      input,
-      output,
-      { columnFormat: DataFormat.binary },
-      { fetchAsString: [DataTypeOIDs.timestamp] }
+        conn(),
+        DataTypeOIDs.timestamp,
+        input,
+        output,
+        {columnFormat: DataFormat.binary},
+        {fetchAsString: [DataTypeOIDs.timestamp]}
     );
   });
 
@@ -118,7 +118,7 @@ export function createTests(conn: () => Connection) {
       Infinity,
       -Infinity,
     ];
-    await testParse(conn(), DataTypeOIDs._timestamp, input, output, { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs._timestamp, input, output, {columnFormat: DataFormat.text});
   });
 
   it('should parse "timestamp" array field (binary)', async function () {
@@ -130,7 +130,7 @@ export function createTests(conn: () => Connection) {
       Infinity,
       -Infinity,
     ];
-    await testParse(conn(), DataTypeOIDs._timestamp, input, output, { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs._timestamp, input, output, {columnFormat: DataFormat.binary});
   });
 
   it('should encode "timestamp" param', async function () {
@@ -166,7 +166,7 @@ export function createTests(conn: () => Connection) {
       Infinity,
       -Infinity,
     ];
-    await testEncode(conn(), DataTypeOIDs.timestamp, input, output, { utcDates: true });
+    await testEncode(conn(), DataTypeOIDs.timestamp, input, output, {utcDates: true});
   });
 
   it('should encode array "timestamp" param', async function () {

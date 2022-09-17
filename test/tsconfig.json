@@ -1,5 +1,5 @@
 {
-  "extends": "../tsconfig.base.json",
+  "extends": "../tsconfig-base.json",
   "include": ["**/*.ts"],
   "compilerOptions": {
     "types": ["node", "jest"],
@@ -8,6 +8,10 @@
     "strictNullChecks": false,
     "strict": false,
     "noEmit": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "postgresql-client": ["../src"]
+    }
   }
 }

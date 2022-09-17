@@ -1,7 +1,5 @@
-import assert from "assert";
-import "../_support/env";
-import { Connection } from "../../src";
-import { createTestSchema } from "../_support/create-db";
+import { Connection } from "postgresql-client";
+import { createTestSchema } from "../_support/create-db.js";
 
 describe("Cursor support", function () {
   let connection: Connection;
@@ -17,20 +15,20 @@ describe("Cursor support", function () {
   });
 
   it("should next() fetch next row", async function () {
-    const result = await connection.query(`select * from customers order by id`, { objectRows: false, cursor: true });
+    const result = await connection.query(`select * from customers order by id`, {objectRows: false, cursor: true});
     const cursor = result.cursor;
-    assert.ok(cursor);
+    expect(cursor).toBeDefined();
     const row = await cursor.next();
-    assert.deepStrictEqual(row[0], 1);
+    expect(row[0]).toStrictEqual(1);
     await cursor.close();
   });
 
   it("should next() fetch next row as object", async function () {
-    const result = await connection.query(`select * from customers order by id`, { objectRows: true, cursor: true });
+    const result = await connection.query(`select * from customers order by id`, {objectRows: true, cursor: true});
     const cursor = result.cursor;
-    assert.ok(cursor);
+    expect(cursor).toBeDefined();
     const row = await cursor.next();
-    assert.deepStrictEqual(row && row.id, 1);
+    expect(row && row.id).toStrictEqual(1);
     await cursor.close();
   });
 
@@ -41,44 +39,46 @@ describe("Cursor support", function () {
       fetchCount: 5,
     });
     const cursor = result.cursor;
-    assert.ok(cursor);
+    expect(cursor).toBeDefined();
     const rows = await cursor.fetch(10);
-    assert.strictEqual(rows.length, 10);
-    assert.deepStrictEqual(rows[0][0], 1);
+    expect(rows.length).toStrictEqual(10);
+    expect(rows[0][0]).toStrictEqual(1);
     await cursor.close();
   });
 
   it("should automatically close cursor after fetching all rows", async function () {
-    const result = await connection.query(`select * from customers limit 10`, { objectRows: true, cursor: true });
+    const result = await connection.query(`select * from customers limit 10`, {objectRows: true, cursor: true});
     const cursor = result.cursor;
-    assert.ok(cursor);
+    expect(cursor).toBeDefined();
     let closed = false;
     cursor.on("close", () => (closed = true));
-    while (await cursor.next()) {}
-    assert.strictEqual(closed, true);
-    assert.strictEqual(cursor.isClosed, true);
+    // eslint-disable-next-line no-empty
+    while (await cursor.next()) {
+    }
+    expect(closed).toStrictEqual(true);
+    expect(cursor.isClosed).toStrictEqual(true);
   });
 
   it('should emit "close" event', async function () {
-    const result = await connection.query(`select * from customers order by id`, { objectRows: true, cursor: true });
+    const result = await connection.query(`select * from customers order by id`, {objectRows: true, cursor: true});
     const cursor = result.cursor;
-    assert.ok(cursor);
+    expect(cursor).toBeDefined();
     let closed = false;
     cursor.on("close", () => (closed = true));
     await cursor.next();
     await cursor.close();
-    assert.strictEqual(closed, true);
-    assert.strictEqual(cursor.isClosed, true);
+    expect(closed).toStrictEqual(true);
+    expect(cursor.isClosed).toStrictEqual(true);
   });
 
   it('should emit "fetch" event', async function () {
-    const result = await connection.query(`select * from customers limit 10`, { objectRows: true, cursor: true });
+    const result = await connection.query(`select * from customers limit 10`, {objectRows: true, cursor: true});
     const cursor = result.cursor;
-    assert.ok(cursor);
+    expect(cursor).toBeDefined();
     let count = 0;
     cursor.on("fetch", (rows) => (count += rows.length));
     await cursor.next();
     await cursor.close();
-    assert.strictEqual(count, 10);
+    expect(count).toStrictEqual(10);
   });
 });

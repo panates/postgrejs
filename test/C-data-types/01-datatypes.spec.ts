@@ -1,7 +1,6 @@
 import fs from "fs";
 import path from "path";
-import "../_support/env";
-import { Connection } from "../../src";
+import { Connection } from "postgresql-client";
 
 describe("Data type encode/decode", function () {
   let connection: Connection;

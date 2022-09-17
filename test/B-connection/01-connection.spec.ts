@@ -1,7 +1,5 @@
-import assert from "assert";
-import "../_support/env";
-import { Connection, ConnectionState } from "../../src";
-import { createTestSchema } from "../_support/create-db";
+import { Connection, ConnectionState } from "postgresql-client";
+import { createTestSchema } from "../_support/create-db.js";
 
 describe("Connection", function () {
   let connection: Connection;
@@ -13,47 +11,47 @@ describe("Connection", function () {
   it("should connect", async function () {
     connection = new Connection();
     await connection.connect();
-    assert.strictEqual(connection.state, ConnectionState.READY);
+    expect(connection.state).toStrictEqual(ConnectionState.READY);
   });
 
   it("should get process id", async function () {
     connection = new Connection();
     await connection.connect();
-    assert.ok(connection.processID > 0);
+    expect(connection.processID).toBeGreaterThan(0);
   });
 
   it("should get secret key", async function () {
     connection = new Connection();
     await connection.connect();
-    assert.ok(connection.secretKey > 0);
+    expect(connection.secretKey).toBeGreaterThan(0);
   });
 
   it("should execute simple query", async function () {
     connection = new Connection();
     await connection.connect();
     const result = await connection.execute(`select 1`);
-    assert.ok(result);
-    assert.strictEqual(result.totalCommands, 1);
-    assert.strictEqual(result.results.length, 1);
-    assert.strictEqual(result.results[0].command, "SELECT");
+    expect(result).toBeDefined();
+    expect(result.totalCommands).toStrictEqual(1);
+    expect(result.results.length).toStrictEqual(1);
+    expect(result.results[0].command).toStrictEqual("SELECT");
   });
 
   it("should execute extended query", async function () {
     connection = new Connection();
     await connection.connect();
-    const result = await connection.query(`select $1`, { params: [1234] });
-    assert.ok(result);
-    assert.ok(result.fields);
-    assert.ok(result.rows);
-    assert.strictEqual(result.command, "SELECT");
-    assert.strictEqual(result.rows[0][0], 1234);
+    const result = await connection.query(`select $1`, {params: [1234]});
+    expect(result).toBeDefined();
+    expect(result.fields).toBeDefined();
+    expect(result.rows).toBeDefined();
+    expect(result.command,).toStrictEqual("SELECT");
+    expect(result.rows[0][0]).toStrictEqual(1234);
   });
 
   it("should close", async function () {
     connection = new Connection();
     await connection.connect();
     await connection.close(0);
-    assert.strictEqual(connection.state, ConnectionState.CLOSED);
+    expect(connection.state).toStrictEqual(ConnectionState.CLOSED);
   });
 
   it('should emit "connecting" and "ready" events while connect', async function () {
@@ -62,9 +60,9 @@ describe("Connection", function () {
     connection.on("connecting", () => events.push("connecting"));
     connection.on("ready", () => events.push("ready"));
     await connection.connect();
-    assert.ok(events.includes("connecting"), "connecting event is not called");
-    assert.ok(events.includes("ready"), "ready event is not called");
-    assert.strictEqual(connection.state, ConnectionState.READY);
+    expect(events).toContain("connecting");
+    expect(events).toContain("ready");
+    expect(connection.state).toStrictEqual(ConnectionState.READY);
     await connection.close(0);
   });
 
@@ -74,8 +72,8 @@ describe("Connection", function () {
     const events = [];
     connection.on("close", () => events.push("close"));
     await connection.close();
-    assert.ok(events.includes("close"), "close event is not called");
-    assert.strictEqual(connection.state, ConnectionState.CLOSED);
+    expect(events).toContain("close");
+    expect(connection.state).toStrictEqual(ConnectionState.CLOSED);
   });
 
   it("should wait for active query before terminate", async function () {
@@ -84,44 +82,44 @@ describe("Connection", function () {
     let terminated = false;
     const startTime = Date.now();
     connection.on("terminate", () => (terminated = true));
-    connection["_intlCon"].ref();
+    (connection as any)._intlCon.ref();
     await connection.close(500);
-    assert.strictEqual(terminated, true);
-    assert.ok(Date.now() - startTime >= 500);
+    expect(terminated).toStrictEqual(true);
+    expect(Date.now() - startTime).toBeGreaterThanOrEqual(500);
   });
 
   it("should start/commit transaction", async function () {
     connection = new Connection();
     await connection.connect();
-    assert.deepStrictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
     await connection.startTransaction();
-    assert.deepStrictEqual(connection.inTransaction, true);
+    expect(connection.inTransaction).toStrictEqual(true);
     await connection.commit();
-    assert.deepStrictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
     await connection.close();
   });
 
   it("should start/rollback transaction", async function () {
     connection = new Connection();
     await connection.connect();
-    assert.deepStrictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
     await connection.startTransaction();
-    assert.deepStrictEqual(connection.inTransaction, true);
+    expect(connection.inTransaction).toStrictEqual(true);
     await connection.rollback();
-    assert.deepStrictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
     await connection.close();
   });
 
   it("should create a savepoint and rollback to it", async function () {
     connection = new Connection();
     await connection.connect();
-    assert.deepStrictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
     await connection.savepoint("sp1");
-    assert.deepStrictEqual(connection.inTransaction, true);
+    expect(connection.inTransaction).toStrictEqual(true);
     await connection.rollbackToSavepoint("sp1");
-    assert.deepStrictEqual(connection.inTransaction, true);
+    expect(connection.inTransaction).toStrictEqual(true);
     await connection.rollback();
-    assert.deepStrictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
     await connection.close();
   });
 
@@ -136,49 +134,49 @@ describe("Connection", function () {
     connection = new Connection();
     await connection.connect();
     await connection.execute(
-      "DROP TABLE IF EXISTS test.dummy_table1; CREATE TABLE test.dummy_table1 (id int4 NOT NULL);"
+        "DROP TABLE IF EXISTS test.dummy_table1; CREATE TABLE test.dummy_table1 (id int4 NOT NULL);"
     );
 
     await connection.query("insert into test.dummy_table1 (id) values (2)");
-    assert.deepStrictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
 
     let x = await connection.query("select * from test.dummy_table1 where id = 2");
-    assert.deepStrictEqual(connection.inTransaction, false);
-    assert.strictEqual(x.rows.length, 1);
-    assert.deepStrictEqual(x.rows[0][0], 2);
+    expect(connection.inTransaction).toStrictEqual(false);
+    expect(x.rows.length).toStrictEqual(1);
+    expect(x.rows[0][0]).toStrictEqual(2);
 
     await connection.query("ROLLBACK");
-    assert.deepStrictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
 
     x = await connection.query("select * from test.dummy_table1 where id = 2");
-    assert.deepStrictEqual(connection.inTransaction, false);
-    assert.strictEqual(x.rows.length, 1);
-    assert.deepStrictEqual(x.rows[0][0], 2);
+    expect(connection.inTransaction).toStrictEqual(false);
+    expect(x.rows.length).toStrictEqual(1);
+    expect(x.rows[0][0]).toStrictEqual(2);
 
     await connection.close();
   });
 
   it("should automatically start transaction when connection.options.autoCommit = false", async function () {
-    connection = new Connection({ autoCommit: false });
+    connection = new Connection({autoCommit: false});
     await connection.connect();
-    await connection.execute("delete from test.dummy_table1", { autoCommit: true });
+    await connection.execute("delete from test.dummy_table1", {autoCommit: true});
 
-    assert.strictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
 
     await connection.query("insert into test.dummy_table1 (id) values (3)");
-    assert.strictEqual(connection.inTransaction, true);
+    expect(connection.inTransaction).toStrictEqual(true);
 
     let x = await connection.query("select * from test.dummy_table1 where id = 3");
-    assert.strictEqual(connection.inTransaction, true);
-    assert.strictEqual(x.rows.length, 1);
-    assert.strictEqual(x.rows[0][0], 3);
+    expect(connection.inTransaction).toStrictEqual(true);
+    expect(x.rows.length).toStrictEqual(1);
+    expect(x.rows[0][0]).toStrictEqual(3);
 
     await connection.query("ROLLBACK");
-    assert.strictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
 
     x = await connection.query("select * from test.dummy_table1 where id = 3");
-    assert.strictEqual(connection.inTransaction, true);
-    assert.strictEqual(x.rows.length, 0);
+    expect(connection.inTransaction).toStrictEqual(true);
+    expect(x.rows.length).toStrictEqual(0);
 
     await connection.close();
   });
@@ -186,22 +184,22 @@ describe("Connection", function () {
   it("should automatically start transaction when connection.execute() options.autoCommit = false", async function () {
     connection = new Connection();
     await connection.connect();
-    assert.strictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
 
-    await connection.execute("insert into test.dummy_table1 (id) values (3)", { autoCommit: false });
-    assert.strictEqual(connection.inTransaction, true);
+    await connection.execute("insert into test.dummy_table1 (id) values (3)", {autoCommit: false});
+    expect(connection.inTransaction).toStrictEqual(true);
 
-    let x = await connection.execute("select * from test.dummy_table1 where id = 3", { autoCommit: false });
-    assert.strictEqual(connection.inTransaction, true);
-    assert.strictEqual(x.results[0].rows.length, 1);
-    assert.strictEqual(x.results[0].rows[0][0], 3);
+    let x = await connection.execute("select * from test.dummy_table1 where id = 3", {autoCommit: false});
+    expect(connection.inTransaction).toStrictEqual(true);
+    expect(x.results[0].rows.length).toStrictEqual(1);
+    expect(x.results[0].rows[0][0]).toStrictEqual(3);
 
     await connection.query("ROLLBACK");
-    assert.strictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
 
     x = await connection.execute("select * from test.dummy_table1 where id = 3");
-    assert.strictEqual(connection.inTransaction, false);
-    assert.strictEqual(x.results[0].rows.length, 0);
+    expect(connection.inTransaction).toStrictEqual(false);
+    expect(x.results[0].rows.length).toStrictEqual(0);
 
     await connection.close();
   });
@@ -209,22 +207,22 @@ describe("Connection", function () {
   it("should automatically start transaction when connection.query() options.autoCommit = false", async function () {
     connection = new Connection();
     await connection.connect();
-    assert.strictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
 
-    await connection.query("insert into test.dummy_table1 (id) values (3)", { autoCommit: false });
-    assert.strictEqual(connection.inTransaction, true);
+    await connection.query("insert into test.dummy_table1 (id) values (3)", {autoCommit: false});
+    expect(connection.inTransaction).toStrictEqual(true);
 
-    let x = await connection.query("select * from test.dummy_table1 where id = 3", { autoCommit: false });
-    assert.strictEqual(connection.inTransaction, true);
-    assert.strictEqual(x.rows.length, 1);
-    assert.strictEqual(x.rows[0][0], 3);
+    let x = await connection.query("select * from test.dummy_table1 where id = 3", {autoCommit: false});
+    expect(connection.inTransaction).toStrictEqual(true);
+    expect(x.rows.length).toStrictEqual(1);
+    expect(x.rows[0][0]).toStrictEqual(3);
 
     await connection.query("ROLLBACK");
-    assert.strictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
 
     x = await connection.query("select * from test.dummy_table1 where id = 3");
-    assert.strictEqual(connection.inTransaction, false);
-    assert.strictEqual(x.rows.length, 0);
+    expect(connection.inTransaction).toStrictEqual(false);
+    expect(x.rows.length).toStrictEqual(0);
 
     await connection.close();
   });
@@ -232,20 +230,22 @@ describe("Connection", function () {
   it("should continue transaction on error", async function () {
     connection = new Connection();
     await connection.connect();
-    assert.strictEqual(connection.inTransaction, false);
+    expect(connection.inTransaction).toStrictEqual(false);
 
     await connection.execute("delete from test.dummy_table1");
 
     await connection.startTransaction();
     try {
       await connection.execute("invalid sql");
-    } catch (e) {}
+    } catch (e) {
+      //
+    }
 
     await connection.execute("insert into test.dummy_table1 (id) values (5)");
 
-    let x = await connection.query("select count(*) from test.dummy_table1", { autoCommit: false });
-    assert.strictEqual(x.rows.length, 1);
-    assert.strictEqual(x.rows[0][0], 1);
+    const x = await connection.query("select count(*) from test.dummy_table1", {autoCommit: false});
+    expect(x.rows.length).toStrictEqual(1);
+    expect(x.rows[0][0]).toStrictEqual(1);
     /*
                 await connection.startTransaction();
                 try {

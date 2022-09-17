@@ -39,6 +39,7 @@ jobs:
           paths:
             - node_modules
       - run: npm install
+      - run: npm run lint
       - run: npm run citest
       - run: npm install coveralls --no-save
       - coveralls/upload:

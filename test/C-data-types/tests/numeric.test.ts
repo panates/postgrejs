@@ -1,5 +1,5 @@
-import { Connection, DataFormat, DataTypeOIDs } from "../../../src";
-import { testEncode, testParse } from "./_testers";
+import { Connection, DataFormat, DataTypeOIDs } from "postgresql-client";
+import { testEncode, testParse } from "./_testers.js";
 
 export function createTests(conn: () => Connection) {
   it('should parse "numeric" field (text)', async function () {

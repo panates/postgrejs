@@ -1,5 +1,6 @@
-import { Connection } from "../../src";
-import { stringifyValueForSQL } from "../../src";
+// noinspection GrazieInspection
+
+import { Connection, stringifyValueForSQL } from "postgresql-client";
 
 const schema = process.env.PGSCHEMA || "test";
 let testDbCreated = false;
@@ -103,7 +104,7 @@ export async function createTestSchema(connection: Connection) {
     for (const row of table.rows) {
       const values = keys.map((x) => stringifyValueForSQL(row[x]));
       const insertSql =
-        "insert into test." + table.name + " (" + fields.join(",") + ") values (" + values.join(",") + ");\n";
+          "insert into test." + table.name + " (" + fields.join(",") + ") values (" + values.join(",") + ");\n";
       sql += insertSql;
     }
     await connection.execute(sql);

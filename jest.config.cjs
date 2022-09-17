@@ -1,26 +1,28 @@
 module.exports = {
-  moduleFileExtensions: ["js", "json", "ts"],
-  rootDir: ".",
-  testEnvironment: "node",
+  testEnvironment: 'node',
   verbose: true,
   forceExit: true,
   detectOpenHandles: true,
   maxWorkers: 1,
-  testMatch: ["<rootDir>/test/**/*.spec.ts"],
-  testPathIgnorePatterns: ["/node_modules/"],
+  coveragePathIgnorePatterns: [
+    '/build/',
+    '/dist/',
+    '/packages/oracle/',
+    '/node_modules/',
+    '_support',
+    '_shared'
+  ],
+  coverageReporters: ['lcov', 'text'],
+  coverageDirectory: '<rootDir>/coverage/',
+  testRegex: '.*\\.spec\\.ts$',
   transform: {
-    "^.+\\.(t|j)s$": "ts-jest",
+    '^.+.ts?$': ['ts-jest', {
+      'tsconfig': '<rootDir>/test/tsconfig.json'
+    }]
   },
   moduleNameMapper: {
-    "^(\\.{1,2}/.*)\\.js$": "$1",
+    '(\\..+)\\.js': '$1',
+    'postgresql-client': '<rootDir>/src'
   },
-  globals: {
-    "ts-jest": {
-      diagnostics: false,
-      tsconfig: "<rootDir>/test/tsconfig.json",
-      useESM: true,
-    },
-  },
-  extensionsToTreatAsEsm: [".ts"],
-  coverageDirectory: "<rootDir>/coverage/",
+  globalSetup: '<rootDir>/test/_support/env.ts'
 };

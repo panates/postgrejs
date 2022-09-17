@@ -1,4 +1,3 @@
-import assert from "assert";
 import {
   BindParam,
   Connection,
@@ -9,15 +8,15 @@ import {
   GlobalTypeMap,
   QueryResult,
   stringifyValueForSQL,
-} from "../../../src";
+} from "postgresql-client";
 
 export async function testParse(
-  connection: Connection,
-  dataTypeId: number,
-  input: any[],
-  output: any[],
-  opts: { columnFormat: DataFormat },
-  mappingOptions?: DataMappingOptions
+    connection: Connection,
+    dataTypeId: number,
+    input: any[],
+    output: any[],
+    opts: { columnFormat: DataFormat },
+    mappingOptions?: DataMappingOptions
 ): Promise<QueryResult> {
   const reg = GlobalTypeMap.get(dataTypeId);
   if (!reg) throw new Error(`Data type "${dataTypeId}" is not registered.`);
@@ -30,32 +29,36 @@ export async function testParse(
     const inp = input.map(escapeLiteral);
     sql = "select " + inp.map((x: string, i: number) => `${x}::${typeName} as f${i + 1}`).join(", ");
   }
-  const resp = await connection.query(sql, { ...mappingOptions, columnFormat: opts.columnFormat });
-  assert.ok(resp && resp.rows);
+  const resp = await connection.query(sql, {...mappingOptions, columnFormat: opts.columnFormat});
+  expect(resp).toBeDefined();
+  expect(resp.rows).toBeDefined();
 
   if (reg.elementsOID) {
-    assert.strictEqual(resp.fields[0].dataTypeId, reg.oid);
-    assert.strictEqual(resp.fields[0].jsType, reg.jsType);
-    if (reg.oid !== DataTypeOIDs.char) assert.strictEqual(resp.fields[0].elementDataTypeId, reg.elementsOID);
-    assert.deepStrictEqual(resp.rows[0][0], output);
+    expect(resp.fields[0].dataTypeId).toStrictEqual(reg.oid);
+    expect(resp.fields[0].jsType).toStrictEqual(reg.jsType);
+    if (reg.oid !== DataTypeOIDs.char)
+      expect(resp.fields[0].elementDataTypeId).toStrictEqual(reg.elementsOID);
+    expect(resp.rows[0][0]).toStrictEqual(output);
   } else
+      // eslint-disable-next-line prefer-const
     for (let [i, v] of output.entries()) {
-      assert.strictEqual(resp.fields[i].jsType, reg.jsType);
-      if (reg.oid !== DataTypeOIDs.char) assert.strictEqual(resp.fields[i].dataTypeId, reg.oid);
+      expect(resp.fields[i].jsType).toStrictEqual(reg.jsType);
+      if (reg.oid !== DataTypeOIDs.char)
+        expect(resp.fields[i].dataTypeId).toStrictEqual(reg.oid);
       let n = resp.rows[0][i];
       if (typeof n === "bigint") n = "" + n;
       if (typeof v === "bigint") v = "" + v;
-      assert.deepStrictEqual(n, v);
+      expect(n).toStrictEqual(v);
     }
   return resp;
 }
 
 export async function testEncode(
-  connection: Connection,
-  dataTypeId: number,
-  input: any[],
-  output?: any[],
-  mappingOptions?: DataMappingOptions
+    connection: Connection,
+    dataTypeId: number,
+    input: any[],
+    output?: any[],
+    mappingOptions?: DataMappingOptions
 ): Promise<QueryResult> {
   const reg = GlobalTypeMap.get(dataTypeId);
   if (!reg) throw new Error(`Data type "0x${dataTypeId.toString(16)}" is not registered.`);
@@ -68,19 +71,22 @@ export async function testEncode(
     sql = "select " + input.map((x, i) => `\$${i + 1} as f${i + 1}`).join(", ");
     params = input.map((v) => new BindParam(dataTypeId, v));
   }
-  const resp: QueryResult = await connection.query(sql, { ...mappingOptions, params });
-  assert.ok(resp && resp.rows);
+  const resp: QueryResult = await connection.query(sql, {...mappingOptions, params});
+  expect(resp).toBeDefined();
+  expect(resp.rows).toBeDefined();
   output = output === undefined ? input : output;
   if (reg.elementsOID) {
-    assert.strictEqual(resp.fields[0].dataTypeId, reg.oid);
-    assert.strictEqual(resp.fields[0].jsType, reg.jsType);
-    if (reg.oid !== DataTypeOIDs.char) assert.strictEqual(resp.fields[0].elementDataTypeId, reg.elementsOID);
-    assert.deepStrictEqual(resp.rows[0][0], output);
+    expect(resp.fields[0].dataTypeId).toStrictEqual(reg.oid);
+    expect(resp.fields[0].jsType).toStrictEqual(reg.jsType);
+    if (reg.oid !== DataTypeOIDs.char)
+      expect(resp.fields[0].elementDataTypeId).toStrictEqual(reg.elementsOID);
+    expect(resp.rows[0][0]).toStrictEqual(output);
   } else
     for (const [i, v] of output.entries()) {
-      assert.strictEqual(resp.fields[i].jsType, reg.jsType);
-      if (reg.oid !== DataTypeOIDs.char) assert.strictEqual(resp.fields[i].dataTypeId, reg.oid);
-      assert.deepStrictEqual(resp.rows[0][i], v);
+      expect(resp.fields[i].jsType).toStrictEqual(reg.jsType);
+      if (reg.oid !== DataTypeOIDs.char)
+        expect(resp.fields[i].dataTypeId).toStrictEqual(reg.oid);
+      expect(resp.rows[0][i]).toStrictEqual(v);
     }
   return resp;
 }
