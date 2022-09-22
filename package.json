@@ -16,7 +16,7 @@
     "doublylinked": "^2.5.1",
     "lightning-pool": "^4.0.0",
     "postgres-bytea": "^3.0.0",
-    "power-tasks": "^0.8.0",
+    "power-tasks": "^1.0.0",
     "putil-merge": "^3.8.0",
     "putil-promisify": "^1.8.5",
     "putil-varhelpers": "^1.6.4"
@@ -26,8 +26,8 @@
     "@types/debug": "^4.1.7",
     "@types/jest": "^29.0.3",
     "@types/node": "^18.7.18",
-    "@typescript-eslint/eslint-plugin": "^5.37.0",
-    "@typescript-eslint/parser": "^5.37.0",
+    "@typescript-eslint/eslint-plugin": "^5.38.0",
+    "@typescript-eslint/parser": "^5.38.0",
     "dotenv": "^16.0.2",
     "eslint": "8.23.1",
     "eslint-config-google": "^0.14.0",
@@ -38,11 +38,11 @@
     "husky": "^8.0.1",
     "jest": "^29.0.3",
     "prettier": "^2.7.1",
-    "ts-cleanup": "^0.2.4",
+    "ts-cleanup": "^0.2.5",
     "ts-jest": "^29.0.1",
-    "ts-loader": "^9.3.1",
-    "ts-node": "^10.8.2",
-    "tsconfig-paths": "^4.0.0",
+    "ts-loader": "^9.4.1",
+    "ts-node": "^10.9.1",
+    "tsconfig-paths": "^4.1.0",
     "typescript": "^4.8.3"
   },
   "scripts": {
@@ -62,14 +62,14 @@
     "citest": "jest --coverage --coverageReporters=lcov"
   },
   "type": "module",
-  "main": "cjs/index.js",
-  "module": "esm/index.js",
   "types": "esm/index.d.ts",
   "exports": {
     ".": {
       "require": "./cjs/index.js",
       "default": "./esm/index.js"
-    }
+    },
+    "./cjs": "./cjs/index.js",
+    "./esm": "./esm/index.js"
   },
   "engines": {
     "node": ">=14.0",
