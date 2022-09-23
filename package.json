@@ -14,9 +14,9 @@
   "dependencies": {
     "debug": "^4.3.4",
     "doublylinked": "^2.5.1",
-    "lightning-pool": "^4.0.0",
+    "lightning-pool": "^4.1.0",
     "postgres-bytea": "^3.0.0",
-    "power-tasks": "^1.0.0",
+    "power-tasks": "^1.0.1",
     "putil-merge": "^3.8.0",
     "putil-promisify": "^1.8.5",
     "putil-varhelpers": "^1.6.4"
