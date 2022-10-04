@@ -12,6 +12,7 @@ describe("notification", function () {
 
   afterAll(async () => {
     await connection.close(0);
+    await pool.close(0);
   });
 
   describe("notification with Connection class", function () {
