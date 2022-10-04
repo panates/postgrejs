@@ -1,4 +1,4 @@
-# [postgresql-client](https://github.com/panates/postgresql-client) 
+# [postgresql-client](https://github.com/panates/postgresql-client)
 
 ---
 
@@ -11,21 +11,24 @@
     - 1.2 [Pooling](#12-pooling)
         - 1.2.1 [Obtaining a connection](#121-obtaining-a-connection)
         - 1.2.2 [Shutting down the pool](#122-shutting-down-the-pool)
-    - 1.3 [Queries](#13-queries)        
+    - 1.3 [Queries](#13-queries)
         - 1.3.1 [Simple query](#131-simple-query)
         - 1.3.2 [Extended query](#132-extended-query)
         - 1.3.3 [Prepared Statements](#133-prepared-statements)
         - 1.3.4 [Using Cursors](#134-using-cursors)
     - 1.4 [Transaction management](#14-transaction-management)
-    - 1.5 [Data types](#15-data-types)
-        - 1.5.1 [Type mappings](#151-type-mappings)
-        - 1.5.2 [Data transfer formats](#152-data-transfer-formats) 
+    - 1.5 [Notification Listeners](#15-notification-listeners)
+        - 1.5.1 [Listening notifications with Connection instance](#151-listening-notifications-with-connection-instance)
+        - 1.5.1 [Listening notifications with Pool](#152-listening-notifications-with-pool)
+    - 1.6 [Data types](#16-data-types)
+        - 1.6.1 [Type mappings](#161-type-mappings)
+        - 1.6.2 [Data transfer formats](#162-data-transfer-formats)
 - 2\. [API](#2-api)
     - 2.1 [Classes](#21-classes)
         - 2.1.1 [Connection](#211-connection)
         - 2.1.2 [Pool](#212-pool)
         - 2.1.3 [Cursor](#213-cursor)
-        - 2.1.4 [PreparedStatement](#214-preparedstatement)       
+        - 2.1.4 [PreparedStatement](#214-preparedstatement)
         - 2.1.5 [BindParam](#215-bindparam)
         - 2.1.6 [DataTypeMap](#216-datatypemap)
     - 2.2 [Interfaces](#22-interfaces)
@@ -45,15 +48,15 @@
 # 1. Usage
 
 ## 1.1. Connecting
-The library supports both single and pooled connections. 
-If you want to establish a single session to a PostgreSQL server 
+
+The library supports both single and pooled connections.
+If you want to establish a single session to a PostgreSQL server
 you need to use `Connection` class. If you require a connection pool use `Pool` class instead.
 
 *new Connection([config: String | [ConnectionConfiguration](#221-connectionconfiguration)]);*
 
-
 ```ts
-import {Connection} from 'postgresql-client';
+import { Connection } from 'postgresql-client';
 
 const connection = new Connection({
     host: 'localhost',
@@ -69,6 +72,7 @@ await conection.close();
 ```
 
 ### 1.1.1. Connection Strings
+
 You can initialize both a `Connection` and `Pool` using a connection string uri.
 Unix domain sockets and TCP uri's can be used as connection string.
 
@@ -100,34 +104,36 @@ const connection = new Connection('postgres://someuser:somepassword@somehost:381
 
 `pg://localhost?db=mydb&user=me`
 
-
 ### 1.1.2. Environment variables
-Configuration object and connection strings are optional for both `Connection` and `Pool` classes. 
-If no argument given while creating an instance,
-same [environment variables](https://www.postgresql.org/docs/9.1/libpq-envars.html) as libpq will be used to establish connection.
 
-Current supported environment variables are [PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD, PGAPPNAME, PGTZ, PGCONNECT_TIMEOUT, PGSCHEMA]
+Configuration object and connection strings are optional for both `Connection` and `Pool` classes.
+If no argument given while creating an instance,
+same [environment variables](https://www.postgresql.org/docs/9.1/libpq-envars.html) as libpq will be used to establish
+connection.
+
+Current supported environment variables
+are [PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD, PGAPPNAME, PGTZ, PGCONNECT_TIMEOUT, PGSCHEMA]
 
 ```ts
 const connection = new Connection(); // Initialize using environment variables
 ```
 
-
-
 ## 1.2. Pooling
-`Pool` class is used to create a connection pool. Constructor accepts connection string or [PoolConfiguration](#222-poolconfiguration) interface
+
+`Pool` class is used to create a connection pool. Constructor accepts connection string
+or [PoolConfiguration](#222-poolconfiguration) interface
 
 *new Pool([config: String | [PoolConfiguration](#222-poolconfiguration)]);*
 
 ```ts
-import {Pool} from 'postgresql-client';
+import { Pool } from 'postgresql-client';
 
 const dbpool = new Pool({
     host: 'postgres://localhost',
     pool: {
-       min: 1,
-       max: 10,
-       idleTimeoutMillis: 5000
+        min: 1,
+        max: 10,
+        idleTimeoutMillis: 5000
     }
 });
 const qr = await pool.query('select * from my_table where id=1');
@@ -137,51 +143,57 @@ await dbpool.close(); // Disconnect all connections and shutdown pool
 
 ### 1.2.1. Obtaining a connection
 
-The pool returns an idle `Connection` instance when you call `pool.acquire()` function. 
-You must call `connection.release()` method when you done with the connection.    
+The pool returns an idle `Connection` instance when you call `pool.acquire()` function.
+You must call `connection.release()` method when you done with the connection.
 
 _pool.acquire(): Promise<[Connection](#211-connection)>;_
 
 ```ts
   const connection = await dbpool.acquire();
-  try {
+try {
     const qr = await connection.query('select * from my_table where id=1');
     // ... Do whatever you need with connection
-  } finally {
+} finally {
     await connection.release(); // Connection will go back to the pool
-  }
+}
 ```
 
-`Pool` class has `pool.execute()` and `pool.query()` methods which applies "obtain a connection", 
-"execute the given query" and "release the connection" sequence. 
-This is the comfortable and secure way 
-if you don't execute your query in a transaction. 
-So you don't need to take care of releasing the connection 
+`Pool` class has `pool.execute()` and `pool.query()` methods which applies "obtain a connection",
+"execute the given query" and "release the connection" sequence.
+This is the comfortable and secure way
+if you don't execute your query in a transaction.
+So you don't need to take care of releasing the connection
 every time.
 
 ### 1.2.2. Shutting down the pool
-To shut down a pool call `pool.close()` method. 
+
+To shut down a pool call `pool.close()` method.
 This will wait for active connections to get idle than will release all resources.
-If you define `terminateWait argument, the pool wait until the given period of time in ms, before force connections to close. 
+If you define `terminateWait argument, the pool wait until the given period of time in ms, before force connections to
+close.
 
 _pool.close(terminateWait?: number): Promise<void>;_
-
 
 ## 1.3. Queries
 
 ### 1.3.1 Simple query
-PostgreSQL wire protocol has two kind of way to execute SQL scripts. 
+
+PostgreSQL wire protocol has two kind of way to execute SQL scripts.
 Simple query is the mature way.
-Simple query supports executing more than one sql scripts in a single command. 
-But it does not support *bind parameters* and server transfers data in text format which is slower than binary format. 
+Simple query supports executing more than one sql scripts in a single command.
+But it does not support *bind parameters* and server transfers data in text format which is slower than binary format.
 So it may cause performance and security problems.
-We suggest to use `query()` method which uses *Extended query protocol* if you need bind parameters or need to return rows.
+We suggest to use `query()` method which uses *Extended query protocol* if you need bind parameters or need to return
+rows.
 
-To execute SQL scripts you can create a `ScriptExecutor` instance or just call `connection.execute()` or `pool.execute()` methods. 
+To execute SQL scripts you can create a `ScriptExecutor` instance or just call `connection.execute()`
+or `pool.execute()` methods.
 
-*pool.execute(sql: string, options?: [ScriptExecuteOptions](#224-scriptexecuteoptions)]): Promise\<[ScriptResult](#225-scriptresult)>;*
+*pool.execute(sql: string, options?: [ScriptExecuteOptions](#224-scriptexecuteoptions)]):
+Promise\<[ScriptResult](#225-scriptresult)>;*
 
-*connection.execute(sql: string, options?: [ScriptExecuteOptions](#224-scriptexecuteoptions)]): Promise\<[ScriptResult](#225-scriptresult)>;*
+*connection.execute(sql: string, options?: [ScriptExecuteOptions](#224-scriptexecuteoptions)]):
+Promise\<[ScriptResult](#225-scriptresult)>;*
 
 ```ts
 const qr = await connection.execute('BEGIN; update my_table set ref = ref+1; END;');
@@ -190,10 +202,10 @@ console.log(qr.results[1].rowsAffected + ' rows updated');
 
 ```ts
 const scriptExecutor = new ScriptExecutor(connection);
-scriptExecutor.on('start', ()=>console.log('Script execution started'));
+scriptExecutor.on('start', () => console.log('Script execution started'));
 scriptExecutor.on('command-complete', (cmd) => console.log(cmd.command + ' complete'));
-scriptExecutor.on('row', (row)=>console.log('Row received: ', row));
-scriptExecutor.on('finish', ()=>console.log('Script execution complete'));
+scriptExecutor.on('row', (row) => console.log('Row received: ', row));
+scriptExecutor.on('finish', () => console.log('Script execution complete'));
 await scriptExecutor.execute(`
     BEGIN; 
     update my_table set ref = ref+1; 
@@ -201,19 +213,16 @@ await scriptExecutor.execute(`
     END;`);
 ```
 
-
-
-
 ## 1.3.2. Extended query
 
-In the extended-query protocol, *prepared statements* and *portals* are used. 
+In the extended-query protocol, *prepared statements* and *portals* are used.
 Unlike simple query, extended query protocol supports parameter binding and binary data format.
 The only limit is you can execute one command at a time.
 
 *pool.query(sql: string, options?: [QueryOptions](#229-queryoptions)]): Promise\<[QueryResult](#2210-queryresult)>;*
 
-*connection.query(sql: string, options?: [QueryOptions](#229-queryoptions)]): Promise\<[QueryResult](#2210-queryresult)>;*
-
+*connection.query(sql: string, options?: [QueryOptions](#229-queryoptions)]): Promise\<[QueryResult](#2210-queryresult)>
+;*
 
 ```ts
 const qr = await connection.query('select * from my_table');
@@ -221,28 +230,28 @@ console.log(qr.fields);
 console.log(qr.rows);
 ```
 
-
-
-
 ## 1.3.3. Prepared Statements
 
 Prepared statements are great when you need executing a script more than once (etc. bulk insert or update).
 It dramatically reduces execution time.
 
-To create a [PreparedStatement](#214-preparedstatement) instance or just call `connection.prepare()` or `pool.prepare()` methods. 
+To create a [PreparedStatement](#214-preparedstatement) instance or just call `connection.prepare()` or `pool.prepare()`
+methods.
 
-*pool.prepare(sql: string, options?: [StatementPrepareOptions](#228-statementprepareoptions)]): Promise\<[PreparedStatement](#214-preparedstatement)>;*
+*pool.prepare(sql: string, options?: [StatementPrepareOptions](#228-statementprepareoptions)]):
+Promise\<[PreparedStatement](#214-preparedstatement)>;*
 
-*connection.prepare(sql: string, options?: [StatementPrepareOptions](#228-statementprepareoptions)]): Promise\<[PreparedStatement](#214-preparedstatement)>;*
+*connection.prepare(sql: string, options?: [StatementPrepareOptions](#228-statementprepareoptions)]):
+Promise\<[PreparedStatement](#214-preparedstatement)>;*
 
 ```ts
-import {DataTypeOIDs} from 'postgresql-client'; 
+import { DataTypeOIDs } from 'postgresql-client';
 
 // .....
-const statement = await connection.prepare( 
-    'insert into my_table(id, name) values ($1, $2)', {
-        paramTypes: [DataTypeOIDs.Int4, DataTypeOIDs.Varchar]
-    });
+const statement = await connection.prepare(
+        'insert into my_table(id, name) values ($1, $2)', {
+            paramTypes: [DataTypeOIDs.Int4, DataTypeOIDs.Varchar]
+        });
 
 for (let i = 0; i < 100; i++) {
     await statement.execute({params: [i, ('name' + i)]});
@@ -250,52 +259,102 @@ for (let i = 0; i < 100; i++) {
 await statement.close(); // When you done, close the statement to relase resources
 ```
 
-
-
 ## 1.3.4. Using Cursors
-Cursors enable applications to process very large data sets. 
-Cursors should also be used where the number of query rows cannot be predicted 
+
+Cursors enable applications to process very large data sets.
+Cursors should also be used where the number of query rows cannot be predicted
 and may be larger than your JavaScript engine can handle in a single array.
-A [Cursor](#213-cursor) object is obtained by setting `cursor: true` in the 
-[options](#229-queryoptions) parameter of the [Connection](#211-connection).execute() 
-method when executing a query. Cursor fetches rows in batches. Cursor.next() method 
-returns the next row from the internal cache. When internal cache is empty, 
-it fetches next batch of rows from the server. 
-`fetchCount` property lets you set the batch size. 
+A [Cursor](#213-cursor) object is obtained by setting `cursor: true` in the
+[options](#229-queryoptions) parameter of the [Connection](#211-connection).execute()
+method when executing a query. Cursor fetches rows in batches. Cursor.next() method
+returns the next row from the internal cache. When internal cache is empty,
+it fetches next batch of rows from the server.
+`fetchCount` property lets you set the batch size.
 Where there is no more row to fetch, Cursor is closed automatically and next() method returns `undefined`;
 
 ```ts
-const qr = await connection.query('select * from my_table', 
-    {cursor: true, fetchCount: 250});
+const qr = await connection.query('select * from my_table',
+        {cursor: true, fetchCount: 250});
 console.log(qr.fields);
 const cursor = qr.cursor;
 let row;
 while ((row = cursor.next())) {
-  console.log(row);
+    console.log(row);
 }
 await cursor.close(); // When you done, close the cursor to relase resources
 ```
 
-
 ## 1.4. Transaction management
 
-To start a transaction in PostgreSQL you need to execute 'BEGIN' command. 
-'COMMIT' to apply changes and 'ROLLBACK' to revert. `Connection` class has `startTransaction()`, `commit()`, `rollback()`, 
+To start a transaction in PostgreSQL you need to execute 'BEGIN' command.
+'COMMIT' to apply changes and 'ROLLBACK' to revert. `Connection` class has `startTransaction()`, `commit()`
+, `rollback()`,
 `savepoint()`, `rollbackToSavepoint()` shorthand methods which is typed and more test friendly.
 
 By default, PostgreSQL server executes SQL commands in auto-commit mode.
 `postgresql-client` has a high-level implementation to manage this.
-You can change this behaviour by setting `autoCommit` property to `false`. 
-After that all SQL scripts will be executed in transaction and 
+You can change this behaviour by setting `autoCommit` property to `false`.
+After that all SQL scripts will be executed in transaction and
 changes will not be applied until you call `commit()` or execute `COMMIT` command.
 
 You can also check transaction status with `connection.inTransaction` getter.
 
+## 1.5. Notification Listeners
 
-## 1.5. Data types
+postgresql-client library has a high level implementation for PostgreSql's LISTEN/NOTIFY feature.
+You can listen for channels using both single Connection instance or a Pool instance.
 
-### 1.5.1 Type mappings
- 
+### 1.5.1 Listening notifications with Connection instance
+
+To listen PostgreSql's channels, you can use high level listener implementation
+(recommended) or can use low level event emitter style.
+
+Using high level listener implementation is very easy. When you call "listen" method, 
+the library registers for the channel and emits the callback function when a notification received.
+
+```ts
+await connection.listen('my_channel', (msg) => {
+    console.log(msg.payload);
+});
+```
+
+To unregister from a channel just call "unListen" or call "unListenAll" method to unregister all channels.
+
+```ts
+await connection.unListen('my_channel');
+```
+
+```ts
+await connection.unListenAll();
+```
+
+
+### 1.5.2 Listening notifications with Pool
+
+You can also listen for notifications using connection Pool. When you call "listen" method,
+the Pool creates a separate connection to listen for channels and emits the callback function when a notification received.
+
+```ts
+await pool.listen('my_channel', (msg) => {
+    console.log(msg.payload);
+});
+```
+
+To unregister from a channel just call "unListen" or call "unListenAll" method to unregister all channels.
+
+```ts
+await pool.unListen('my_channel');
+```
+
+```ts
+await pool.unListenAll();
+```
+
+
+## 1.6. Data types
+
+### 1.6.1 Type mappings
+
 The table below lists builtin data type mappings.
 
 | Posgtres type | JS type     | Receive     | Send     | 
@@ -347,33 +406,32 @@ The table below lists builtin data type mappings.
 | _lseg         | Rectangle[] | text,binary | binary   | 
 | _box          | Rectangle[] | text,binary | binary   | 
 
-### 1.5.2 Data transfer formats
+### 1.6.2 Data transfer formats
+
 PostgreSQL wire protocol offers `text` and `binary` data transfer formats.
-Most common libraries supports only `text` transfer format which is easy to implement but poses performance and memory problems.
+Most common libraries supports only `text` transfer format which is easy to implement but poses performance and memory
+problems.
 `postgresql-client` has rich data type mappings which supports both `text` and `binary` formats.
 The default format is set to `binary`. However, you can set the format to `text` for all columns or per column.
 
-Note that binary format is faster than text format. 
+Note that binary format is faster than text format.
 If there is a type mapping for that postgres type, we don't suggest you text format.
 
 ```ts
 const qr = await connection.query('select id, other_field from my_table',
-    {columnFormat: DataFormat.text});
+        {columnFormat: DataFormat.text});
 console.log(qr.rows);
 ```
 
 ```ts
 const qr = await connection.query('select id, other_field from my_table',
-    {columnFormat: [DataFormat.binary, DataFormat.text]});
+        {columnFormat: [DataFormat.binary, DataFormat.text]});
 console.log(qr.rows);
 ```
-
-
 
 # 2. API
 
 ## 2.1. Classes
-
 
 ### 2.1.1. Connection
 
@@ -390,10 +448,7 @@ console.log(qr.rows);
 | secretKey       | `number`              | true     | Returns secret key of current session | 
 | sessionParameters | `object`            | true     | Returns information parameters for current session | 
 
-
-
 #### Methods
-
 
 ##### .connect()
 
@@ -402,20 +457,19 @@ Connects to the server
 `connect(): Promise<void>`
 
 ````ts
-import {Connection} from 'postgresql-client';
+import { Connection } from 'postgresql-client';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
 // ...
 ````
 
-
 ##### .close()
 
 For a single connection this call closes connection permanently.
-For a pooled connection it sends the connection back to the pool. 
+For a pooled connection it sends the connection back to the pool.
 
-You can define how long time the connection will wait for active queries before closing. 
+You can define how long time the connection will wait for active queries before closing.
 At the end of time, it forces to close/release and emits `terminate` event.
 
 `close(terminateWait?: number): Promise<void>`
@@ -426,27 +480,25 @@ At the end of time, it forces to close/release and emits `terminate` event.
 |-----------------|-----------| --------|--------------------|
 | terminateWait   | `number`  | 10000   | Time in ms that the connection will wait for active queries before terminating | 
 
-
-
 ```ts
-import {Connection} from 'postgresql-client';
+import { Connection } from 'postgresql-client';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
-connection.on('close', ()=> {
-  console.log('Connection closed');
+connection.on('close', () => {
+    console.log('Connection closed');
 });
-connection.on('terminate', ()=> {
-  console.warn('Connection forced to terminate!');
+connection.on('terminate', () => {
+    console.warn('Connection forced to terminate!');
 });
 // ...
 await connection.close(30000); // will wait 30 secs before terminate the connection
 ```
 
-
 ##### .execute()
 
-Executes single or multiple SQL scripts using [Simple Query](https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.4) protocol.
+Executes single or multiple SQL scripts
+using [Simple Query](https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.4) protocol.
 
 `execute(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult>;`
 
@@ -458,22 +510,20 @@ Executes single or multiple SQL scripts using [Simple Query](https://www.postgre
 - Returns [ScriptResult](#225-scriptresult)
 
 ```ts
-import {Connection} from 'postgresql-client';
+import { Connection } from 'postgresql-client';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
-const executeResult = await connection.execute(  
-    'BEGIN; update my_table set ref=1 where id=1; END;');
+const executeResult = await connection.execute(
+        'BEGIN; update my_table set ref=1 where id=1; END;');
 // ...
 await connection.close();
 ```
 
-
-
-
 ##### .query()
 
-Executes single SQL script using [Extended Query](https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY) protocol.
+Executes single SQL script
+using [Extended Query](https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY) protocol.
 
 `query(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult>;`
 
@@ -482,27 +532,24 @@ Executes single SQL script using [Extended Query](https://www.postgresql.org/doc
 | sql          | string       |         | SQL script that will be executed | 
 | options      | [QueryOptions](#229-queryoptions) |         | Execute options | 
 
-
 - Returns [QueryResult](#2210-queryresult)
 
 ```ts
-import {Connection} from 'postgresql-client';
+import { Connection } from 'postgresql-client';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
-const queryResult = await connection.query(  
-    'select * from my_table', {
-      cursor: true,
-      utcDates: true
-    });
-  let row;
-  while ((row = queryResult.cursor.next())) {
+const queryResult = await connection.query(
+        'select * from my_table', {
+            cursor: true,
+            utcDates: true
+        });
+let row;
+while ((row = queryResult.cursor.next())) {
     // ....
-  }
+}
 await connection.close();
 ```
-
-
 
 ##### .prepare()
 
@@ -517,24 +564,21 @@ Creates a [PreparedStatement](#214-preparedstatement) instance
 
 - Returns [PreparedStatement](#214-preparedstatement)
 
-
 ```ts
-import {Connection, DataTypeOIDs} from 'postgresql-client';
+import { Connection, DataTypeOIDs } from 'postgresql-client';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
-const statement = await connection.prepare(  
-    'insert into my_table (ref_number) ($1)', {
-      paramTypes:  [DataTypeOIDs.Int4]
-    });
-  // Bulk insert 100 rows
-  for (let i=0; i<100; i++) {
+const statement = await connection.prepare(
+        'insert into my_table (ref_number) ($1)', {
+            paramTypes: [DataTypeOIDs.Int4]
+        });
+// Bulk insert 100 rows
+for (let i = 0; i < 100; i++) {
     await statement.execute({params: [i]});
-  }
-  await statement.close();
+}
+await statement.close();
 ```
-
-
 
 ##### .startTransaction()
 
@@ -543,17 +587,16 @@ Starts a transaction
 `startTransaction(): Promise<void>`
 
 ```ts
-import {Connection} from 'postgresql-client';
+import { Connection } from 'postgresql-client';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
 await connection.startTransaction();
-const executeResult = await connection.execute(  
-    'update my_table set ref=1 where id=1');
+const executeResult = await connection.execute(
+        'update my_table set ref=1 where id=1');
 // ...... commit or rollback
 await connection.close();
 ```
-
 
 ##### .commit()
 
@@ -562,19 +605,16 @@ Commits current transaction
 `commit(): Promise<void>`
 
 ```ts
-import {Connection} from 'postgresql-client';
+import { Connection } from 'postgresql-client';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
 await connection.startTransaction();
-const executeResult = await connection.execute(  
-    'update my_table set ref=1 where id=1');
+const executeResult = await connection.execute(
+        'update my_table set ref=1 where id=1');
 await connection.commit();
 await connection.close();
 ```
-
-
-
 
 ##### .rollback()
 
@@ -583,18 +623,16 @@ Rolls back current transaction
 `commit(): Promise<void>`
 
 ```ts
-import {Connection} from 'postgresql-client';
+import { Connection } from 'postgresql-client';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
 await connection.startTransaction();
-const executeResult = await connection.execute(  
-    'update my_table set ref=1 where id=1');
+const executeResult = await connection.execute(
+        'update my_table set ref=1 where id=1');
 await connection.commit();
 await connection.close();
 ```
-
-
 
 ##### .savepoint()
 
@@ -602,11 +640,9 @@ Starts transaction and creates a savepoint
 
 `savepoint(name: string): Promise<void>`
 
-
 | Argument     | Type        | Default  | Description                            | 
 |--------------|-------------| ---------|--------------------|
 | name         | string      |          | Name of the savepoint | 
-
 
 ##### .rollbackToSavepoint()
 
@@ -614,25 +650,21 @@ Rolls back current transaction to given savepoint
 
 `savepoint(name: string): Promise<void>`
 
-
 | Argument     | Type        | Default  | Description                            | 
 |--------------|-------------| ---------|--------------------|
 | name         | string      |          | Name of the savepoint | 
 
-
 ```ts
-import {Connection} from 'postgresql-client';
+import { Connection } from 'postgresql-client';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
 await connection.savepoint('my_save_point');
-const executeResult = await connection.execute(  
-    'update my_table set ref=1 where id=1');
+const executeResult = await connection.execute(
+        'update my_table set ref=1 where id=1');
 await connection.rollbackToSavepoint('my_save_point');
 await connection.close();
 ```
-
-
 
 #### Events
 
@@ -641,9 +673,6 @@ await connection.close();
 * connecting
 * ready
 * terminate
-
-
-
 
 ### 2.1.2. Pool
 
@@ -659,9 +688,7 @@ await connection.close();
 | acquiredConnections | `number`             | true     | Returns number of connections that are currently acquired | 
 | totalConnections    | `number`             | true     | Returns total number of connections in the pool regardless of whether they are idle or in use | 
 
-
 #### Methods
-
 
 ##### .acquire()
 
@@ -672,15 +699,13 @@ Obtains a connection from the connection pool
 - Returns [Connection](#211-connection)
 
 ````ts
-import {Pool} from 'postgresql-client';
+import { Pool } from 'postgresql-client';
 
 const pool = new Pool('postgres://localhost');
 const connection = await pool.acquire();
 // ...
 await connection.relese();
 ````
-
-
 
 ##### .close()
 
@@ -689,7 +714,7 @@ Shuts down the pool and destroys all resources.
 `close(terminateWait?: number): Promise<void>`
 
 ````ts
-import {Pool} from 'postgresql-client';
+import { Pool } from 'postgresql-client';
 
 const pool = new Pool('postgres://localhost');
 const connection = await pool.acquire();
@@ -697,11 +722,10 @@ const connection = await pool.acquire();
 await pool.close(5000);
 ````
 
-
-
 ##### .execute()
 
-Acquires a connection from the pool and executes single or multiple SQL scripts using [Simple Query](https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.4) protocol.
+Acquires a connection from the pool and executes single or multiple SQL scripts
+using [Simple Query](https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.4) protocol.
 
 `execute(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult>;`
 
@@ -713,21 +737,19 @@ Acquires a connection from the pool and executes single or multiple SQL scripts 
 - Returns [ScriptResult](#225-scriptresult)
 
 ```ts
-import {Pool} from 'postgresql-client';
+import { Pool } from 'postgresql-client';
 
 const pool = new Pool('postgres://localhost');
-const executeResult = await pool.execute(  
-    'BEGIN; update my_table set ref=1 where id=1; END;');
+const executeResult = await pool.execute(
+        'BEGIN; update my_table set ref=1 where id=1; END;');
 // ...
 await pool.close();
 ```
 
-
-
-
 ##### .query()
 
-Acquires a connection from the pool and executes single SQL script using [Extended Query](https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY) protocol.
+Acquires a connection from the pool and executes single SQL script
+using [Extended Query](https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY) protocol.
 
 `query(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult>;`
 
@@ -736,25 +758,23 @@ Acquires a connection from the pool and executes single SQL script using [Extend
 | sql          | string       |         | SQL script that will be executed | 
 | options      | [QueryOptions](#229-queryoptions) |         | Execute options | 
 
-
 - Returns [QueryResult](#2210-queryresult)
 
 ```ts
-import {Pool} from 'postgresql-client';
+import { Pool } from 'postgresql-client';
 
 const pool = new Pool('postgres://localhost');
-const queryResult = await pool.query(  
-    'select * from my_table', {
-      cursor: true,
-      utcDates: true
-    });
-  let row;
-  while ((row = queryResult.cursor.next())) {
+const queryResult = await pool.query(
+        'select * from my_table', {
+            cursor: true,
+            utcDates: true
+        });
+let row;
+while ((row = queryResult.cursor.next())) {
     // ....
-  }
+}
 await pool.close();
 ```
-
 
 ##### .prepare()
 
@@ -769,22 +789,20 @@ Acquires a connection from the pool and creates a [PreparedStatement](#214-prepa
 
 - Returns [PreparedStatement](#214-preparedstatement)
 
-
 ```ts
-import {Pool, DataTypeOIDs} from 'postgresql-client';
+import { Pool, DataTypeOIDs } from 'postgresql-client';
 
 const pool = new Pool('postgres://localhost');
-const statement = await pool.prepare(  
-    'insert into my_table (ref_number) ($1)', {
-      paramTypes:  [DataTypeOIDs.Int4]
-    });
-  // Bulk insert 100 rows
-  for (let i=0; i<100; i++) {
+const statement = await pool.prepare(
+        'insert into my_table (ref_number) ($1)', {
+            paramTypes: [DataTypeOIDs.Int4]
+        });
+// Bulk insert 100 rows
+for (let i = 0; i < 100; i++) {
     await statement.execute({params: [i]});
-  }
-  await statement.close();
+}
+await statement.close();
 ```
-
 
 ##### .release()
 
@@ -792,20 +810,13 @@ Releases a connection
 
 `release(connection: Connection): Promise<void>`
 
-
-
 ### 2.1.3. Cursor
-
 
 ### 2.1.4. PreparedStatement
 
-
 ### 2.1.5. BindParam
 
-
 ### 2.1.6. DataTypeMap
-
-
 
 ## 2.2. Interfaces
 
@@ -827,7 +838,6 @@ Releases a connection
 | autoCommit      | `boolean`             | false     | Specifies weather execute query in auto-commit mode | 
 | onErrorRollback | `boolean`             | true     | When on, if a statement in a transaction block generates an error, the error is ignored and the transaction continues. When off (the default), a statement in a transaction block that generates an error aborts the entire transaction | 
 
-
 ### 2.2.2. PoolConfiguration
 
 Extends [ConnectionConfiguration](#221-connectionconfiguration)
@@ -846,13 +856,11 @@ Extends [ConnectionConfiguration](#221-connectionconfiguration)
 | maxQueue          | `number`    | 1000    | Maximum number of request that Pool will accept |
 | validation        | `boolean`   | false   | If true Pool test connection on acquire |
 
-
 ### 2.2.3. DataMappingOptions
 
 | Key          | Type        | Default |    Description        |
 |--------------|-------------| --------|-----------------------|
 | utcDates     | `boolean`   | false   | If true UTC time will be used for date decoding, else system time offset will be used |
-
 
 ### 2.2.4. ScriptExecuteOptions
 
@@ -865,7 +873,6 @@ Extends [DataMappingOptions](#223-datamappingoptions)
 | typeMap      | `DataTypeMap`| *GlobalTypeMap* |Data type map instance |
 | onErrorRollback | `boolean`   | true   | When on, if a statement in a transaction block generates an error, the error is ignored and the transaction continues. When off (the default), a statement in a transaction block that generates an error aborts the entire transaction |
 
-
 ### 2.2.5. ScriptResult
 
 | Key          | Type        | Description        |
@@ -874,8 +881,8 @@ Extends [DataMappingOptions](#223-datamappingoptions)
 | totalCommands| `number`    |  Command count in the script |
 | totalTime    | `number`   |  Total execution time  |
 
-
 ### 2.2.6. CommandResult
+
 | Key          | Type         | Description        |
 |--------------|--------------| -------------------|
 | command      | `string`     | Name of the command (INSERT, SELECT, UPDATE, etc.) |
@@ -884,8 +891,8 @@ Extends [DataMappingOptions](#223-datamappingoptions)
 | executeTime  | `number`     | Time elapsed to execute command |
 | rowsAffected | `number`     | How many rows affected |
 
-
 ### 2.2.7. FieldInfo
+
 | Key           | Type        | Description        |
 |---------------|-------------| -------------------|
 | fieldName     | `string` | Name of the field |

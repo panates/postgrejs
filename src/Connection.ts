@@ -17,13 +17,16 @@ import { IntlConnection } from "./IntlConnection.js";
 import type { Pool } from "./Pool.js";
 import { PreparedStatement } from "./PreparedStatement.js";
 import { DatabaseError } from "./protocol/DatabaseError.js";
+import { Protocol } from './protocol/protocol.js';
 import { SafeEventEmitter } from "./SafeEventEmitter.js";
 
 const debug = _debug("pgc:intlcon");
+export type NotificationMessage = Protocol.NotificationResponseMessage;
 
 export class Connection extends SafeEventEmitter {
   private readonly _pool?: Pool;
   private readonly _intlCon: IntlConnection;
+  private readonly _notificationListeners = new SafeEventEmitter();
   private _closing = false;
 
   constructor(pool: Pool, intlCon: IntlConnection);
@@ -41,6 +44,7 @@ export class Connection extends SafeEventEmitter {
     this._intlCon.on("connecting", (...args) => this.emit("connecting", ...args));
     this._intlCon.on("ready", (...args) => this.emit("ready", ...args));
     this._intlCon.on("terminate", (...args) => this.emit("terminate", ...args));
+    this._intlCon.on("notification", (msg: NotificationMessage) => this._handleNotification(msg));
   }
 
   /**
@@ -101,6 +105,7 @@ export class Connection extends SafeEventEmitter {
    * @param terminateWait {number} - Determines how long the connection will wait for active queries before terminating.
    */
   async close(terminateWait?: number): Promise<void> {
+    this._notificationListeners.removeAllListeners();
     this._intlCon.statementQueue.clearQueue();
     if (this.state === ConnectionState.CLOSED || this._closing) return;
     debug("[%s] closing", this.processID);
@@ -143,14 +148,14 @@ export class Connection extends SafeEventEmitter {
     debug("[%s] query | %s", this.processID, sql);
     const typeMap = options?.typeMap || GlobalTypeMap;
     const paramTypes: Maybe<OID[]> = options?.params?.map((prm) =>
-      prm instanceof BindParam ? prm.oid : typeMap.determine(prm) || DataTypeOIDs.varchar
+        prm instanceof BindParam ? prm.oid : typeMap.determine(prm) || DataTypeOIDs.varchar
     );
-    const statement = await this.prepare(sql, { paramTypes, typeMap }).catch((e: DatabaseError) => {
+    const statement = await this.prepare(sql, {paramTypes, typeMap}).catch((e: DatabaseError) => {
       throw this._handleError(e, sql);
     });
     try {
       const params: Maybe<Maybe<OID>[]> = options?.params?.map((prm) => (prm instanceof BindParam ? prm.value : prm));
-      return await statement.execute({ ...options, params });
+      return await statement.execute({...options, params});
     } finally {
       await statement.close();
     }
@@ -210,6 +215,32 @@ export class Connection extends SafeEventEmitter {
    */
   releaseSavepoint(name: string): Promise<void> {
     return this._intlCon.releaseSavepoint(name);
+  }
+
+  async listen(channel: string, fn: (msg: NotificationMessage) => any) {
+    if (!/^[A-Z]\w+$/i.test(channel))
+      throw new TypeError(`Invalid channel name`);
+    const registered = !!this._notificationListeners.eventNames().length;
+    this._notificationListeners.on(channel, fn);
+    if (!registered)
+      await this.query('LISTEN ' + channel);
+  }
+
+  async unListen(channel: string) {
+    if (!/^[A-Z]\w+$/i.test(channel))
+      throw new TypeError(`Invalid channel name`);
+    this._notificationListeners.removeAllListeners(channel);
+    await this.query('UNLISTEN ' + channel);
+  }
+
+  async unListenAll() {
+    this._notificationListeners.removeAllListeners();
+    await this.query('UNLISTEN *');
+  }
+
+  protected _handleNotification(msg: NotificationMessage) {
+    this.emit("notification", msg);
+    this._notificationListeners.emit(msg.channel, msg);
   }
 
   protected async _close(): Promise<void> {

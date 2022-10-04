@@ -14,9 +14,9 @@ const DEFAULT_PORT_NUMBER = 5432;
 const COMMAND_RESULT_PATTERN = /^([^\d]+)(?: (\d+)(?: (\d+))?)?$/;
 
 export type CaptureCallback = (
-  code: Protocol.BackendMessageCode,
-  msg: any,
-  done: (err: Maybe<Error>, result?: any) => void
+    code: Protocol.BackendMessageCode,
+    msg: any,
+    done: (err: Maybe<Error>, result?: any) => void
 ) => void | Promise<void>;
 
 export interface SocketError extends Error {
@@ -78,7 +78,7 @@ export class PgSocket extends SafeEventEmitter {
         socket.once("data", (x) => {
           this._removeListeners();
           if (x.toString() === "S") {
-            const tslOptions = { ...options.ssl, socket };
+            const tslOptions = {...options.ssl, socket};
             if (options.host && net.isIP(options.host) === 0) tslOptions.servername = options.host;
             const tlsSocket = (this._socket = tls.connect(tslOptions));
             tlsSocket.once("error", errorHandler);
@@ -203,10 +203,10 @@ export class PgSocket extends SafeEventEmitter {
     socket.on("error", (err: SocketError) => this._handleError(err));
     socket.on("close", () => this._handleClose());
     this._send(
-      this._frontend.getStartupMessage({
-        user: this.options.user || "postgres",
-        database: this.options.database || "",
-      })
+        this._frontend.getStartupMessage({
+          user: this.options.user || "postgres",
+          database: this.options.database || "",
+        })
     );
   }
 
@@ -236,6 +236,9 @@ export class PgSocket extends SafeEventEmitter {
             break;
           case Protocol.BackendMessageCode.NoticeResponse:
             this.emit("notice", payload);
+            break;
+          case Protocol.BackendMessageCode.NotificationResponse:
+            this.emit("notification", payload);
             break;
           case Protocol.BackendMessageCode.ParameterStatus:
             this._handleParameterStatus(payload as Protocol.ParameterStatusMessage);

@@ -164,6 +164,12 @@ export namespace Protocol {
     routine?: string;
   }
 
+  export interface NotificationResponseMessage {
+    processId: number;
+    channel: string;
+    payload: string;
+  }
+
   export interface FunctionCallResponseMessage {
     result: Buffer;
   }

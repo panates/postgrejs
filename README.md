@@ -20,9 +20,10 @@ Enterprise level PostgreSQL client for NodeJs and modern Web Browsers.
 ## Features
 
 - Both single connection and advanced pooling support
+- Full binary wire protocol support for all data types
 - Named Prepared Statements
 - Cursors with fast double-link cache
-- Full binary wire protocol support for all data types
+- High level implementation for notifications (LISTEN/NOTIFY)
 - Extensible data-types and type mapping
 - Bind parameters with OID mappings
 - Multidimensional arrays with fast binary encoding/decoding

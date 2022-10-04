@@ -6,7 +6,7 @@ import {
 } from "lightning-pool";
 import { coerceToBoolean, coerceToInt } from "putil-varhelpers";
 import { getIntlConnection } from "./common.js";
-import { Connection } from "./Connection.js";
+import { Connection, NotificationMessage } from "./Connection.js";
 import {
   ConnectionState,
   PoolConfiguration,
@@ -25,6 +25,8 @@ const debug = _debug("pgc:connection");
 
 export class Pool extends SafeEventEmitter {
   private readonly _pool: LightningPool<IntlConnection>;
+  private readonly _notificationListeners = new SafeEventEmitter();
+  private _notificationConnection?: Connection;
   readonly config: PoolConfiguration;
 
   constructor(config?: PoolConfiguration | string) {
@@ -57,7 +59,9 @@ export class Pool extends SafeEventEmitter {
       reset: async (intlCon: IntlConnection) => {
         debug("reset connection %s", intlCon.processID);
         try {
-          if (intlCon.state === ConnectionState.READY) await intlCon.execute("ROLLBACK;");
+          if (intlCon.state === ConnectionState.READY) {
+            await intlCon.execute("ROLLBACK;UNLISTEN *");
+          }
         } finally {
           intlCon.removeAllListeners();
           intlCon.once("close", () => this._pool.destroy(intlCon));
@@ -113,6 +117,8 @@ export class Pool extends SafeEventEmitter {
    * Shuts down the pool and destroys all resources.
    */
   async close(terminateWait?: number): Promise<void> {
+    this._notificationListeners.removeAllListeners();
+    await this._notificationConnection?.close(terminateWait);
     const ms = terminateWait == null ? 10000 : terminateWait;
     return this._pool.closeAsync(ms);
   }
@@ -151,5 +157,62 @@ export class Pool extends SafeEventEmitter {
 
   release(connection: Connection): Promise<void> {
     return this._pool.releaseAsync(getIntlConnection(connection));
+  }
+
+  async listen(channel: string, fn: (msg: NotificationMessage) => any) {
+    if (!/^[A-Z]\w+$/i.test(channel))
+      throw new TypeError(`Invalid channel name`);
+    this._notificationListeners.on(channel, fn);
+    await this._initNotificationConnection();
+  }
+
+  async unListen(channel: string) {
+    if (!/^[A-Z]\w+$/i.test(channel))
+      throw new TypeError(`Invalid channel name`);
+    this._notificationListeners.removeAllListeners(channel);
+    if (!this._notificationListeners.eventNames().length) {
+      await this.unListenAll();
+    } else if (this._notificationConnection)
+      await this._notificationConnection.unListen(channel);
+  }
+
+  async unListenAll() {
+    this._notificationListeners.removeAllListeners();
+    if (this._notificationConnection) {
+      const conn = this._notificationConnection;
+      this._notificationConnection = undefined;
+      await conn.close();
+    }
+  }
+
+  protected async _initNotificationConnection() {
+    if (this._notificationConnection)
+      return;
+
+    const conn = this._notificationConnection = new Connection(this.config);
+    // Reconnect on connection lost
+    conn.on('close', () => reConnect());
+
+    const registerEvents = async () => {
+      const channels = this._notificationListeners.eventNames();
+      for (const channel of channels) {
+        const fns = this._notificationListeners.listeners(channel);
+        for (const fn of fns) {
+          await conn.listen(channel as string, fn as any);
+        }
+      }
+    }
+
+    const reConnect = async () => {
+      setTimeout(() => {
+        if (!this._notificationListeners.eventNames().length)
+          return;
+        conn.connect().catch(() => reConnect())
+      }, 500).unref();
+    }
+
+    await conn.connect();
+    await registerEvents();
+
   }
 }

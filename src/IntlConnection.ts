@@ -26,7 +26,7 @@ export class IntlConnection extends SafeEventEmitter {
   protected _onErrorSavePoint: string;
   transactionStatus = "I";
   socket: PgSocket;
-  statementQueue = new TaskQueue({ concurrency: 1 });
+  statementQueue = new TaskQueue({concurrency: 1});
 
   constructor(config?: ConnectionConfiguration | string) {
     super();
@@ -34,6 +34,7 @@ export class IntlConnection extends SafeEventEmitter {
     this.socket = new PgSocket(this._config);
     this.socket.on("error", (err) => this._onError(err));
     this.socket.on("close", () => this.emit("close"));
+    this.socket.on("notification", (payload) => this.emit("notification", payload));
     this.socket.on("connecting", () => this.emit("connecting"));
     this._onErrorSavePoint = "SP_" + Math.round(Math.random() * 100000000);
   }
@@ -81,7 +82,7 @@ export class IntlConnection extends SafeEventEmitter {
     let startupCommand = "";
     if (this.config.schema) startupCommand += "SET search_path = " + escapeLiteral(this.config.schema) + ";";
     if (this.config.timezone) startupCommand += "SET timezone TO " + escapeLiteral(this.config.timezone) + ";";
-    if (startupCommand) await this.execute(startupCommand, { autoCommit: true });
+    if (startupCommand) await this.execute(startupCommand, {autoCommit: true});
     debug("[%s] ready", this.processID);
     this.emit("ready");
   }
@@ -102,46 +103,46 @@ export class IntlConnection extends SafeEventEmitter {
   }
 
   async execute(
-    sql: string,
-    options?: ScriptExecuteOptions,
-    cb?: (event: string, ...args: any[]) => void
+      sql: string,
+      options?: ScriptExecuteOptions,
+      cb?: (event: string, ...args: any[]) => void
   ): Promise<ScriptResult> {
     this.assertConnected();
     return this.statementQueue
-      .enqueue(async (): Promise<ScriptResult> => {
-        const transactionCommand = sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i);
-        let beginFirst = false;
-        let commitLast = false;
-        if (!transactionCommand) {
-          if (
-            !this.inTransaction &&
-            (options?.autoCommit != null ? options?.autoCommit : this.config.autoCommit) === false
-          ) {
-            beginFirst = true;
+        .enqueue(async (): Promise<ScriptResult> => {
+          const transactionCommand = sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i);
+          let beginFirst = false;
+          let commitLast = false;
+          if (!transactionCommand) {
+            if (
+                !this.inTransaction &&
+                (options?.autoCommit != null ? options?.autoCommit : this.config.autoCommit) === false
+            ) {
+              beginFirst = true;
+            }
+            if (this.inTransaction && options?.autoCommit) commitLast = true;
           }
-          if (this.inTransaction && options?.autoCommit) commitLast = true;
-        }
-        if (beginFirst) await this._execute("BEGIN");
+          if (beginFirst) await this._execute("BEGIN");
 
-        const onErrorRollback =
-          !transactionCommand &&
-          (options?.onErrorRollback != null
-            ? options.onErrorRollback
-            : coerceToBoolean(this.config.onErrorRollback, true));
+          const onErrorRollback =
+              !transactionCommand &&
+              (options?.onErrorRollback != null
+                  ? options.onErrorRollback
+                  : coerceToBoolean(this.config.onErrorRollback, true));
 
-        if (this.inTransaction && onErrorRollback) await this._execute("SAVEPOINT " + this._onErrorSavePoint);
-        try {
-          const result = await this._execute(sql, options, cb);
-          if (commitLast) await this._execute("COMMIT");
-          else if (this.inTransaction && onErrorRollback)
-            await this._execute("RELEASE " + this._onErrorSavePoint + ";");
-          return result;
-        } catch (e: any) {
-          if (this.inTransaction && onErrorRollback) await this._execute("ROLLBACK TO " + this._onErrorSavePoint + ";");
-          throw e;
-        }
-      })
-      .toPromise();
+          if (this.inTransaction && onErrorRollback) await this._execute("SAVEPOINT " + this._onErrorSavePoint);
+          try {
+            const result = await this._execute(sql, options, cb);
+            if (commitLast) await this._execute("COMMIT");
+            else if (this.inTransaction && onErrorRollback)
+              await this._execute("RELEASE " + this._onErrorSavePoint + ";");
+            return result;
+          } catch (e: any) {
+            if (this.inTransaction && onErrorRollback) await this._execute("ROLLBACK TO " + this._onErrorSavePoint + ";");
+            throw e;
+          }
+        })
+        .toPromise();
   }
 
   async startTransaction(): Promise<void> {
@@ -163,12 +164,12 @@ export class IntlConnection extends SafeEventEmitter {
 
   async rollbackToSavepoint(name: string): Promise<void> {
     if (!(name && name.match(/^[a-zA-Z]\w+$/))) throw new Error(`Invalid savepoint "${name}`);
-    await this.execute("ROLLBACK TO SAVEPOINT " + name, { autoCommit: false });
+    await this.execute("ROLLBACK TO SAVEPOINT " + name, {autoCommit: false});
   }
 
   async releaseSavepoint(name: string): Promise<void> {
     if (!(name && name.match(/^[a-zA-Z]\w+$/))) throw new Error(`Invalid savepoint "${name}`);
-    await this.execute("RELEASE SAVEPOINT " + name, { autoCommit: false });
+    await this.execute("RELEASE SAVEPOINT " + name, {autoCommit: false});
   }
 
   ref(): void {
@@ -188,9 +189,9 @@ export class IntlConnection extends SafeEventEmitter {
   }
 
   protected async _execute(
-    sql: string,
-    options?: ScriptExecuteOptions,
-    cb?: (event: string, ...args: any[]) => void
+      sql: string,
+      options?: ScriptExecuteOptions,
+      cb?: (event: string, ...args: any[]) => void
   ): Promise<ScriptResult> {
     this.ref();
     try {
@@ -205,51 +206,51 @@ export class IntlConnection extends SafeEventEmitter {
       this.socket.sendQueryMessage(sql);
       let currentStart = Date.now();
       let parsers;
-      let current: CommandResult = { command: undefined };
+      let current: CommandResult = {command: undefined};
       let fields: Protocol.RowDescription[];
       const typeMap = opts.typeMap || GlobalTypeMap;
       return await this.socket.capture(
-        async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error, result?: any) => void) => {
-          switch (code) {
-            case Protocol.BackendMessageCode.NoticeResponse:
-            case Protocol.BackendMessageCode.CopyInResponse:
-            case Protocol.BackendMessageCode.CopyOutResponse:
-            case Protocol.BackendMessageCode.EmptyQueryResponse:
-              break;
-            case Protocol.BackendMessageCode.RowDescription:
-              fields = msg.fields;
-              parsers = getParsers(typeMap, fields);
-              current.fields = wrapRowDescription(typeMap, fields, DataFormat.text);
-              current.rows = [];
-              break;
-            case Protocol.BackendMessageCode.DataRow:
-              let row = msg.columns.map((x: Buffer) => x.toString("utf8"));
-              parseRow(parsers, row, opts);
-              if (opts.objectRows && current.fields) row = convertRowToObject(current.fields, row);
-              if (cb) cb("row", row);
-              current.rows = current.rows || [];
-              current.rows.push(row);
-              break;
-            case Protocol.BackendMessageCode.CommandComplete:
-              // Ignore BEGIN command that we added to sql
-              current.command = msg.command;
-              if (current.command === "DELETE" || current.command === "INSERT" || current.command === "UPDATE")
-                current.rowsAffected = msg.rowCount;
-              current.executeTime = Date.now() - currentStart;
-              if (current.rows) current.rowType = opts.objectRows && current.fields ? "object" : "array";
-              result.results.push(current);
-              if (cb) cb("command-complete", current);
-              current = { command: undefined };
-              currentStart = Date.now();
-              break;
-            case Protocol.BackendMessageCode.ReadyForQuery:
-              this.transactionStatus = msg.status;
-              result.totalTime = Date.now() - startTime;
-              // Ignore COMMIT command that we added to sql
-              result.totalCommands = result.results.length;
-              done(undefined, result);
+          async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error, result?: any) => void) => {
+            switch (code) {
+              case Protocol.BackendMessageCode.NoticeResponse:
+              case Protocol.BackendMessageCode.CopyInResponse:
+              case Protocol.BackendMessageCode.CopyOutResponse:
+              case Protocol.BackendMessageCode.EmptyQueryResponse:
+                break;
+              case Protocol.BackendMessageCode.RowDescription:
+                fields = msg.fields;
+                parsers = getParsers(typeMap, fields);
+                current.fields = wrapRowDescription(typeMap, fields, DataFormat.text);
+                current.rows = [];
+                break;
+              case Protocol.BackendMessageCode.DataRow:
+                let row = msg.columns.map((x: Buffer) => x.toString("utf8"));
+                parseRow(parsers, row, opts);
+                if (opts.objectRows && current.fields) row = convertRowToObject(current.fields, row);
+                if (cb) cb("row", row);
+                current.rows = current.rows || [];
+                current.rows.push(row);
+                break;
+              case Protocol.BackendMessageCode.CommandComplete:
+                // Ignore BEGIN command that we added to sql
+                current.command = msg.command;
+                if (current.command === "DELETE" || current.command === "INSERT" || current.command === "UPDATE")
+                  current.rowsAffected = msg.rowCount;
+                current.executeTime = Date.now() - currentStart;
+                if (current.rows) current.rowType = opts.objectRows && current.fields ? "object" : "array";
+                result.results.push(current);
+                if (cb) cb("command-complete", current);
+                current = {command: undefined};
+                currentStart = Date.now();
+                break;
+              case Protocol.BackendMessageCode.ReadyForQuery:
+                this.transactionStatus = msg.status;
+                result.totalTime = Date.now() - startTime;
+                // Ignore COMMIT command that we added to sql
+                result.totalCommands = result.results.length;
+                done(undefined, result);
+            }
           }
-        }
       );
     } finally {
       this.unref();

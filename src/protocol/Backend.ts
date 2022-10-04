@@ -75,6 +75,7 @@ const MessageParsers = {
   [Protocol.BackendMessageCode.DataRow]: parseDataRow,
   [Protocol.BackendMessageCode.ErrorResponse]: parseErrorResponse,
   [Protocol.BackendMessageCode.NoticeResponse]: parseErrorResponse,
+  [Protocol.BackendMessageCode.NotificationResponse]: parseNotificationResponse,
   [Protocol.BackendMessageCode.FunctionCallResponse]: parseFunctionCallResponse,
   [Protocol.BackendMessageCode.NegotiateProtocolVersion]: parseNegotiateProtocolVersion,
   [Protocol.BackendMessageCode.ParameterDescription]: parseParameterDescription,
@@ -209,10 +210,18 @@ function parseErrorResponse(io: BufferReader): Protocol.ErrorResponseMessage {
   return out;
 }
 
+function parseNotificationResponse(io: BufferReader): Protocol.NotificationResponseMessage {
+  return {
+    processId: io.readUInt32BE(),
+    channel: io.readCString(),
+    payload: io.readCString()
+  };
+}
+
 function parseFunctionCallResponse(
-  io: BufferReader,
-  code: Protocol.BackendMessageCode,
-  len: number
+    io: BufferReader,
+    code: Protocol.BackendMessageCode,
+    len: number
 ): Protocol.FunctionCallResponseMessage {
   return {
     result: io.readBuffer(len - 4),
