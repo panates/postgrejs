@@ -22,6 +22,7 @@ import { SafeEventEmitter } from "./SafeEventEmitter.js";
 
 const debug = _debug("pgc:intlcon");
 export type NotificationMessage = Protocol.NotificationResponseMessage;
+export type NotificationCallback =  (msg: NotificationMessage) => any;
 
 export class Connection extends SafeEventEmitter {
   private readonly _pool?: Pool;
@@ -217,11 +218,11 @@ export class Connection extends SafeEventEmitter {
     return this._intlCon.releaseSavepoint(name);
   }
 
-  async listen(channel: string, fn: (msg: NotificationMessage) => any) {
+  async listen(channel: string, callback: NotificationCallback) {
     if (!/^[A-Z]\w+$/i.test(channel))
       throw new TypeError(`Invalid channel name`);
     const registered = !!this._notificationListeners.eventNames().length;
-    this._notificationListeners.on(channel, fn);
+    this._notificationListeners.on(channel, callback);
     if (!registered)
       await this.query('LISTEN ' + channel);
   }

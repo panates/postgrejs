@@ -6,7 +6,7 @@ import {
 } from "lightning-pool";
 import { coerceToBoolean, coerceToInt } from "putil-varhelpers";
 import { getIntlConnection } from "./common.js";
-import { Connection, NotificationMessage } from "./Connection.js";
+import { Connection, NotificationCallback } from "./Connection.js";
 import {
   ConnectionState,
   PoolConfiguration,
@@ -159,10 +159,10 @@ export class Pool extends SafeEventEmitter {
     return this._pool.releaseAsync(getIntlConnection(connection));
   }
 
-  async listen(channel: string, fn: (msg: NotificationMessage) => any) {
+  async listen(channel: string, callback: NotificationCallback) {
     if (!/^[A-Z]\w+$/i.test(channel))
       throw new TypeError(`Invalid channel name`);
-    this._notificationListeners.on(channel, fn);
+    this._notificationListeners.on(channel, callback);
     await this._initNotificationConnection();
   }
 

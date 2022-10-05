@@ -666,13 +666,102 @@ await connection.rollbackToSavepoint('my_save_point');
 await connection.close();
 ```
 
-#### Events
+##### .listen()
 
-* error
-* close
-* connecting
-* ready
-* terminate
+Registers the connection as a listener on the notification channel.
+
+`listen(channel: string, callback: NotificationCallback): Promise<void>`
+
+| Argument     | Type        | Default  | Description                | 
+|--------------|-------------| ---------|----------------------------|
+| channel      | string      |          | Name of the channel        | 
+| callback     | NotificationCallback   |          | Listener callback function | 
+
+```ts
+await connection.listen('my_event', (msg: NotificationMessage)=>{
+  console.log(msg.channel+ ' event fired!. processId:', msg.processId, '  payload:', msg.payload);
+});
+```
+
+
+##### .unListen()
+
+Removes existing registration for NOTIFY events for given channel.
+
+`unListen(channel: string): Promise<void>`
+
+| Argument     | Type        | Default  | Description                | 
+|--------------|-------------| ---------|----------------------------|
+| channel      | string      |          | Name of the channel        |
+
+```ts
+await connection.unListen('my_event');
+```
+
+
+
+##### .unListenAll()
+
+Removes existing registration for NOTIFY events for all channels.
+
+`unListenAll(): Promise<void>`
+
+
+```ts
+await connection.unListenAll();
+```
+
+
+
+### Events
+
+#### ___error___ 
+
+  Triggered when an error occurs.
+
+  `(err: Error) => void`
+
+| Argument | Type  | Default  | Description    | 
+|--------|-------| ---------|----------------|
+| err    | Error |          | Error instance |
+
+
+##### ___close___
+
+  Triggered when after connection closed.
+
+  `() => void`
+
+
+#### ___connecting___
+
+  Triggered when establishing a connection.
+
+    `() => void`
+
+#### ___ready___
+
+   Triggered when connection is ready.
+
+    `() => void`
+
+
+#### ___terminate___
+
+   Triggered when the connection is terminated unintentionally.
+
+   `() => void`
+
+#### ___notification___
+
+   Triggered when notification is received from a registered channel.
+
+    `(msg: NotificationMessage) => void`
+
+| Argument | Type  | Default  | Description                   | 
+|--------|-------| ---------|-------------------------------|
+| msg    | NotificationMessage |          | Notification message instance |
+
 
 ### 2.1.2. Pool
 
@@ -809,6 +898,53 @@ await statement.close();
 Releases a connection
 
 `release(connection: Connection): Promise<void>`
+
+
+
+##### .listen()
+
+Registers the pool as a listener on the notification channel.
+
+`listen(channel: string, callback: NotificationCallback): Promise<void>`
+
+| Argument     | Type        | Default  | Description                | 
+|--------------|-------------| ---------|----------------------------|
+| channel      | string      |          | Name of the channel        | 
+| callback     | NotificationCallback   |          | Listener callback function | 
+
+```ts
+await pool.listen('my_event', (msg: NotificationMessage)=>{
+  console.log(msg.channel+ ' event fired!. processId:', msg.processId, '  payload:', msg.payload);
+});
+```
+
+
+##### .unListen()
+
+Removes existing registration for NOTIFY events for given channel.
+
+`unListen(channel: string): Promise<void>`
+
+| Argument     | Type        | Default  | Description                | 
+|--------------|-------------| ---------|----------------------------|
+| channel      | string      |          | Name of the channel        |
+
+```ts
+await pool.unListen('my_event');
+```
+
+
+##### .unListenAll()
+
+Removes existing registration for NOTIFY events for all channels.
+
+`unListenAll(): Promise<void>`
+
+
+```ts
+await pool.unListenAll();
+```
+
 
 ### 2.1.3. Cursor
 
