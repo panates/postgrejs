@@ -28,7 +28,8 @@ describe("Cursor support", function () {
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     const row = await cursor.next();
-    expect(row && row.id).toStrictEqual(1);
+    expect(row).toBeDefined();
+    expect(row.id).toStrictEqual(1);
     await cursor.close();
   });
 

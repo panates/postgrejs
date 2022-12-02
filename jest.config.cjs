@@ -1,8 +1,6 @@
 module.exports = {
   testEnvironment: 'node',
   verbose: true,
-  forceExit: true,
-  detectOpenHandles: true,
   maxWorkers: 1,
   coveragePathIgnorePatterns: [
     '/cjs/',
@@ -15,7 +13,8 @@ module.exports = {
   testRegex: '.*\\.spec\\.ts$',
   transform: {
     '^.+.ts?$': ['ts-jest', {
-      'tsconfig': '<rootDir>/test/tsconfig.json'
+      'tsconfig': '<rootDir>/test/tsconfig.json',
+      'isolatedModules': true
     }]
   },
   moduleNameMapper: {
