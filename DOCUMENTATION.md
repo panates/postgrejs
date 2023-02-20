@@ -136,7 +136,7 @@ const dbpool = new Pool({
         idleTimeoutMillis: 5000
     }
 });
-const qr = await pool.query('select * from my_table where id=1');
+const qr = await dbpool.query('select * from my_table where id=1');
 // Do whatever you need with pool
 await dbpool.close(); // Disconnect all connections and shutdown pool
 ```
