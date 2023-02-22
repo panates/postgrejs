@@ -1,9 +1,11 @@
-# v2.5.3
+# v2.5.5
 [2023-02-22]
 
 ### Changes
 
+* Added auto changelog generation ([`0c7fc22`](https://github.com/panates/postgresql-client/commit/0c7fc22f299363a8425835c11d4f6f4eeb64a9ea))
 * Updated examples ([`94e092a`](https://github.com/panates/postgresql-client/commit/94e092ade4e664b040bb85517eac4c61f8baeee4))
+* Added auto changelog generation ([`1ed1194`](https://github.com/panates/postgresql-client/commit/1ed119481ee3a5ccdd841691812f6042fab2cb5a))
 
 # v2.5.3
 [2023-02-20]
