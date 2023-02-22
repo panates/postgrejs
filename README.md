@@ -47,20 +47,27 @@ Please read :small_orange_diamond: [DOCUMENTATION](DOCUMENTATION.md) :small_oran
 
 ```ts
 import {Connection} from 'postgresql-client';
-
+// Create connection
 const connection = new Connection('postgres://localhost');
+// Connect to database server
 await connection.connect();
+
+// Execute query and fetch rows
 const result = await connection.query(
     'select * from cities where name like $1',
     {params: ['%york%']});
-const rows = result.rows;
-await connection.close(); // Disconnect
+const rows: any[] = result.rows;
+// Do what ever you want with rows
+
+// Disconnect from server
+await connection.close(); 
 ```
 
 ### Establish a pooled connection, create a cursor
 ```ts
 import {Pool} from 'postgresql-client';
 
+// Create connection pool
 const db = new Pool({
     host: 'postgres://localhost',
     pool: {
@@ -70,16 +77,22 @@ const db = new Pool({
     }
 });
 
+// Execute query and fetch cursor
 const result = await db.query(
     'select * from cities where name like $1',
     {params: ['%york%'], cursor: true});
+
+// Walk through the cursor, and do whatever you want with fetched rows
 const cursor = result.cursor;
 let row;
-while ((row = cursor.next())) {
+while ((row = await cursor.next())) {
   console.log(row);
 }
+// Close cursor, (Send connection back to the pool)
+await cursor.close();
 
-await db.close(); // Disconnect all connections and shutdown pool
+// Disconnect all connections and shutdown pool
+await db.close(); 
 ```
 
 ### Using prepared statements
