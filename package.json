@@ -1,7 +1,7 @@
 {
   "name": "postgresql-client",
   "description": "Enterprise level PostgreSQL client for JavaScript",
-  "version": "2.5.3",
+  "version": "2.5.4",
   "author": "Panates",
   "contributors": [
     "Eray Hanoglu <e.hanoglu@panates.com>"
@@ -48,7 +48,6 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "changelog": "auto-changelog --template changelog-template.hbs -p -u --commit-limit false",
     "clean": "npm run clean:src && npm run clean:dist",
     "clean:dist": "rimraf cjs esm coverage",
     "clean:src": "ts-cleanup -s src --all | ts-cleanup -s test",
@@ -56,12 +55,13 @@
     "build": "npm run build:cjs && npm run build:esm",
     "build:cjs": "tsc -b tsconfig-build-cjs.json",
     "build:esm": "tsc -b tsconfig-build-esm.json",
-    "postbuild": "cp package.cjs.json ./cjs/package.json && npm run changelog",
+    "postbuild": "cp package.cjs.json ./cjs/package.json",
     "test": "jest",
     "precover": "rimraf coverage",
     "cover": "jest --runInBand --detectOpenHandles --coverage",
     "precitest": "rimraf coverage",
-    "citest": "jest --coverage --coverageReporters=lcov"
+    "citest": "jest --coverage --coverageReporters=lcov",
+    "version": "auto-changelog -p && git add CHANGELOG.md"
   },
   "type": "module",
   "types": "esm/index.d.ts",
