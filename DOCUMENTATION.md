@@ -278,7 +278,7 @@ const qr = await connection.query('select * from my_table',
 console.log(qr.fields);
 const cursor = qr.cursor;
 let row;
-while ((row = cursor.next())) {
+while ((row = await cursor.next())) {
     console.log(row);
 }
 await cursor.close(); // When you done, close the cursor to relase resources
@@ -545,7 +545,7 @@ const queryResult = await connection.query(
             utcDates: true
         });
 let row;
-while ((row = queryResult.cursor.next())) {
+while ((row = await queryResult.cursor.next())) {
     // ....
 }
 await connection.close();
@@ -859,7 +859,7 @@ const queryResult = await pool.query(
             utcDates: true
         });
 let row;
-while ((row = queryResult.cursor.next())) {
+while ((row = await queryResult.cursor.next())) {
     // ....
 }
 await pool.close();
