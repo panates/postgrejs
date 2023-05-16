@@ -1,4 +1,4 @@
-import _debug from "debug";
+// import _debug from "debug"; // it is vulnerable
 import { coerceToBoolean } from "putil-varhelpers";
 import { convertRowToObject, getIntlConnection, getParsers, parseRow, wrapRowDescription } from "./common.js";
 import { Connection } from "./Connection.js";
@@ -19,7 +19,7 @@ import { Portal } from "./Portal.js";
 import { Protocol } from "./protocol/protocol.js";
 import { SafeEventEmitter } from "./SafeEventEmitter.js";
 
-const debug = _debug("pgc:statement");
+const debug = (() => void 0) as any;// _debug("pgc:statement");
 
 let statementCounter = 0;
 let portalCounter = 0;

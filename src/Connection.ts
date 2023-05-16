@@ -1,4 +1,4 @@
-import _debug from "debug";
+// import _debug from "debug"; // it is vulnerable
 import { BindParam } from "./BindParam.js";
 import { GlobalTypeMap } from "./DataTypeMap.js";
 import {
@@ -20,9 +20,10 @@ import { DatabaseError } from "./protocol/DatabaseError.js";
 import { Protocol } from './protocol/protocol.js';
 import { SafeEventEmitter } from "./SafeEventEmitter.js";
 
-const debug = _debug("pgc:intlcon");
+const debug = (() => void 0) as any;// _debug("pgc:intlcon");
+
 export type NotificationMessage = Protocol.NotificationResponseMessage;
-export type NotificationCallback =  (msg: NotificationMessage) => any;
+export type NotificationCallback = (msg: NotificationMessage) => any;
 
 export class Connection extends SafeEventEmitter {
   private readonly _pool?: Pool;

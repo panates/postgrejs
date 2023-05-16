@@ -1,4 +1,4 @@
-import _debug from "debug";
+// import _debug from "debug"; // it is vulnerable
 import {
   Pool as LightningPool,
   PoolConfiguration as LPoolConfiguration,
@@ -21,7 +21,7 @@ import { PreparedStatement } from "./PreparedStatement.js";
 import { SafeEventEmitter } from "./SafeEventEmitter.js";
 import { getConnectionConfig } from "./util/connection-config.js";
 
-const debug = _debug("pgc:connection");
+const debug = (() => void 0) as any;// _debug("pgc:connection");
 
 export class Pool extends SafeEventEmitter {
   private readonly _pool: LightningPool<IntlConnection>;

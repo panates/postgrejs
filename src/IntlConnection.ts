@@ -1,4 +1,4 @@
-import _debug from "debug";
+// import _debug from "debug"; // it is vulnerable
 import { TaskQueue } from "power-tasks";
 import { coerceToBoolean } from "putil-varhelpers";
 import { convertRowToObject, getParsers, parseRow, wrapRowDescription } from "./common.js";
@@ -18,7 +18,7 @@ import { getConnectionConfig } from "./util/connection-config.js";
 import { escapeLiteral } from "./util/escape-literal.js";
 import DataFormat = Protocol.DataFormat;
 
-const debug = _debug("pgc:intlcon");
+const debug = (() => void 0) as any;// _debug("pgc:intlcon");
 
 export class IntlConnection extends SafeEventEmitter {
   protected _refCount = 0;

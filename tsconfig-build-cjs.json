@@ -4,7 +4,7 @@
     "sourceMap": false,
     "noEmit": false,
     "declaration": false,
-    "outDir": "cjs",
+    "outDir": "build/cjs",
     "module": "CommonJS",
     "moduleResolution": "node"
   },

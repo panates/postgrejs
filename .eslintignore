@@ -1,3 +1,2 @@
-esm/**/*
-cjs/**/*
+build/**/*
 node_modules/**/*

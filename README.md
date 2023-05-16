@@ -6,7 +6,7 @@
 [![Test Coverage][coveralls-image]][coveralls-url]
 
 
-Enterprise level PostgreSQL client for NodeJs and modern Web Browsers.
+Enterprise level PostgreSQL client for NodeJs
 
 
 ## Library

@@ -1,7 +1,6 @@
-# compiled output
-/node_modules
-/cjs
-/esm
+node_modules
+/build
+/examples/*/package-lock.json
 
 # environment variables
 .env

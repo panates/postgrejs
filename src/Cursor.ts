@@ -1,4 +1,4 @@
-import _debug from "debug";
+// import _debug from "debug"; // it is vulnerable
 import DoublyLinked from "doublylinked";
 import { TaskQueue } from "power-tasks";
 import { convertRowToObject, parseRow } from "./common.js";
@@ -7,7 +7,7 @@ import { Portal } from "./Portal.js";
 import { PreparedStatement } from "./PreparedStatement.js";
 import { SafeEventEmitter } from "./SafeEventEmitter.js";
 
-const debug = _debug("pgc:cursor");
+const debug = (() => void 0) as any;// _debug("pgc:cursor");
 
 export class Cursor extends SafeEventEmitter {
   private readonly _statement: PreparedStatement;
