@@ -1,3 +1,13 @@
+# v2.5.6
+[2023-05-16]
+
+### Changes
+
+* Removed vulnerable "debug" package ([`019b3f4`](https://github.com/panates/postgresql-client/commit/019b3f48955c62a9c764462b16cd52be8cf22ae2))
+* Updated dependencies ([`afce5f7`](https://github.com/panates/postgresql-client/commit/afce5f735d241869e6ae937cb67b6378e70fb6d0))
+* Fixed examples for cursor usage ([`5971341`](https://github.com/panates/postgresql-client/commit/5971341edf1c7ce363ddcb3adb97b2491bf7714d))
+* Updated config ([`6edd12e`](https://github.com/panates/postgresql-client/commit/6edd12e902ac3f5f2f4784626edce151bf5eb569))
+
 # v2.5.5
 [2023-02-22]
 
