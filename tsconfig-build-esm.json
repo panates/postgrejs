@@ -5,7 +5,8 @@
     "declaration": true,
     "noEmit": false,
     "module": "ESNext",
-    "outDir": "build/esm"
+    "outDir": "build/esm",
+    "declarationDir": "build/typings"
   },
   "include": ["src"]
 }

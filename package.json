@@ -54,7 +54,8 @@
     "build": "npm run build:cjs && npm run build:esm",
     "build:cjs": "tsc -b tsconfig-build-cjs.json",
     "build:esm": "tsc -b tsconfig-build-esm.json",
-    "postbuild": "cp ./support/package.cjs.json ./build/cjs/package.json && cp LICENSE package.json README.md CHANGELOG.md ./build",
+    "postbuild": "npm run postbuild:copyfiles && node ./support/postbuild.cjs",
+    "postbuild:copyfiles": "cp ./support/package.cjs.json ./build/cjs/package.json && cp LICENSE README.md CHANGELOG.md ./build",
     "test": "jest",
     "precover": "rimraf coverage",
     "cover": "jest --runInBand --detectOpenHandles --coverage",
@@ -63,7 +64,7 @@
     "version": "auto-changelog -p && git add CHANGELOG.md"
   },
   "type": "module",
-  "types": "esm/index.d.ts",
+  "types": "typings/index.d.ts",
   "exports": {
     ".": {
       "require": "./cjs/index.js",
@@ -73,7 +74,7 @@
     "./esm": "./esm/index.js"
   },
   "engines": {
-    "node": ">=14.0",
+    "node": ">=16.0",
     "npm": ">=7.0.0"
   },
   "files": [
@@ -85,7 +86,6 @@
   ],
   "keywords": [
     "backend",
-    "frontent",
     "postgresql",
     "postgres",
     "pg",
@@ -96,7 +96,6 @@
     "db",
     "rdbms",
     "sql",
-    "javascript",
     "typescript",
     "ts",
     "esm"
