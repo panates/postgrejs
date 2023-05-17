@@ -81,6 +81,7 @@
   "files": [
     "cjs/",
     "esm/",
+    "typings/",
     "LICENSE",
     "README.md",
     "CHANGELOG.md"
