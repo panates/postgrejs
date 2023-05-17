@@ -1,3 +1,10 @@
+# v2.5.8
+[2023-05-17]
+
+### Changes
+
+* Optimized build ([`e8305f9`](https://github.com/panates/postgresql-client/commit/e8305f9da79a64484d5edc2cd0fe43c4ff7b2fa2))
+
 # v2.5.7
 [2023-05-16]
 
