@@ -68,7 +68,7 @@ const connection = new Connection({
 });
 await connection.connect();
 // Do whatever you need with connection
-await conection.close();
+await connection.close();
 ```
 
 ### 1.1.1. Connection Strings
@@ -281,7 +281,7 @@ let row;
 while ((row = await cursor.next())) {
     console.log(row);
 }
-await cursor.close(); // When you done, close the cursor to relase resources
+await cursor.close(); // When you done, close the cursor to release resources
 ```
 
 ## 1.4. Transaction management
