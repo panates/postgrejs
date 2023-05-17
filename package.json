@@ -3,6 +3,7 @@
   "description": "Enterprise level PostgreSQL client for JavaScript",
   "version": "2.5.7",
   "author": "Panates",
+  "private": true,
   "contributors": [
     "Eray Hanoglu <e.hanoglu@panates.com>"
   ],
