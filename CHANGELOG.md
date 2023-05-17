@@ -1,3 +1,10 @@
+# v2.5.9
+[2023-05-17]
+
+### Changes
+
+* Fixed missing files."typings" ([`eabb616`](https://github.com/panates/postgresql-client/commit/eabb616a54831ca245d6157452737a6484167d0b))
+
 # v2.5.8
 [2023-05-17]
 
