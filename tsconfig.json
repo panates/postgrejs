@@ -3,5 +3,5 @@
   "compilerOptions": {
   },
   "include": ["src", "test"],
-  "exclude": ["node_modules", "dist", "esm", "cjs"]
+  "exclude": ["node_modules", "build"]
 }
