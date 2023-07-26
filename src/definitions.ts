@@ -128,7 +128,7 @@ export interface QueryOptions extends DataMappingOptions {
   /**
    * Query execution parameters
    */
-  params?: (BindParam | Record<string, any>)[];
+  params?: (BindParam | any)[];
   /**
    * Specifies transfer format (binary or text) for each column
    * @default DataFormat.binary

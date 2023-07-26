@@ -88,6 +88,7 @@
         "@typescript-eslint/no-inferrable-types": "off",
         "@typescript-eslint/no-misused-promises": "off",
         "@typescript-eslint/no-unsafe-argument": "off",
+        "@typescript-eslint/no-redundant-type-constituents": "off",
         "arrow-parens": [
           "off",
           "as-needed"
