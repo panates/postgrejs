@@ -1,3 +1,12 @@
+# v2.5.10
+[2023-07-26]
+
+### Changes
+
+* Updated dependencies ([`2a21190`](https://github.com/panates/postgresql-client/commit/2a21190d2db2f70a1bbffb6cc77a8d9dc62b7636))
+* Added code of conduct document ([`9a64826`](https://github.com/panates/postgresql-client/commit/9a6482677ba23fb6ca850f5357a7e169218c7efd))
+* Updated config ([`9655d4f`](https://github.com/panates/postgresql-client/commit/9655d4f222af21b889a7a9f5070530f8ea6bcd95))
+
 # v2.5.9
 [2023-05-17]
 
