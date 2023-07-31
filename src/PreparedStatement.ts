@@ -128,7 +128,7 @@ export class PreparedStatement extends SafeEventEmitter {
     debug("[%s] execute", this.name);
     const intlCon = getIntlConnection(this.connection);
 
-    const transactionCommand = this.sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i);
+    const transactionCommand = this.sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i);
     let beginFirst = false;
     let commitLast = false;
     if (!transactionCommand) {
