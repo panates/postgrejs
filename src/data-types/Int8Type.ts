@@ -24,7 +24,8 @@ export const Int8Type: DataType = {
   },
 
   isType(v: any): boolean {
-    return typeof v === "bigint" || (typeof v === "number" && Number.isInteger(v));
+    return typeof v === "bigint" ||
+        (typeof v === "number" && Number.isInteger(v) && v > Number.MAX_SAFE_INTEGER);
   },
 };
 

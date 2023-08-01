@@ -44,7 +44,9 @@ export const DateType: DataType = {
   },
 
   isType(v: any): boolean {
-    return v instanceof Date;
+    return (v instanceof Date &&
+        v.getHours() === 0 && v.getMinutes() === 0 && v.getSeconds() === 0 && v.getMilliseconds() === 0
+    )
   },
 };
 

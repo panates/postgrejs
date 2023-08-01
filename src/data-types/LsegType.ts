@@ -41,6 +41,7 @@ export const LsegType: DataType = {
   isType(v: any): boolean {
     return (
       typeof v === "object" &&
+      Object.keys(v).length === 4 &&
       typeof v.x1 === "number" &&
       typeof v.y1 === "number" &&
       typeof v.x2 === "number" &&
