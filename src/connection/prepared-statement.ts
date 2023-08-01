@@ -1,4 +1,3 @@
-// import _debug from 'debug'; // it is vulnerable
 import { coerceToBoolean } from 'putil-varhelpers';
 import { DEFAULT_COLUMN_FORMAT } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
@@ -18,8 +17,6 @@ import { Connection } from './connection.js';
 import { Cursor } from './cursor.js';
 import { getIntlConnection } from './intl-connection.js';
 import { Portal } from './portal.js';
-
-const debug = (() => void 0) as any;// _debug("pgc:statement");
 
 let statementCounter = 0;
 let portalCounter = 0;
@@ -98,7 +95,6 @@ export class PreparedStatement extends SafeEventEmitter {
                   }
               );
             }
-            debug("[%s] prepared | %s", statement.name, sql);
           } finally {
             intoCon.unref();
           }
@@ -125,7 +121,6 @@ export class PreparedStatement extends SafeEventEmitter {
   }
 
   async execute(options: QueryOptions = {}): Promise<QueryResult> {
-    debug("[%s] execute", this.name);
     const intlCon = getIntlConnection(this.connection);
 
     const transactionCommand = this.sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i);
@@ -142,21 +137,21 @@ export class PreparedStatement extends SafeEventEmitter {
     }
     if (beginFirst) await intlCon.execute("BEGIN");
 
-    const onErrorRollback =
+    const rollbackOnError =
         !transactionCommand &&
-        (options?.onErrorRollback != null
-            ? options.onErrorRollback
-            : coerceToBoolean(intlCon.config.onErrorRollback, true));
+        (options?.rollbackOnError != null
+            ? options.rollbackOnError
+            : coerceToBoolean(intlCon.config.rollbackOnError, true));
 
-    if (intlCon.inTransaction && onErrorRollback) await intlCon.execute("SAVEPOINT " + this._onErrorSavePoint);
+    if (intlCon.inTransaction && rollbackOnError) await intlCon.execute("SAVEPOINT " + this._onErrorSavePoint);
     try {
       const result = await intlCon.statementQueue.enqueue<QueryResult>(() => this._execute(options)).toPromise();
       if (commitLast) await intlCon.execute("COMMIT");
-      else if (intlCon.inTransaction && onErrorRollback)
+      else if (intlCon.inTransaction && rollbackOnError)
         await intlCon.execute("RELEASE " + this._onErrorSavePoint + ";");
       return result;
     } catch (e: any) {
-      if (intlCon.inTransaction && onErrorRollback)
+      if (intlCon.inTransaction && rollbackOnError)
         await intlCon.execute("ROLLBACK TO " + this._onErrorSavePoint + ";");
       throw e;
     }
@@ -164,7 +159,6 @@ export class PreparedStatement extends SafeEventEmitter {
 
   async close(): Promise<void> {
     --this._refCount;
-    debug("[%s] close | refCount = %d", this.name, this._refCount);
     if (this._refCount > 0) return;
     const intoCon = getIntlConnection(this.connection);
     await intoCon.statementQueue.enqueue<void>(() => this._close()).toPromise();
@@ -177,7 +171,6 @@ export class PreparedStatement extends SafeEventEmitter {
   protected async _execute(options: QueryOptions = {}): Promise<QueryResult> {
     let portal: Maybe<Portal>;
     const intlCon = getIntlConnection(this.connection);
-    debug("[%s] _execute", this.name);
     intlCon.ref();
     try {
       const result: QueryResult = {command: undefined};
@@ -261,7 +254,6 @@ export class PreparedStatement extends SafeEventEmitter {
     } finally {
       intoCon.unref();
     }
-    debug("[%s] closed");
     this.emit("close");
   }
 }

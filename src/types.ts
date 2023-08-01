@@ -11,3 +11,4 @@ export type EncodeBinaryFunction = (buf: SmartBuffer, v: any, options: DataMappi
 export type ParseTextFunction = (v: any, options: DataMappingOptions) => any;
 export type EncodeTextFunction = (v: any, options: DataMappingOptions) => string;
 export type AnyParseFunction = ParseTextFunction | DecodeBinaryFunction;
+export type DebugLogger = (namespace: string, format: any, ...args: any[]) => void;

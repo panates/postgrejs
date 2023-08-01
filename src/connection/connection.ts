@@ -1,4 +1,3 @@
-// import _debug from 'debug'; // it is vulnerable
 import { ConnectionState, DataTypeOIDs } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
@@ -16,26 +15,26 @@ import { IntlConnection } from './intl-connection.js';
 import type { Pool } from './pool.js';
 import { PreparedStatement } from './prepared-statement.js';
 
-const debug = (() => void 0) as any;// _debug("pgc:intlcon");
-
 export type NotificationMessage = Protocol.NotificationResponseMessage;
 export type NotificationCallback = (msg: NotificationMessage) => any;
 
 export class Connection extends SafeEventEmitter {
-  private readonly _pool?: Pool;
-  private readonly _intlCon: IntlConnection;
-  private readonly _notificationListeners = new SafeEventEmitter();
-  private _closing = false;
+  protected readonly _pool?: Pool;
+  protected readonly _intlCon: IntlConnection;
+  protected readonly _notificationListeners = new SafeEventEmitter();
+  protected _closing = false;
 
   constructor(pool: Pool, intlCon: IntlConnection);
-  constructor(config?: ConnectionConfiguration | string | IntlConnection);
+  constructor(config?: ConnectionConfiguration | string);
   constructor(arg0: any, arg1?: any) {
     super();
-    if (arg0 && typeof arg0.acquire === "function") {
+    if (arg0 && typeof arg0 === 'object' && typeof arg0.acquire === "function") {
       if (!(arg1 instanceof IntlConnection)) throw new TypeError("Invalid argument");
       this._pool = arg0;
       this._intlCon = arg1;
-    } else this._intlCon = new IntlConnection(arg0);
+    } else {
+      this._intlCon = new IntlConnection(arg0);
+    }
     this._intlCon.on("ready", (...args) => this.emit("ready", ...args));
     this._intlCon.on("error", (...args) => this.emit("error", ...args));
     this._intlCon.on("close", (...args) => this.emit("close", ...args));
@@ -106,19 +105,37 @@ export class Connection extends SafeEventEmitter {
     this._notificationListeners.removeAllListeners();
     this._intlCon.statementQueue.clearQueue();
     if (this.state === ConnectionState.CLOSED || this._closing) return;
-    debug("[%s] closing", this.processID);
+    /* istanbul ignore next */
+    if (this.listenerCount('debug'))
+      this.emit('debug', {
+        location: 'Connection.close',
+        connection: this,
+        message: `[${this.processID}] closing`
+      });
 
     this._closing = true;
     // @ts-ignore
     if (this._intlCon.refCount > 0 && typeof terminateWait === "number" && terminateWait > 0) {
       const startTime = Date.now();
       return new Promise((resolve, reject) => {
-        debug("[%s] waiting active queries", this.processID);
+        /* istanbul ignore next */
+        if (this.listenerCount('debug'))
+          this.emit('debug', {
+            location: 'Connection.close',
+            connection: this,
+            message: `[${this.processID}] waiting active queries`
+          });
         const timer = setInterval(() => {
           if (this._intlCon.refCount <= 0 || Date.now() > startTime + terminateWait) {
             clearInterval(timer);
             if (this._intlCon.refCount > 0) {
-              debug("[%s] terminate", this.processID);
+              /* istanbul ignore next */
+              if (this.listenerCount('debug'))
+                this.emit('debug', {
+                  location: 'Connection.close',
+                  connection: this,
+                  message: `[${this.processID}] terminate`
+                });
               this.emit("terminate");
             }
             this._close().then(resolve).catch(reject);
@@ -143,7 +160,13 @@ export class Connection extends SafeEventEmitter {
 
   async query(sql: string, options?: QueryOptions): Promise<QueryResult> {
     this._intlCon.assertConnected();
-    debug("[%s] query | %s", this.processID, sql);
+    /* istanbul ignore next */
+    if (this.listenerCount('debug'))
+      this.emit('debug', {
+        location: 'Connection.query',
+        connection: this,
+        message: `[${this.processID}] query | ${sql}`, sql
+      });
     const typeMap = options?.typeMap || GlobalTypeMap;
     const paramTypes: Maybe<OID[]> = options?.params?.map((prm) =>
         prm instanceof BindParam ? prm.oid : typeMap.determine(prm) || DataTypeOIDs.varchar
@@ -165,7 +188,14 @@ export class Connection extends SafeEventEmitter {
    * @param options {StatementPrepareOptions} - Options
    */
   async prepare(sql: string, options?: StatementPrepareOptions): Promise<PreparedStatement> {
-    debug("[%s] prepare", this.processID);
+    /* istanbul ignore next */
+    if (this.listenerCount('debug'))
+      this.emit('debug', {
+        location: 'Connection.prepare',
+        connection: this,
+        message: `[${this.processID}] prepare | ${sql}`,
+        sql
+      });
     return await PreparedStatement.prepare(this, sql, options);
   }
 

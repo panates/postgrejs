@@ -43,5 +43,5 @@ export interface QueryOptions extends DataMappingOptions {
    * When off (the default), a statement in a transaction block that generates an error aborts the entire transaction
    * @default true
    */
-  onErrorRollback?: boolean;
+  rollbackOnError?: boolean;
 }

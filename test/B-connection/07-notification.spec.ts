@@ -36,7 +36,7 @@ describe("notification", function () {
       let i = 0;
       connection.listen('event1', () => {
         i++;
-        connection.unListen('event1')
+        void connection.unListen('event1')
             .then(() => {
               connection.query(`NOTIFY event1`).catch(done);
               setTimeout(() => {
@@ -53,7 +53,7 @@ describe("notification", function () {
 
     it("should create new connection and listen for events", function (done) {
       pool.listen('event1', () => {
-        pool.unListenAll().then(done);
+        void pool.unListenAll().then(done);
       }).then(() => {
         connection.query(`NOTIFY event1`).catch(done);
       }).catch(done);
@@ -63,7 +63,7 @@ describe("notification", function () {
       let i = 0;
       pool.listen('event1', () => {
         i++;
-        pool.unListen('event1')
+        void pool.unListen('event1')
             .then(() => {
               connection.query(`NOTIFY event1`).catch(done);
               setTimeout(() => {
@@ -76,14 +76,14 @@ describe("notification", function () {
     });
 
     it("should unlisten all channels after release pooled connection", function (done) {
-      pool.acquire()
+      void pool.acquire()
           .then(async conn => {
             let i = 0;
             await conn.listen('event1', () => {
               i++;
-              conn.close();
+              void conn.close();
               setTimeout(() => {
-                connection.query(`NOTIFY event1`).catch();
+                void connection.query(`NOTIFY event1`).catch();
                 setTimeout(() => {
                   if (i === 1) done(); else done(new Error('Failed'));
                 }, 500);

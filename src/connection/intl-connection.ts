@@ -1,4 +1,3 @@
-// import _debug from 'debug'; // it is vulnerable
 import { TaskQueue } from 'power-tasks';
 import { coerceToBoolean } from 'putil-varhelpers';
 import { ConnectionState } from '../constants.js';
@@ -20,7 +19,6 @@ import { wrapRowDescription } from '../util/wrap-row-description.js';
 import { Connection } from './connection.js';
 
 const DataFormat = Protocol.DataFormat;
-const debug = (() => void 0) as any;// _debug("pgc:intlcon");
 
 export class IntlConnection extends SafeEventEmitter {
   protected _refCount = 0;
@@ -71,7 +69,6 @@ export class IntlConnection extends SafeEventEmitter {
 
   async connect(): Promise<void> {
     if (this.socket.state === ConnectionState.READY) return;
-    debug("connecting");
     await new Promise<void>((resolve, reject) => {
       const handleConnectError = (err) => reject(err);
       this.socket.once("ready", () => {
@@ -85,20 +82,17 @@ export class IntlConnection extends SafeEventEmitter {
     if (this.config.schema) startupCommand += "SET search_path = " + escapeLiteral(this.config.schema) + ";";
     if (this.config.timezone) startupCommand += "SET timezone TO " + escapeLiteral(this.config.timezone) + ";";
     if (startupCommand) await this.execute(startupCommand, {autoCommit: true});
-    debug("[%s] ready", this.processID);
     this.emit("ready");
   }
 
   async close(): Promise<void> {
     if (this.state === ConnectionState.CLOSED) return;
-    debug("[%s] closing", this.processID);
     this.statementQueue.clearQueue();
     return new Promise((resolve) => {
       if (this.socket.state === ConnectionState.CLOSED) return;
       this.socket.once("close", resolve);
       this.socket.sendTerminateMessage(() => {
         this.socket.close();
-        debug("[%s] closed", this.processID);
         this.emit("close");
       });
     });
@@ -126,21 +120,21 @@ export class IntlConnection extends SafeEventEmitter {
           }
           if (beginFirst) await this._execute("BEGIN");
 
-          const onErrorRollback =
+          const rollbackOnError =
               !transactionCommand &&
-              (options?.onErrorRollback != null
-                  ? options.onErrorRollback
-                  : coerceToBoolean(this.config.onErrorRollback, true));
+              (options?.rollbackOnError != null
+                  ? options.rollbackOnError
+                  : coerceToBoolean(this.config.rollbackOnError, true));
 
-          if (this.inTransaction && onErrorRollback) await this._execute("SAVEPOINT " + this._onErrorSavePoint);
+          if (this.inTransaction && rollbackOnError) await this._execute("SAVEPOINT " + this._onErrorSavePoint);
           try {
             const result = await this._execute(sql, options, cb);
             if (commitLast) await this._execute("COMMIT");
-            else if (this.inTransaction && onErrorRollback)
+            else if (this.inTransaction && rollbackOnError)
               await this._execute("RELEASE " + this._onErrorSavePoint + ";");
             return result;
           } catch (e: any) {
-            if (this.inTransaction && onErrorRollback) await this._execute("ROLLBACK TO " + this._onErrorSavePoint + ";");
+            if (this.inTransaction && rollbackOnError) await this._execute("ROLLBACK TO " + this._onErrorSavePoint + ";");
             throw e;
           }
         })
@@ -176,12 +170,10 @@ export class IntlConnection extends SafeEventEmitter {
 
   ref(): void {
     this._refCount++;
-    debug("[%s] ref %d", this.processID, this._refCount);
   }
 
   unref(): boolean {
     this._refCount--;
-    debug("[%s] unref %d", this.processID, this._refCount);
     return !this._refCount;
   }
 
@@ -197,7 +189,6 @@ export class IntlConnection extends SafeEventEmitter {
   ): Promise<ScriptResult> {
     this.ref();
     try {
-      debug("[%s] execute | %s", this.processID, sql);
       const startTime = Date.now();
       const result: ScriptResult = {
         totalCommands: 0,
@@ -261,7 +252,6 @@ export class IntlConnection extends SafeEventEmitter {
 
   protected _onError(err: Error): void {
     if (this.socket.state !== ConnectionState.READY) return;
-    debug("[%s] error | %s", this.processID, err.message);
     this.emit("error", err);
   }
 }

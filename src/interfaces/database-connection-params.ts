@@ -1,5 +1,6 @@
 import type { PoolConfiguration as LPoolConfiguration } from "lightning-pool";
 import type tls from 'tls';
+import type { DebugLogger } from '../types.js';
 
 export interface DatabaseConnectionParams {
   host?: string;
@@ -23,7 +24,8 @@ export interface DatabaseConnectionParams {
    * When off (the default), a statement in a transaction block that generates an error aborts the entire transaction
    * @default true
    */
-  onErrorRollback?: boolean;
+  rollbackOnError?: boolean;
+  debugLogger?: DebugLogger;
 }
 
 export interface SocketOptions {

@@ -273,7 +273,7 @@
 
 ### Changes
 
-* + Added onErrorRollback functionality for better transaction management ([`f92b65b`](https://github.com/panates/postgresql-client/commit/f92b65b0422e6861edf728dcbd1504be9bd01e34))
+* + Added rollbackOnError functionality for better transaction management ([`f92b65b`](https://github.com/panates/postgresql-client/commit/f92b65b0422e6861edf728dcbd1504be9bd01e34))
 
 # v1.18.4
 [2021-09-14]

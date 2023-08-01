@@ -972,7 +972,7 @@ await pool.unListenAll();
 | schema          | `string`              |           | Default schema to be set on start. (Equivalent to SET search_path = ....) |
 | connectTimeoutMs| `number`              | 30000     | Connection timeout value in millis | 
 | autoCommit      | `boolean`             | false     | Specifies weather execute query in auto-commit mode | 
-| onErrorRollback | `boolean`             | true     | When on, if a statement in a transaction block generates an error, the error is ignored and the transaction continues. When off (the default), a statement in a transaction block that generates an error aborts the entire transaction | 
+| rollbackOnError | `boolean`             | true     | When on, if a statement in a transaction block generates an error, the error is ignored and the transaction continues. When off (the default), a statement in a transaction block that generates an error aborts the entire transaction | 
 
 ### 2.2.2. PoolConfiguration
 
@@ -1007,7 +1007,7 @@ Extends [DataMappingOptions](#223-datamappingoptions)
 | autoCommit   | `boolean`   | false   | Specifies weather execute query in auto-commit mode |
 | objectRows   | `boolean`   | false   | Specifies if rows will be fetched as <FieldName, Value> pair objects or array of values |
 | typeMap      | `DataTypeMap`| *GlobalTypeMap* |Data type map instance |
-| onErrorRollback | `boolean`   | true   | When on, if a statement in a transaction block generates an error, the error is ignored and the transaction continues. When off (the default), a statement in a transaction block that generates an error aborts the entire transaction |
+| rollbackOnError | `boolean`   | true   | When on, if a statement in a transaction block generates an error, the error is ignored and the transaction continues. When off (the default), a statement in a transaction block that generates an error aborts the entire transaction |
 
 ### 2.2.5. ScriptResult
 
@@ -1063,7 +1063,7 @@ Extends [DataMappingOptions](#223-datamappingoptions)
 | columnFormat | `DataFormat` `DataFormat[]`| 1 (binary)  | Specifies transfer format (binary or text) for each column |
 | fetchCount   | `number`     | 100     | Specifies how many rows will be fetched. For Cursor, this value specifies how many rows will be fetched in a batch |
 | fetchAsString| `OID[]`      |         | Specifies which data types will be fetched as string |
-| onErrorRollback | `boolean`   | true   | When on, if a statement in a transaction block generates an error, the error is ignored and the transaction continues. When off (the default), a statement in a transaction block that generates an error aborts the entire transaction |
+| rollbackOnError | `boolean`   | true   | When on, if a statement in a transaction block generates an error, the error is ignored and the transaction continues. When off (the default), a statement in a transaction block that generates an error aborts the entire transaction |
 
 ### 2.2.10. QueryResult
 

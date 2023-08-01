@@ -1,4 +1,3 @@
-// import _debug from 'debug'; // it is vulnerable
 import { DEFAULT_COLUMN_FORMAT } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import { QueryOptions } from '../interfaces/query-options.js';
@@ -7,8 +6,6 @@ import { Maybe } from '../types.js';
 import { Connection } from './connection.js';
 import { getIntlConnection } from './intl-connection.js';
 import type { PreparedStatement } from './prepared-statement.js';
-
-const debug = (() => void 0) as any;// _debug("pgc:portal");
 
 export interface PortalExecuteResult {
   code: Protocol.BackendMessageCode;
@@ -25,7 +22,6 @@ export class Portal {
   constructor(statement: PreparedStatement, name: string) {
     this._statement = statement;
     this._name = name;
-    debug("[%s] constructor", this.name);
   }
 
   get connection(): Connection {
@@ -37,7 +33,6 @@ export class Portal {
   }
 
   async bind(params: Maybe<any[]>, queryOptions: QueryOptions): Promise<void> {
-    debug("[%s] bind", this.name);
     const intoCon = getIntlConnection(this.connection);
     intoCon.ref();
     try {
@@ -69,7 +64,6 @@ export class Portal {
   }
 
   async retrieveFields(): Promise<Protocol.RowDescription[]> {
-    debug("[%s] retrieveFields", this.name);
     const intoCon = getIntlConnection(this.connection);
     intoCon.ref();
     try {
@@ -98,7 +92,6 @@ export class Portal {
   }
 
   async execute(fetchCount?: number): Promise<PortalExecuteResult> {
-    debug("[%s] execute", this.name);
     const intoCon = getIntlConnection(this.connection);
     intoCon.ref();
     try {
@@ -150,7 +143,6 @@ export class Portal {
   }
 
   async close(): Promise<void> {
-    debug("[%s] close", this.name);
     const intoCon = getIntlConnection(this.connection);
     intoCon.ref();
     try {
