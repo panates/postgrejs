@@ -18,7 +18,7 @@ export const Int4Type: DataType = {
   parseText: fastParseInt,
 
   isType(v: any): boolean {
-    return typeof v === "number" && Number.isInteger(v);
+    return typeof v === "number" && Number.isInteger(v) && v <= Number.MAX_SAFE_INTEGER;
   },
 };
 

@@ -1,4 +1,4 @@
-import { DataType, DataTypeOIDs } from "../definitions.js";
+import { DataType, DataTypeNames, DataTypeOIDs } from "../definitions.js";
 import { SmartBuffer } from "../protocol/SmartBuffer.js";
 import { fastParseInt } from "../util/fast-parseint.js";
 
@@ -18,7 +18,7 @@ export const OidType: DataType = {
   parseText: fastParseInt,
 
   isType(v: any): boolean {
-    return typeof v === "number" && Number.isInteger(v) && v >= 0;
+    return typeof v === "number" && Number.isInteger(v) && !!DataTypeNames[v]
   },
 };
 

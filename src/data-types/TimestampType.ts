@@ -21,13 +21,13 @@ export const TimestampType: DataType = {
     let d = new Date((lo + hi * timeMul) / 1000 + timeShift);
     if (fetchAsString || !options.utcDates)
       d = new Date(
-        d.getUTCFullYear(),
-        d.getUTCMonth(),
-        d.getUTCDate(),
-        d.getUTCHours(),
-        d.getUTCMinutes(),
-        d.getUTCSeconds(),
-        d.getUTCMilliseconds()
+          d.getUTCFullYear(),
+          d.getUTCMonth(),
+          d.getUTCDate(),
+          d.getUTCHours(),
+          d.getUTCMinutes(),
+          d.getUTCSeconds(),
+          d.getUTCMilliseconds()
       );
     return fetchAsString ? dateToTimestampString(d) : d;
   },
@@ -60,8 +60,10 @@ export const TimestampType: DataType = {
   },
 
   isType(v: any): boolean {
-    return v instanceof Date;
-  },
+    return v instanceof Date &&
+        !(v.getFullYear() === 1970 && v.getMonth() === 0 && v.getDate() === 1) &&
+        !(v.getHours() === 0 && v.getMinutes() === 0 && v.getSeconds() === 0 && v.getMilliseconds() === 0)
+  }
 };
 
 function padZero(v: number): string {
@@ -70,17 +72,17 @@ function padZero(v: number): string {
 
 function dateToTimestampString(d: Date): string {
   return (
-    d.getFullYear() +
-    "-" +
-    padZero(d.getMonth() + 1) +
-    "-" +
-    padZero(d.getDate()) +
-    " " +
-    padZero(d.getHours()) +
-    ":" +
-    padZero(d.getMinutes()) +
-    ":" +
-    padZero(d.getSeconds())
+      d.getFullYear() +
+      "-" +
+      padZero(d.getMonth() + 1) +
+      "-" +
+      padZero(d.getDate()) +
+      " " +
+      padZero(d.getHours()) +
+      ":" +
+      padZero(d.getMinutes()) +
+      ":" +
+      padZero(d.getSeconds())
   );
 }
 

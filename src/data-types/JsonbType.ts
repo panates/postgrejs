@@ -28,7 +28,7 @@ export const JsonbType: DataType = {
   },
 
   isType(v: any): boolean {
-    return v && typeof v === "object";
+    return v && typeof v === 'object';
   },
 };
 
