@@ -1,3 +1,11 @@
+# v2.7.0
+[2023-08-01]
+
+### Changes
+
+* Restructure files according to current Panates standards ([`58875b3`](https://github.com/panates/postgresql-client/commit/58875b364c58b8b5e5ddac55373dd70ad5639bd0))
+* Renames DatabaseConnectionParams.onErrorRollback to rollbackOnError ([`dc50fb1`](https://github.com/panates/postgresql-client/commit/dc50fb1ee3b9975f188af60b7f3fed5f8d089fcc))
+
 # v2.6.1
 [2023-08-01]
 
@@ -273,7 +281,7 @@
 
 ### Changes
 
-* + Added rollbackOnError functionality for better transaction management ([`f92b65b`](https://github.com/panates/postgresql-client/commit/f92b65b0422e6861edf728dcbd1504be9bd01e34))
+* + Added onErrorRollback functionality for better transaction management ([`f92b65b`](https://github.com/panates/postgresql-client/commit/f92b65b0422e6861edf728dcbd1504be9bd01e34))
 
 # v1.18.4
 [2021-09-14]
