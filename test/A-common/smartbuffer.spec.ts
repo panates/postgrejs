@@ -1,4 +1,4 @@
-import { SmartBuffer } from "../../src/protocol/SmartBuffer.js";
+import { SmartBuffer } from '../../src/protocol/smart-buffer.js';
 
 describe("SmartBuffer", function () {
   it("should automatically grow", function () {

@@ -1,11 +1,11 @@
-import { Maybe } from "../definitions.js";
+import type { Maybe } from '../types.js';
 
 export function parsePostgresArray(
-  s: string,
-  opts?: {
-    transform?: (v: string) => any;
-    separator?: string;
-  }
+    s: string,
+    opts?: {
+      transform?: (v: string) => any;
+      separator?: string;
+    }
 ): Maybe<any[]> {
   if (!s) return;
   const sep = (opts?.separator || ",").substring(0, 1);

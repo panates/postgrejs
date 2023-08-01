@@ -37,11 +37,11 @@ describe("execute() (Simple Query)", function () {
     expect(result).toBeDefined();
     expect(result.totalCommands).toStrictEqual(1);
     expect(result.results[0].fields).toBeDefined();
-    expect(result.results[0].fields.length).toStrictEqual(2);
-    expect(result.results[0].fields[0].fieldName).toStrictEqual("one");
-    expect(result.results[0].fields[0].fixedSize).toStrictEqual(4);
-    expect(result.results[0].fields[1].fieldName).toStrictEqual("two");
-    expect(result.results[0].fields[1].fixedSize).not.toBeDefined();
+    expect(result.results[0].fields?.length).toStrictEqual(2);
+    expect(result.results[0].fields?.[0].fieldName).toStrictEqual("one");
+    expect(result.results[0].fields?.[0].fixedSize).toStrictEqual(4);
+    expect(result.results[0].fields?.[1].fieldName).toStrictEqual("two");
+    expect(result.results[0].fields?.[1].fixedSize).not.toBeDefined();
   });
 
   it("should return rows", async function () {
@@ -49,8 +49,8 @@ describe("execute() (Simple Query)", function () {
     expect(result).toBeDefined();
     expect(result.results[0].rows).toBeDefined();
     expect(result.results[0].rowType).toStrictEqual("array");
-    expect(Array.isArray(result.results[0].rows[0])).toStrictEqual(true);
-    expect(result.results[0].rows[0]).toStrictEqual([1, "two"]);
+    expect(Array.isArray(result.results[0].rows?.[0])).toStrictEqual(true);
+    expect(result.results[0].rows?.[0]).toStrictEqual([1, "two"]);
   });
 
   it("should return object rows if required", async function () {
@@ -58,12 +58,12 @@ describe("execute() (Simple Query)", function () {
     expect(result).toBeDefined();
     expect(result.results[0].rows).toBeDefined();
     expect(result.results[0].rowType).toStrictEqual("object");
-    expect(Array.isArray(result.results[0].rows[0])).toStrictEqual(false);
-    expect(result.results[0].rows[0]).toStrictEqual({one: 1, two: "two"});
+    expect(Array.isArray(result.results[0].rows?.[0])).toStrictEqual(false);
+    expect(result.results[0].rows?.[0]).toStrictEqual({one: 1, two: "two"});
   });
 
   it("should use a queue and execute one by one", async function () {
-    const promises = [];
+    const promises: Promise<any>[] = [];
     promises.push(connection.execute(`select 1`));
     promises.push(connection.execute(`select 2`));
     promises.push(connection.execute(`select 3`));
@@ -83,7 +83,7 @@ describe("execute() (Simple Query)", function () {
     const result = await connection.execute(`select * from test.data_types`, {objectRows: true});
     expect(result).toBeDefined();
     expect(result.results[0].rows).toBeDefined();
-    const row = result.results[0].rows[0];
+    const row = result.results[0].rows?.[0];
     expect(row).toBeDefined();
     expect(row.id).toStrictEqual(1);
     expect(row.f_int2).toStrictEqual(1);
@@ -112,6 +112,6 @@ describe("execute() (Simple Query)", function () {
     const result = await connection.execute(`select * from countries`, {objectRows: true});
     expect(result).toBeDefined();
     expect(result.results[0].rows).toBeDefined();
-    expect(result.results[0].rows.length).toStrictEqual(4);
+    expect(result.results[0].rows?.length).toStrictEqual(4);
   });
 });

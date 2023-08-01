@@ -18,19 +18,19 @@ describe("Cursor support", function () {
     const result = await connection.query(`select * from customers order by id`, {objectRows: false, cursor: true});
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
-    const row = await cursor.next();
+    const row = await cursor?.next();
     expect(row[0]).toStrictEqual(1);
-    await cursor.close();
+    await cursor?.close();
   });
 
   it("should next() fetch next row as object", async function () {
     const result = await connection.query(`select * from customers order by id`, {objectRows: true, cursor: true});
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
-    const row = await cursor.next();
+    const row = await cursor?.next();
     expect(row).toBeDefined();
     expect(row.id).toStrictEqual(1);
-    await cursor.close();
+    await cursor?.close();
   });
 
   it("should fetch() fetch multiple rows", async function () {
@@ -41,10 +41,10 @@ describe("Cursor support", function () {
     });
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
-    const rows = await cursor.fetch(10);
-    expect(rows.length).toStrictEqual(10);
-    expect(rows[0][0]).toStrictEqual(1);
-    await cursor.close();
+    const rows = await cursor?.fetch(10);
+    expect(rows?.length).toStrictEqual(10);
+    expect(rows?.[0][0]).toStrictEqual(1);
+    await cursor?.close();
   });
 
   it("should automatically close cursor after fetching all rows", async function () {
@@ -52,12 +52,12 @@ describe("Cursor support", function () {
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     let closed = false;
-    cursor.on("close", () => (closed = true));
+    cursor?.on("close", () => (closed = true));
     // eslint-disable-next-line no-empty
-    while (await cursor.next()) {
+    while (await cursor?.next()) {
     }
     expect(closed).toStrictEqual(true);
-    expect(cursor.isClosed).toStrictEqual(true);
+    expect(cursor?.isClosed).toStrictEqual(true);
   });
 
   it('should emit "close" event', async function () {
@@ -65,11 +65,11 @@ describe("Cursor support", function () {
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     let closed = false;
-    cursor.on("close", () => (closed = true));
-    await cursor.next();
-    await cursor.close();
+    cursor?.on("close", () => (closed = true));
+    await cursor?.next();
+    await cursor?.close();
     expect(closed).toStrictEqual(true);
-    expect(cursor.isClosed).toStrictEqual(true);
+    expect(cursor?.isClosed).toStrictEqual(true);
   });
 
   it('should emit "fetch" event', async function () {
@@ -77,9 +77,9 @@ describe("Cursor support", function () {
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     let count = 0;
-    cursor.on("fetch", (rows) => (count += rows.length));
-    await cursor.next();
-    await cursor.close();
+    cursor?.on("fetch", (rows) => (count += rows.length));
+    await cursor?.next();
+    await cursor?.close();
     expect(count).toStrictEqual(10);
   });
 });

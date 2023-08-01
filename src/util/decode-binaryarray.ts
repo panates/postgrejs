@@ -1,10 +1,11 @@
-import { DataMappingOptions, DecodeBinaryFunction, Nullable } from "../definitions.js";
-import { BufferReader } from "../protocol/BufferReader.js";
+import { DataMappingOptions } from '../interfaces/data-mapping-options.js';
+import { BufferReader } from '../protocol/buffer-reader.js';
+import type { DecodeBinaryFunction, Nullable } from '../types.js';
 
 export function decodeBinaryArray(
-  buf: Buffer,
-  decoder: DecodeBinaryFunction,
-  options: DataMappingOptions
+    buf: Buffer,
+    decoder: DecodeBinaryFunction,
+    options: DataMappingOptions
 ): Nullable<any[]> {
   if (!buf.length) return null;
   const io = new BufferReader(buf);

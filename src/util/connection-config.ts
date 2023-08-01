@@ -1,9 +1,10 @@
-import merge from "putil-merge";
-import url from "url";
-import { ConnectionConfiguration } from "../definitions.js";
-import { configFromEnv } from "./config-from-env.js";
+import merge from 'putil-merge';
+import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
+import { configFromEnv } from './config-from-env.js';
 
-export function getConnectionConfig(config?: ConnectionConfiguration | string): ConnectionConfiguration {
+export function getConnectionConfig(
+    config?: ConnectionConfiguration | string
+): ConnectionConfiguration {
   const cfg = configFromEnv();
   if (typeof config === "string") {
     merge(cfg, parseConnectionString(config));
@@ -25,7 +26,7 @@ export function parseConnectionString(str: string): ConnectionConfiguration {
 
   if (!str.includes("://")) str = "postgres://" + str;
 
-  const parsed = url.parse(str, true);
+  const parsed = new URL(str);
   const getFirst = (v: string | string[] | null) => {
     return typeof v === "string" ? v : Array.isArray(v) ? v[0] : "";
   };
@@ -37,23 +38,28 @@ export function parseConnectionString(str: string): ConnectionConfiguration {
   if (parsed.protocol === "socket:" || parsed.protocol === "unix:") {
     if (!cfg.host.startsWith("/")) cfg.host = "/" + cfg.host;
     cfg.host += decodeURI(parsed.pathname || "");
-    if (parsed.query.db) cfg.database = decodeURI(getFirst(parsed.query.db));
+    if (parsed.searchParams.get('db'))
+      cfg.database = decodeURI(getFirst(parsed.searchParams.get('db')));
   } else if (parsed.protocol === "pg:" || parsed.protocol === "postgres:") {
     if (parsed.pathname) cfg.database = decodeURI(parsed.pathname.substring(1));
   }
 
-  if (parsed.query.host) cfg.host = decodeURI(getFirst(parsed.query.host));
+  if (parsed.searchParams.get('host'))
+    cfg.host = decodeURI(getFirst(parsed.searchParams.get('host')));
 
-  if (parsed.query.db) cfg.database = decodeURI(getFirst(parsed.query.db));
+  if (parsed.searchParams.get('db'))
+    cfg.database = decodeURI(getFirst(parsed.searchParams.get('db')));
 
-  if (parsed.query.schema) cfg.schema = decodeURI(getFirst(parsed.query.schema));
+  if (parsed.searchParams.get('schema'))
+    cfg.schema = decodeURI(getFirst(parsed.searchParams.get('schema')));
 
-  if (parsed.query.application_name) cfg.applicationName = decodeURI(getFirst(parsed.query.application_name));
+  if (parsed.searchParams.get('application_name'))
+    cfg.applicationName = decodeURI(getFirst(parsed.searchParams.get('application_name')));
 
-  if (parsed.auth) {
-    const a = parsed.auth.split(":");
-    if (a[0]) cfg.user = a[0];
-    if (a[1]) cfg.password = a[1];
-  }
+  if (parsed.username)
+    cfg.user = parsed.username;
+  if (parsed.password)
+    cfg.password = parsed.password;
+
   return cfg;
 }

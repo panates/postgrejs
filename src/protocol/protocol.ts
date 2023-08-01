@@ -1,4 +1,4 @@
-import { Nullable } from "../definitions.js";
+import { Nullable } from "../types.js";
 
 export namespace Protocol {
   export const VERSION_MAJOR = 3;
@@ -137,7 +137,8 @@ export namespace Protocol {
     columnFormats?: DataFormat[];
   }
 
-  export interface DataRow {}
+  export interface DataRow {
+  }
 
   export interface DataRowMessage {
     columnCount: number;

@@ -1,21 +1,23 @@
-import { DataMappingOptions, DataTypeOIDs, EncodeBinaryFunction, OID } from "../definitions.js";
-import { SmartBuffer } from "../protocol/SmartBuffer.js";
-import { arrayCalculateDim } from "./array-calculatedim.js";
+import { DataTypeOIDs } from '../constants.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
+import type { SmartBuffer } from '../protocol/smart-buffer.js';
+import type { EncodeBinaryFunction, OID } from '../types.js';
+import { arrayCalculateDim } from './array-calculatedim.js';
 
 export function encodeBinaryArray(
-  io: SmartBuffer,
-  value: any[],
-  itemOid: OID,
-  options: DataMappingOptions,
-  encode: EncodeBinaryFunction
+    io: SmartBuffer,
+    value: any[],
+    itemOid: OID,
+    options: DataMappingOptions,
+    encode: EncodeBinaryFunction
 ): void {
   itemOid = itemOid || DataTypeOIDs.varchar;
   const dim = arrayCalculateDim(value);
   const ndims = dim.length;
   const zeroOffset = io.offset;
   io.writeInt32BE(ndims) // Number of dimensions
-    .writeInt32BE(0) // reserved for has-null flag
-    .writeInt32BE(itemOid);
+      .writeInt32BE(0) // reserved for has-null flag
+      .writeInt32BE(itemOid);
 
   for (let d = 0; d < ndims; d++) {
     io.writeInt32BE(dim[d]); // Number of items in dimension

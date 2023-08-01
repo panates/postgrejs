@@ -34,18 +34,18 @@ export async function testParse(
   expect(resp.rows).toBeDefined();
 
   if (reg.elementsOID) {
-    expect(resp.fields[0].dataTypeId).toStrictEqual(reg.oid);
-    expect(resp.fields[0].jsType).toStrictEqual(reg.jsType);
+    expect(resp.fields?.[0].dataTypeId).toStrictEqual(reg.oid);
+    expect(resp.fields?.[0].jsType).toStrictEqual(reg.jsType);
     if (reg.oid !== DataTypeOIDs.char)
-      expect(resp.fields[0].elementDataTypeId).toStrictEqual(reg.elementsOID);
-    expect(resp.rows[0][0]).toStrictEqual(output);
+      expect(resp.fields?.[0].elementDataTypeId).toStrictEqual(reg.elementsOID);
+    expect(resp.rows?.[0][0]).toStrictEqual(output);
   } else
       // eslint-disable-next-line prefer-const
     for (let [i, v] of output.entries()) {
-      expect(resp.fields[i].jsType).toStrictEqual(reg.jsType);
+      expect(resp.fields?.[i].jsType).toStrictEqual(reg.jsType);
       if (reg.oid !== DataTypeOIDs.char)
-        expect(resp.fields[i].dataTypeId).toStrictEqual(reg.oid);
-      let n = resp.rows[0][i];
+        expect(resp.fields?.[i].dataTypeId).toStrictEqual(reg.oid);
+      let n = resp.rows?.[0][i];
       if (typeof n === "bigint") n = "" + n;
       if (typeof v === "bigint") v = "" + v;
       expect(n).toStrictEqual(v);
@@ -76,17 +76,17 @@ export async function testEncode(
   expect(resp.rows).toBeDefined();
   output = output === undefined ? input : output;
   if (reg.elementsOID) {
-    expect(resp.fields[0].dataTypeId).toStrictEqual(reg.oid);
-    expect(resp.fields[0].jsType).toStrictEqual(reg.jsType);
+    expect(resp.fields?.[0].dataTypeId).toStrictEqual(reg.oid);
+    expect(resp.fields?.[0].jsType).toStrictEqual(reg.jsType);
     if (reg.oid !== DataTypeOIDs.char)
-      expect(resp.fields[0].elementDataTypeId).toStrictEqual(reg.elementsOID);
-    expect(resp.rows[0][0]).toStrictEqual(output);
+      expect(resp.fields?.[0].elementDataTypeId).toStrictEqual(reg.elementsOID);
+    expect(resp.rows?.[0][0]).toStrictEqual(output);
   } else
     for (const [i, v] of output.entries()) {
-      expect(resp.fields[i].jsType).toStrictEqual(reg.jsType);
+      expect(resp.fields?.[i].jsType).toStrictEqual(reg.jsType);
       if (reg.oid !== DataTypeOIDs.char)
-        expect(resp.fields[i].dataTypeId).toStrictEqual(reg.oid);
-      expect(resp.rows[0][i]).toStrictEqual(v);
+        expect(resp.fields?.[i].dataTypeId).toStrictEqual(reg.oid);
+      expect(resp.rows?.[0][i]).toStrictEqual(v);
     }
   return resp;
 }

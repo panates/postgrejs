@@ -19,6 +19,10 @@
     "experimentalDecorators": false,
     "emitDecoratorMetadata": false,
     "strict": true,
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "baseUrl": ".",
+    "paths": {
+      "postgresql-client": ["./src"]
+    }
   }
 }

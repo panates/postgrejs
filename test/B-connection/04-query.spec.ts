@@ -1,3 +1,4 @@
+import assert from 'assert';
 import { Connection, Cursor } from "postgresql-client";
 import { createTestSchema } from "../_support/create-db.js";
 
@@ -25,8 +26,10 @@ describe("query() (Extended Query)", function () {
     expect(result.rows).toBeDefined();
     expect(result.executeTime).toBeDefined();
     expect(result.command).toStrictEqual("SELECT");
+    assert(result.fields);
     expect(result.fields[0].fieldName,).toStrictEqual("code");
     expect(result.fields[1].fieldName).toStrictEqual("name");
+    assert(result.rows);
     expect(result.rows[0][0]).toStrictEqual("CA");
     expect(result.rows[0][1]).toStrictEqual("Canada");
   });
@@ -35,8 +38,10 @@ describe("query() (Extended Query)", function () {
     const result = await connection.query(`select * from countries order by code`, {objectRows: true});
     expect(result).toBeDefined();
     expect(result.command).toStrictEqual("SELECT");
+    assert(result.fields);
     expect(result.fields[0].fieldName).toStrictEqual("code");
     expect(result.fields[1].fieldName).toStrictEqual("name");
+    assert(result.rows);
     expect(result.rows[0].code).toStrictEqual("CA");
     expect(result.rows[0].name).toStrictEqual("Canada");
   });
@@ -46,6 +51,7 @@ describe("query() (Extended Query)", function () {
     expect(result).toBeDefined();
     expect(result.command).toStrictEqual("SELECT");
     expect(result.rowType).toStrictEqual("array");
+    assert(result.rows);
     expect(result.rows.length).toStrictEqual(10);
   });
 
@@ -61,6 +67,7 @@ describe("query() (Extended Query)", function () {
     expect(result).toBeDefined();
     expect(result.command).toStrictEqual("SELECT");
     expect(result.rowType).toStrictEqual("object");
+    assert(result.rows);
     expect(result.rows.length).toStrictEqual(1);
     expect(result.rows[0].id).toStrictEqual(1);
     expect(result.rows[0].given_name).toStrictEqual("Wynne");
@@ -77,6 +84,7 @@ describe("query() (Extended Query)", function () {
       objectRows: false,
     });
     expect(result).toBeDefined();
+    assert(result.rows);
     expect(result.rows.length).toStrictEqual(1);
     expect(result.rows[0][0]).toStrictEqual(true);
   });
@@ -87,6 +95,7 @@ describe("query() (Extended Query)", function () {
       objectRows: false,
     });
     expect(result).toBeDefined();
+    assert(result.rows);
     expect(result.rows.length).toStrictEqual(1);
     expect(result.rows[0][0]).toStrictEqual("87d48838-02b3-4e26-8fec-bcc8c00e3772");
   });
@@ -99,6 +108,7 @@ describe("query() (Extended Query)", function () {
     expect(result).toBeDefined();
     expect(result.command).toStrictEqual("SELECT");
     expect(result.rowType).toStrictEqual("object");
+    assert(result.rows);
     expect(result.rows.length).toStrictEqual(3);
     expect(result.rows[0].id).toStrictEqual(1);
     expect(result.rows[1].id).toStrictEqual(2);
@@ -112,6 +122,7 @@ describe("query() (Extended Query)", function () {
     expect(result).toBeDefined();
     expect(result.command).toStrictEqual("SELECT");
     expect(result.rowType).toStrictEqual("object");
+    assert(result.rows);
     for (const row of result.rows) {
       expect(arr).toContain(row.country_code);
     }
@@ -120,6 +131,7 @@ describe("query() (Extended Query)", function () {
   it("should wrap undefined parameters to null ", async function () {
     const result = await connection.query(`select $1`, {params: [null], objectRows: false});
     expect(result).toBeDefined();
+    assert(result.rows);
     expect(result.rows.length).toStrictEqual(1);
     expect(result.rows[0][0]).toStrictEqual(null);
   });
@@ -135,6 +147,7 @@ describe("query() (Extended Query)", function () {
     const result = await connection.query(`select * from data_types`, {objectRows: true});
     expect(result).toBeDefined();
     expect(result.rows).toBeDefined();
+    assert(result.rows);
     const row = result.rows[0];
     expect(row).toBeDefined();
     expect(row.id).toStrictEqual(1);

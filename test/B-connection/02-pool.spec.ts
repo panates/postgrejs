@@ -37,7 +37,7 @@ describe("Pool", function () {
     const result = await statement.execute({params: [1234]});
     expect(pool.acquiredConnections).toStrictEqual(1);
     expect(result).toBeDefined();
-    expect(result.rows[0][0]).toStrictEqual(1234);
+    expect(result.rows?.[0][0]).toStrictEqual(1234);
     await new Promise((resolve, reject) => {
       pool.once("release", resolve);
       statement.close().catch(reject);
@@ -52,7 +52,7 @@ describe("Pool", function () {
     expect(result.fields).toBeDefined();
     expect(result.rows).toBeDefined();
     expect(result.command).toStrictEqual("SELECT");
-    expect(result.rows[0][0]).toStrictEqual(1234);
+    expect(result.rows?.[0][0]).toStrictEqual(1234);
   });
 
   it("should close all connections and shutdown pool", async function () {

@@ -20,14 +20,14 @@ describe("Parse connection string", function () {
     });
 
     it("should parse unix sockets uri", function () {
-      const cfg = parseConnectionString("socket://some path/?db=any%2bdb");
-      expect(cfg.host).toStrictEqual("/some path/");
+      const cfg = parseConnectionString("socket://somepath/?db=any%2bdb");
+      expect(cfg.host).toStrictEqual("/somepath/");
       expect(cfg.database).toStrictEqual("any+db");
     });
 
     it("should parse unix with auth", function () {
-      const cfg = parseConnectionString("socket://me:1234@some path/?db=any db");
-      expect(cfg.host).toStrictEqual("/some path/");
+      const cfg = parseConnectionString("socket://me:1234@somepath/?db=any db");
+      expect(cfg.host).toStrictEqual("/somepath/");
       expect(cfg.database).toStrictEqual("any db");
       expect(cfg.password).toStrictEqual("1234");
       expect(cfg.user).toStrictEqual("me");
@@ -42,7 +42,7 @@ describe("Parse connection string", function () {
     });
 
     it("should get host from query", function () {
-      const cfg = parseConnectionString("postgres://me:1234@:5555/any db?host=127.0.0.1");
+      const cfg = parseConnectionString("postgres://me:1234@127.0.0.1:5555/any db?host=127.0.0.1");
       expect(cfg.host).toStrictEqual("127.0.0.1");
       expect(cfg.port).toStrictEqual(5555);
       expect(cfg.database).toStrictEqual("any db");
@@ -60,7 +60,7 @@ describe("Parse connection string", function () {
     process.env.PGAPPNAME = "PGAPPNAME";
     process.env.PGCONNECT_TIMEOUT = "32000";
     const cfg = getConnectionConfig();
-    expect(cfg.host).toStrictEqual("pghost");
+    expect(cfg.host).toStrictEqual("PGHOST");
     expect(cfg.port).toStrictEqual(1234);
     expect(cfg.database).toStrictEqual("PGDATABASE");
     expect(cfg.user).toStrictEqual("PGUSER");

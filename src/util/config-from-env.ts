@@ -1,5 +1,5 @@
 import { toIntDef } from "putil-varhelpers";
-import { DatabaseConnectionParams } from "../definitions.js";
+import type { DatabaseConnectionParams } from '../interfaces/database-connection-params.js';
 
 export function configFromEnv(): DatabaseConnectionParams {
   const env = process.env;

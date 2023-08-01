@@ -1,12 +1,12 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "./tsconfig-base.json",
   "compilerOptions": {
     "sourceMap": false,
     "declaration": true,
     "noEmit": false,
     "module": "ESNext",
     "outDir": "build/esm",
-    "declarationDir": "build/typings"
+    "declarationDir": "build/typings",
   },
   "include": ["src"]
 }
