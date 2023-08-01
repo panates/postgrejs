@@ -110,7 +110,7 @@ export class IntlConnection extends SafeEventEmitter {
     this.assertConnected();
     return this.statementQueue
         .enqueue(async (): Promise<ScriptResult> => {
-          const transactionCommand = sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i);
+          const transactionCommand = sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i);
           let beginFirst = false;
           let commitLast = false;
           if (!transactionCommand) {
