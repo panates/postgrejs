@@ -1,3 +1,12 @@
+# v2.6.0
+[2023-08-01]
+
+### Changes
+
+* Not DataTypeMap.determine method lookup for data-types in reverse order. So last registered data-type returns first. ([`759ff85`](https://github.com/panates/postgresql-client/commit/759ff85ceaf0c5d119656b6b61d6450420c19fbc))
+* Fixed typing for new eslint rules ([`95f3914`](https://github.com/panates/postgresql-client/commit/95f3914f61d4883b68d4b131f6200b08fc8e2478))
+* Fixed typing for new eslint rules ([`f6e0d11`](https://github.com/panates/postgresql-client/commit/f6e0d11041616ee243a95062a4e9d581d5406d62))
+
 # v2.5.10
 [2023-07-26]
 
