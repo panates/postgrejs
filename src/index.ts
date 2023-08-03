@@ -24,3 +24,5 @@ export * from './util/escape-literal.js';
 export * from './util/parse-datetime.js';
 export * from './util/stringify-arrayliteral.js';
 export * from './util/stringify-for-sql.js';
+
+export type { SmartBuffer } from "./protocol/smart-buffer";
