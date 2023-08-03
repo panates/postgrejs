@@ -1,4 +1,4 @@
-import { ConnectionState, DataTypeOIDs } from '../constants.js';
+import { ConnectionState } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
 import { QueryOptions } from '../interfaces/query-options.js';
@@ -169,7 +169,7 @@ export class Connection extends SafeEventEmitter {
       });
     const typeMap = options?.typeMap || GlobalTypeMap;
     const paramTypes: Maybe<OID[]> = options?.params?.map((prm) =>
-        prm instanceof BindParam ? prm.oid : typeMap.determine(prm) || DataTypeOIDs.varchar
+        prm instanceof BindParam ? prm.oid : typeMap.determine(prm)
     );
     const statement = await this.prepare(sql, {paramTypes, typeMap}).catch((e: DatabaseError) => {
       throw this._handleError(e, sql);

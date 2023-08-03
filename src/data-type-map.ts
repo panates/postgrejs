@@ -22,7 +22,7 @@ import { ArrayTimestamptzType, TimestamptzType } from './data-types/timestamptz-
 import { ArrayUuidType, UuidType } from './data-types/uuid-type.js';
 import { ArrayVarcharType, VarcharType } from './data-types/varchar-type.js';
 import { DataType } from './interfaces/data-type.js';
-import { Maybe, OID } from './types.js';
+import { OID } from './types.js';
 
 export class DataTypeMap {
   private _itemsByOID: Record<OID, DataType> = {};
@@ -46,8 +46,9 @@ export class DataTypeMap {
     }
   }
 
-  determine(value: any): Maybe<OID> {
-    if (value == null) return DataTypeOIDs.unknown;
+  determine(value: any): OID {
+    if (value == null)
+      return DataTypeOIDs.unknown;
     const valueIsArray = Array.isArray(value);
     let i: number;
     let t: DataType;
@@ -57,6 +58,7 @@ export class DataTypeMap {
         if (t.elementsOID && t.isType(value[0])) return t.oid;
       } else if (!t.elementsOID && t.isType(value)) return t.oid;
     }
+    return DataTypeOIDs.unknown;
   }
 }
 
