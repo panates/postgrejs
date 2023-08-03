@@ -7,14 +7,14 @@ import { ArrayCircleType, CircleType } from './data-types/circle-type.js';
 import { ArrayDateType, DateType } from './data-types/date-type.js';
 import { ArrayFloat4Type, Float4Type } from './data-types/float4-type.js';
 import { ArrayFloat8Type, Float8Type } from './data-types/float8-type.js';
-import { ArrayInt2Type, Int2Type } from './data-types/int2-type.js';
+import { ArrayInt2Type, Int2Type, VectorInt2Type } from './data-types/int2-type.js';
 import { ArrayInt4Type, Int4Type } from './data-types/int4-type.js';
 import { ArrayInt8Type, Int8Type } from './data-types/int8-type.js';
 import { ArrayJsonType, JsonType } from './data-types/json-type.js';
 import { ArrayJsonbType, JsonbType } from './data-types/jsonb-type.js';
 import { ArrayLsegType, LsegType } from './data-types/lseg-type.js';
 import { ArrayNumericType, NumericType } from './data-types/numeric-type.js';
-import { ArrayOidType, OidType } from './data-types/oid-type.js';
+import { ArrayOidType, OidType, VectorOidType } from './data-types/oid-type.js';
 import { ArrayPointType, PointType } from './data-types/point-type.js';
 import { ArrayTimeType, TimeType } from './data-types/time-type.js';
 import { ArrayTimestampType, TimestampType } from './data-types/timestamp-type.js';
@@ -64,7 +64,7 @@ export class DataTypeMap {
 
 export const GlobalTypeMap = new DataTypeMap();
 
-GlobalTypeMap.register([OidType, ArrayOidType]);
+GlobalTypeMap.register([OidType, VectorOidType, ArrayOidType ]);
 GlobalTypeMap.register([JsonbType, ArrayJsonbType]);
 GlobalTypeMap.register([JsonType, ArrayJsonType]);
 
@@ -72,7 +72,7 @@ GlobalTypeMap.register([BoolType, ArrayBoolType]);
 GlobalTypeMap.register([NumericType, ArrayNumericType]);
 GlobalTypeMap.register([Float4Type, ArrayFloat4Type]);
 GlobalTypeMap.register([Float8Type, ArrayFloat8Type]);
-GlobalTypeMap.register([Int2Type, ArrayInt2Type]);
+GlobalTypeMap.register([Int2Type, VectorInt2Type, ArrayInt2Type]);
 GlobalTypeMap.register([Int4Type, ArrayInt4Type]);
 GlobalTypeMap.register([Int8Type, ArrayInt8Type]);
 
