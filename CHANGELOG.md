@@ -1,3 +1,12 @@
+# v2.7.1
+[2023-08-03]
+
+### Changes
+
+* Updated dependencies ([`114ffb9`](https://github.com/panates/postgresql-client/commit/114ffb94e38dfc96fcc3c57d95807036f0c50045))
+* Fallback to "unknown" IOD, if can't determine data type ([`b0807e3`](https://github.com/panates/postgresql-client/commit/b0807e38af758a29c5a1fb5db4af24dd1f5c9dfb))
+* Export SmartBuffer fully ([`8fca283`](https://github.com/panates/postgresql-client/commit/8fca283bc3fa9be0653297f858e1ede652456289))
+
 # v2.7.0
 [2023-08-01]
 
