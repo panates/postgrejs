@@ -179,7 +179,7 @@ When you open an issue please provide version of NodeJS and PostgreSQL server.
 ## License
 postgresql-client is available under [MIT](LICENSE) license.
 
-[npm-image]: https://img.shields.io/npm/v/postgresql-client.svg
+[npm-image]: https://img.shields.io/npm/v/postgresql-client
 [npm-url]: https://npmjs.org/package/postgresql-client
 [circleci-image]: https://circleci.com/gh/panates/postgresql-client/tree/master.svg?style=shield
 [circleci-url]: https://circleci.com/gh/panates/postgresql-client/tree/master
