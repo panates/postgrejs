@@ -1,5 +1,5 @@
 import DoublyLinked from 'doublylinked';
-import { TaskQueue } from 'power-tasks';
+import { Task, TaskQueue } from 'power-tasks';
 import { FieldInfo } from '../interfaces/field-info.js';
 import { QueryOptions } from '../interfaces/query-options.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
@@ -73,7 +73,7 @@ export class Cursor extends SafeEventEmitter {
     if (this._closed) return;
     const portal = this._portal;
     await this._taskQueue
-        .enqueue(async () => {
+        .enqueue(new Task(async () => {
           const queryOptions = this._queryOptions;
           const r = await portal.execute(queryOptions.fetchCount || 100);
           if (r && r.rows && r.rows.length) {
@@ -92,7 +92,7 @@ export class Cursor extends SafeEventEmitter {
           } else {
             await this.close();
           }
-        })
+        }, { concurrency: 1 }))
         .toPromise();
   }
 }

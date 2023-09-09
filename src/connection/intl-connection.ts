@@ -1,4 +1,4 @@
-import { TaskQueue } from 'power-tasks';
+import { Task, TaskQueue } from 'power-tasks';
 import { coerceToBoolean } from 'putil-varhelpers';
 import { ConnectionState } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
@@ -105,7 +105,7 @@ export class IntlConnection extends SafeEventEmitter {
   ): Promise<ScriptResult> {
     this.assertConnected();
     return this.statementQueue
-        .enqueue(async (): Promise<ScriptResult> => {
+        .enqueue(new Task(async (): Promise<ScriptResult> => {
           const transactionCommand = sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i);
           let beginFirst = false;
           let commitLast = false;
@@ -137,7 +137,7 @@ export class IntlConnection extends SafeEventEmitter {
             if (this.inTransaction && rollbackOnError) await this._execute("ROLLBACK TO " + this._onErrorSavePoint + ";");
             throw e;
           }
-        })
+        }, { concurrency: 1 }))
         .toPromise();
   }
 
