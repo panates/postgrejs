@@ -1,7 +1,7 @@
 # This config is equivalent to both the '.circleci/extended/orb-free.yml' and the base '.circleci/config.yml'
 version: 2.1
 orbs:
-  coveralls: coveralls/coveralls@1.0.6
+  coveralls: coveralls/coveralls@2.2.1
 
 workflows:
   main:
@@ -59,4 +59,4 @@ jobs:
       - run: npm run citest
       - run: npm install coveralls --no-save
       - coveralls/upload:
-          path_to_lcov: ./coverage/lcov.info
+          coverage_file: ./coverage/lcov.info
