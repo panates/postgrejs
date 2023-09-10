@@ -11,21 +11,21 @@ workflows:
           filters:
             branches:
               only:
-                - main
+                - master
                 - dev
       - test:
           version: '18.17'
           filters:
             branches:
               only:
-                - main
+                - master
                 - dev
       - test:
           version: '20.5'
           filters:
             branches:
               only:
-                - main
+                - master
                 - dev
 
 jobs:
