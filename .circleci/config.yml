@@ -29,6 +29,11 @@ jobs:
       NODE_ENV: test
       POSTGRES_USER: postgres
       POSTGRES_DB: test
+    filters:
+      branches:
+        only:
+          - main
+          - dev
     steps:
       - checkout
       - restore_cache:
