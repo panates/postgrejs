@@ -1,3 +1,14 @@
+# v2.7.2
+[2023-09-10]
+
+### Fixes
+
+* Fix: Make concurrency explicit, prevents power-tasks from invoking os.cpus ([`20038b0`](https://github.com/panates/postgresql-client/commit/20038b034eabf35cdf57eb0c7c72097f66d6b4c4))
+
+### Changes
+
+* Updated badge url ([`b9335ed`](https://github.com/panates/postgresql-client/commit/b9335ed40a8cc4fadee4fe90e3287a48f0978cf3))
+
 # v2.7.1
 [2023-08-03]
 
