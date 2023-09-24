@@ -1,3 +1,16 @@
+# v2.8.0
+[2023-09-24]
+
+### Changes
+
+* Add ability to configure buffer size ([`34d822a`](https://github.com/panates/postgresql-client/commit/34d822a7b3a302d3a8b4b406586c3ce123cac97b))
+* Updated config ([`8792c63`](https://github.com/panates/postgresql-client/commit/8792c631eff7798edb1a76524acfce49e28d7593))
+* Updated node versions ([`7fb18dc`](https://github.com/panates/postgresql-client/commit/7fb18dc0f208ec609ebddd84d0a3ea5db4c8534a))
+* Updated config ([`31dab8b`](https://github.com/panates/postgresql-client/commit/31dab8b08ac5b6d5977bb89d47de60e964e09b52))
+* Updated node versions ([`17692ca`](https://github.com/panates/postgresql-client/commit/17692ca11cf4e440afe53b8a1bcd96041b36f352))
+* Updated config ([`9c5f20c`](https://github.com/panates/postgresql-client/commit/9c5f20c8e0a83633eaa66dd438d4cee3d93846a7))
+* Updated node versions ([`49c6eac`](https://github.com/panates/postgresql-client/commit/49c6eacd56815f969f0aabce3b41c67369e10d27))
+
 # v2.7.2
 [2023-09-10]
 
