@@ -59,6 +59,7 @@ describe("Parse connection string", function () {
     process.env.PGPASSWORD = "PGPASSWORD";
     process.env.PGAPPNAME = "PGAPPNAME";
     process.env.PGCONNECT_TIMEOUT = "32000";
+    process.env.PGMAX_BUFFER_SIZE = "4096";
     const cfg = getConnectionConfig();
     expect(cfg.host).toStrictEqual("PGHOST");
     expect(cfg.port).toStrictEqual(1234);
@@ -67,6 +68,7 @@ describe("Parse connection string", function () {
     expect(cfg.password).toStrictEqual("PGPASSWORD");
     expect(cfg.applicationName).toStrictEqual("PGAPPNAME");
     expect(cfg.connectTimeoutMs).toStrictEqual(32000);
+    expect(cfg.buffer?.maxLength).toStrictEqual(4096);
   });
 
 });

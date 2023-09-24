@@ -6,14 +6,19 @@ import { encodeBinaryArray } from '../util/encode-binaryarray.js';
 import { stringifyArrayLiteral } from '../util/stringify-arrayliteral.js';
 import { Protocol } from './protocol.js';
 import { SASL } from './sasl.js';
-import { SmartBuffer } from './smart-buffer.js';
+import { SmartBuffer, SmartBufferConfig } from './smart-buffer.js';
 
 const DataFormat = Protocol.DataFormat;
 const StaticFlushBuffer = Buffer.from([Protocol.FrontendMessageCode.Flush, 0x00, 0x00, 0x00, 0x04]);
 const StaticTerminateBuffer = Buffer.from([Protocol.FrontendMessageCode.Terminate, 0x00, 0x00, 0x00, 0x04]);
 const StaticSyncBuffer = Buffer.from([Protocol.FrontendMessageCode.Sync, 0x00, 0x00, 0x00, 0x04]);
 
+export interface FrontendOptions {
+  buffer?: SmartBufferConfig;
+}
+
 export namespace Frontend {
+
   export interface StartupMessageArgs {
     user: string;
     database: string;
@@ -53,7 +58,11 @@ export namespace Frontend {
 }
 
 export class Frontend {
-  private _io = new SmartBuffer();
+  private _io: SmartBuffer;
+
+  constructor(options?: FrontendOptions) {
+    this._io = new SmartBuffer(options?.buffer);
+  }
 
   getSSLRequestMessage(): Buffer {
     return this._io

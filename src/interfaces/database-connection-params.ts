@@ -1,5 +1,6 @@
 import type { PoolConfiguration as LPoolConfiguration } from "lightning-pool";
 import type tls from 'tls';
+import { SmartBufferConfig } from '../protocol/smart-buffer.js';
 import type { DebugLogger } from '../types.js';
 
 export interface DatabaseConnectionParams {
@@ -33,6 +34,7 @@ export interface SocketOptions {
 }
 
 export interface ConnectionConfiguration extends DatabaseConnectionParams, SocketOptions {
+  buffer?: SmartBufferConfig;
 }
 
 export interface PoolConfiguration extends ConnectionConfiguration, LPoolConfiguration {

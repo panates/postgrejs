@@ -29,7 +29,7 @@ export class PgSocket extends SafeEventEmitter {
   private _state = ConnectionState.CLOSED;
   private _socket?: net.Socket;
   private _backend = new Backend();
-  private _frontend = new Frontend();
+  private _frontend: Frontend;
   private _sessionParameters: Record<string, string> = {};
   private _saslSession?: SASL.Session;
   private _processID?: number;
@@ -37,6 +37,7 @@ export class PgSocket extends SafeEventEmitter {
 
   constructor(public options: ConnectionConfiguration) {
     super();
+    this._frontend = new Frontend({buffer: options.buffer});
     this.setMaxListeners(99);
   }
 
