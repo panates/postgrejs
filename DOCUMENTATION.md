@@ -958,21 +958,22 @@ await pool.unListenAll();
 
 ### 2.2.1. ConnectionConfiguration
 
-| Key             | Type                  | Default           | Description                            | 
-|-----------------|:----------------------| ---------------------------------------|--------------------|
-| host            | `string`              | localhost | Host name or the address of the server | 
-| port            | `number`              | 5432      | Server listening port number           | 
-| user            | `string`              | postgres  | Authenticating user name               |
-| password        | `string`              |           | User password                          |
-| database        | `string`              |           | Database name to be connected          |
-| applicationName | `string`              |           | The name of your application to attach with your session |
-| typesMap        | `DataTypeMap`         | *GlobalTypeMap* |Data type map instance |
-| ssl             | `tls.ConnectionOptions`|           | SSL configuration | 
-| timezone        | `string`              |           | Timezone to be set on start. (Equivalent to SET timezone TO ....) |
-| schema          | `string`              |           | Default schema to be set on start. (Equivalent to SET search_path = ....) |
-| connectTimeoutMs| `number`              | 30000     | Connection timeout value in millis | 
-| autoCommit      | `boolean`             | false     | Specifies weather execute query in auto-commit mode | 
-| rollbackOnError | `boolean`             | true     | When on, if a statement in a transaction block generates an error, the error is ignored and the transaction continues. When off (the default), a statement in a transaction block that generates an error aborts the entire transaction | 
+| Key              | Type                           | Default         | Description                                                                                                                                                                                                                             | 
+|------------------|:-------------------------------|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| host             | `string`                       | localhost       | Host name or the address of the server                                                                                                                                                                                                  | 
+| port             | `number`                       | 5432            | Server listening port number                                                                                                                                                                                                            | 
+| user             | `string`                       | postgres        | Authenticating user name                                                                                                                                                                                                                |
+| password         | `string`                       |                 | User password                                                                                                                                                                                                                           |
+| database         | `string`                       |                 | Database name to be connected                                                                                                                                                                                                           |
+| applicationName  | `string`                       |                 | The name of your application to attach with your session                                                                                                                                                                                |
+| typesMap         | `DataTypeMap`                  | *GlobalTypeMap* | Data type map instance                                                                                                                                                                                                                  |
+| ssl              | `tls.ConnectionOptions`        |                 | SSL configuration                                                                                                                                                                                                                       | 
+| timezone         | `string`                       |                 | Timezone to be set on start. (Equivalent to SET timezone TO ....)                                                                                                                                                                       |
+| schema           | `string`                       |                 | Default schema to be set on start. (Equivalent to SET search_path = ....)                                                                                                                                                               |
+| connectTimeoutMs | `number`                       | 30000           | Connection timeout value in millis                                                                                                                                                                                                      | 
+| autoCommit       | `boolean`                      | false           | Specifies weather execute query in auto-commit mode                                                                                                                                                                                     | 
+| rollbackOnError  | `boolean`                      | true            | When on, if a statement in a transaction block generates an error, the error is ignored and the transaction continues. When off (the default), a statement in a transaction block that generates an error aborts the entire transaction | 
+| buffer           | `SmartBufferConfig`            |                 | Configuration object for buffer                                                                                                                                                                                                         | 
 
 ### 2.2.2. PoolConfiguration
 
