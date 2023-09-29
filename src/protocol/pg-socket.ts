@@ -125,38 +125,65 @@ export class PgSocket extends SafeEventEmitter {
   }
 
   sendParseMessage(args: Frontend.ParseMessageArgs, cb?: Callback): void {
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'pgSocket.sendParseMessage', args });
+
     this._send(this._frontend.getParseMessage(args), cb);
   }
 
   sendBindMessage(args: Frontend.BindMessageArgs, cb?: Callback): void {
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'pgSocket.sendBindMessage', args });
+
     this._send(this._frontend.getBindMessage(args), cb);
   }
 
   sendDescribeMessage(args: Frontend.DescribeMessageArgs, cb?: Callback): void {
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'pgSocket.sendDescribeMessage', args });
+
     this._send(this._frontend.getDescribeMessage(args), cb);
   }
 
   sendExecuteMessage(args: Frontend.ExecuteMessageArgs, cb?: Callback): void {
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'pgSocket.sendDescribeMessage', args });
+
     this._send(this._frontend.getExecuteMessage(args), cb);
   }
 
   sendCloseMessage(args: Frontend.CloseMessageArgs, cb?: Callback): void {
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'pgSocket.sendCloseMessage', args });
+
     this._send(this._frontend.getCloseMessage(args), cb);
   }
 
   sendQueryMessage(sql: string, cb?: Callback): void {
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'pgSocket.sendQueryMessage', sql });
+
     this._send(this._frontend.getQueryMessage(sql), cb);
   }
 
   sendFlushMessage(cb?: Callback): void {
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'pgSocket.sendFlushMessage' });
+
     this._send(this._frontend.getFlushMessage(), cb);
   }
 
   sendTerminateMessage(cb?: Callback): void {
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'pgSocket.sendTerminateMessage' });
+
     this._send(this._frontend.getTerminateMessage(), cb);
   }
 
   sendSyncMessage(): void {
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'pgSocket.sendSyncMessage' });
+
     this._send(this._frontend.getSyncMessage());
   }
 
@@ -347,7 +374,6 @@ export class PgSocket extends SafeEventEmitter {
 
   protected _send(data: Buffer, cb?: Callback): void {
     if (this._socket && this._socket.writable) {
-      // console.log('>', JSON.stringify(data));
       this._socket.write(data, cb);
     }
   }
