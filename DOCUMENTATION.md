@@ -357,54 +357,56 @@ await pool.unListenAll();
 
 The table below lists builtin data type mappings.
 
-| Posgtres type | JS type     | Receive     | Send     | 
-|---------------|:------------| ------------|----------|
-| bool          | boolean     | text,binary | binary   | 
-| int2          | number      | text,binary | binary   | 
-| int4          | number      | text,binary | binary   | 
-| int8          | BigInt      | text,binary | binary   | 
-| float4        | number      | text,binary | binary   | 
-| float8        | number      | text,binary | binary   | 
-| char          | string      | text,binary | binary   | 
-| bpchar        | string      | text,binary | binary   | 
-| varchar       | string      | text,binary | binary   | 
-| date          | Date        | text,binary | binary   | 
-| time          | Date        | text,binary | binary   | 
-| timestamp     | Date        | text,binary | binary   | 
-| timestamptz   | Date        | text,binary | binary   | 
-| oid           | number      | text,binary | binary   | 
-| bytea         | Buffer      | text,binary | binary   | 
-| uuid          | string      | text,binary | binary   | 
-| json          | object      | text,binary | binary   | 
-| jsonb         | object      | text,binary | binary   | 
-| xml           | string      | text,binary | binary   | 
-| point         | Point       | text,binary | binary   | 
-| circle        | Circle      | text,binary | binary   | 
-| lseg          | Rectangle   | text,binary | binary   | 
-| box           | Rectangle   | text,binary | binary   | 
-| _bool         | boolean[]   | text,binary | binary   | 
-| _int2         | number[]    | text,binary | binary   | 
-| _int4         | number[]    | text,binary | binary   | 
-| _int8         | BigInt[]    | text,binary | binary   | 
-| _float4       | number[]    | text,binary | binary   | 
-| _float8       | number[]    | text,binary | binary   | 
-| _char         | string[]    | text,binary | binary   | 
-| _bpchar       | string[]    | text,binary | binary   | 
-| _varchar      | string[]    | text,binary | binary   | 
-| _date         | Date[]      | text,binary | binary   | 
-| _time         | Date[]      | text,binary | binary   | 
-| _timestamp    | Date[]      | text,binary | binary   | 
-| _timestamptz  | Date[]      | text,binary | binary   | 
-| _uuid         | string[]    | text,binary | binary   | 
-| _oid          | number[]    | text,binary | binary   | 
-| _bytea        | Buffer[]    | text,binary | binary   | 
-| _json         | object[]    | text,binary | binary   | 
-| _jsonb        | object[]    | text,binary | binary   | 
-| _xml          | string[]    | text,binary | binary   | 
-| _point        | Point[]     | text,binary | binary   | 
-| _circle       | Circle[]    | text,binary | binary   | 
-| _lseg         | Rectangle[] | text,binary | binary   | 
-| _box          | Rectangle[] | text,binary | binary   | 
+| Posgtres type | JS type     | Receive     | Send   | 
+|---------------|:------------|-------------|--------|
+| bool          | boolean     | text,binary | binary | 
+| int2          | number      | text,binary | binary | 
+| int4          | number      | text,binary | binary | 
+| int8          | BigInt      | text,binary | binary | 
+| float4        | number      | text,binary | binary | 
+| float8        | number      | text,binary | binary | 
+| char          | string      | text,binary | binary | 
+| bpchar        | string      | text,binary | binary | 
+| varchar       | string      | text,binary | binary | 
+| date          | Date        | text,binary | binary | 
+| time          | Date        | text,binary | binary | 
+| timestamp     | Date        | text,binary | binary | 
+| timestamptz   | Date        | text,binary | binary | 
+| oid           | number      | text,binary | binary | 
+| bytea         | Buffer      | text,binary | binary | 
+| uuid          | string      | text,binary | binary | 
+| json          | object      | text,binary | binary | 
+| jsonb         | object      | text,binary | binary | 
+| xml           | string      | text,binary | binary | 
+| point         | Point       | text,binary | binary | 
+| circle        | Circle      | text,binary | binary | 
+| lseg          | Rectangle   | text,binary | binary | 
+| box           | Rectangle   | text,binary | binary |
+| int2Vector    | number[]    | text,binary | binary | 
+| _bool         | boolean[]   | text,binary | binary | 
+| _int2         | number[]    | text,binary | binary | 
+| _int4         | number[]    | text,binary | binary | 
+| _int8         | BigInt[]    | text,binary | binary | 
+| _float4       | number[]    | text,binary | binary | 
+| _float8       | number[]    | text,binary | binary | 
+| _char         | string[]    | text,binary | binary | 
+| _bpchar       | string[]    | text,binary | binary | 
+| _varchar      | string[]    | text,binary | binary | 
+| _date         | Date[]      | text,binary | binary | 
+| _time         | Date[]      | text,binary | binary | 
+| _timestamp    | Date[]      | text,binary | binary | 
+| _timestamptz  | Date[]      | text,binary | binary | 
+| _uuid         | string[]    | text,binary | binary | 
+| _oid          | number[]    | text,binary | binary | 
+| _bytea        | Buffer[]    | text,binary | binary | 
+| _json         | object[]    | text,binary | binary | 
+| _jsonb        | object[]    | text,binary | binary | 
+| _xml          | string[]    | text,binary | binary | 
+| _point        | Point[]     | text,binary | binary | 
+| _circle       | Circle[]    | text,binary | binary | 
+| _lseg         | Rectangle[] | text,binary | binary | 
+| _box          | Rectangle[] | text,binary | binary | 
+| _int2Vector   | number[][]  | text,binary | binary | 
 
 ### 1.6.2 Data transfer formats
 
