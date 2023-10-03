@@ -1,3 +1,12 @@
+# v2.9.0
+[2023-10-03]
+
+### Changes
+
+* Added int2Vector data type with binary protocol ([`55bd87e`](https://github.com/panates/postgresql-client/commit/55bd87e38a2ed1787957c1066ba51857d6c97c5d))
+* Support int2 and oid vector types ([`ce27006`](https://github.com/panates/postgresql-client/commit/ce27006bb7441d004fd251bd6af29c4e99836b01))
+* Add OID for tid array ([`d99e3ee`](https://github.com/panates/postgresql-client/commit/d99e3ee1e7fc768931553240adb556f003428ebd))
+
 # v2.8.1
 [2023-10-03]
 
