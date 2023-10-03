@@ -29,10 +29,3 @@ export const ArrayInt2Type: DataType = {
   oid: DataTypeOIDs._int2,
   elementsOID: DataTypeOIDs.int2,
 };
-
-export const VectorInt2Type: DataType = {
-  ...Int2Type,
-  name: "_int2vector",
-  oid: DataTypeOIDs.int2vector,
-  elementsOID: DataTypeOIDs.int2,
-};

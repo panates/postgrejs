@@ -5,11 +5,13 @@ import type {
   OID,
   ParseTextFunction
 } from '../types.js';
+import { EncodeCalculateDimFunction } from '../types.js';
 
 export interface DataType {
   oid: OID;
   name: string;
   elementsOID?: OID;
+  isArray?: boolean;
   jsType: string;
   arraySeparator?: string;
   isType: (v: any) => boolean;
@@ -17,6 +19,7 @@ export interface DataType {
   parseText: ParseTextFunction;
   encodeBinary?: EncodeBinaryFunction;
   encodeText?: EncodeTextFunction;
+  encodeCalculateDim?: EncodeCalculateDimFunction;
 }
 
 export interface Point {

@@ -4,7 +4,6 @@ import {
   DataFormat,
   DataMappingOptions,
   DataTypeOIDs,
-  escapeLiteral,
   GlobalTypeMap,
   QueryResult,
   stringifyValueForSQL,
@@ -26,7 +25,7 @@ export async function testParse(
     const s = stringifyValueForSQL(input, mappingOptions);
     sql = `select ${s}::${typeName} as f1`;
   } else {
-    const inp = input.map(escapeLiteral);
+    const inp = input.map(x=>stringifyValueForSQL(x, mappingOptions));
     sql = "select " + inp.map((x: string, i: number) => `${x}::${typeName} as f${i + 1}`).join(", ");
   }
   const resp = await connection.query(sql, {...mappingOptions, columnFormat: opts.columnFormat});

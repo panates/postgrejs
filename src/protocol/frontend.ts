@@ -174,7 +174,7 @@ export class Frontend {
             if (dt.elementsOID) {
               // If data type is array
               v = Array.isArray(v) ? v : [v];
-              encodeBinaryArray(io, v, dt.elementsOID, queryOptions, dt.encodeBinary);
+              encodeBinaryArray(io, v, dt.elementsOID, queryOptions, dt.encodeBinary, dt.encodeCalculateDim);
             } else {
               dt.encodeBinary(io, v, queryOptions);
             }

@@ -2,16 +2,16 @@ import { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import { BufferReader } from '../protocol/buffer-reader.js';
 import type { DecodeBinaryFunction, Nullable } from '../types.js';
 
-export function decodeBinaryArray(
+export function decodeBinaryArray<T = any>(
     buf: Buffer,
     decoder: DecodeBinaryFunction,
-    options: DataMappingOptions
-): Nullable<any[]> {
+    options: DataMappingOptions = {}
+): Nullable<T[]> {
   if (!buf.length) return null;
   const io = new BufferReader(buf);
   const ndims = io.readInt32BE();
   io.readInt32BE(); // hasNulls
-  io.readInt32BE(); // element oid
+  const elementOID = io.readInt32BE(); // element oid
   if (ndims === 0) return [];
   const dims: number[] = [];
 
@@ -24,8 +24,12 @@ export function decodeBinaryArray(
         continue;
       }
       const len = io.readInt32BE();
-      if (len === -1) target[i] = null;
-      else target[i] = decoder(io.readBuffer(len), options);
+      if (len === -1)
+        target[i] = null;
+      else {
+        const b = io.readBuffer(len);
+        target[i] = decoder(b, {...options, elementOID});
+      }
     }
     return target;
   };

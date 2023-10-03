@@ -7,7 +7,8 @@ import { ArrayCircleType, CircleType } from './data-types/circle-type.js';
 import { ArrayDateType, DateType } from './data-types/date-type.js';
 import { ArrayFloat4Type, Float4Type } from './data-types/float4-type.js';
 import { ArrayFloat8Type, Float8Type } from './data-types/float8-type.js';
-import { ArrayInt2Type, Int2Type, VectorInt2Type } from './data-types/int2-type.js';
+import { ArrayInt2Type, Int2Type } from './data-types/int2-type.js';
+import { ArrayInt2VectorType, Int2VectorType } from './data-types/int2-vector-type.js';
 import { ArrayInt4Type, Int4Type } from './data-types/int4-type.js';
 import { ArrayInt8Type, Int8Type } from './data-types/int8-type.js';
 import { ArrayJsonType, JsonType } from './data-types/json-type.js';
@@ -64,7 +65,7 @@ export class DataTypeMap {
 
 export const GlobalTypeMap = new DataTypeMap();
 
-GlobalTypeMap.register([OidType, VectorOidType, ArrayOidType ]);
+GlobalTypeMap.register([OidType, VectorOidType, ArrayOidType]);
 GlobalTypeMap.register([JsonbType, ArrayJsonbType]);
 GlobalTypeMap.register([JsonType, ArrayJsonType]);
 
@@ -72,7 +73,7 @@ GlobalTypeMap.register([BoolType, ArrayBoolType]);
 GlobalTypeMap.register([NumericType, ArrayNumericType]);
 GlobalTypeMap.register([Float4Type, ArrayFloat4Type]);
 GlobalTypeMap.register([Float8Type, ArrayFloat8Type]);
-GlobalTypeMap.register([Int2Type, VectorInt2Type, ArrayInt2Type]);
+GlobalTypeMap.register([Int2Type, ArrayInt2Type]);
 GlobalTypeMap.register([Int4Type, ArrayInt4Type]);
 GlobalTypeMap.register([Int8Type, ArrayInt8Type]);
 
@@ -81,6 +82,8 @@ GlobalTypeMap.register([CircleType, ArrayCircleType]);
 GlobalTypeMap.register([PointType, ArrayPointType]);
 GlobalTypeMap.register([LsegType, ArrayLsegType]);
 GlobalTypeMap.register([BoxType, ArrayBoxType]);
+
+GlobalTypeMap.register([Int2VectorType, ArrayInt2VectorType]);
 
 GlobalTypeMap.register({...VarcharType, name: "bpchar", oid: DataTypeOIDs.bpchar});
 GlobalTypeMap.register({

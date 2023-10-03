@@ -2,6 +2,7 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import type { EncodeBinaryFunction, OID } from '../types.js';
+import { EncodeCalculateDimFunction } from '../types.js';
 import { arrayCalculateDim } from './array-calculatedim.js';
 
 export function encodeBinaryArray(
@@ -9,10 +10,12 @@ export function encodeBinaryArray(
     value: any[],
     itemOid: OID,
     options: DataMappingOptions,
-    encode: EncodeBinaryFunction
+    encode: EncodeBinaryFunction,
+    encodeCalculateDimFn?: EncodeCalculateDimFunction
 ): void {
+  encodeCalculateDimFn = encodeCalculateDimFn || arrayCalculateDim;
   itemOid = itemOid || DataTypeOIDs.varchar;
-  const dim = arrayCalculateDim(value);
+  const dim = encodeCalculateDimFn(value);
   const ndims = dim.length;
   const zeroOffset = io.offset;
   io.writeInt32BE(ndims) // Number of dimensions
@@ -21,7 +24,7 @@ export function encodeBinaryArray(
 
   for (let d = 0; d < ndims; d++) {
     io.writeInt32BE(dim[d]); // Number of items in dimension
-    io.writeInt32BE(1); // LBound always 1.
+    io.writeInt32BE(0); // LBound always 0.
   }
 
   let hasNull = false;

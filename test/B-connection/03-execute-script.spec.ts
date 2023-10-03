@@ -106,6 +106,7 @@ describe("execute() (Simple Query)", function () {
     expect(row.f_circle).toStrictEqual({x: -1.2, y: 3.5, r: 4.6});
     expect(row.f_lseg).toStrictEqual({x1: 1.2, y1: 3.5, x2: 4.6, y2: 5.2});
     expect(row.f_box).toStrictEqual({x1: 4.6, y1: 3, x2: -1.6, y2: 0.1});
+    expect(row.f_int2_vector).toStrictEqual([1, 3, 5]);
   });
 
   it("should return all rows", async function () {
