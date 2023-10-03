@@ -29,3 +29,10 @@ export const ArrayOidType: DataType = {
   oid: DataTypeOIDs._oid,
   elementsOID: DataTypeOIDs.oid,
 };
+
+export const VectorOidType: DataType = {
+  ...OidType,
+  name: "_oidvector",
+  oid: DataTypeOIDs.oidvector,
+  elementsOID: DataTypeOIDs.oid,
+};
