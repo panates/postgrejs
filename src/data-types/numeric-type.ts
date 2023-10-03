@@ -56,7 +56,7 @@ export const ArrayNumericType: DataType = {
  * @param sign the sign of the number
  * @return String the number as String
  */
-function numberBytesToString(digits: number[], scale: number, weight: number, sign: number): string {
+export function numberBytesToString(digits: number[], scale: number, weight: number, sign: number): string {
   let i: number;
   let d: number;
 
