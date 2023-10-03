@@ -1,3 +1,13 @@
+# v2.8.1
+[2023-10-03]
+
+### Changes
+
+* Updated dependencies ([`51998d4`](https://github.com/panates/postgresql-client/commit/51998d496cc84d721bf267ba29e8dda3c520fea7))
+* Updated dependencies ([`7faed1a`](https://github.com/panates/postgresql-client/commit/7faed1a68149b82399d951df6f0e0f1c54cd1798))
+* Add ability to configure buffer size ([`30d18c6`](https://github.com/panates/postgresql-client/commit/30d18c6afeb3b973eaa640f772ed791ec0707bb0))
+* Minor fix for logging ([`1af9e94`](https://github.com/panates/postgresql-client/commit/1af9e946018e9605882c13a85120793a65c1fada))
+
 # v2.8.0
 [2023-09-24]
 
