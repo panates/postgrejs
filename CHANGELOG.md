@@ -1,3 +1,10 @@
+# v2.9.1
+[2023-10-03]
+
+### Changes
+
+* Added int2Vector data type with binary protocol ([`94a9a3b`](https://github.com/panates/postgresql-client/commit/94a9a3b3a9e10ce7bdbce132c9195826ecc7aec1))
+
 # v2.9.0
 [2023-10-03]
 
