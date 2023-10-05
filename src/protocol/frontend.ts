@@ -155,7 +155,7 @@ export class Frontend {
       io.writeUInt16BE(params.length);
       for (let i = 0; i < params?.length; i++) {
         let v = params[i];
-        if (v == null) {
+        if (v === null || v === undefined) {
           io.writeInt32BE(-1);
           continue;
         }
@@ -164,7 +164,12 @@ export class Frontend {
         const dt = dataTypeOid ? args.typeMap.get(dataTypeOid) : undefined;
 
         if (dt) {
-          if (typeof dt.encodeBinary === 'function') {
+          if (typeof dt.encodeAsNull === "function" && dt.encodeAsNull(v, queryOptions)) {
+            io.writeInt32BE(-1);
+            continue;
+          }
+
+          if (typeof dt.encodeBinary === "function") {
             // Set param format to binary
             io.buffer.writeInt16BE(Protocol.DataFormat.binary, formatOffset + i * 2);
             // Preserve data length
