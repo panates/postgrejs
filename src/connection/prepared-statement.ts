@@ -64,15 +64,9 @@ export class PreparedStatement extends SafeEventEmitter {
                       msg: any,
                       done: (err?: Error, result?: CommandResult) => void
                   ) => {
-                    switch (code) {
-                      case Protocol.BackendMessageCode.NoticeResponse:
-                        break;
-                      case Protocol.BackendMessageCode.ParseComplete:
-                        done();
-                        break;
-                      default:
-                        done(new Error(`Server returned unexpected response message (0x${code.toString(16)})`));
-                    }
+                    if (code === Protocol.BackendMessageCode.ParseComplete)
+                      done();
+                    // May be Protocol.BackendMessageCode.NoticeResponse
                   }
               );
             } finally {
@@ -83,15 +77,9 @@ export class PreparedStatement extends SafeEventEmitter {
                       msg: any,
                       done: (err?: Error, result?: CommandResult) => void
                   ) => {
-                    switch (code) {
-                      case Protocol.BackendMessageCode.NoticeResponse:
-                        break;
-                      case Protocol.BackendMessageCode.ReadyForQuery:
-                        done();
-                        break;
-                      default:
-                        done(new Error(`Server returned unexpected response message (0x${code.toString(16)})`));
-                    }
+                    if (code === Protocol.BackendMessageCode.ReadyForQuery)
+                      done();
+                    // May be Protocol.BackendMessageCode.NoticeResponse
                   }
               );
             }
