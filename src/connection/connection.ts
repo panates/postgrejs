@@ -281,13 +281,16 @@ export class Connection extends SafeEventEmitter {
 
   protected _handleError(err: DatabaseError, script: string): DatabaseError {
     if (err.position) {
-      let s = script.substring(0, err.position - 1);
-      err.lineNr = s ? (s.match(/\n/g) || []).length : 0;
-      const lineStart = s.lastIndexOf("\n") + 1;
-      const lineEnd = script.indexOf("\n", lineStart);
-      s = script.substring(0, lineStart);
-      err.colNr = err.position - s.length;
-      err.line = lineEnd > 0 ? script.substring(lineStart, lineEnd) : script.substring(lineStart);
+      const i1 = script.lastIndexOf('\n', err.position) + 1;
+      let i2 = script.indexOf('\n', err.position);
+      if (i2 < 0)
+        i2 = Number.MAX_SAFE_INTEGER;
+      err.line = script.substring(i1, i2);
+      err.lineNr = [...script.substring(0, i1).matchAll(/\n/g)].length;
+      err.colNr = err.position - i1;
+      err.message +=
+          `\nAt line ${err.lineNr} column ${err.colNr}` +
+          `\n |  ${err.line}\n |  ${' '.repeat(Math.max(err.colNr - 2, 0))}-^-`
     }
     return err;
   }
