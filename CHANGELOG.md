@@ -1,3 +1,10 @@
+# v2.10.1
+[2023-11-09]
+
+### Changes
+
+* Fixed: Some times server response invalid message to prepare statement message. ([`bb7a0c8`](https://github.com/panates/postgresql-client/commit/bb7a0c8e2074120a2062e585183480b52677756e))
+
 # v2.10.0
 [2023-11-09]
 
