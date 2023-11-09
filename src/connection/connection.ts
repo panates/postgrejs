@@ -90,7 +90,7 @@ export class Connection extends SafeEventEmitter {
    * Connects to the server
    */
   async connect(): Promise<void> {
-    await this._intlCon.connect();
+    await this._captureErrorStack(this._intlCon.connect());
     if (this.state === ConnectionState.READY) this._closing = false;
   }
 
@@ -114,34 +114,35 @@ export class Connection extends SafeEventEmitter {
       });
 
     this._closing = true;
-    // @ts-ignore
     if (this._intlCon.refCount > 0 && typeof terminateWait === "number" && terminateWait > 0) {
       const startTime = Date.now();
-      return new Promise((resolve, reject) => {
-        /* istanbul ignore next */
-        if (this.listenerCount('debug'))
-          this.emit('debug', {
-            location: 'Connection.close',
-            connection: this,
-            message: `[${this.processID}] waiting active queries`
-          });
-        const timer = setInterval(() => {
-          if (this._intlCon.refCount <= 0 || Date.now() > startTime + terminateWait) {
-            clearInterval(timer);
-            if (this._intlCon.refCount > 0) {
-              /* istanbul ignore next */
-              if (this.listenerCount('debug'))
-                this.emit('debug', {
-                  location: 'Connection.close',
-                  connection: this,
-                  message: `[${this.processID}] terminate`
-                });
-              this.emit("terminate");
-            }
-            this._close().then(resolve).catch(reject);
-          }
-        }, 50);
-      });
+      return this._captureErrorStack(
+          new Promise((resolve, reject) => {
+            /* istanbul ignore next */
+            if (this.listenerCount('debug'))
+              this.emit('debug', {
+                location: 'Connection.close',
+                connection: this,
+                message: `[${this.processID}] waiting active queries`
+              });
+            const timer = setInterval(() => {
+              if (this._intlCon.refCount <= 0 || Date.now() > startTime + terminateWait) {
+                clearInterval(timer);
+                if (this._intlCon.refCount > 0) {
+                  /* istanbul ignore next */
+                  if (this.listenerCount('debug'))
+                    this.emit('debug', {
+                      location: 'Connection.close',
+                      connection: this,
+                      message: `[${this.processID}] terminate`
+                    });
+                  this.emit("terminate");
+                }
+                this._close().then(resolve).catch(reject);
+              }
+            }, 50);
+          })
+      );
     }
     await this._close();
   }
@@ -152,10 +153,11 @@ export class Connection extends SafeEventEmitter {
    * @param sql {string} - SQL script that will be executed
    * @param options {ScriptExecuteOptions} - Execute options
    */
-  execute(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult> {
-    return this._intlCon.execute(sql, options).catch((e: DatabaseError) => {
-      throw this._handleError(e, sql);
-    });
+  async execute(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult> {
+    return this._captureErrorStack(this._intlCon.execute(sql, options))
+        .catch((e: DatabaseError) => {
+          throw this._handleError(e, sql);
+        });
   }
 
   async query(sql: string, options?: QueryOptions): Promise<QueryResult> {
@@ -176,7 +178,7 @@ export class Connection extends SafeEventEmitter {
     });
     try {
       const params: Maybe<Maybe<OID>[]> = options?.params?.map((prm) => (prm instanceof BindParam ? prm.value : prm));
-      return await statement.execute({...options, params});
+      return await this._captureErrorStack(statement.execute({...options, params}));
     } finally {
       await statement.close();
     }
@@ -196,28 +198,28 @@ export class Connection extends SafeEventEmitter {
         message: `[${this.processID}] prepare | ${sql}`,
         sql
       });
-    return await PreparedStatement.prepare(this, sql, options);
+    return await this._captureErrorStack(PreparedStatement.prepare(this, sql, options));
   }
 
   /**
    * Starts a transaction
    */
   startTransaction(): Promise<void> {
-    return this._intlCon.startTransaction();
+    return this._captureErrorStack(this._intlCon.startTransaction());
   }
 
   /**
    * Commits current transaction
    */
   commit(): Promise<void> {
-    return this._intlCon.commit();
+    return this._captureErrorStack(this._intlCon.commit());
   }
 
   /**
    * Rolls back current transaction
    */
   rollback(): Promise<void> {
-    return this._intlCon.rollback();
+    return this._captureErrorStack(this._intlCon.rollback());
   }
 
   /**
@@ -226,7 +228,7 @@ export class Connection extends SafeEventEmitter {
    */
   async savepoint(name: string): Promise<void> {
     if (!this._intlCon.inTransaction) await this._intlCon.startTransaction();
-    return this._intlCon.savepoint(name);
+    return this._captureErrorStack(this._intlCon.savepoint(name));
   }
 
   /**
@@ -234,7 +236,7 @@ export class Connection extends SafeEventEmitter {
    * @param name {string} - Name of the savepoint
    */
   rollbackToSavepoint(name: string): Promise<void> {
-    return this._intlCon.rollbackToSavepoint(name);
+    return this._captureErrorStack(this._intlCon.rollbackToSavepoint(name));
   }
 
   /**
@@ -242,7 +244,7 @@ export class Connection extends SafeEventEmitter {
    * @param name {string} - Name of the savepoint
    */
   releaseSavepoint(name: string): Promise<void> {
-    return this._intlCon.releaseSavepoint(name);
+    return this._captureErrorStack(this._intlCon.releaseSavepoint(name));
   }
 
   async listen(channel: string, callback: NotificationCallback) {
@@ -251,19 +253,19 @@ export class Connection extends SafeEventEmitter {
     const registered = !!this._notificationListeners.eventNames().length;
     this._notificationListeners.on(channel, callback);
     if (!registered)
-      await this.query('LISTEN ' + channel);
+      await this._captureErrorStack(this.query('LISTEN ' + channel));
   }
 
   async unListen(channel: string) {
     if (!/^[A-Z]\w+$/i.test(channel))
       throw new TypeError(`Invalid channel name`);
     this._notificationListeners.removeAllListeners(channel);
-    await this.query('UNLISTEN ' + channel);
+    await this._captureErrorStack(this.query('UNLISTEN ' + channel));
   }
 
   async unListenAll() {
     this._notificationListeners.removeAllListeners();
-    await this.query('UNLISTEN *');
+    await this._captureErrorStack(this.query('UNLISTEN *'));
   }
 
   protected _handleNotification(msg: NotificationMessage) {
@@ -273,9 +275,9 @@ export class Connection extends SafeEventEmitter {
 
   protected async _close(): Promise<void> {
     if (this._pool) {
-      await this._pool.release(this);
+      await this._captureErrorStack(this._pool.release(this));
       this.emit("release");
-    } else await this._intlCon.close();
+    } else await this._captureErrorStack(this._intlCon.close());
     this._closing = false;
   }
 
@@ -293,5 +295,18 @@ export class Connection extends SafeEventEmitter {
           `\n |  ${err.line}\n |  ${' '.repeat(Math.max(err.colNr - 2, 0))}-^-`
     }
     return err;
+  }
+
+  protected async _captureErrorStack<T>(promise: Promise<T>): Promise<T> {
+    const stack = new Error().stack;
+    return promise.catch(e => {
+      if (e instanceof Error && stack) {
+        e.stack = stack
+            .split('\n')
+            .filter(x => !x.includes('Connection._captureErrorStack'))
+            .join('\n')
+      }
+      throw e;
+    });
   }
 }
