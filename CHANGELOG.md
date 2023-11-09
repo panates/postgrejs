@@ -1,3 +1,11 @@
+# v2.10.0
+[2023-11-09]
+
+### Changes
+
+* Fixed: Error stack do not show caller function. ([`08a1a8f`](https://github.com/panates/postgresql-client/commit/08a1a8f4141b0066ae084de4f2a31d9d7e1bd4b9))
+* Improved error message handling for more understandable to humans. ([`d9bbcb0`](https://github.com/panates/postgresql-client/commit/d9bbcb0b1c10ab11816bc907d2b62977831d6082))
+
 # v2.9.1
 [2023-10-03]
 
