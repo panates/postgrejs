@@ -1,5 +1,5 @@
 import type { PoolConfiguration as LPoolConfiguration } from "lightning-pool";
-import type tls from 'tls';
+import type { ConnectionOptions } from 'tls';
 import { SmartBufferConfig } from '../protocol/smart-buffer.js';
 import type { DebugLogger } from '../types.js';
 
@@ -10,7 +10,7 @@ export interface DatabaseConnectionParams {
   password?: string | (() => string | Promise<string>);
   database?: string;
   applicationName?: string;
-  ssl?: tls.ConnectionOptions;
+  ssl?: ConnectionOptions;
   timezone?: string;
   schema?: string;
   connectTimeoutMs?: number;
