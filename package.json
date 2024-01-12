@@ -13,7 +13,7 @@
     "url": "https://github.com/panates/postgresql-client.git"
   },
   "dependencies": {
-    "doublylinked": "^2.5.3",
+    "doublylinked": "^2.5.4",
     "lightning-pool": "^4.2.2",
     "postgres-bytea": "^3.0.0",
     "power-tasks": "^1.7.2",
