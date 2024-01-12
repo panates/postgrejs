@@ -1,3 +1,11 @@
+# v2.10.3
+[2024-01-12]
+
+### Changes
+
+* Updated dependencies ([`b1ec82a`](https://github.com/panates/postgresql-client/commit/b1ec82a3967dfa789583248c2d9096c40c333601))
+* Minor typing change ([`f036aa8`](https://github.com/panates/postgresql-client/commit/f036aa833d8b973fd5e1cc8d229cac4b199a5c48))
+
 # v2.10.2
 [2024-01-08]
 
