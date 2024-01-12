@@ -1,3 +1,10 @@
+# v2.10.4
+[2024-01-12]
+
+### Changes
+
+* Updated dependencies ([`efc17f2`](https://github.com/panates/postgresql-client/commit/efc17f292bc1d24de518cc5529e8a7aa383ad641))
+
 # v2.10.3
 [2024-01-12]
 
