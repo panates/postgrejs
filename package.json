@@ -1,7 +1,7 @@
 {
   "name": "postgresql-client",
   "description": "Enterprise level PostgreSQL client for JavaScript",
-  "version": "2.10.4",
+  "version": "2.10.5",
   "author": "Panates",
   "private": true,
   "contributors": [
