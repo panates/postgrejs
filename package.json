@@ -64,9 +64,9 @@
     "version": "auto-changelog -p && git add CHANGELOG.md"
   },
   "type": "module",
-  "types": "typings/index.d.ts",
   "main": "./cjs/index.js",
   "module": "./esm/index.js",
+  "types": "typings/index.d.ts",
   "engines": {
     "node": ">=16.0",
     "npm": ">=7.0.0"
