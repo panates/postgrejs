@@ -176,6 +176,15 @@ When you open an issue please provide version of NodeJS and PostgreSQL server.
 
 ## Node Compatibility
 - node >= 14.x
+
+## Developer Documentation
+
+### Tests
+
+```bash
+docker compose up --detach
+npm test
+```
  
   
 ## License
