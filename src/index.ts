@@ -1,3 +1,5 @@
+export { DatabaseError } from './protocol/database-error.js';
+
 export * from './constants.js';
 export * from './data-type-map.js';
 export * from './types.js';

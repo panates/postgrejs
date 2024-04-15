@@ -130,7 +130,9 @@ export const DataTypeOIDs = {
   _varbit: 1563,
   _uuid: 2951,
   _jsonb: 3807,
-};
+} as const;
+
+type INumericDataTypes = (typeof DataTypeOIDs)[keyof typeof DataTypeOIDs];
 
 export const DataTypeNames = {
   [DataTypeOIDs.bool]: 'bool',
@@ -247,4 +249,6 @@ export const DataTypeNames = {
   [DataTypeOIDs._varbit]: '_varbit',
   [DataTypeOIDs._uuid]: '_uuid',
   [DataTypeOIDs._jsonb]: '_jsonb',
+} as const satisfies {
+  [key in INumericDataTypes]: string;
 };
