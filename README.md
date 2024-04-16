@@ -176,7 +176,6 @@ When you open an issue please provide version of NodeJS and PostgreSQL server.
 
 ## Node Compatibility
 - node >= 14.x
-
  
   
 ## License
