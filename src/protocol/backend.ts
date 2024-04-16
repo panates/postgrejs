@@ -5,24 +5,24 @@ import { Protocol } from './protocol.js';
 const HEADER_LENGTH = 5;
 
 const ErrorFieldTypes = {
-  M: "message",
-  S: "severity",
-  V: "severity",
-  C: "code",
-  D: "detail",
-  H: "hint",
-  P: "position",
-  p: "internalPosition",
-  q: "internalQuery",
-  W: "where",
-  s: "schema",
-  t: "table",
-  c: "column",
-  d: "dataType",
-  n: "constraint",
-  F: "file",
-  L: "line",
-  R: "routine",
+  M: 'message',
+  S: 'severity',
+  V: 'severity',
+  C: 'code',
+  D: 'detail',
+  H: 'hint',
+  P: 'position',
+  p: 'internalPosition',
+  q: 'internalQuery',
+  W: 'where',
+  s: 'schema',
+  t: 'table',
+  c: 'column',
+  d: 'dataType',
+  n: 'constraint',
+  F: 'file',
+  L: 'line',
+  R: 'routine',
 };
 
 declare type ParseCallback = (code: Protocol.BackendMessageCode, data?: any) => void;
@@ -91,37 +91,37 @@ function parseAuthentication(io: BufferReader, code: Protocol.BackendMessageCode
       return; // AuthenticationOk
     case 2:
       return {
-        kind: "KerberosV5",
+        kind: 'KerberosV5',
       } as Protocol.AuthenticationKerberosV5Message;
     case 3:
       return {
-        kind: "CleartextPassword",
+        kind: 'CleartextPassword',
       } as Protocol.AuthenticationCleartextPasswordMessage;
     case 5:
       return {
-        kind: "MD5Password",
+        kind: 'MD5Password',
         salt: io.readBuffer(len - 8),
       } as Protocol.AuthenticationMD5PasswordMessage;
     case 6:
       return {
-        kind: "SCMCredential",
+        kind: 'SCMCredential',
       } as Protocol.AuthenticationSCMCredentialMessage;
     case 7:
       return {
-        kind: "GSS",
+        kind: 'GSS',
       } as Protocol.AuthenticationGSSMessage;
     case 9:
       return {
-        kind: "SSPI",
+        kind: 'SSPI',
       } as Protocol.AuthenticationSSPIMessage;
     case 8:
       return {
-        kind: "GSSContinue",
+        kind: 'GSSContinue',
         data: io.readBuffer(len - 8),
       } as Protocol.AuthenticationGSSContinueMessage;
     case 10: {
       const out = {
-        kind: "SASL",
+        kind: 'SASL',
         mechanisms: [],
       } as Protocol.AuthenticationSASLMessage;
       let mechanism;
@@ -132,13 +132,13 @@ function parseAuthentication(io: BufferReader, code: Protocol.BackendMessageCode
     }
     case 11:
       return {
-        kind: "SASLContinue",
-        data: io.readLString(len - 8, "utf8"),
+        kind: 'SASLContinue',
+        data: io.readLString(len - 8, 'utf8'),
       } as Protocol.AuthenticationSASLContinueMessage;
     case 12:
       return {
-        kind: "SASLFinal",
-        data: io.readLString(len - 8, "utf8"),
+        kind: 'SASLFinal',
+        data: io.readLString(len - 8, 'utf8'),
       } as Protocol.AuthenticationSASLFinalMessage;
     default:
       throw new Error(`Unknown authentication kind (${kind})`);
@@ -154,7 +154,7 @@ function parseBackendKeyData(io: BufferReader): Protocol.BackendKeyDataMessage {
 
 function parseCommandComplete(io: BufferReader): Protocol.CommandCompleteMessage {
   return {
-    command: io.readCString("utf8"),
+    command: io.readCString('utf8'),
   } as Protocol.CommandCompleteMessage;
 }
 
@@ -202,8 +202,8 @@ function parseErrorResponse(io: BufferReader): Protocol.ErrorResponseMessage {
   const out = {} as Protocol.ErrorResponseMessage;
 
   let fieldType;
-  while ((fieldType = io.readLString(1)) !== "\0") {
-    const value = io.readCString("utf8");
+  while ((fieldType = io.readLString(1)) !== '\0') {
+    const value = io.readCString('utf8');
     const key = ErrorFieldTypes[fieldType];
     if (key) out[key] = value;
   }
@@ -214,14 +214,14 @@ function parseNotificationResponse(io: BufferReader): Protocol.NotificationRespo
   return {
     processId: io.readUInt32BE(),
     channel: io.readCString(),
-    payload: io.readCString()
+    payload: io.readCString(),
   };
 }
 
 function parseFunctionCallResponse(
-    io: BufferReader,
-    code: Protocol.BackendMessageCode,
-    len: number
+  io: BufferReader,
+  code: Protocol.BackendMessageCode,
+  len: number,
 ): Protocol.FunctionCallResponseMessage {
   return {
     result: io.readBuffer(len - 4),
@@ -232,7 +232,7 @@ function parseNegotiateProtocolVersion(io: BufferReader): Protocol.NegotiateProt
   return {
     supportedVersionMinor: io.readUInt32BE(),
     numberOfNotSupportedVersions: io.readUInt32BE(),
-    option: io.readCString("utf8"),
+    option: io.readCString('utf8'),
   } as Protocol.NegotiateProtocolVersionMessage;
 }
 
@@ -251,8 +251,8 @@ function parseParameterDescription(io: BufferReader): Protocol.ParameterDescript
 
 function parseParameterStatus(io: BufferReader): Protocol.ParameterStatusMessage {
   return {
-    name: io.readCString("utf8"),
-    value: io.readCString("utf8"),
+    name: io.readCString('utf8'),
+    value: io.readCString('utf8'),
   } as Protocol.ParameterStatusMessage;
 }
 
@@ -270,7 +270,7 @@ function parseRowDescription(io: BufferReader): Protocol.RowDescriptionMessage {
 
   for (let i = 0; i < fieldCount; i++) {
     const field: Protocol.RowDescription = {
-      fieldName: io.readCString("utf8"),
+      fieldName: io.readCString('utf8'),
       tableId: io.readInt32BE(),
       columnId: io.readInt16BE(),
       dataTypeId: io.readInt32BE(),

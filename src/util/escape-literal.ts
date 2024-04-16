@@ -9,14 +9,14 @@ export function escapeLiteral(str: string): string {
   for (i = 0; i < l; i++) {
     c = str[i];
     if (c === "'") out += c + c;
-    else if (c === "\\") {
+    else if (c === '\\') {
       out += c + c;
       backSlash = true;
     } else out += c;
   }
   out += "'";
 
-  if (backSlash) out = " E" + out;
+  if (backSlash) out = ' E' + out;
 
   return out;
 }

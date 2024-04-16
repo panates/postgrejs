@@ -3,7 +3,7 @@ import type {
   EncodeBinaryFunction,
   EncodeTextFunction,
   OID,
-  ParseTextFunction
+  ParseTextFunction,
 } from '../types.js';
 import { EncodeCalculateDimFunction } from '../types.js';
 
@@ -39,4 +39,3 @@ export interface Rectangle {
   x2: number;
   y2: number;
 }
-

@@ -1,7 +1,6 @@
 import { DataTypeOIDs, GlobalTypeMap } from 'postgresql-client';
 
-describe("GlobalTypeMap", function () {
-
+describe('GlobalTypeMap', function () {
   it('should determine bool oid from "Boolean"', async function () {
     expect(GlobalTypeMap.determine(true)).toStrictEqual(DataTypeOIDs.bool);
     expect(GlobalTypeMap.determine(false)).toStrictEqual(DataTypeOIDs.bool);
@@ -46,19 +45,19 @@ describe("GlobalTypeMap", function () {
   });
 
   it('should determine box oid from "Object"', async function () {
-    expect(GlobalTypeMap.determine({x1: 1, x2: 2, y1: 1, y2: 2})).toStrictEqual(DataTypeOIDs.box);
+    expect(GlobalTypeMap.determine({ x1: 1, x2: 2, y1: 1, y2: 2 })).toStrictEqual(DataTypeOIDs.box);
   });
 
   it('should determine point oid from "Object"', async function () {
-    expect(GlobalTypeMap.determine({x: 1, y: 2})).toStrictEqual(DataTypeOIDs.point);
+    expect(GlobalTypeMap.determine({ x: 1, y: 2 })).toStrictEqual(DataTypeOIDs.point);
   });
 
   it('should determine circle oid from "Object"', async function () {
-    expect(GlobalTypeMap.determine({x: 1, y: 2, r: 3})).toStrictEqual(DataTypeOIDs.circle);
+    expect(GlobalTypeMap.determine({ x: 1, y: 2, r: 3 })).toStrictEqual(DataTypeOIDs.circle);
   });
 
   it('should determine json oid from "Object"', async function () {
-    expect(GlobalTypeMap.determine({a: 1})).toStrictEqual(DataTypeOIDs.json);
+    expect(GlobalTypeMap.determine({ a: 1 })).toStrictEqual(DataTypeOIDs.json);
     expect(GlobalTypeMap.determine({})).toStrictEqual(DataTypeOIDs.json);
     expect(GlobalTypeMap.determine({})).toStrictEqual(DataTypeOIDs.json);
   });
@@ -74,5 +73,4 @@ describe("GlobalTypeMap", function () {
   it('should determine char oid from "String"', async function () {
     expect(GlobalTypeMap.determine('y')).toStrictEqual(DataTypeOIDs.char);
   });
-
 });

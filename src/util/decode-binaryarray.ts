@@ -3,9 +3,9 @@ import { BufferReader } from '../protocol/buffer-reader.js';
 import type { DecodeBinaryFunction, Nullable } from '../types.js';
 
 export function decodeBinaryArray<T = any>(
-    buf: Buffer,
-    decoder: DecodeBinaryFunction,
-    options: DataMappingOptions = {}
+  buf: Buffer,
+  decoder: DecodeBinaryFunction,
+  options: DataMappingOptions = {},
 ): Nullable<T[]> {
   if (!buf.length) return null;
   const io = new BufferReader(buf);
@@ -24,11 +24,10 @@ export function decodeBinaryArray<T = any>(
         continue;
       }
       const len = io.readInt32BE();
-      if (len === -1)
-        target[i] = null;
+      if (len === -1) target[i] = null;
       else {
         const b = io.readBuffer(len);
-        target[i] = decoder(b, {...options, elementOID});
+        target[i] = decoder(b, { ...options, elementOID });
       }
     }
     return target;

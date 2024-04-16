@@ -73,12 +73,12 @@ export class BufferReader {
   }
 
   moveTo(pos: number): this {
-    if (pos >= this.length) throw new Error("Eof in buffer detected");
+    if (pos >= this.length) throw new Error('Eof in buffer detected');
     this.offset = pos;
     return this;
   }
 
   private _checkReadable(size: number): void {
-    if (this.offset + size - 1 >= this.length) throw new Error("Eof in buffer detected");
+    if (this.offset + size - 1 >= this.length) throw new Error('Eof in buffer detected');
   }
 }

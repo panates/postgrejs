@@ -1,9 +1,9 @@
-import { Connection, DataFormat, DataTypeOIDs } from "postgresql-client";
-import { testEncode, testParse } from "./_testers.js";
+import { Connection, DataFormat, DataTypeOIDs } from 'postgresql-client';
+import { testEncode, testParse } from './_testers.js';
 
 export function createTests(conn: () => Connection) {
   it('should parse "circle" field (text)', async function () {
-    const input = ["<(-1.2, 3.5), 4.6>", "((1.2, 3.5), 4.5)", "(6.2, -3.0), 7.2", "1.1, 3.9, 8.6"];
+    const input = ['<(-1.2, 3.5), 4.6>', '((1.2, 3.5), 4.5)', '(6.2, -3.0), 7.2', '1.1, 3.9, 8.6'];
     const output = [
       { x: -1.2, y: 3.5, r: 4.6 },
       { x: 1.2, y: 3.5, r: 4.5 },
@@ -14,7 +14,7 @@ export function createTests(conn: () => Connection) {
   });
 
   it('should parse "circle" field (binary)', async function () {
-    const input = ["<(-1.2, 3.5), 4.6>", "((1.2, 3.5), 4.5)", "(6.2, -3.0), 7.2", "1.1, 3.9, 8.6"];
+    const input = ['<(-1.2, 3.5), 4.6>', '((1.2, 3.5), 4.5)', '(6.2, -3.0), 7.2', '1.1, 3.9, 8.6'];
     const output = [
       { x: -1.2, y: 3.5, r: 4.6 },
       { x: 1.2, y: 3.5, r: 4.5 },
@@ -25,7 +25,7 @@ export function createTests(conn: () => Connection) {
   });
 
   it('should parse "circle" array field (text)', async function () {
-    const input = ["<(-1.2, 3.5), 4.6>", "((1.2, 3.5), 4.5)", "(6.2, -3.0), 7.2", "1.1, 3.9, 8.6"];
+    const input = ['<(-1.2, 3.5), 4.6>', '((1.2, 3.5), 4.5)', '(6.2, -3.0), 7.2', '1.1, 3.9, 8.6'];
     const output = [
       { x: -1.2, y: 3.5, r: 4.6 },
       { x: 1.2, y: 3.5, r: 4.5 },
@@ -36,7 +36,7 @@ export function createTests(conn: () => Connection) {
   });
 
   it('should parse "circle" array field (binary)', async function () {
-    const input = ["<(-1.2, 3.5), 4.6>", "((1.2, 3.5), 4.5)", "(6.2, -3.0), 7.2", "1.1, 3.9, 8.6"];
+    const input = ['<(-1.2, 3.5), 4.6>', '((1.2, 3.5), 4.5)', '(6.2, -3.0), 7.2', '1.1, 3.9, 8.6'];
     const output = [
       { x: -1.2, y: 3.5, r: 4.6 },
       { x: 1.2, y: 3.5, r: 4.5 },

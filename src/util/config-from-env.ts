@@ -1,4 +1,4 @@
-import { toInt, toIntDef } from "putil-varhelpers";
+import { toInt, toIntDef } from 'putil-varhelpers';
 import { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
 
 export function configFromEnv(): ConnectionConfiguration {
@@ -15,7 +15,7 @@ export function configFromEnv(): ConnectionConfiguration {
   if (env.PGSCHEMA) result.schema = env.PGSCHEMA;
   if (env.PGCONNECT_TIMEOUT) result.connectTimeoutMs = toIntDef(env.PGCONNECT_TIMEOUT, 30000);
   if (env.PGMAX_BUFFER_SIZE) {
-    result.buffer = {maxLength: toInt(env.PGMAX_BUFFER_SIZE)};
+    result.buffer = { maxLength: toInt(env.PGMAX_BUFFER_SIZE) };
   }
   return result;
 }

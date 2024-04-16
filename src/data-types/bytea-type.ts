@@ -4,9 +4,9 @@ import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer';
 
 export const ByteaType: DataType = {
-  name: "bytea",
+  name: 'bytea',
   oid: DataTypeOIDs.bytea,
-  jsType: "Buffer",
+  jsType: 'Buffer',
 
   parseBinary(v: Buffer): Buffer {
     return v;
@@ -25,7 +25,7 @@ export const ByteaType: DataType = {
 
 export const ArrayByteaType: DataType = {
   ...ByteaType,
-  name: "_bytea",
+  name: '_bytea',
   oid: DataTypeOIDs._bytea,
   elementsOID: DataTypeOIDs.bytea,
 };

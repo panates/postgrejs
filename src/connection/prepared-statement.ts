@@ -23,8 +23,8 @@ let portalCounter = 0;
 
 export class PreparedStatement extends SafeEventEmitter {
   private readonly _connection: Connection;
-  private readonly _sql: string = "";
-  private readonly _name: string = "";
+  private readonly _sql: string = '';
+  private readonly _name: string = '';
   private readonly _paramTypes: Maybe<Maybe<OID>[]>;
   protected _onErrorSavePoint: string;
   private _refCount = 0;
@@ -32,62 +32,60 @@ export class PreparedStatement extends SafeEventEmitter {
   constructor(connection: Connection, sql: string, paramTypes?: OID[]) {
     super();
     this._connection = connection;
-    this._name = "S_" + ++statementCounter;
+    this._name = 'S_' + ++statementCounter;
     this._sql = sql;
     this._paramTypes = paramTypes;
-    this._onErrorSavePoint = "SP_" + Math.round(Math.random() * 100000000);
+    this._onErrorSavePoint = 'SP_' + Math.round(Math.random() * 100000000);
   }
 
   static async prepare(
-      connection: Connection,
-      sql: string,
-      options?: StatementPrepareOptions
+    connection: Connection,
+    sql: string,
+    options?: StatementPrepareOptions,
   ): Promise<PreparedStatement> {
     const intoCon = getIntlConnection(connection);
     intoCon.assertConnected();
     const socket = intoCon.socket;
     const statement = new PreparedStatement(connection, sql, options?.paramTypes);
     await intoCon.statementQueue
-        .enqueue<void>(async () => {
-          intoCon.ref();
+      .enqueue<void>(async () => {
+        intoCon.ref();
+        try {
+          socket.sendParseMessage({
+            statement: statement.name,
+            sql: statement.sql,
+            paramTypes: statement.paramTypes,
+          });
+          socket.sendFlushMessage();
           try {
-            socket.sendParseMessage({
-              statement: statement.name,
-              sql: statement.sql,
-              paramTypes: statement.paramTypes,
-            });
-            socket.sendFlushMessage();
-            try {
-              await socket.capture(
-                  async (
-                      code: Protocol.BackendMessageCode,
-                      msg: any,
-                      done: (err?: Error, result?: CommandResult) => void
-                  ) => {
-                    if (code === Protocol.BackendMessageCode.ParseComplete)
-                      done();
-                    // May be Protocol.BackendMessageCode.NoticeResponse
-                  }
-              );
-            } finally {
-              socket.sendSyncMessage();
-              await socket.capture(
-                  async (
-                      code: Protocol.BackendMessageCode,
-                      msg: any,
-                      done: (err?: Error, result?: CommandResult) => void
-                  ) => {
-                    if (code === Protocol.BackendMessageCode.ReadyForQuery)
-                      done();
-                    // May be Protocol.BackendMessageCode.NoticeResponse
-                  }
-              );
-            }
+            await socket.capture(
+              async (
+                code: Protocol.BackendMessageCode,
+                msg: any,
+                done: (err?: Error, result?: CommandResult) => void,
+              ) => {
+                if (code === Protocol.BackendMessageCode.ParseComplete) done();
+                // May be Protocol.BackendMessageCode.NoticeResponse
+              },
+            );
           } finally {
-            intoCon.unref();
+            socket.sendSyncMessage();
+            await socket.capture(
+              async (
+                code: Protocol.BackendMessageCode,
+                msg: any,
+                done: (err?: Error, result?: CommandResult) => void,
+              ) => {
+                if (code === Protocol.BackendMessageCode.ReadyForQuery) done();
+                // May be Protocol.BackendMessageCode.NoticeResponse
+              },
+            );
           }
-        })
-        .toPromise();
+        } finally {
+          intoCon.unref();
+        }
+      })
+      .toPromise();
     statement._refCount = 1;
     return statement;
   }
@@ -116,31 +114,31 @@ export class PreparedStatement extends SafeEventEmitter {
     let commitLast = false;
     if (!transactionCommand) {
       if (
-          !intlCon.inTransaction &&
-          (options?.autoCommit != null ? options?.autoCommit : intlCon.config.autoCommit) === false
+        !intlCon.inTransaction &&
+        (options?.autoCommit != null ? options?.autoCommit : intlCon.config.autoCommit) === false
       ) {
         beginFirst = true;
       }
       if (intlCon.inTransaction && options?.autoCommit) commitLast = true;
     }
-    if (beginFirst) await intlCon.execute("BEGIN");
+    if (beginFirst) await intlCon.execute('BEGIN');
 
     const rollbackOnError =
-        !transactionCommand &&
-        (options?.rollbackOnError != null
-            ? options.rollbackOnError
-            : coerceToBoolean(intlCon.config.rollbackOnError, true));
+      !transactionCommand &&
+      (options?.rollbackOnError != null
+        ? options.rollbackOnError
+        : coerceToBoolean(intlCon.config.rollbackOnError, true));
 
-    if (intlCon.inTransaction && rollbackOnError) await intlCon.execute("SAVEPOINT " + this._onErrorSavePoint);
+    if (intlCon.inTransaction && rollbackOnError) await intlCon.execute('SAVEPOINT ' + this._onErrorSavePoint);
     try {
       const result = await intlCon.statementQueue.enqueue<QueryResult>(() => this._execute(options)).toPromise();
-      if (commitLast) await intlCon.execute("COMMIT");
+      if (commitLast) await intlCon.execute('COMMIT');
       else if (intlCon.inTransaction && rollbackOnError)
-        await intlCon.execute("RELEASE " + this._onErrorSavePoint + ";");
+        await intlCon.execute('RELEASE ' + this._onErrorSavePoint + ';');
       return result;
     } catch (e: any) {
       if (intlCon.inTransaction && rollbackOnError)
-        await intlCon.execute("ROLLBACK TO " + this._onErrorSavePoint + ";");
+        await intlCon.execute('ROLLBACK TO ' + this._onErrorSavePoint + ';');
       throw e;
     }
   }
@@ -153,7 +151,7 @@ export class PreparedStatement extends SafeEventEmitter {
   }
 
   async cancel(): Promise<void> {
-    throw new Error("Not implemented yet");
+    throw new Error('Not implemented yet');
   }
 
   protected async _execute(options: QueryOptions = {}): Promise<QueryResult> {
@@ -161,12 +159,12 @@ export class PreparedStatement extends SafeEventEmitter {
     const intlCon = getIntlConnection(this.connection);
     intlCon.ref();
     try {
-      const result: QueryResult = {command: undefined};
+      const result: QueryResult = { command: undefined };
       const startTime = Date.now();
       const t = Date.now();
 
       // Create portal
-      const portalName = "P_" + ++portalCounter;
+      const portalName = 'P_' + ++portalCounter;
       portal = new Portal(this, portalName);
 
       await portal.bind(options.params, options);
@@ -180,7 +178,7 @@ export class PreparedStatement extends SafeEventEmitter {
         parsers = getParsers(typeMap, fields);
         resultFields = wrapRowDescription(typeMap, fields, options.columnFormat || DEFAULT_COLUMN_FORMAT);
         result.fields = resultFields;
-        result.rowType = options.objectRows ? "object" : "array";
+        result.rowType = options.objectRows ? 'object' : 'array';
         if (options.cursor) {
           result.cursor = new Cursor(this, portal, resultFields, parsers, options);
           this._refCount++;
@@ -192,7 +190,7 @@ export class PreparedStatement extends SafeEventEmitter {
       result.executeTime = Date.now() - t;
       if (executeResult.command) result.command = executeResult.command;
       if (resultFields && parsers && executeResult.rows) {
-        if (!result.command) result.command = "SELECT";
+        if (!result.command) result.command = 'SELECT';
         const rows = (result.rows = executeResult.rows);
         const l = rows.length;
         let row: Row;
@@ -204,7 +202,7 @@ export class PreparedStatement extends SafeEventEmitter {
           }
         }
       }
-      if (result.command === "DELETE" || result.command === "INSERT" || result.command === "UPDATE")
+      if (result.command === 'DELETE' || result.command === 'INSERT' || result.command === 'UPDATE')
         result.rowsAffected = executeResult.rowCount;
 
       result.executeTime = Date.now() - startTime;
@@ -222,12 +220,12 @@ export class PreparedStatement extends SafeEventEmitter {
     intoCon.ref();
     try {
       const socket = intoCon.socket;
-      socket.sendCloseMessage({type: "S", name: this.name});
+      socket.sendCloseMessage({ type: 'S', name: this.name });
       socket.sendSyncMessage();
       await socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error) => void) => {
         switch (code) {
           case Protocol.BackendMessageCode.NoticeResponse:
-            this.emit("notice", msg);
+            this.emit('notice', msg);
             break;
           case Protocol.BackendMessageCode.CloseComplete:
             break;
@@ -242,6 +240,6 @@ export class PreparedStatement extends SafeEventEmitter {
     } finally {
       intoCon.unref();
     }
-    this.emit("close");
+    this.emit('close');
   }
 }

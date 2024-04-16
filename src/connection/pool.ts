@@ -1,8 +1,4 @@
-import {
-  Pool as LightningPool,
-  PoolConfiguration as LPoolConfiguration,
-  PoolFactory
-} from 'lightning-pool';
+import { Pool as LightningPool, PoolConfiguration as LPoolConfiguration, PoolFactory } from 'lightning-pool';
 import { coerceToBoolean, coerceToInt } from 'putil-varhelpers';
 import { ConnectionState } from '../constants.js';
 import { PoolConfiguration } from '../interfaces/database-connection-params.js';
@@ -45,27 +41,27 @@ export class Pool extends SafeEventEmitter {
           this.emit('debug', {
             location: 'Pool.factory.create',
             pool: this,
-            message: `new connection creating`
+            message: `new connection creating`,
           });
         const intlCon = new IntlConnection(cfg);
         await intlCon.connect();
-        intlCon.on("close", () => this._pool.destroy(intlCon));
+        intlCon.on('close', () => this._pool.destroy(intlCon));
         /* istanbul ignore next */
         if (this.listenerCount('debug'))
           this.emit('debug', {
             location: 'Pool.factory.create',
             pool: this,
-            message: `[${intlCon.processID}] connection created`
+            message: `[${intlCon.processID}] connection created`,
           });
         return intlCon;
       },
-      destroy: (intlCon) => {
+      destroy: intlCon => {
         /* istanbul ignore next */
         if (this.listenerCount('debug'))
           this.emit('debug', {
             location: 'Pool.factory.destroy',
             pool: this,
-            message: `[${intlCon.processID}] connection destroy`
+            message: `[${intlCon.processID}] connection destroy`,
           });
         return intlCon.close();
       },
@@ -75,15 +71,15 @@ export class Pool extends SafeEventEmitter {
           this.emit('debug', {
             location: 'Pool.factory.reset',
             pool: this,
-            message: `[${intlCon.processID}] connection reset`
+            message: `[${intlCon.processID}] connection reset`,
           });
         try {
           if (intlCon.state === ConnectionState.READY) {
-            await intlCon.execute("ROLLBACK;UNLISTEN *");
+            await intlCon.execute('ROLLBACK;UNLISTEN *');
           }
         } finally {
           intlCon.removeAllListeners();
-          intlCon.once("close", () => this._pool.destroy(intlCon));
+          intlCon.once('close', () => this._pool.destroy(intlCon));
           (intlCon as any)._refCount = 0;
         }
       },
@@ -93,18 +89,18 @@ export class Pool extends SafeEventEmitter {
           this.emit('debug', {
             location: 'Pool.factory.validate',
             pool: this,
-            message: `[${intlCon.processID}] connection validate`
+            message: `[${intlCon.processID}] connection validate`,
           });
-        if (intlCon.state !== ConnectionState.READY) throw new Error("Connection is not active");
-        await intlCon.execute("select 1;");
+        if (intlCon.state !== ConnectionState.READY) throw new Error('Connection is not active');
+        await intlCon.execute('select 1;');
       },
     };
 
     this._pool = new LightningPool<IntlConnection>(poolFactory, poolOptions);
-    this._pool.on("return", (...args) => this.emit("release", ...args));
-    this._pool.on("error", (...args) => this.emit("error", ...args));
-    this._pool.on("acquire", (...args) => this.emit("acquire", ...args));
-    this._pool.on("destroy", (...args) => this.emit("destroy", ...args));
+    this._pool.on('return', (...args) => this.emit('release', ...args));
+    this._pool.on('error', (...args) => this.emit('error', ...args));
+    this._pool.on('acquire', (...args) => this.emit('acquire', ...args));
+    this._pool.on('destroy', (...args) => this.emit('destroy', ...args));
     this._pool.start();
   }
 
@@ -139,12 +135,11 @@ export class Pool extends SafeEventEmitter {
       this.emit('debug', {
         location: 'Pool.acquire',
         pool: this,
-        message: `[${intlCon.processID}] acquired`
+        message: `[${intlCon.processID}] acquired`,
       });
     const connection = new Connection(this, intlCon);
     /* istanbul ignore next */
-    if (this.listenerCount('debug'))
-      connection.on("debug", (...args) => this.emit('debug', ...args));
+    if (this.listenerCount('debug')) connection.on('debug', (...args) => this.emit('debug', ...args));
     return connection;
   }
 
@@ -185,7 +180,7 @@ export class Pool extends SafeEventEmitter {
   async prepare(sql: string, options?: StatementPrepareOptions): Promise<PreparedStatement> {
     const connection = await this.acquire();
     const statement = await connection.prepare(sql, options);
-    statement.once("close", () => this._pool.release(getIntlConnection(connection)));
+    statement.once('close', () => this._pool.release(getIntlConnection(connection)));
     return statement;
   }
 
@@ -194,20 +189,17 @@ export class Pool extends SafeEventEmitter {
   }
 
   async listen(channel: string, callback: NotificationCallback) {
-    if (!/^[A-Z]\w+$/i.test(channel))
-      throw new TypeError(`Invalid channel name`);
+    if (!/^[A-Z]\w+$/i.test(channel)) throw new TypeError(`Invalid channel name`);
     this._notificationListeners.on(channel, callback);
     await this._initNotificationConnection();
   }
 
   async unListen(channel: string) {
-    if (!/^[A-Z]\w+$/i.test(channel))
-      throw new TypeError(`Invalid channel name`);
+    if (!/^[A-Z]\w+$/i.test(channel)) throw new TypeError(`Invalid channel name`);
     this._notificationListeners.removeAllListeners(channel);
     if (!this._notificationListeners.eventNames().length) {
       await this.unListenAll();
-    } else if (this._notificationConnection)
-      await this._notificationConnection.unListen(channel);
+    } else if (this._notificationConnection) await this._notificationConnection.unListen(channel);
   }
 
   async unListenAll() {
@@ -220,10 +212,9 @@ export class Pool extends SafeEventEmitter {
   }
 
   protected async _initNotificationConnection() {
-    if (this._notificationConnection)
-      return;
+    if (this._notificationConnection) return;
 
-    const conn = this._notificationConnection = new Connection(this.config);
+    const conn = (this._notificationConnection = new Connection(this.config));
     // Reconnect on connection lost
     conn.on('close', () => reConnect());
 
@@ -235,18 +226,16 @@ export class Pool extends SafeEventEmitter {
           await conn.listen(channel as string, fn as any);
         }
       }
-    }
+    };
 
     const reConnect = async () => {
       setTimeout(() => {
-        if (!this._notificationListeners.eventNames().length)
-          return;
-        conn.connect().catch(() => reConnect())
+        if (!this._notificationListeners.eventNames().length) return;
+        conn.connect().catch(() => reConnect());
       }, 500).unref();
-    }
+    };
 
     await conn.connect();
     await registerEvents();
-
   }
 }

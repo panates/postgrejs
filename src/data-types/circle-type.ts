@@ -9,9 +9,9 @@ const CIRCLE_PATTERN3 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *(-?\d+\.?\
 const CIRCLE_PATTERN4 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 
 export const CircleType: DataType = {
-  name: "circle",
+  name: 'circle',
   oid: DataTypeOIDs.circle,
-  jsType: "object",
+  jsType: 'object',
 
   parseBinary(v: Buffer): Circle {
     return {
@@ -29,7 +29,7 @@ export const CircleType: DataType = {
 
   parseText(v: string): Maybe<Circle> {
     const m =
-        v.match(CIRCLE_PATTERN1) || v.match(CIRCLE_PATTERN2) || v.match(CIRCLE_PATTERN3) || v.match(CIRCLE_PATTERN4);
+      v.match(CIRCLE_PATTERN1) || v.match(CIRCLE_PATTERN2) || v.match(CIRCLE_PATTERN3) || v.match(CIRCLE_PATTERN4);
     if (!m) return undefined;
     return {
       x: parseFloat(m[1]),
@@ -39,15 +39,19 @@ export const CircleType: DataType = {
   },
 
   isType(v: any): boolean {
-    return typeof v === "object" &&
-        Object.keys(v).length === 3 &&
-        typeof v.x === "number" && typeof v.y === "number" && typeof v.r === "number";
+    return (
+      typeof v === 'object' &&
+      Object.keys(v).length === 3 &&
+      typeof v.x === 'number' &&
+      typeof v.y === 'number' &&
+      typeof v.r === 'number'
+    );
   },
 };
 
 export const ArrayCircleType: DataType = {
   ...CircleType,
-  name: "_circle",
+  name: '_circle',
   oid: DataTypeOIDs._circle,
   elementsOID: DataTypeOIDs.circle,
 };

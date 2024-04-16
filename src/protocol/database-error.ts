@@ -1,4 +1,4 @@
-import { Protocol } from "./protocol.js";
+import { Protocol } from './protocol.js';
 
 export class DatabaseError extends Error {
   severity?: string;

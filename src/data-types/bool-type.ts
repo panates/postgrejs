@@ -3,9 +3,9 @@ import { DataType } from '../interfaces/data-type.js';
 import { SmartBuffer } from '../protocol/smart-buffer.js';
 
 export const BoolType: DataType = {
-  name: "bool",
+  name: 'bool',
   oid: DataTypeOIDs.bool,
-  jsType: "boolean",
+  jsType: 'boolean',
 
   parseBinary(v: Buffer): boolean {
     return !!v.readUInt8();
@@ -16,17 +16,17 @@ export const BoolType: DataType = {
   },
 
   parseText(v: string): boolean {
-    return v === "TRUE" || v === "t" || v === "true" || v === "y" || v === "yes" || v === "on" || v === "1";
+    return v === 'TRUE' || v === 't' || v === 'true' || v === 'y' || v === 'yes' || v === 'on' || v === '1';
   },
 
   isType(v: any): boolean {
-    return typeof v === "boolean";
+    return typeof v === 'boolean';
   },
 };
 
 export const ArrayBoolType: DataType = {
   ...BoolType,
-  name: "_bool",
+  name: '_bool',
   oid: DataTypeOIDs._bool,
   elementsOID: DataTypeOIDs.bool,
 };

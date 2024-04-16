@@ -28,20 +28,20 @@ export class Connection extends SafeEventEmitter {
   constructor(config?: ConnectionConfiguration | string);
   constructor(arg0: any, arg1?: any) {
     super();
-    if (arg0 && typeof arg0 === 'object' && typeof arg0.acquire === "function") {
-      if (!(arg1 instanceof IntlConnection)) throw new TypeError("Invalid argument");
+    if (arg0 && typeof arg0 === 'object' && typeof arg0.acquire === 'function') {
+      if (!(arg1 instanceof IntlConnection)) throw new TypeError('Invalid argument');
       this._pool = arg0;
       this._intlCon = arg1;
     } else {
       this._intlCon = new IntlConnection(arg0);
     }
-    this._intlCon.on("ready", (...args) => this.emit("ready", ...args));
-    this._intlCon.on("error", (...args) => this.emit("error", ...args));
-    this._intlCon.on("close", (...args) => this.emit("close", ...args));
-    this._intlCon.on("connecting", (...args) => this.emit("connecting", ...args));
-    this._intlCon.on("ready", (...args) => this.emit("ready", ...args));
-    this._intlCon.on("terminate", (...args) => this.emit("terminate", ...args));
-    this._intlCon.on("notification", (msg: NotificationMessage) => this._handleNotification(msg));
+    this._intlCon.on('ready', (...args) => this.emit('ready', ...args));
+    this._intlCon.on('error', (...args) => this.emit('error', ...args));
+    this._intlCon.on('close', (...args) => this.emit('close', ...args));
+    this._intlCon.on('connecting', (...args) => this.emit('connecting', ...args));
+    this._intlCon.on('ready', (...args) => this.emit('ready', ...args));
+    this._intlCon.on('terminate', (...args) => this.emit('terminate', ...args));
+    this._intlCon.on('notification', (msg: NotificationMessage) => this._handleNotification(msg));
   }
 
   /**
@@ -110,38 +110,38 @@ export class Connection extends SafeEventEmitter {
       this.emit('debug', {
         location: 'Connection.close',
         connection: this,
-        message: `[${this.processID}] closing`
+        message: `[${this.processID}] closing`,
       });
 
     this._closing = true;
-    if (this._intlCon.refCount > 0 && typeof terminateWait === "number" && terminateWait > 0) {
+    if (this._intlCon.refCount > 0 && typeof terminateWait === 'number' && terminateWait > 0) {
       const startTime = Date.now();
       return this._captureErrorStack(
-          new Promise((resolve, reject) => {
-            /* istanbul ignore next */
-            if (this.listenerCount('debug'))
-              this.emit('debug', {
-                location: 'Connection.close',
-                connection: this,
-                message: `[${this.processID}] waiting active queries`
-              });
-            const timer = setInterval(() => {
-              if (this._intlCon.refCount <= 0 || Date.now() > startTime + terminateWait) {
-                clearInterval(timer);
-                if (this._intlCon.refCount > 0) {
-                  /* istanbul ignore next */
-                  if (this.listenerCount('debug'))
-                    this.emit('debug', {
-                      location: 'Connection.close',
-                      connection: this,
-                      message: `[${this.processID}] terminate`
-                    });
-                  this.emit("terminate");
-                }
-                this._close().then(resolve).catch(reject);
+        new Promise((resolve, reject) => {
+          /* istanbul ignore next */
+          if (this.listenerCount('debug'))
+            this.emit('debug', {
+              location: 'Connection.close',
+              connection: this,
+              message: `[${this.processID}] waiting active queries`,
+            });
+          const timer = setInterval(() => {
+            if (this._intlCon.refCount <= 0 || Date.now() > startTime + terminateWait) {
+              clearInterval(timer);
+              if (this._intlCon.refCount > 0) {
+                /* istanbul ignore next */
+                if (this.listenerCount('debug'))
+                  this.emit('debug', {
+                    location: 'Connection.close',
+                    connection: this,
+                    message: `[${this.processID}] terminate`,
+                  });
+                this.emit('terminate');
               }
-            }, 50);
-          })
+              this._close().then(resolve).catch(reject);
+            }
+          }, 50);
+        }),
       );
     }
     await this._close();
@@ -154,10 +154,9 @@ export class Connection extends SafeEventEmitter {
    * @param options {ScriptExecuteOptions} - Execute options
    */
   async execute(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult> {
-    return this._captureErrorStack(this._intlCon.execute(sql, options))
-        .catch((e: DatabaseError) => {
-          throw this._handleError(e, sql);
-        });
+    return this._captureErrorStack(this._intlCon.execute(sql, options)).catch((e: DatabaseError) => {
+      throw this._handleError(e, sql);
+    });
   }
 
   async query(sql: string, options?: QueryOptions): Promise<QueryResult> {
@@ -167,18 +166,19 @@ export class Connection extends SafeEventEmitter {
       this.emit('debug', {
         location: 'Connection.query',
         connection: this,
-        message: `[${this.processID}] query | ${sql}`, sql
+        message: `[${this.processID}] query | ${sql}`,
+        sql,
       });
     const typeMap = options?.typeMap || GlobalTypeMap;
-    const paramTypes: Maybe<OID[]> = options?.params?.map((prm) =>
-        prm instanceof BindParam ? prm.oid : typeMap.determine(prm)
+    const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
+      prm instanceof BindParam ? prm.oid : typeMap.determine(prm),
     );
-    const statement = await this.prepare(sql, {paramTypes, typeMap}).catch((e: DatabaseError) => {
+    const statement = await this.prepare(sql, { paramTypes, typeMap }).catch((e: DatabaseError) => {
       throw this._handleError(e, sql);
     });
     try {
-      const params: Maybe<Maybe<OID>[]> = options?.params?.map((prm) => (prm instanceof BindParam ? prm.value : prm));
-      return await this._captureErrorStack(statement.execute({...options, params}));
+      const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm => (prm instanceof BindParam ? prm.value : prm));
+      return await this._captureErrorStack(statement.execute({ ...options, params }));
     } finally {
       await statement.close();
     }
@@ -196,7 +196,7 @@ export class Connection extends SafeEventEmitter {
         location: 'Connection.prepare',
         connection: this,
         message: `[${this.processID}] prepare | ${sql}`,
-        sql
+        sql,
       });
     return await this._captureErrorStack(PreparedStatement.prepare(this, sql, options));
   }
@@ -248,17 +248,14 @@ export class Connection extends SafeEventEmitter {
   }
 
   async listen(channel: string, callback: NotificationCallback) {
-    if (!/^[A-Z]\w+$/i.test(channel))
-      throw new TypeError(`Invalid channel name`);
+    if (!/^[A-Z]\w+$/i.test(channel)) throw new TypeError(`Invalid channel name`);
     const registered = !!this._notificationListeners.eventNames().length;
     this._notificationListeners.on(channel, callback);
-    if (!registered)
-      await this._captureErrorStack(this.query('LISTEN ' + channel));
+    if (!registered) await this._captureErrorStack(this.query('LISTEN ' + channel));
   }
 
   async unListen(channel: string) {
-    if (!/^[A-Z]\w+$/i.test(channel))
-      throw new TypeError(`Invalid channel name`);
+    if (!/^[A-Z]\w+$/i.test(channel)) throw new TypeError(`Invalid channel name`);
     this._notificationListeners.removeAllListeners(channel);
     await this._captureErrorStack(this.query('UNLISTEN ' + channel));
   }
@@ -269,14 +266,14 @@ export class Connection extends SafeEventEmitter {
   }
 
   protected _handleNotification(msg: NotificationMessage) {
-    this.emit("notification", msg);
+    this.emit('notification', msg);
     this._notificationListeners.emit(msg.channel, msg);
   }
 
   protected async _close(): Promise<void> {
     if (this._pool) {
       await this._captureErrorStack(this._pool.release(this));
-      this.emit("release");
+      this.emit('release');
     } else await this._captureErrorStack(this._intlCon.close());
     this._closing = false;
   }
@@ -285,14 +282,13 @@ export class Connection extends SafeEventEmitter {
     if (err.position) {
       const i1 = script.lastIndexOf('\n', err.position) + 1;
       let i2 = script.indexOf('\n', err.position);
-      if (i2 < 0)
-        i2 = Number.MAX_SAFE_INTEGER;
+      if (i2 < 0) i2 = Number.MAX_SAFE_INTEGER;
       err.line = script.substring(i1, i2);
       err.lineNr = [...script.substring(0, i1).matchAll(/\n/g)].length;
       err.colNr = err.position - i1;
       err.message +=
-          `\nAt line ${err.lineNr} column ${err.colNr}` +
-          `\n |  ${err.line}\n |  ${' '.repeat(Math.max(err.colNr - 2, 0))}-^-`
+        `\nAt line ${err.lineNr} column ${err.colNr}` +
+        `\n |  ${err.line}\n |  ${' '.repeat(Math.max(err.colNr - 2, 0))}-^-`;
     }
     return err;
   }
@@ -302,9 +298,9 @@ export class Connection extends SafeEventEmitter {
     return promise.catch(e => {
       if (e instanceof Error && stack) {
         e.stack = stack
-            .split('\n')
-            .filter(x => !x.includes('Connection._captureErrorStack'))
-            .join('\n')
+          .split('\n')
+          .filter(x => !x.includes('Connection._captureErrorStack'))
+          .join('\n');
       }
       throw e;
     });

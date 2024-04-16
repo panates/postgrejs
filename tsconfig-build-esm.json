@@ -6,7 +6,7 @@
     "noEmit": false,
     "module": "ESNext",
     "outDir": "build/esm",
-    "declarationDir": "build/typings",
+    "declarationDir": "build/typings"
   },
   "include": ["src"]
 }

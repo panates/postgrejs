@@ -6,7 +6,7 @@
     "declaration": false,
     "outDir": "build/cjs",
     "module": "CommonJS",
-    "moduleResolution": "node",
+    "moduleResolution": "node"
   },
   "include": ["src"]
 }

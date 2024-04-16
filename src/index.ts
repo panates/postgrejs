@@ -2,7 +2,7 @@ export * from './constants.js';
 export * from './data-type-map.js';
 export * from './types.js';
 
-export * from './connection/bind-param.js'
+export * from './connection/bind-param.js';
 export * from './connection/connection.js';
 export * from './connection/cursor.js';
 export * from './connection/pool.js';
@@ -25,4 +25,4 @@ export * from './util/parse-datetime.js';
 export * from './util/stringify-arrayliteral.js';
 export * from './util/stringify-for-sql.js';
 
-export * from "./protocol/smart-buffer.js";
+export * from './protocol/smart-buffer.js';

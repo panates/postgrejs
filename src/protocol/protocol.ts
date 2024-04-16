@@ -1,4 +1,4 @@
-import { Nullable } from "../types.js";
+import { Nullable } from '../types.js';
 
 export namespace Protocol {
   export const VERSION_MAJOR = 3;
@@ -50,16 +50,16 @@ export namespace Protocol {
   }
 
   export enum AuthenticationMessageKind {
-    KerberosV5 = "KerberosV5",
-    CleartextPassword = "CleartextPassword",
-    MD5Password = "MD5Password",
-    SCMCredential = "SCMCredential",
-    GSS = "GSS",
-    SSPI = "SSPI",
-    GSSContinue = "GSSContinue",
-    SASL = "SASL",
-    SASLContinue = "SASLContinue",
-    SASLFinal = "SASLFinal",
+    KerberosV5 = 'KerberosV5',
+    CleartextPassword = 'CleartextPassword',
+    MD5Password = 'MD5Password',
+    SCMCredential = 'SCMCredential',
+    GSS = 'GSS',
+    SSPI = 'SSPI',
+    GSSContinue = 'GSSContinue',
+    SASL = 'SASL',
+    SASLContinue = 'SASLContinue',
+    SASLFinal = 'SASLFinal',
   }
 
   export enum DataFormat {
@@ -137,8 +137,7 @@ export namespace Protocol {
     columnFormats?: DataFormat[];
   }
 
-  export interface DataRow {
-  }
+  export interface DataRow {}
 
   export interface DataRowMessage {
     columnCount: number;

@@ -1,7 +1,7 @@
-import { Connection } from "postgresql-client";
-import { createTestSchema } from "../_support/create-db.js";
+import { Connection } from 'postgresql-client';
+import { createTestSchema } from '../_support/create-db.js';
 
-describe("Cursor support", function () {
+describe('Cursor support', function () {
   let connection: Connection;
 
   beforeAll(async () => {
@@ -14,8 +14,8 @@ describe("Cursor support", function () {
     await connection.close(0);
   });
 
-  it("should next() fetch next row", async function () {
-    const result = await connection.query(`select * from customers order by id`, {objectRows: false, cursor: true});
+  it('should next() fetch next row', async function () {
+    const result = await connection.query(`select * from customers order by id`, { objectRows: false, cursor: true });
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     const row = await cursor?.next();
@@ -23,8 +23,8 @@ describe("Cursor support", function () {
     await cursor?.close();
   });
 
-  it("should next() fetch next row as object", async function () {
-    const result = await connection.query(`select * from customers order by id`, {objectRows: true, cursor: true});
+  it('should next() fetch next row as object', async function () {
+    const result = await connection.query(`select * from customers order by id`, { objectRows: true, cursor: true });
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     const row = await cursor?.next();
@@ -33,7 +33,7 @@ describe("Cursor support", function () {
     await cursor?.close();
   });
 
-  it("should fetch() fetch multiple rows", async function () {
+  it('should fetch() fetch multiple rows', async function () {
     const result = await connection.query(`select * from customers order by id`, {
       objectRows: false,
       cursor: true,
@@ -47,25 +47,24 @@ describe("Cursor support", function () {
     await cursor?.close();
   });
 
-  it("should automatically close cursor after fetching all rows", async function () {
-    const result = await connection.query(`select * from customers limit 10`, {objectRows: true, cursor: true});
+  it('should automatically close cursor after fetching all rows', async function () {
+    const result = await connection.query(`select * from customers limit 10`, { objectRows: true, cursor: true });
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     let closed = false;
-    cursor?.on("close", () => (closed = true));
+    cursor?.on('close', () => (closed = true));
     // eslint-disable-next-line no-empty
-    while (await cursor?.next()) {
-    }
+    while (await cursor?.next()) {}
     expect(closed).toStrictEqual(true);
     expect(cursor?.isClosed).toStrictEqual(true);
   });
 
   it('should emit "close" event', async function () {
-    const result = await connection.query(`select * from customers order by id`, {objectRows: true, cursor: true});
+    const result = await connection.query(`select * from customers order by id`, { objectRows: true, cursor: true });
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     let closed = false;
-    cursor?.on("close", () => (closed = true));
+    cursor?.on('close', () => (closed = true));
     await cursor?.next();
     await cursor?.close();
     expect(closed).toStrictEqual(true);
@@ -73,11 +72,11 @@ describe("Cursor support", function () {
   });
 
   it('should emit "fetch" event', async function () {
-    const result = await connection.query(`select * from customers limit 10`, {objectRows: true, cursor: true});
+    const result = await connection.query(`select * from customers limit 10`, { objectRows: true, cursor: true });
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     let count = 0;
-    cursor?.on("fetch", (rows) => (count += rows.length));
+    cursor?.on('fetch', rows => (count += rows.length));
     await cursor?.next();
     await cursor?.close();
     expect(count).toStrictEqual(10);

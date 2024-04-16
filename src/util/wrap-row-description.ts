@@ -4,9 +4,9 @@ import { FieldInfo } from '../interfaces/field-info.js';
 import { Protocol } from '../protocol/protocol.js';
 
 export function wrapRowDescription(
-    typeMap: DataTypeMap,
-    fields: Protocol.RowDescription[],
-    columnFormat: DataFormat | DataFormat[]
+  typeMap: DataTypeMap,
+  fields: Protocol.RowDescription[],
+  columnFormat: DataFormat | DataFormat[],
 ): FieldInfo[] {
   return fields.map((f, idx) => {
     const cf = Array.isArray(columnFormat) ? columnFormat[idx] : columnFormat;
@@ -15,10 +15,10 @@ export function wrapRowDescription(
       tableId: f.tableId,
       columnId: f.columnId,
       dataTypeId: f.dataTypeId,
-      dataTypeName: DataTypeNames[f.dataTypeId] || "",
-      jsType: cf === DataFormat.binary ? "Buffer" : "string",
+      dataTypeName: DataTypeNames[f.dataTypeId] || '',
+      jsType: cf === DataFormat.binary ? 'Buffer' : 'string',
     };
-    x.isArray = x.dataTypeName.startsWith("_");
+    x.isArray = x.dataTypeName.startsWith('_');
     if (x.isArray) {
       x.elementDataTypeName = x.dataTypeName.substring(1);
       for (const oid of Object.keys(DataTypeNames)) {

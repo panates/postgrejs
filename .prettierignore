@@ -1,6 +1,5 @@
 /node_modules
-/cjs
-/esm
+/build
 /coverage
 /.idea
 /.circleci

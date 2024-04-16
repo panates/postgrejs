@@ -7,9 +7,9 @@ const POINT_PATTERN1 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\)$/;
 const POINT_PATTERN2 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 
 export const PointType: DataType = {
-  name: "point",
+  name: 'point',
   oid: DataTypeOIDs.point,
-  jsType: "object",
+  jsType: 'object',
 
   parseBinary(v: Buffer): Point {
     return {
@@ -33,15 +33,13 @@ export const PointType: DataType = {
   },
 
   isType(v: any): boolean {
-    return typeof v === "object" &&
-        Object.keys(v).length === 2 &&
-        typeof v.x === "number" && typeof v.y === "number";
+    return typeof v === 'object' && Object.keys(v).length === 2 && typeof v.x === 'number' && typeof v.y === 'number';
   },
 };
 
 export const ArrayPointType: DataType = {
   ...PointType,
-  name: "_point",
+  name: '_point',
   oid: DataTypeOIDs._point,
   elementsOID: DataTypeOIDs.point,
 };

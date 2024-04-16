@@ -1,7 +1,7 @@
-import { Connection, DataFormat, DataTypeOIDs } from "postgresql-client";
-import { testEncode, testParse } from "./_testers.js";
+import { Connection, DataFormat, DataTypeOIDs } from 'postgresql-client';
+import { testEncode, testParse } from './_testers.js';
 
-const toStringArray = (arr) => arr.map((o) => (o ? JSON.stringify(o) : null));
+const toStringArray = arr => arr.map(o => (o ? JSON.stringify(o) : null));
 
 export function createTests(conn: () => Connection) {
   it('should parse "json" field (text)', async function () {

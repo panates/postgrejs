@@ -4,13 +4,13 @@ import type { DataType } from '../interfaces/data-type.js';
 import { BufferReader } from '../protocol/buffer-reader.js';
 
 export const JsonbType: DataType = {
-  name: "jsonb",
+  name: 'jsonb',
   oid: DataTypeOIDs.jsonb,
-  jsType: "string",
+  jsType: 'string',
 
   parseBinary(v: Buffer, options: DataMappingOptions): object | string | null {
     const buf = new BufferReader(v);
-    if (buf.readUInt8() !== 1) throw new Error("Unexpected Jsonb version value in header");
+    if (buf.readUInt8() !== 1) throw new Error('Unexpected Jsonb version value in header');
     const fetchAsString = options.fetchAsString && options.fetchAsString.includes(DataTypeOIDs.json);
     const content = buf.readLString(buf.length - buf.offset);
     if (fetchAsString) return content;
@@ -18,9 +18,9 @@ export const JsonbType: DataType = {
   },
 
   encodeText(v): string {
-    if (typeof v === "object" || typeof v === "bigint") return JSON.stringify(v);
-    if (typeof v === "boolean") return v ? "true" : "false";
-    return "\x0001" + v;
+    if (typeof v === 'object' || typeof v === 'bigint') return JSON.stringify(v);
+    if (typeof v === 'boolean') return v ? 'true' : 'false';
+    return '\x0001' + v;
   },
 
   parseText(v: string, options: DataMappingOptions): object | string | null {
@@ -36,7 +36,7 @@ export const JsonbType: DataType = {
 
 export const ArrayJsonbType: DataType = {
   ...JsonbType,
-  name: "_jsonb",
+  name: '_jsonb',
   oid: DataTypeOIDs._jsonb,
   elementsOID: DataTypeOIDs.jsonb,
 };

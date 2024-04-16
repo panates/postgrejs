@@ -4,9 +4,9 @@ import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import { fastParseInt } from '../util/fast-parseint.js';
 
 export const Int4Type: DataType = {
-  name: "int4",
+  name: 'int4',
   oid: DataTypeOIDs.int4,
-  jsType: "number",
+  jsType: 'number',
 
   parseBinary(v: Buffer): number {
     return v.readInt32BE(0);
@@ -19,13 +19,13 @@ export const Int4Type: DataType = {
   parseText: fastParseInt,
 
   isType(v: any): boolean {
-    return typeof v === "number" && Number.isInteger(v) && v <= Number.MAX_SAFE_INTEGER;
+    return typeof v === 'number' && Number.isInteger(v) && v <= Number.MAX_SAFE_INTEGER;
   },
 };
 
 export const ArrayInt4Type: DataType = {
   ...Int4Type,
-  name: "_int4",
+  name: '_int4',
   oid: DataTypeOIDs._int4,
   elementsOID: DataTypeOIDs.int4,
 };

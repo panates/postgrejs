@@ -9,9 +9,9 @@ const LSEG_PATTERN3 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.
 const LSEG_PATTERN4 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 
 export const LsegType: DataType = {
-  name: "lseg",
+  name: 'lseg',
   oid: DataTypeOIDs.lseg,
-  jsType: "object",
+  jsType: 'object',
 
   parseBinary(v: Buffer): Rectangle {
     return {
@@ -42,19 +42,19 @@ export const LsegType: DataType = {
 
   isType(v: any): boolean {
     return (
-        typeof v === "object" &&
-        Object.keys(v).length === 4 &&
-        typeof v.x1 === "number" &&
-        typeof v.y1 === "number" &&
-        typeof v.x2 === "number" &&
-        typeof v.y2 === "number"
+      typeof v === 'object' &&
+      Object.keys(v).length === 4 &&
+      typeof v.x1 === 'number' &&
+      typeof v.y1 === 'number' &&
+      typeof v.x2 === 'number' &&
+      typeof v.y2 === 'number'
     );
   },
 };
 
 export const ArrayLsegType: DataType = {
   ...LsegType,
-  name: "_lseg",
+  name: '_lseg',
   oid: DataTypeOIDs._lseg,
   elementsOID: DataTypeOIDs.lseg,
 };

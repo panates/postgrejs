@@ -11,8 +11,8 @@ export interface SmartBufferConfig {
 export class SmartBuffer extends BufferReader {
   static DEFAULT_PAGE_SIZE = 4096;
   static DEFAULT_MAX_SIZE = Math.min(
-      Math.floor(os.totalmem() / 2),
-      (1024 * 1024 * 1024 * 2) // 2 GB
+    Math.floor(os.totalmem() / 2),
+    1024 * 1024 * 1024 * 2, // 2 GB
   );
 
   private readonly _houseKeepInterval: number;
@@ -51,8 +51,7 @@ export class SmartBuffer extends BufferReader {
   }
 
   flush(): Buffer {
-    if (this._houseKeepTimer)
-      clearTimeout(this._houseKeepTimer);
+    if (this._houseKeepTimer) clearTimeout(this._houseKeepTimer);
 
     const length = this.length;
     this._length = 0;
@@ -60,8 +59,7 @@ export class SmartBuffer extends BufferReader {
 
     const pages = length ? Math.ceil(length / this.pageSize) : 1;
     this._stMaxPages = Math.max(this._stMaxPages, pages);
-    if (this._lastHouseKeep < Date.now() + this._houseKeepInterval)
-      this._houseKeep();
+    if (this._lastHouseKeep < Date.now() + this._houseKeepInterval) this._houseKeep();
 
     this._houseKeepTimer = setTimeout(() => {
       this._houseKeepTimer = undefined;
@@ -74,7 +72,7 @@ export class SmartBuffer extends BufferReader {
   growSize(len: number): this {
     const endOffset = this.offset + len;
     if (this.capacity < endOffset) {
-      if (endOffset > this.maxSize) throw new Error("Buffer limit exceeded.");
+      if (endOffset > this.maxSize) throw new Error('Buffer limit exceeded.');
       const newSize = Math.ceil(endOffset / this.pageSize) * this.pageSize;
       const newBuffer = Buffer.allocUnsafe(newSize);
       this.buffer.copy(newBuffer);
@@ -165,9 +163,9 @@ export class SmartBuffer extends BufferReader {
   }
 
   writeBigInt64BE(n: bigint | number): this {
-    n = typeof n === "bigint" ? n : BigInt(n);
+    n = typeof n === 'bigint' ? n : BigInt(n);
     this.growSize(8);
-    if (typeof this.buffer.writeBigInt64BE === "function") this.buffer.writeBigInt64BE(n, this.offset);
+    if (typeof this.buffer.writeBigInt64BE === 'function') this.buffer.writeBigInt64BE(n, this.offset);
     else writeBigUInt64BE(this.buffer, n, this.offset);
     this.offset += 8;
     return this;

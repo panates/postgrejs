@@ -17,7 +17,7 @@ export interface CommandResult {
   /**
    * Contains row type
    */
-  rowType?: "array" | "object";
+  rowType?: 'array' | 'object';
   /**
    * Time elapsed to execute command
    */

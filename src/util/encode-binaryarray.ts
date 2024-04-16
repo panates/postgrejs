@@ -6,12 +6,12 @@ import { EncodeCalculateDimFunction } from '../types.js';
 import { arrayCalculateDim } from './array-calculatedim.js';
 
 export function encodeBinaryArray(
-    io: SmartBuffer,
-    value: any[],
-    itemOid: OID,
-    options: DataMappingOptions,
-    encode: EncodeBinaryFunction,
-    encodeCalculateDimFn?: EncodeCalculateDimFunction
+  io: SmartBuffer,
+  value: any[],
+  itemOid: OID,
+  options: DataMappingOptions,
+  encode: EncodeBinaryFunction,
+  encodeCalculateDimFn?: EncodeCalculateDimFunction,
 ): void {
   encodeCalculateDimFn = encodeCalculateDimFn || arrayCalculateDim;
   itemOid = itemOid || DataTypeOIDs.varchar;
@@ -19,8 +19,8 @@ export function encodeBinaryArray(
   const ndims = dim.length;
   const zeroOffset = io.offset;
   io.writeInt32BE(ndims) // Number of dimensions
-      .writeInt32BE(0) // reserved for has-null flag
-      .writeInt32BE(itemOid);
+    .writeInt32BE(0) // reserved for has-null flag
+    .writeInt32BE(itemOid);
 
   for (let d = 0; d < ndims; d++) {
     io.writeInt32BE(dim[d]); // Number of items in dimension

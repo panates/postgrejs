@@ -1,5 +1,5 @@
 import type { DataMappingOptions } from './interfaces/data-mapping-options.js';
-import type { SmartBuffer } from "./protocol/smart-buffer";
+import type { SmartBuffer } from './protocol/smart-buffer';
 
 export type OID = number;
 export type Maybe<T> = T | undefined;

@@ -10,7 +10,7 @@ export const TIME_PATTERN =
 
 export function parseTime(str: string, parseTimeZone?: boolean, utc?: boolean): Date {
   const m = str.match(TIME_PATTERN);
-  if (!m) return new Date("invalid");
+  if (!m) return new Date('invalid');
 
   const args: [number, number, number, number, number, number, number] = [1970, 0, 1, 0, 0, 0, 0];
   for (let i = 1; i < 4; i++) {
@@ -19,7 +19,7 @@ export function parseTime(str: string, parseTimeZone?: boolean, utc?: boolean): 
   }
 
   if (parseTimeZone && m[6]) {
-    const r = m[9] === "-" ? -1 : 1;
+    const r = m[9] === '-' ? -1 : 1;
     args[3] -= (fastParseInt(m[7]) || 0) * r;
     args[4] -= (fastParseInt(m[8]) || 0) * r;
     return new Date(Date.UTC(...args));

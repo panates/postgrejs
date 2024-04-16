@@ -7,9 +7,9 @@ const DEC_DIGITS = 4;
 const ROUND_POWERS = [0, 1000, 100, 10];
 
 export const NumericType: DataType = {
-  name: "numeric",
+  name: 'numeric',
   oid: DataTypeOIDs.numeric,
-  jsType: "number",
+  jsType: 'number',
 
   parseBinary(v: Buffer): number {
     const len = v.readInt16BE();
@@ -29,20 +29,20 @@ export const NumericType: DataType = {
   },
 
   encodeText(v: any): string {
-    const n = typeof v === "number" ? v : parseFloat(v);
-    return "" + n;
+    const n = typeof v === 'number' ? v : parseFloat(v);
+    return '' + n;
   },
 
   parseText: parseFloat,
 
   isType(v: any): boolean {
-    return typeof v === "number";
+    return typeof v === 'number';
   },
 };
 
 export const ArrayNumericType: DataType = {
   ...NumericType,
-  name: "_numeric",
+  name: '_numeric',
   oid: DataTypeOIDs._numeric,
   elementsOID: DataTypeOIDs.numeric,
 };
@@ -74,14 +74,14 @@ export function numberBytesToString(digits: number[], scale: number, weight: num
   /*
    * Output a dash for negative values
    */
-  let out = sign === NUMERIC_NEG ? "-" : "";
+  let out = sign === NUMERIC_NEG ? '-' : '';
 
   /*
    * Output all digits before the decimal point
    */
   if (weight < 0) {
     d = weight + 1;
-    out += "0";
+    out += '0';
   } else {
     for (d = 0; d <= weight; d++) {
       /* In the first digit, suppress extra leading decimal zeroes */
@@ -95,7 +95,7 @@ export function numberBytesToString(digits: number[], scale: number, weight: num
    * needed.
    */
   if (scale > 0) {
-    out += ".";
+    out += '.';
     for (i = 0; i < scale; d++, i += DEC_DIGITS) {
       out += digitToString(d, digits, true);
     }
@@ -114,7 +114,7 @@ export function numberBytesToString(digits: number[], scale: number, weight: num
  * @return String the number as String
  */
 function digitToString(idx: number, digits: number[], alwaysPutIt: boolean): string {
-  let out = "";
+  let out = '';
   let dig = idx >= 0 && idx < digits.length ? digits[idx] : 0;
   // Each dig represents 4 decimal digits (e.g. 9999)
   // If we continue the number, then we need to print 0 as 0000 (alwaysPutIt parameter is true)

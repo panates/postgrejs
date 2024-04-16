@@ -14,17 +14,17 @@ export class Cursor extends SafeEventEmitter {
   private readonly _portal: Portal;
   private readonly _parsers: AnyParseFunction[];
   private readonly _queryOptions: QueryOptions;
-  private _taskQueue = new TaskQueue({concurrency: 1});
+  private _taskQueue = new TaskQueue({ concurrency: 1 });
   private _rows = new DoublyLinked();
   private _closed = false;
   readonly fields: FieldInfo[];
 
   constructor(
-      statement: PreparedStatement,
-      portal: Portal,
-      fields: FieldInfo[],
-      parsers: AnyParseFunction[],
-      queryOptions: QueryOptions
+    statement: PreparedStatement,
+    portal: Portal,
+    fields: FieldInfo[],
+    parsers: AnyParseFunction[],
+    queryOptions: QueryOptions,
   ) {
     super();
     this._statement = statement;
@@ -34,8 +34,8 @@ export class Cursor extends SafeEventEmitter {
     this.fields = fields;
   }
 
-  get rowType(): "array" | "object" {
-    return this._queryOptions.objectRows ? "object" : "array";
+  get rowType(): 'array' | 'object' {
+    return this._queryOptions.objectRows ? 'object' : 'array';
   }
 
   get isClosed(): boolean {
@@ -65,7 +65,7 @@ export class Cursor extends SafeEventEmitter {
     if (this._closed) return;
     await this._portal.close();
     await this._statement.close();
-    this.emit("close");
+    this.emit('close');
     this._closed = true;
   }
 
@@ -73,26 +73,26 @@ export class Cursor extends SafeEventEmitter {
     if (this._closed) return;
     const portal = this._portal;
     await this._taskQueue
-        .enqueue(async () => {
-          const queryOptions = this._queryOptions;
-          const r = await portal.execute(queryOptions.fetchCount || 100);
-          if (r && r.rows && r.rows.length) {
-            if (this._parsers) {
-              const objectRows = queryOptions.objectRows;
-              const fields = this.fields;
-              const rows = r.rows;
-              for (let i = 0; i < rows.length; i++) {
-                const row = rows[i];
-                parseRow(this._parsers, row, this._queryOptions);
-                if (objectRows) rows[i] = convertRowToObject(fields, row);
-              }
+      .enqueue(async () => {
+        const queryOptions = this._queryOptions;
+        const r = await portal.execute(queryOptions.fetchCount || 100);
+        if (r && r.rows && r.rows.length) {
+          if (this._parsers) {
+            const objectRows = queryOptions.objectRows;
+            const fields = this.fields;
+            const rows = r.rows;
+            for (let i = 0; i < rows.length; i++) {
+              const row = rows[i];
+              parseRow(this._parsers, row, this._queryOptions);
+              if (objectRows) rows[i] = convertRowToObject(fields, row);
             }
-            this._rows.push(...r.rows);
-            this.emit("fetch", r.rows);
-          } else {
-            await this.close();
           }
-        })
-        .toPromise();
+          this._rows.push(...r.rows);
+          this.emit('fetch', r.rows);
+        } else {
+          await this.close();
+        }
+      })
+      .toPromise();
   }
 }

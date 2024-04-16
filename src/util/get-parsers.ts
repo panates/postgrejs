@@ -22,19 +22,19 @@ export function getParsers(typeMap: DataTypeMap, fields: Protocol.RowDescription
         const decode = dataTypeReg.parseBinary;
         if (decode) {
           parsers[i] = !isArray
-              ? decode
-              : (v: Buffer, options: DataMappingOptions) => decodeBinaryArray(v, decode, options);
+            ? decode
+            : (v: Buffer, options: DataMappingOptions) => decodeBinaryArray(v, decode, options);
         }
       } else if (f.format === DataFormat.text) {
         const parse = dataTypeReg.parseText;
         if (parse) {
           parsers[i] = !isArray
-              ? parse
-              : (v: string, options: DataMappingOptions) =>
-                  parsePostgresArray(v, {
-                    transform: (x) => parse(x, options),
-                    separator: dataTypeReg.arraySeparator,
-                  });
+            ? parse
+            : (v: string, options: DataMappingOptions) =>
+                parsePostgresArray(v, {
+                  transform: x => parse(x, options),
+                  separator: dataTypeReg.arraySeparator,
+                });
         }
       }
     }

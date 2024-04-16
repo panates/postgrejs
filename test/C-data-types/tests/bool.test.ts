@@ -1,13 +1,13 @@
-import { Connection, DataFormat, DataTypeOIDs } from "postgresql-client";
-import { testEncode, testParse } from "./_testers.js";
+import { Connection, DataFormat, DataTypeOIDs } from 'postgresql-client';
+import { testEncode, testParse } from './_testers.js';
 
 export function createTests(conn: () => Connection) {
   it('should parse "bool" field (text)', async function () {
-    await testParse(conn(), DataTypeOIDs.bool, ["true", "false"], [true, false], { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs.bool, ['true', 'false'], [true, false], { columnFormat: DataFormat.text });
   });
 
   it('should parse "bool" field (binary)', async function () {
-    await testParse(conn(), DataTypeOIDs.bool, ["true", "false"], [true, false], { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs.bool, ['true', 'false'], [true, false], { columnFormat: DataFormat.binary });
   });
 
   it('should parse "bool" array field (text)', async function () {

@@ -1,13 +1,13 @@
 export function fastParseInt(str: string | number): number {
   /* istanbul ignore next */
-  if (typeof str === "number") return Math.floor(str);
+  if (typeof str === 'number') return Math.floor(str);
   // noinspection SuspiciousTypeOfGuard
-  if (typeof str !== "string") return NaN;
+  if (typeof str !== 'string') return NaN;
   const strLength = str.length;
   let res = 0;
   let i = 0;
   let neg = false;
-  if (str.startsWith("-")) {
+  if (str.startsWith('-')) {
     neg = true;
     i++;
   }

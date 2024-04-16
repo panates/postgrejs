@@ -1,13 +1,13 @@
-import { Connection, DataFormat, DataTypeOIDs } from "postgresql-client";
-import { testEncode, testParse } from "./_testers.js";
+import { Connection, DataFormat, DataTypeOIDs } from 'postgresql-client';
+import { testEncode, testParse } from './_testers.js';
 
 export function createTests(conn: () => Connection) {
   it('should parse "float4" field (text)', async function () {
-    await testParse(conn(), DataTypeOIDs.float4, ["1.2", "-2.5"], [1.2, -2.5], { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs.float4, ['1.2', '-2.5'], [1.2, -2.5], { columnFormat: DataFormat.text });
   });
 
   it('should parse "float4" field (binary)', async function () {
-    await testParse(conn(), DataTypeOIDs.float4, ["1.25", "-2.5"], [1.25, -2.5], { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs.float4, ['1.25', '-2.5'], [1.25, -2.5], { columnFormat: DataFormat.binary });
   });
 
   it('should parse "float4" array field (text)', async function () {

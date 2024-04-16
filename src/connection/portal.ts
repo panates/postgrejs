@@ -68,23 +68,23 @@ export class Portal {
     intoCon.ref();
     try {
       const socket = intoCon.socket;
-      socket.sendDescribeMessage({type: "P", name: this.name});
+      socket.sendDescribeMessage({ type: 'P', name: this.name });
       socket.sendFlushMessage();
       return await socket.capture(
-          async (code: Protocol.BackendMessageCode, msg: any, done: (err?, result?) => void) => {
-            switch (code) {
-              case Protocol.BackendMessageCode.NoticeResponse:
-                break;
-              case Protocol.BackendMessageCode.NoData:
-                done();
-                break;
-              case Protocol.BackendMessageCode.RowDescription:
-                done(undefined, msg.fields);
-                break;
-              default:
-                done(new Error(`Server returned unexpected response message (${String.fromCharCode(code)})`));
-            }
+        async (code: Protocol.BackendMessageCode, msg: any, done: (err?, result?) => void) => {
+          switch (code) {
+            case Protocol.BackendMessageCode.NoticeResponse:
+              break;
+            case Protocol.BackendMessageCode.NoData:
+              done();
+              break;
+            case Protocol.BackendMessageCode.RowDescription:
+              done(undefined, msg.fields);
+              break;
+            default:
+              done(new Error(`Server returned unexpected response message (${String.fromCharCode(code)})`));
           }
+        },
       );
     } finally {
       intoCon.unref();
@@ -96,46 +96,46 @@ export class Portal {
     intoCon.ref();
     try {
       const socket = intoCon.socket;
-      socket.sendExecuteMessage({portal: this.name, fetchCount: fetchCount || 100});
+      socket.sendExecuteMessage({ portal: this.name, fetchCount: fetchCount || 100 });
       socket.sendFlushMessage();
       const rows: any = [];
       return await socket.capture(
-          async (
-              code: Protocol.BackendMessageCode,
-              msg: any,
-              done: (err?: Error, result?: PortalExecuteResult) => void
-          ) => {
-            switch (code) {
-              case Protocol.BackendMessageCode.NoticeResponse:
-                break;
-              case Protocol.BackendMessageCode.NoData:
-                done(undefined, {code});
-                break;
-              case Protocol.BackendMessageCode.DataRow:
-                if (Array.isArray(this._columnFormat)) {
-                  rows.push(
-                      msg.columns.map((buf: Buffer, i) =>
-                          this._columnFormat[i] === Protocol.DataFormat.text ? buf.toString("utf8") : buf
-                      )
-                  );
-                } else if (this._columnFormat === Protocol.DataFormat.binary) rows.push(msg.columns);
-                else rows.push(msg.columns.map((buf: Buffer) => buf.toString("utf8")));
-                break;
-              case Protocol.BackendMessageCode.PortalSuspended:
-                done(undefined, {code, rows});
-                break;
-              case Protocol.BackendMessageCode.CommandComplete:
-                done(undefined, {
-                  code,
-                  rows,
-                  command: msg.command,
-                  rowCount: msg.rowCount,
-                });
-                break;
-              default:
-                done(new Error(`Server returned unexpected response message (${String.fromCharCode(code)})`));
-            }
+        async (
+          code: Protocol.BackendMessageCode,
+          msg: any,
+          done: (err?: Error, result?: PortalExecuteResult) => void,
+        ) => {
+          switch (code) {
+            case Protocol.BackendMessageCode.NoticeResponse:
+              break;
+            case Protocol.BackendMessageCode.NoData:
+              done(undefined, { code });
+              break;
+            case Protocol.BackendMessageCode.DataRow:
+              if (Array.isArray(this._columnFormat)) {
+                rows.push(
+                  msg.columns.map((buf: Buffer, i) =>
+                    this._columnFormat[i] === Protocol.DataFormat.text ? buf.toString('utf8') : buf,
+                  ),
+                );
+              } else if (this._columnFormat === Protocol.DataFormat.binary) rows.push(msg.columns);
+              else rows.push(msg.columns.map((buf: Buffer) => buf.toString('utf8')));
+              break;
+            case Protocol.BackendMessageCode.PortalSuspended:
+              done(undefined, { code, rows });
+              break;
+            case Protocol.BackendMessageCode.CommandComplete:
+              done(undefined, {
+                code,
+                rows,
+                command: msg.command,
+                rowCount: msg.rowCount,
+              });
+              break;
+            default:
+              done(new Error(`Server returned unexpected response message (${String.fromCharCode(code)})`));
           }
+        },
       );
     } finally {
       intoCon.unref();
@@ -147,7 +147,7 @@ export class Portal {
     intoCon.ref();
     try {
       const socket = intoCon.socket;
-      socket.sendCloseMessage({type: "P", name: this.name});
+      socket.sendCloseMessage({ type: 'P', name: this.name });
       socket.sendSyncMessage();
       return await socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error) => void) => {
         switch (code) {

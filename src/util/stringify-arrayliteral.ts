@@ -2,11 +2,7 @@ import { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import { EncodeTextFunction } from '../types.js';
 import { arrayCalculateDim } from './array-calculatedim.js';
 
-export function stringifyArrayLiteral(
-    value: any[],
-    options?: DataMappingOptions,
-    encode?: EncodeTextFunction
-): string {
+export function stringifyArrayLiteral(value: any[], options?: DataMappingOptions, encode?: EncodeTextFunction): string {
   const dim = arrayCalculateDim(value);
   const writeDim = (arr: any[], level: number) => {
     const elemCount = dim[level];
@@ -20,7 +16,7 @@ export function stringifyArrayLiteral(
       }
       // if value is null
       if (x == null) {
-        out.push("NULL");
+        out.push('NULL');
         continue;
       }
       if (Array.isArray(x)) {
@@ -28,13 +24,13 @@ export function stringifyArrayLiteral(
         continue;
       }
       if (encode) x = encode(x, options || {});
-      out.push(escapeArrayItem("" + x));
+      out.push(escapeArrayItem('' + x));
     }
-    return "{" + out.join(",") + "}";
+    return '{' + out.join(',') + '}';
   };
   return writeDim(value, 0);
 }
 
 function escapeArrayItem(str: string): string {
-  return '"' + str.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+  return '"' + str.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 }

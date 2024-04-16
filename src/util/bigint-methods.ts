@@ -1,6 +1,6 @@
 /* eslint-disable no-bitwise */
 const big0 = BigInt(0);
-const beAnd = BigInt("0xffffffff");
+const beAnd = BigInt('0xffffffff');
 const big32 = BigInt(32);
 
 // https://github.com/nodejs/node/blob/v13.9.0/lib/internal/buffer.js

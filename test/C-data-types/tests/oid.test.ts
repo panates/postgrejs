@@ -1,13 +1,13 @@
-import { Connection, DataFormat, DataTypeOIDs } from "postgresql-client";
-import { testEncode, testParse } from "./_testers.js";
+import { Connection, DataFormat, DataTypeOIDs } from 'postgresql-client';
+import { testEncode, testParse } from './_testers.js';
 
 export function createTests(conn: () => Connection) {
   it('should parse "oid" field (text)', async function () {
-    await testParse(conn(), DataTypeOIDs.oid, ["1", "2"], [1, 2], {columnFormat: DataFormat.text});
+    await testParse(conn(), DataTypeOIDs.oid, ['1', '2'], [1, 2], { columnFormat: DataFormat.text });
   });
 
   it('should parse "oid" field (binary)', async function () {
-    await testParse(conn(), DataTypeOIDs.oid, ["1", "2"], [1, 2], {columnFormat: DataFormat.binary});
+    await testParse(conn(), DataTypeOIDs.oid, ['1', '2'], [1, 2], { columnFormat: DataFormat.binary });
   });
 
   it('should parse "oid" array field (text)', async function () {
@@ -21,7 +21,7 @@ export function createTests(conn: () => Connection) {
         [null, 2, null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._oid, input, input, {columnFormat: DataFormat.text});
+    await testParse(conn(), DataTypeOIDs._oid, input, input, { columnFormat: DataFormat.text });
   });
 
   it('should parse "oid" array field (binary)', async function () {
@@ -35,7 +35,7 @@ export function createTests(conn: () => Connection) {
         [null, 2, null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._oid, input, input, {columnFormat: DataFormat.binary});
+    await testParse(conn(), DataTypeOIDs._oid, input, input, { columnFormat: DataFormat.binary });
   });
 
   it('should encode "oid" param', async function () {
