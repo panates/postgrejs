@@ -39,8 +39,10 @@ export async function testParse(
     expect(resp.rows?.[0][0]).toStrictEqual(output);
   }
   // eslint-disable-next-line prefer-const
-  else
-    for (let [i, v] of output.entries()) {
+  else {
+    let i: number;
+    let v: any;
+    for ([i, v] of output.entries()) {
       expect(resp.fields?.[i].jsType).toStrictEqual(reg.jsType);
       if (reg.oid !== DataTypeOIDs.char) expect(resp.fields?.[i].dataTypeId).toStrictEqual(reg.oid);
       let n = resp.rows?.[0][i];
@@ -48,6 +50,7 @@ export async function testParse(
       if (typeof v === 'bigint') v = '' + v;
       expect(n).toStrictEqual(v);
     }
+  }
   return resp;
 }
 
