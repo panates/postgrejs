@@ -26,3 +26,4 @@ export * from './util/stringify-arrayliteral.js';
 export * from './util/stringify-for-sql.js';
 
 export * from './protocol/smart-buffer.js';
+export * from './protocol/database-error.js';
