@@ -18,7 +18,7 @@ import { PreparedStatement } from './prepared-statement.js';
 export type NotificationMessage = Protocol.NotificationResponseMessage;
 export type NotificationCallback = (msg: NotificationMessage) => any;
 
-export class Connection extends SafeEventEmitter {
+export class Connection extends SafeEventEmitter implements AsyncDisposable {
   protected readonly _pool?: Pool;
   protected readonly _intlCon: IntlConnection;
   protected readonly _notificationListeners = new SafeEventEmitter();
@@ -304,5 +304,9 @@ export class Connection extends SafeEventEmitter {
       }
       throw e;
     });
+  }
+
+  [Symbol.asyncDispose](): Promise<void> {
+    return this.close();
   }
 }

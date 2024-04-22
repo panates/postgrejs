@@ -9,7 +9,7 @@ import { parseRow } from '../util/parse-row.js';
 import { Portal } from './portal.js';
 import { PreparedStatement } from './prepared-statement.js';
 
-export class Cursor extends SafeEventEmitter {
+export class Cursor extends SafeEventEmitter implements AsyncDisposable {
   private readonly _statement: PreparedStatement;
   private readonly _portal: Portal;
   private readonly _parsers: AnyParseFunction[];
@@ -94,5 +94,9 @@ export class Cursor extends SafeEventEmitter {
         }
       })
       .toPromise();
+  }
+
+  [Symbol.asyncDispose](): Promise<void> {
+    return this.close();
   }
 }

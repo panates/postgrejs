@@ -81,4 +81,17 @@ describe('Cursor support', function () {
     await cursor?.close();
     expect(count).toStrictEqual(10);
   });
+
+  it('should automatically close with "using" syntax', async function () {
+    let closed = false;
+    {
+      const result = await connection.query(`select * from customers order by id`, { objectRows: false, cursor: true });
+      await using cursor = result.cursor!;
+      expect(cursor).toBeDefined();
+      cursor.on('close', () => (closed = true));
+      const row = await cursor?.next();
+      expect(row[0]).toStrictEqual(1);
+    }
+    expect(closed).toStrictEqual(true);
+  });
 });
