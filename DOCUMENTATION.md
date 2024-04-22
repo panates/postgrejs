@@ -497,6 +497,19 @@ connection.on('terminate', () => {
 await connection.close(30000); // will wait 30 secs before terminate the connection
 ```
 
+`Connection` already supports [TC30 Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management) proposal.
+
+```ts
+import { Connection } from 'postgresql-client';
+{
+    // connection will be automatically closed when this scope ends
+    await using connection = new Connection('postgres://localhost');
+    await connection.connect();    
+}
+
+```
+
+
 ##### .execute()
 
 Executes single or multiple SQL scripts
@@ -795,7 +808,7 @@ import { Pool } from 'postgresql-client';
 const pool = new Pool('postgres://localhost');
 const connection = await pool.acquire();
 // ...
-await connection.relese();
+await connection.close();
 ````
 
 ##### .close()

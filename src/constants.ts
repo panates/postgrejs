@@ -2,6 +2,9 @@ import { Protocol } from './protocol/protocol.js';
 
 import DataFormat = Protocol.DataFormat;
 
+// @ts-ignore
+Symbol.asyncDispose ??= Symbol('Symbol.asyncDispose');
+
 export { DataFormat };
 export const DEFAULT_COLUMN_FORMAT = DataFormat.binary;
 

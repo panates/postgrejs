@@ -21,7 +21,7 @@ import { Portal } from './portal.js';
 let statementCounter = 0;
 let portalCounter = 0;
 
-export class PreparedStatement extends SafeEventEmitter {
+export class PreparedStatement extends SafeEventEmitter implements AsyncDisposable {
   private readonly _connection: Connection;
   private readonly _sql: string = '';
   private readonly _name: string = '';
@@ -241,5 +241,9 @@ export class PreparedStatement extends SafeEventEmitter {
       intoCon.unref();
     }
     this.emit('close');
+  }
+
+  [Symbol.asyncDispose](): Promise<void> {
+    return this.close();
   }
 }

@@ -30,6 +30,7 @@ Enterprise level PostgreSQL client for NodeJs
 - Low memory utilization and boosted performance with Shared Buffers
 - Supports Clear text, MD5 and SASL password algorithms
 - Can return both array and object rows
+- Auto disposal with "using" syntax ([TC30 Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management))
 
 
 ## Installation

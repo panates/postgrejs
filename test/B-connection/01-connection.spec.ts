@@ -246,21 +246,18 @@ describe('Connection', function () {
     const x = await connection.query('select count(*) from test.dummy_table1', { autoCommit: false });
     expect(x.rows?.length).toStrictEqual(1);
     expect(x.rows?.[0][0]).toStrictEqual(1);
-    /*
-                await connection.startTransaction();
-                try {
-                    await connection.execute('savepoint sv1');
-                    await connection.execute('invalid sql');
-                } catch (e) {
-                }
-                try {
-                    await connection.execute('select 1');
-                } catch (e) {
-                    await connection.execute('rollback to sv1');
-                }
-                await connection.execute('select 2');
-                await connection.execute('select 3');
-        */
+
     await connection.close();
+  });
+
+  it('should automatically close with "using" syntax', async function () {
+    let closed = false;
+    {
+      await using conn = new Connection();
+      await conn.connect();
+      conn.on('close', () => (closed = true));
+      expect(conn.state).toStrictEqual(ConnectionState.READY);
+    }
+    expect(closed).toStrictEqual(true);
   });
 });
