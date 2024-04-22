@@ -1,3 +1,19 @@
+# v2.10.7
+[2024-04-22]
+
+### Changes
+
+* Added prettier formatting ([`5e157f5`](https://github.com/panates/postgresql-client/commit/5e157f5cdc145df1abc2c0eb641563638af93af9))
+* Remove developer content from the README and into CONTRIBUTING.md ([`58c2ce8`](https://github.com/panates/postgresql-client/commit/58c2ce8c3f4e643b3bb984ad73666dd5fd40d729))
+* Add basic documentation on running the test suite. Add rimraf as dependency since its referenced by the scripts. Update the lockfile. Start to prepare for proper prettier formatting ([`4ca7b54`](https://github.com/panates/postgresql-client/commit/4ca7b54c970601ee9f11839bae91ce7fb3a2ea8d))
+* Added prettier formatting ([`250673e`](https://github.com/panates/postgresql-client/commit/250673e51c840e1fdfd4f9f79db5400af70b7d64))
+* Added prettier formatting ([`289c40c`](https://github.com/panates/postgresql-client/commit/289c40c1d65da55c56d814054d38715fa48a78f9))
+* Added prettier formatting ([`9d02a3f`](https://github.com/panates/postgresql-client/commit/9d02a3f3a53f784fd7a3b917a2cef3e355638c20))
+* Expose DatabaseError ([`5f1bbd2`](https://github.com/panates/postgresql-client/commit/5f1bbd2ab2ad69a836e7a53ef92ecffcc352e46b))
+* Remove duplicated root in .editorconfig ([`a514ad5`](https://github.com/panates/postgresql-client/commit/a514ad52f09ad92ade5b83ed599ccf1832b424ea))
+* Use the README.md from master ([`ac3f7b8`](https://github.com/panates/postgresql-client/commit/ac3f7b831c4a515d2a0db74f53cb481d651a0200))
+* Added prettier formatting ([`0e0a521`](https://github.com/panates/postgresql-client/commit/0e0a521435aae1c67ceeb27f13af6cc49066c2ad))
+
 # v2.10.6
 [2024-03-14]
 
