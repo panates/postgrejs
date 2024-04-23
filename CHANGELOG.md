@@ -1,3 +1,12 @@
+# v2.11.0
+[2024-04-23]
+
+### Changes
+
+* Updated dependencies ([`9dcf2c2`](https://github.com/panates/postgresql-client/commit/9dcf2c2957621aefb0a1f9f3da66877c4d7382bf))
+* Implement TC39 Explicit Resource Management proposal ([`cd5efa4`](https://github.com/panates/postgresql-client/commit/cd5efa4377d3e7c0d9eb795d3db0fbc7a1bf2943))
+* Implement TC39 Explicit Resource Management proposal ([`d3df6f4`](https://github.com/panates/postgresql-client/commit/d3df6f496beca807ede191968806debcec631dbf))
+
 # v2.10.7
 [2024-04-22]
 
