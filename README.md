@@ -176,7 +176,7 @@ You can report bugs and discuss features on the [GitHub issues](https://github.c
 When you open an issue please provide version of NodeJS and PostgreSQL server.
 
 ## Node Compatibility
-- node >= 14.x
+- node >= 16.x
  
   
 ## License
