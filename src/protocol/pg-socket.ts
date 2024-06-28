@@ -184,19 +184,27 @@ export class PgSocket extends SafeEventEmitter {
   capture(callback: CaptureCallback): Promise<any> {
     return new Promise((resolve, reject) => {
       const done = (err?: Error, result?: any) => {
+        this.removeListener('close', closeHandler);
         this.removeListener('error', errorHandler);
         this.removeListener('message', msgHandler);
         if (err) reject(err);
         else resolve(result);
       };
       const errorHandler = (err: Error) => {
+        this.removeListener('close', closeHandler);
         this.removeListener('message', msgHandler);
         reject(err);
+      };
+      const closeHandler = () => {
+        this.removeListener('error', errorHandler);
+        this.removeListener('message', msgHandler);
+        reject(new Error('Connection closed'));
       };
       const msgHandler = (code: Protocol.BackendMessageCode, msg: any) => {
         const x = callback(code, msg, done);
         if (promisify.isPromise(x)) (x as Promise<void>).catch(err => done(err));
       };
+      this.once('close', closeHandler);
       this.once('error', errorHandler);
       this.on('message', msgHandler);
     });
