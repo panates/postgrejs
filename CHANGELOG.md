@@ -1,3 +1,12 @@
+# v2.11.1
+[2024-06-29]
+
+### Changes
+
+* Migrated eslint config to @panates/eslint-config ([`718f5fd`](https://github.com/panates/postgresql-client/commit/718f5fd396f8966aef59ca3bcb4ecc6c52e8abce))
+* Migrated eslint config to @panates/eslint-config ([`fb618e0`](https://github.com/panates/postgresql-client/commit/fb618e0b606ce917b482ab8ae7bba1397ec10c2e))
+* Updated Node version ([`3fde2b9`](https://github.com/panates/postgresql-client/commit/3fde2b95b80567178fd6cf3f13f4f4b5d05f713c))
+
 # v2.11.0
 [2024-04-23]
 
