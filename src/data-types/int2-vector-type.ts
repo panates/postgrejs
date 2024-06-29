@@ -1,6 +1,6 @@
-import { SmartBuffer } from 'postgresql-client';
 import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
+import { SmartBuffer } from '../protocol/smart-buffer.js';
 import { decodeBinaryArray } from '../util/decode-binaryarray.js';
 import { encodeBinaryArray } from '../util/encode-binaryarray.js';
 import { fastParseInt } from '../util/fast-parseint.js';

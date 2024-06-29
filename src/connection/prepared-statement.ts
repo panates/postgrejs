@@ -133,12 +133,14 @@ export class PreparedStatement extends SafeEventEmitter implements AsyncDisposab
     try {
       const result = await intlCon.statementQueue.enqueue<QueryResult>(() => this._execute(options)).toPromise();
       if (commitLast) await intlCon.execute('COMMIT');
-      else if (intlCon.inTransaction && rollbackOnError)
+      else if (intlCon.inTransaction && rollbackOnError) {
         await intlCon.execute('RELEASE ' + this._onErrorSavePoint + ';');
+      }
       return result;
     } catch (e: any) {
-      if (intlCon.inTransaction && rollbackOnError)
+      if (intlCon.inTransaction && rollbackOnError) {
         await intlCon.execute('ROLLBACK TO ' + this._onErrorSavePoint + ';');
+      }
       throw e;
     }
   }
@@ -202,8 +204,9 @@ export class PreparedStatement extends SafeEventEmitter implements AsyncDisposab
           }
         }
       }
-      if (result.command === 'DELETE' || result.command === 'INSERT' || result.command === 'UPDATE')
+      if (result.command === 'DELETE' || result.command === 'INSERT' || result.command === 'UPDATE') {
         result.rowsAffected = executeResult.rowCount;
+      }
 
       result.executeTime = Date.now() - startTime;
 

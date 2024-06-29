@@ -1,32 +1,32 @@
 import { Connection, ConnectionState } from 'postgresql-client';
 import { createTestSchema } from '../_support/create-db.js';
 
-describe('Connection', function () {
+describe('Connection', () => {
   let connection: Connection;
 
   afterEach(async () => {
     if (connection) await connection.close(0);
   });
 
-  it('should connect', async function () {
+  it('should connect', async () => {
     connection = new Connection();
     await connection.connect();
     expect(connection.state).toStrictEqual(ConnectionState.READY);
   });
 
-  it('should get process id', async function () {
+  it('should get process id', async () => {
     connection = new Connection();
     await connection.connect();
     expect(connection.processID).toBeGreaterThan(0);
   });
 
-  it('should get secret key', async function () {
+  it('should get secret key', async () => {
     connection = new Connection();
     await connection.connect();
     expect(connection.secretKey).toBeGreaterThan(0);
   });
 
-  it('should execute simple query', async function () {
+  it('should execute simple query', async () => {
     connection = new Connection();
     await connection.connect();
     const result = await connection.execute(`select 1`);
@@ -36,7 +36,7 @@ describe('Connection', function () {
     expect(result.results[0].command).toStrictEqual('SELECT');
   });
 
-  it('should execute extended query', async function () {
+  it('should execute extended query', async () => {
     connection = new Connection();
     await connection.connect();
     const result = await connection.query(`select $1`, { params: [1234] });
@@ -47,14 +47,14 @@ describe('Connection', function () {
     expect(result.rows?.[0][0]).toStrictEqual(1234);
   });
 
-  it('should close', async function () {
+  it('should close', async () => {
     connection = new Connection();
     await connection.connect();
     await connection.close(0);
     expect(connection.state).toStrictEqual(ConnectionState.CLOSED);
   });
 
-  it('should emit "connecting" and "ready" events while connect', async function () {
+  it('should emit "connecting" and "ready" events while connect', async () => {
     connection = new Connection();
     const events: string[] = [];
     connection.on('connecting', () => events.push('connecting'));
@@ -66,7 +66,7 @@ describe('Connection', function () {
     await connection.close(0);
   });
 
-  it('should emit "close" event while close', async function () {
+  it('should emit "close" event while close', async () => {
     connection = new Connection();
     await connection.connect();
     const events: string[] = [];
@@ -76,7 +76,7 @@ describe('Connection', function () {
     expect(connection.state).toStrictEqual(ConnectionState.CLOSED);
   });
 
-  it('should wait for active query before terminate', async function () {
+  it('should wait for active query before terminate', async () => {
     connection = new Connection();
     await connection.connect();
     let terminated = false;
@@ -88,7 +88,7 @@ describe('Connection', function () {
     expect(Date.now() - startTime).toBeGreaterThanOrEqual(500);
   });
 
-  it('should start/commit transaction', async function () {
+  it('should start/commit transaction', async () => {
     connection = new Connection();
     await connection.connect();
     expect(connection.inTransaction).toStrictEqual(false);
@@ -99,7 +99,7 @@ describe('Connection', function () {
     await connection.close();
   });
 
-  it('should start/rollback transaction', async function () {
+  it('should start/rollback transaction', async () => {
     connection = new Connection();
     await connection.connect();
     expect(connection.inTransaction).toStrictEqual(false);
@@ -110,7 +110,7 @@ describe('Connection', function () {
     await connection.close();
   });
 
-  it('should create a savepoint and rollback to it', async function () {
+  it('should create a savepoint and rollback to it', async () => {
     connection = new Connection();
     await connection.connect();
     expect(connection.inTransaction).toStrictEqual(false);
@@ -123,14 +123,14 @@ describe('Connection', function () {
     await connection.close();
   });
 
-  it('create test schema', async function () {
+  it('create test schema', async () => {
     connection = new Connection();
     await connection.connect();
     await createTestSchema(connection);
     await connection.close();
   });
 
-  it('should default transaction mode must be autoCommit', async function () {
+  it('should default transaction mode must be autoCommit', async () => {
     connection = new Connection();
     await connection.connect();
     await connection.execute(
@@ -156,7 +156,7 @@ describe('Connection', function () {
     await connection.close();
   });
 
-  it('should automatically start transaction when connection.options.autoCommit = false', async function () {
+  it('should automatically start transaction when connection.options.autoCommit = false', async () => {
     connection = new Connection({ autoCommit: false });
     await connection.connect();
     await connection.execute('delete from test.dummy_table1', { autoCommit: true });
@@ -181,7 +181,7 @@ describe('Connection', function () {
     await connection.close();
   });
 
-  it('should automatically start transaction when connection.execute() options.autoCommit = false', async function () {
+  it('should automatically start transaction when connection.execute() options.autoCommit = false', async () => {
     connection = new Connection();
     await connection.connect();
     expect(connection.inTransaction).toStrictEqual(false);
@@ -204,7 +204,7 @@ describe('Connection', function () {
     await connection.close();
   });
 
-  it('should automatically start transaction when connection.query() options.autoCommit = false', async function () {
+  it('should automatically start transaction when connection.query() options.autoCommit = false', async () => {
     connection = new Connection();
     await connection.connect();
     expect(connection.inTransaction).toStrictEqual(false);
@@ -227,7 +227,7 @@ describe('Connection', function () {
     await connection.close();
   });
 
-  it('should continue transaction on error', async function () {
+  it('should continue transaction on error', async () => {
     connection = new Connection();
     await connection.connect();
     expect(connection.inTransaction).toStrictEqual(false);
@@ -250,8 +250,9 @@ describe('Connection', function () {
     await connection.close();
   });
 
-  it('should automatically close with "using" syntax', async function () {
+  it('should automatically close with "using" syntax', async () => {
     let closed = false;
+    // eslint-disable-next-line no-lone-blocks
     {
       await using conn = new Connection();
       await conn.connect();

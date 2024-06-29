@@ -130,8 +130,9 @@ export class IntlConnection extends SafeEventEmitter {
         try {
           const result = await this._execute(sql, options, cb);
           if (commitLast) await this._execute('COMMIT');
-          else if (this.inTransaction && rollbackOnError)
+          else if (this.inTransaction && rollbackOnError) {
             await this._execute('RELEASE ' + this._onErrorSavePoint + ';');
+          }
           return result;
         } catch (e: any) {
           if (this.inTransaction && rollbackOnError) await this._execute('ROLLBACK TO ' + this._onErrorSavePoint + ';');
@@ -217,18 +218,21 @@ export class IntlConnection extends SafeEventEmitter {
               current.rows = [];
               break;
             case Protocol.BackendMessageCode.DataRow:
-              let row = msg.columns.map((x: Buffer) => x.toString('utf8'));
-              parseRow(parsers, row, opts);
-              if (opts.objectRows && current.fields) row = convertRowToObject(current.fields, row);
-              if (cb) cb('row', row);
-              current.rows = current.rows || [];
-              current.rows.push(row);
+              {
+                let row = msg.columns.map((x: Buffer) => x.toString('utf8'));
+                parseRow(parsers, row, opts);
+                if (opts.objectRows && current.fields) row = convertRowToObject(current.fields, row);
+                if (cb) cb('row', row);
+                current.rows = current.rows || [];
+                current.rows.push(row);
+              }
               break;
             case Protocol.BackendMessageCode.CommandComplete:
               // Ignore BEGIN command that we added to sql
               current.command = msg.command;
-              if (current.command === 'DELETE' || current.command === 'INSERT' || current.command === 'UPDATE')
+              if (current.command === 'DELETE' || current.command === 'INSERT' || current.command === 'UPDATE') {
                 current.rowsAffected = msg.rowCount;
+              }
               current.executeTime = Date.now() - currentStart;
               if (current.rows) current.rowType = opts.objectRows && current.fields ? 'object' : 'array';
               result.results.push(current);
@@ -242,6 +246,9 @@ export class IntlConnection extends SafeEventEmitter {
               // Ignore COMMIT command that we added to sql
               result.totalCommands = result.results.length;
               done(undefined, result);
+              break;
+            default:
+              break;
           }
         },
       );

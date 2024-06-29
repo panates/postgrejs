@@ -17,7 +17,7 @@ export const TimeType: DataType = {
     const lo = v.readUInt32BE(4);
 
     let d = new Date((lo + hi * timeMul) / 1000);
-    if (fetchAsString || !options.utcDates)
+    if (fetchAsString || !options.utcDates) {
       d = new Date(
         d.getUTCFullYear(),
         d.getUTCMonth(),
@@ -27,6 +27,7 @@ export const TimeType: DataType = {
         d.getUTCSeconds(),
         d.getUTCMilliseconds(),
       );
+    }
     return fetchAsString ? dateToTimeString(d) : d;
   },
 

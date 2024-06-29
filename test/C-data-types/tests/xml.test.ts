@@ -2,17 +2,17 @@ import { Connection, DataFormat, DataTypeOIDs } from 'postgresql-client';
 import { testEncode, testParse } from './_testers.js';
 
 export function createTests(conn: () => Connection) {
-  it('should parse "xml" field (text)', async function () {
+  it('should parse "xml" field (text)', async () => {
     const input = ['<tag>1</tag>', '<tag>2</tag>'];
     await testParse(conn(), DataTypeOIDs.xml, input, input, { columnFormat: DataFormat.text });
   });
 
-  it('should parse "xml" field (binary)', async function () {
+  it('should parse "xml" field (binary)', async () => {
     const input = ['<tag>1</tag>', '<tag>2</tag>'];
     await testParse(conn(), DataTypeOIDs.xml, input, input, { columnFormat: DataFormat.binary });
   });
 
-  it('should parse "xml" array field (text)', async function () {
+  it('should parse "xml" array field (text)', async () => {
     const input = [
       [
         ['<tag>1</tag>', '<tag>2</tag>', null],
@@ -26,7 +26,7 @@ export function createTests(conn: () => Connection) {
     await testParse(conn(), DataTypeOIDs._xml, input, input, { columnFormat: DataFormat.text });
   });
 
-  it('should parse "xml" array field (binary)', async function () {
+  it('should parse "xml" array field (binary)', async () => {
     const input = [
       [
         ['<tag>1</tag>', '<tag>2</tag>', null],
@@ -40,11 +40,11 @@ export function createTests(conn: () => Connection) {
     await testParse(conn(), DataTypeOIDs._xml, input, input, { columnFormat: DataFormat.binary });
   });
 
-  it('should encode "xml" param', async function () {
+  it('should encode "xml" param', async () => {
     await testEncode(conn(), DataTypeOIDs.xml, ['abc', 'bcd']);
   });
 
-  it('should encode "xml" array param', async function () {
+  it('should encode "xml" array param', async () => {
     const input = [
       [
         ['<tag>1</tag>', '<tag>2</tag>', null],

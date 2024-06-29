@@ -1,6 +1,6 @@
 import { DataTypeOIDs, Pool } from 'postgresql-client';
 
-describe('Pool', function () {
+describe('Pool', () => {
   let pool: Pool;
 
   beforeAll(async () => {
@@ -11,7 +11,7 @@ describe('Pool', function () {
     await pool.close(0);
   });
 
-  it('should acquire connection', async function () {
+  it('should acquire connection', async () => {
     expect(pool.totalConnections).toStrictEqual(0);
     const connection = await pool.acquire();
     expect(pool.totalConnections).toStrictEqual(1);
@@ -21,7 +21,7 @@ describe('Pool', function () {
     expect(pool.acquiredConnections).toStrictEqual(0);
   });
 
-  it('should execute simple query', async function () {
+  it('should execute simple query', async () => {
     const result = await pool.execute(`select 1`);
     expect(pool.acquiredConnections).toStrictEqual(0);
     expect(result).toBeDefined();
@@ -30,7 +30,7 @@ describe('Pool', function () {
     expect(result.results[0].command).toStrictEqual('SELECT');
   });
 
-  it('should create a prepared statement, execute and release connection', async function () {
+  it('should create a prepared statement, execute and release connection', async () => {
     const statement = await pool.prepare(`select $1`, { paramTypes: [DataTypeOIDs.int4] });
     expect(pool.acquiredConnections).toStrictEqual(1);
     expect(statement).toBeDefined();
@@ -45,7 +45,7 @@ describe('Pool', function () {
     expect(pool.acquiredConnections).toStrictEqual(0);
   });
 
-  it('should execute extended query', async function () {
+  it('should execute extended query', async () => {
     const result = await pool.query(`select $1`, { params: [1234] });
     expect(pool.acquiredConnections).toStrictEqual(0);
     expect(result).toBeDefined();
@@ -55,7 +55,7 @@ describe('Pool', function () {
     expect(result.rows?.[0][0]).toStrictEqual(1234);
   });
 
-  it('should close all connections and shutdown pool', async function () {
+  it('should close all connections and shutdown pool', async () => {
     expect(pool.totalConnections).toStrictEqual(1);
     expect(pool.acquiredConnections).toStrictEqual(0);
     await pool.close();

@@ -43,6 +43,8 @@ export namespace SASL {
         case 'i':
           iteration = parseInt(i.substring(2), 10);
           break;
+        default:
+          break;
       }
     }
     if (!nonce) throw new Error('SASL: SCRAM-SERVER-FIRST-MESSAGE: nonce missing');
@@ -82,30 +84,30 @@ export namespace SASL {
     if (serverSignature !== session.serverSignature) throw new Error('SASL: Server signature does not match');
   }
 
-  function firstMessageBare(username: string, nonce: string): string {
+  const firstMessageBare = function (username: string, nonce: string): string {
     return `n=${username},r=${nonce}`;
-  }
+  };
 
   /**
    * Hi() is, essentially, PBKDF2 [RFC2898] with HMAC() as the
    * pseudorandom function (PRF) and with dkLen == output length of
    * HMAC() == output length of H()
    */
-  function hi(text: string, salt: string, iterations: number): Buffer {
+  const hi = function (text: string, salt: string, iterations: number): Buffer {
     return crypto.pbkdf2Sync(text, Buffer.from(salt, 'base64'), iterations, 32, 'sha256');
-  }
+  };
 
   const encode64 = str => Buffer.from(str).toString('base64');
 
-  function hmac(key, msg): Buffer {
+  const hmac = function (key, msg): Buffer {
     return crypto.createHmac('sha256', key).update(msg).digest();
-  }
+  };
 
-  function hash(data: Buffer): Buffer {
+  const hash = function (data: Buffer): Buffer {
     return crypto.createHash('sha256').update(data).digest();
-  }
+  };
 
-  function xor(a: any, b: any): Buffer {
+  const xor = function (a: any, b: any): Buffer {
     a = Buffer.isBuffer(a) ? a : Buffer.from(a);
     b = Buffer.isBuffer(b) ? b : Buffer.from(b);
     if (a.length !== b.length) throw new Error('Buffers must be of the same length');
@@ -115,5 +117,5 @@ export namespace SASL {
       out[i] = a[i] ^ b[i];
     }
     return out;
-  }
+  };
 }

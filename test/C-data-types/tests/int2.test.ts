@@ -2,15 +2,15 @@ import { Connection, DataFormat, DataTypeOIDs } from 'postgresql-client';
 import { testEncode, testParse } from './_testers.js';
 
 export function createTests(conn: () => Connection) {
-  it('should parse "int2" field (text)', async function () {
+  it('should parse "int2" field (text)', async () => {
     await testParse(conn(), DataTypeOIDs.int2, ['1', '-2'], [1, -2], { columnFormat: DataFormat.text });
   });
 
-  it('should parse "int2" field (binary)', async function () {
+  it('should parse "int2" field (binary)', async () => {
     await testParse(conn(), DataTypeOIDs.int2, ['1', '-2'], [1, -2], { columnFormat: DataFormat.binary });
   });
 
-  it('should parse "int2" array field (text)', async function () {
+  it('should parse "int2" array field (text)', async () => {
     const input = [
       [
         [-1, 5, null],
@@ -24,7 +24,7 @@ export function createTests(conn: () => Connection) {
     await testParse(conn(), DataTypeOIDs._int2, input, input, { columnFormat: DataFormat.text });
   });
 
-  it('should parse "int2" array field (binary)', async function () {
+  it('should parse "int2" array field (binary)', async () => {
     const input = [
       [
         [-1, 5, null],
@@ -38,11 +38,11 @@ export function createTests(conn: () => Connection) {
     await testParse(conn(), DataTypeOIDs._int2, input, input, { columnFormat: DataFormat.binary });
   });
 
-  it('should encode "int2" param', async function () {
+  it('should encode "int2" param', async () => {
     await testEncode(conn(), DataTypeOIDs.int2, [-1, 5]);
   });
 
-  it('should encode "int2" array param', async function () {
+  it('should encode "int2" array param', async () => {
     const input = [
       [
         [-1, 5],

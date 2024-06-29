@@ -1,7 +1,7 @@
 import { Connection } from 'postgresql-client';
 import { createTestSchema } from '../_support/create-db.js';
 
-describe('execute() (Simple Query)', function () {
+describe('execute() (Simple Query)', () => {
   let connection: Connection;
 
   beforeAll(async () => {
@@ -13,7 +13,7 @@ describe('execute() (Simple Query)', function () {
     await connection.close(0);
   });
 
-  it('should execute sql script', async function () {
+  it('should execute sql script', async () => {
     const result = await connection.execute(`select 1;`);
     expect(result).toBeDefined();
     expect(result.totalCommands).toStrictEqual(1);
@@ -21,7 +21,7 @@ describe('execute() (Simple Query)', function () {
     expect(result.results[0].command).toStrictEqual('SELECT');
   });
 
-  it('should execute multiple sql script', async function () {
+  it('should execute multiple sql script', async () => {
     const result = await connection.execute(`begin; select 1; select 2; end;`);
     expect(result).toBeDefined();
     expect(result.totalCommands).toStrictEqual(4);
@@ -32,7 +32,7 @@ describe('execute() (Simple Query)', function () {
     expect(result.results[3].command).toStrictEqual('COMMIT');
   });
 
-  it('should return fields info', async function () {
+  it('should return fields info', async () => {
     const result = await connection.execute(`select 1 as one, 'two'::varchar as two `);
     expect(result).toBeDefined();
     expect(result.totalCommands).toStrictEqual(1);
@@ -44,7 +44,7 @@ describe('execute() (Simple Query)', function () {
     expect(result.results[0].fields?.[1].fixedSize).not.toBeDefined();
   });
 
-  it('should return rows', async function () {
+  it('should return rows', async () => {
     const result = await connection.execute(`select 1 as one, 'two'::varchar as two `);
     expect(result).toBeDefined();
     expect(result.results[0].rows).toBeDefined();
@@ -53,7 +53,7 @@ describe('execute() (Simple Query)', function () {
     expect(result.results[0].rows?.[0]).toStrictEqual([1, 'two']);
   });
 
-  it('should return object rows if required', async function () {
+  it('should return object rows if required', async () => {
     const result = await connection.execute(`select 1 as one, 'two'::varchar as two `, { objectRows: true });
     expect(result).toBeDefined();
     expect(result.results[0].rows).toBeDefined();
@@ -62,7 +62,7 @@ describe('execute() (Simple Query)', function () {
     expect(result.results[0].rows?.[0]).toStrictEqual({ one: 1, two: 'two' });
   });
 
-  it('should use a queue and execute one by one', async function () {
+  it('should use a queue and execute one by one', async () => {
     const promises: Promise<any>[] = [];
     promises.push(connection.execute(`select 1`));
     promises.push(connection.execute(`select 2`));
@@ -75,11 +75,11 @@ describe('execute() (Simple Query)', function () {
     expect(x[2].results[0].rows[0][0]).toStrictEqual(3);
   });
 
-  it('create test schema', async function () {
+  it('create test schema', async () => {
     await createTestSchema(connection);
   });
 
-  it('should select sql return data rows', async function () {
+  it('should select sql return data rows', async () => {
     const result = await connection.execute(`select * from test.data_types`, { objectRows: true });
     expect(result).toBeDefined();
     expect(result.results[0].rows).toBeDefined();
@@ -109,7 +109,7 @@ describe('execute() (Simple Query)', function () {
     expect(row.f_int2_vector).toStrictEqual([1, 3, 5]);
   });
 
-  it('should return all rows', async function () {
+  it('should return all rows', async () => {
     const result = await connection.execute(`select * from countries`, { objectRows: true });
     expect(result).toBeDefined();
     expect(result.results[0].rows).toBeDefined();

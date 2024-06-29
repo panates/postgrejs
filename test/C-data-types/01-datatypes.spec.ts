@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { Connection } from 'postgresql-client';
 
-describe('Data type encode/decode', function () {
+describe('Data type encode/decode', () => {
   let connection: Connection;
   process.env.PGTZ = 'Europe/Istanbul';
 

@@ -1,31 +1,31 @@
 import { getConnectionConfig, parseConnectionString } from 'postgresql-client';
 
-describe('Parse connection string', function () {
+describe('Parse connection string', () => {
   const oldEnv = { ...process.env };
 
   afterAll(() => {
     process.env = oldEnv;
   });
 
-  describe('Parse connection string', function () {
-    it('should parse local unix path ', function () {
+  describe('Parse connection string', () => {
+    it('should parse local unix path ', () => {
       const cfg = parseConnectionString('/var/run');
       expect(cfg.host).toStrictEqual('/var/run');
     });
 
-    it('should parse local unix path with query', function () {
+    it('should parse local unix path with query', () => {
       const cfg = parseConnectionString('/var/run?db=mydb');
       expect(cfg.host).toStrictEqual('/var/run');
       expect(cfg.database).toStrictEqual('mydb');
     });
 
-    it('should parse unix sockets uri', function () {
+    it('should parse unix sockets uri', () => {
       const cfg = parseConnectionString('socket://somepath/?db=any%2bdb');
       expect(cfg.host).toStrictEqual('/somepath/');
       expect(cfg.database).toStrictEqual('any+db');
     });
 
-    it('should parse unix with auth', function () {
+    it('should parse unix with auth', () => {
       const cfg = parseConnectionString('socket://me:1234@somepath/?db=any db');
       expect(cfg.host).toStrictEqual('/somepath/');
       expect(cfg.database).toStrictEqual('any db');
@@ -33,7 +33,7 @@ describe('Parse connection string', function () {
       expect(cfg.user).toStrictEqual('me');
     });
 
-    it('should parse url', function () {
+    it('should parse url', () => {
       const cfg = parseConnectionString('postgres://me:1234@localhost/any db');
       expect(cfg.host).toStrictEqual('localhost');
       expect(cfg.database).toStrictEqual('any db');
@@ -41,7 +41,7 @@ describe('Parse connection string', function () {
       expect(cfg.user).toStrictEqual('me');
     });
 
-    it('should get host from query', function () {
+    it('should get host from query', () => {
       const cfg = parseConnectionString('postgres://me:1234@127.0.0.1:5555/any db?host=127.0.0.1');
       expect(cfg.host).toStrictEqual('127.0.0.1');
       expect(cfg.port).toStrictEqual(5555);
@@ -51,7 +51,7 @@ describe('Parse connection string', function () {
     });
   });
 
-  describe('Get connection config from environment variables', function () {
+  describe('Get connection config from environment variables', () => {
     process.env.PGHOST = 'PGHOST';
     process.env.PGPORT = '1234';
     process.env.PGDATABASE = 'PGDATABASE';

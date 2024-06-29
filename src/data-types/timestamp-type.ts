@@ -21,7 +21,7 @@ export const TimestampType: DataType = {
 
     // Shift from 2000 to 1970
     let d = new Date((lo + hi * timeMul) / 1000 + timeShift);
-    if (fetchAsString || !options.utcDates)
+    if (fetchAsString || !options.utcDates) {
       d = new Date(
         d.getUTCFullYear(),
         d.getUTCMonth(),
@@ -31,6 +31,7 @@ export const TimestampType: DataType = {
         d.getUTCSeconds(),
         d.getUTCMilliseconds(),
       );
+    }
     return fetchAsString ? dateToTimestampString(d) : d;
   },
 

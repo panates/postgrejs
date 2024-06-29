@@ -1,28 +1,6 @@
 {
+  "extends": "@panates/tsconfig/node.json",
   "compilerOptions": {
-    "types": ["node"],
-    "moduleResolution": "node",
-    "target": "ES2020",
-    "lib": ["ES2020"],
-    "module": "ES2020",
-    "noEmit": true,
-    "declaration": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": false,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "sourceMap": true,
-    "noUnusedLocals": false,
-    "removeComments": false,
-    "noLib": false,
-    "experimentalDecorators": false,
-    "emitDecoratorMetadata": false,
-    "strict": true,
-    "strictNullChecks": true,
-    "baseUrl": ".",
-    "paths": {
-      "postgresql-client": ["./src"]
-    }
+    "types": ["node", "jest"]
   }
 }

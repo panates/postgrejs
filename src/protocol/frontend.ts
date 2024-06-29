@@ -213,8 +213,9 @@ export class Frontend {
   }
 
   getDescribeMessage(args: Frontend.DescribeMessageArgs): Buffer {
-    if (args.name && args.name.length > 63)
-      throw new Error(args.type === 'P' ? 'Portal' : 'Statement' + 'name length must be lower than 63');
+    if (args.name && args.name.length > 63) {
+      throw new Error(args.type === 'P' ? 'Portal' : 'Statement name length must be lower than 63');
+    }
     const io = this._io
       .start()
       .writeInt8(Protocol.FrontendMessageCode.Describe)
@@ -225,8 +226,9 @@ export class Frontend {
   }
 
   getExecuteMessage(args: Frontend.ExecuteMessageArgs): Buffer {
-    if (args.fetchCount && (args.fetchCount < 0 || args.fetchCount > 4294967295))
+    if (args.fetchCount && (args.fetchCount < 0 || args.fetchCount > 4294967295)) {
       throw new Error('fetchCount can be between 0 and 4294967295');
+    }
     const io = this._io
       .start()
       .writeInt8(Protocol.FrontendMessageCode.Execute)
@@ -237,8 +239,9 @@ export class Frontend {
   }
 
   getCloseMessage(args: Frontend.CloseMessageArgs): Buffer {
-    if (args.name && args.name.length > 63)
-      throw new Error(args.type === 'P' ? 'Portal' : 'Statement' + 'name length must be lower than 63');
+    if (args.name && args.name.length > 63) {
+      throw new Error(args.type === 'P' ? 'Portal' : 'Statement name length must be lower than 63');
+    }
     const io = this._io
       .start()
       .writeInt8(Protocol.FrontendMessageCode.Close)

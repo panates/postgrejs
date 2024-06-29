@@ -37,42 +37,46 @@ export class Pool extends SafeEventEmitter {
     const poolFactory: PoolFactory<IntlConnection> = {
       create: async () => {
         /* istanbul ignore next */
-        if (this.listenerCount('debug'))
+        if (this.listenerCount('debug')) {
           this.emit('debug', {
             location: 'Pool.factory.create',
             pool: this,
             message: `new connection creating`,
           });
+        }
         const intlCon = new IntlConnection(cfg);
         await intlCon.connect();
         intlCon.on('close', () => this._pool.destroy(intlCon));
         /* istanbul ignore next */
-        if (this.listenerCount('debug'))
+        if (this.listenerCount('debug')) {
           this.emit('debug', {
             location: 'Pool.factory.create',
             pool: this,
             message: `[${intlCon.processID}] connection created`,
           });
+        }
         return intlCon;
       },
       destroy: intlCon => {
         /* istanbul ignore next */
-        if (this.listenerCount('debug'))
+        if (this.listenerCount('debug')) {
           this.emit('debug', {
             location: 'Pool.factory.destroy',
             pool: this,
             message: `[${intlCon.processID}] connection destroy`,
           });
+        }
         return intlCon.close();
       },
       reset: async (intlCon: IntlConnection) => {
         /* istanbul ignore next */
-        if (this.listenerCount('debug'))
+        if (this.listenerCount('debug')) {
           this.emit('debug', {
             location: 'Pool.factory.reset',
             pool: this,
             message: `[${intlCon.processID}] connection reset`,
           });
+        }
         try {
           if (intlCon.state === ConnectionState.READY) {
             await intlCon.execute('ROLLBACK;UNLISTEN *');
@@ -85,12 +89,13 @@ export class Pool extends SafeEventEmitter {
       },
       validate: async (intlCon: IntlConnection) => {
         /* istanbul ignore next */
-        if (this.listenerCount('debug'))
+        if (this.listenerCount('debug')) {
           this.emit('debug', {
             location: 'Pool.factory.validate',
             pool: this,
             message: `[${intlCon.processID}] connection validate`,
           });
+        }
         if (intlCon.state !== ConnectionState.READY) throw new Error('Connection is not active');
         await intlCon.execute('select 1;');
       },
@@ -131,12 +136,13 @@ export class Pool extends SafeEventEmitter {
   async acquire(): Promise<Connection> {
     const intlCon = await this._pool.acquire();
     /* istanbul ignore next */
-    if (this.listenerCount('debug'))
+    if (this.listenerCount('debug')) {
       this.emit('debug', {
         location: 'Pool.acquire',
         pool: this,
         message: `[${intlCon.processID}] acquired`,
       });
+    }
     const connection = new Connection(this, intlCon);
     /* istanbul ignore next */
     if (this.listenerCount('debug')) connection.on('debug', (...args) => this.emit('debug', ...args));

@@ -106,12 +106,13 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     this._intlCon.statementQueue.clearQueue();
     if (this.state === ConnectionState.CLOSED || this._closing) return;
     /* istanbul ignore next */
-    if (this.listenerCount('debug'))
+    if (this.listenerCount('debug')) {
       this.emit('debug', {
         location: 'Connection.close',
         connection: this,
         message: `[${this.processID}] closing`,
       });
+    }
 
     this._closing = true;
     if (this._intlCon.refCount > 0 && typeof terminateWait === 'number' && terminateWait > 0) {
@@ -119,23 +120,25 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       return this._captureErrorStack(
         new Promise((resolve, reject) => {
           /* istanbul ignore next */
-          if (this.listenerCount('debug'))
+          if (this.listenerCount('debug')) {
             this.emit('debug', {
               location: 'Connection.close',
               connection: this,
               message: `[${this.processID}] waiting active queries`,
             });
+          }
           const timer = setInterval(() => {
             if (this._intlCon.refCount <= 0 || Date.now() > startTime + terminateWait) {
               clearInterval(timer);
               if (this._intlCon.refCount > 0) {
                 /* istanbul ignore next */
-                if (this.listenerCount('debug'))
+                if (this.listenerCount('debug')) {
                   this.emit('debug', {
                     location: 'Connection.close',
                     connection: this,
                     message: `[${this.processID}] terminate`,
                   });
+                }
                 this.emit('terminate');
               }
               this._close().then(resolve).catch(reject);
@@ -162,13 +165,14 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   async query(sql: string, options?: QueryOptions): Promise<QueryResult> {
     this._intlCon.assertConnected();
     /* istanbul ignore next */
-    if (this.listenerCount('debug'))
+    if (this.listenerCount('debug')) {
       this.emit('debug', {
         location: 'Connection.query',
         connection: this,
         message: `[${this.processID}] query | ${sql}`,
         sql,
       });
+    }
     const typeMap = options?.typeMap || GlobalTypeMap;
     const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
       prm instanceof BindParam ? prm.oid : typeMap.determine(prm),
@@ -191,13 +195,14 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    */
   async prepare(sql: string, options?: StatementPrepareOptions): Promise<PreparedStatement> {
     /* istanbul ignore next */
-    if (this.listenerCount('debug'))
+    if (this.listenerCount('debug')) {
       this.emit('debug', {
         location: 'Connection.prepare',
         connection: this,
         message: `[${this.processID}] prepare | ${sql}`,
         sql,
       });
+    }
     return await this._captureErrorStack(PreparedStatement.prepare(this, sql, options));
   }
 

@@ -69,7 +69,7 @@ export async function testEncode(
     sql = 'select $1 as f1';
     params = [new BindParam(dataTypeId, input)];
   } else {
-    sql = 'select ' + input.map((x, i) => `\$${i + 1} as f${i + 1}`).join(', ');
+    sql = 'select ' + input.map((x, i) => `$${i + 1} as f${i + 1}`).join(', ');
     params = input.map(v => new BindParam(dataTypeId, v));
   }
   const resp: QueryResult = await connection.query(sql, { ...mappingOptions, params });
@@ -81,11 +81,12 @@ export async function testEncode(
     expect(resp.fields?.[0].jsType).toStrictEqual(reg.jsType);
     if (reg.oid !== DataTypeOIDs.char) expect(resp.fields?.[0].elementDataTypeId).toStrictEqual(reg.elementsOID);
     expect(resp.rows?.[0][0]).toStrictEqual(output);
-  } else
+  } else {
     for (const [i, v] of output.entries()) {
       expect(resp.fields?.[i].jsType).toStrictEqual(reg.jsType);
       if (reg.oid !== DataTypeOIDs.char) expect(resp.fields?.[i].dataTypeId).toStrictEqual(reg.oid);
       expect(resp.rows?.[0][i]).toStrictEqual(v);
     }
+  }
   return resp;
 }

@@ -1,6 +1,6 @@
 import { Connection, Pool } from 'postgresql-client';
 
-describe('notification', function () {
+describe('notification', () => {
   let connection: Connection;
   let pool: Pool;
 
@@ -15,8 +15,8 @@ describe('notification', function () {
     await pool.close(0);
   });
 
-  describe('notification with Connection class', function () {
-    it("should emit 'notification' event emitter", function (done) {
+  describe('notification with Connection class', () => {
+    it("should emit 'notification' event emitter", done => {
       connection.once('notification', () => {
         done();
       });
@@ -28,7 +28,7 @@ describe('notification', function () {
         .catch(done);
     });
 
-    it("should listen events using 'listen' feature", function (done) {
+    it("should listen events using 'listen' feature", done => {
       connection
         .listen('event1', () => done())
         .then(() => {
@@ -37,12 +37,12 @@ describe('notification', function () {
         .catch(done);
     });
 
-    it('should unlisten', function (done) {
+    it('should unlisten', done => {
       let i = 0;
       connection
         .listen('event1', () => {
           i++;
-          void connection.unListen('event1').then(() => {
+          connection.unListen('event1').then(() => {
             connection.query(`NOTIFY event1`).catch(done);
             setTimeout(() => {
               if (i === 1) done();
@@ -57,11 +57,11 @@ describe('notification', function () {
     });
   });
 
-  describe('notification with Pool', function () {
-    it('should create new connection and listen for events', function (done) {
+  describe('notification with Pool', () => {
+    it('should create new connection and listen for events', done => {
       pool
         .listen('event1', () => {
-          void pool.unListenAll().then(done);
+          pool.unListenAll().then(done);
         })
         .then(() => {
           connection.query(`NOTIFY event1`).catch(done);
@@ -69,12 +69,12 @@ describe('notification', function () {
         .catch(done);
     });
 
-    it('should unlisten', function (done) {
+    it('should unlisten', done => {
       let i = 0;
       pool
         .listen('event1', () => {
           i++;
-          void pool.unListen('event1').then(() => {
+          pool.unListen('event1').then(() => {
             connection.query(`NOTIFY event1`).catch(done);
             setTimeout(() => {
               if (i === 1) done();
@@ -88,14 +88,14 @@ describe('notification', function () {
         .catch(done);
     });
 
-    it('should unlisten all channels after release pooled connection', function (done) {
-      void pool.acquire().then(async conn => {
+    it('should unlisten all channels after release pooled connection', done => {
+      pool.acquire().then(async conn => {
         let i = 0;
         await conn.listen('event1', () => {
           i++;
-          void conn.close();
+          conn.close();
           setTimeout(() => {
-            void connection.query(`NOTIFY event1`).catch();
+            connection.query(`NOTIFY event1`).catch();
             setTimeout(() => {
               if (i === 1) done();
               else done(new Error('Failed'));

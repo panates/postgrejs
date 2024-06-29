@@ -316,8 +316,9 @@ export class PgSocket extends SafeEventEmitter {
         });
         break;
       case Protocol.AuthenticationMessageKind.SASL: {
-        if (!msg.mechanisms.includes('SCRAM-SHA-256'))
+        if (!msg.mechanisms.includes('SCRAM-SHA-256')) {
           throw new Error('SASL: Only mechanism SCRAM-SHA-256 is currently supported');
+        }
         const saslSession = (this._saslSession = SASL.createSession(this.options.user || '', 'SCRAM-SHA-256'));
         this._send(this._frontend.getSASLMessage(saslSession));
         break;
@@ -339,6 +340,8 @@ export class PgSocket extends SafeEventEmitter {
         this._saslSession = undefined;
         break;
       }
+      default:
+        break;
     }
   }
 

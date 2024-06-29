@@ -2,15 +2,15 @@ import { Connection, DataFormat, DataTypeOIDs } from 'postgresql-client';
 import { testEncode, testParse } from './_testers.js';
 
 export function createTests(conn: () => Connection) {
-  it('should parse "float4" field (text)', async function () {
+  it('should parse "float4" field (text)', async () => {
     await testParse(conn(), DataTypeOIDs.float4, ['1.2', '-2.5'], [1.2, -2.5], { columnFormat: DataFormat.text });
   });
 
-  it('should parse "float4" field (binary)', async function () {
+  it('should parse "float4" field (binary)', async () => {
     await testParse(conn(), DataTypeOIDs.float4, ['1.25', '-2.5'], [1.25, -2.5], { columnFormat: DataFormat.binary });
   });
 
-  it('should parse "float4" array field (text)', async function () {
+  it('should parse "float4" array field (text)', async () => {
     const input = [
       [
         [-1.2, 2.5, null],
@@ -24,7 +24,7 @@ export function createTests(conn: () => Connection) {
     await testParse(conn(), DataTypeOIDs._float4, input, input, { columnFormat: DataFormat.text });
   });
 
-  it('should parse "float4" array field (binary)', async function () {
+  it('should parse "float4" array field (binary)', async () => {
     const input = [
       [
         [-1.25, 5.25, null],
@@ -38,11 +38,11 @@ export function createTests(conn: () => Connection) {
     await testParse(conn(), DataTypeOIDs._float4, input, input, { columnFormat: DataFormat.binary });
   });
 
-  it('should encode "float4" param', async function () {
+  it('should encode "float4" param', async () => {
     await testEncode(conn(), DataTypeOIDs.float4, [-1.2, 5.5]);
   });
 
-  it('should encode "float4" array param', async function () {
+  it('should encode "float4" array param', async () => {
     const input = [
       [
         [-1.25, 5.25],
