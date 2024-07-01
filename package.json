@@ -26,9 +26,9 @@
     "putil-varhelpers": "^1.6.5"
   },
   "devDependencies": {
-    "@panates/eslint-config": "^1.0.1",
-    "@panates/eslint-config-ts": "^1.0.1",
-    "@panates/tsconfig": "^1.0.1",
+    "@panates/eslint-config": "^1.0.3",
+    "@panates/eslint-config-ts": "^1.0.3",
+    "@panates/tsconfig": "^1.0.3",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.14.9",
     "auto-changelog": "^2.4.0",
@@ -45,7 +45,6 @@
     "typescript": "5.4.5"
   },
   "scripts": {
-    "lint": "eslint . --max-warnings=0 --fix",
     "clean": "npm run clean:src && npm run clean:dist",
     "clean:dist": "rimraf build coverage",
     "clean:src": "ts-cleanup -s src --all | ts-cleanup -s test",
@@ -56,6 +55,8 @@
     "postbuild": "npm run postbuild:copyfiles && node ./support/postbuild.cjs",
     "postbuild:copyfiles": "cp ./support/package.cjs.json ./build/cjs/package.json && cp LICENSE README.md CHANGELOG.md ./build",
     "test": "jest",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --max-warnings=0 --fix",
     "format": "prettier . --write --log-level=warn",
     "precover": "rimraf coverage",
     "cover": "jest --runInBand --detectOpenHandles --coverage",
