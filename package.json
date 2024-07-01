@@ -37,7 +37,7 @@
     "jest": "^29.7.0",
     "prettier": "^3.3.2",
     "rimraf": "^5.0.7",
-    "ts-cleanup": "^0.2.6",
+    "ts-cleanup": "^0.3.2",
     "ts-jest": "^29.1.5",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
