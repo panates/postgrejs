@@ -182,6 +182,9 @@ export class PgSocket extends SafeEventEmitter {
   }
 
   capture(callback: CaptureCallback): Promise<any> {
+    if (this._state === ConnectionState.CLOSING || this._state === ConnectionState.CLOSED)
+      return Promise.reject(new Error('Connection closed'));
+    if (this._state !== ConnectionState.READY) return Promise.reject(new Error('Connection is not ready'));
     return new Promise((resolve, reject) => {
       const done = (err?: Error, result?: any) => {
         this.removeListener('close', closeHandler);
