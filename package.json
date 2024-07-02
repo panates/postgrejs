@@ -26,9 +26,9 @@
     "putil-varhelpers": "^1.6.5"
   },
   "devDependencies": {
-    "@panates/eslint-config": "^1.0.3",
-    "@panates/eslint-config-ts": "^1.0.3",
-    "@panates/tsconfig": "^1.0.3",
+    "@panates/eslint-config": "^1.0.4",
+    "@panates/eslint-config-ts": "^1.0.4",
+    "@panates/tsconfig": "^1.0.4",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.14.9",
     "auto-changelog": "^2.4.0",
