@@ -1,3 +1,15 @@
+# v2.12.0
+[2024-07-12]
+
+### Changes
+
+* Update dependencies ([`acdf4dd`](https://github.com/panates/postgresql-client/commit/acdf4ddbb6759b6a3ca65036f08a24a2c4685cea))
+* Implemented `sqlmode` query parameter for connection string and added `requireSSL` option to connection options. Now the driver tries SSL connection as a first choice. ([`5fc7e31`](https://github.com/panates/postgresql-client/commit/5fc7e3144382d455aeeadb72b7301ec03e93f223))
+* Update dependencies ([`3055d79`](https://github.com/panates/postgresql-client/commit/3055d7959c9c959ac06fd5ee6b8741a10a013c84))
+* Update dependencies ([`e58cc44`](https://github.com/panates/postgresql-client/commit/e58cc443f7a0c774a5be546a950a9bcf6628a11f))
+* Added executor: node/default ([`2932861`](https://github.com/panates/postgresql-client/commit/2932861c0e552361208aaceed16e94fbcf1a9456))
+* Added root ([`81c1028`](https://github.com/panates/postgresql-client/commit/81c10284d45f53e807a153813c5b4f38594869bc))
+
 # v2.11.2
 [2024-06-29]
 
