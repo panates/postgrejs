@@ -31,9 +31,7 @@ describe('notification', () => {
     it("should listen events using 'listen' feature", done => {
       connection
         .listen('event1', () => done())
-        .then(() => {
-          connection.query(`NOTIFY event1`).catch(done);
-        })
+        .then(() => connection.query(`NOTIFY event1`))
         .catch(done);
     });
 
@@ -42,7 +40,7 @@ describe('notification', () => {
       connection
         .listen('event1', () => {
           i++;
-          connection.unListen('event1').then(() => {
+          return connection.unListen('event1').then(() => {
             connection.query(`NOTIFY event1`).catch(done);
             setTimeout(() => {
               if (i === 1) done();
@@ -50,9 +48,7 @@ describe('notification', () => {
             }, 1000);
           });
         })
-        .then(() => {
-          connection.query(`NOTIFY event1`).catch(done);
-        })
+        .then(() => connection.query(`NOTIFY event1`))
         .catch(done);
     });
   });
@@ -60,12 +56,8 @@ describe('notification', () => {
   describe('notification with Pool', () => {
     it('should create new connection and listen for events', done => {
       pool
-        .listen('event1', () => {
-          pool.unListenAll().then(done);
-        })
-        .then(() => {
-          connection.query(`NOTIFY event1`).catch(done);
-        })
+        .listen('event1', () => pool.unListenAll().then(done))
+        .then(() => connection.query(`NOTIFY event1`))
         .catch(done);
     });
 
@@ -74,13 +66,16 @@ describe('notification', () => {
       pool
         .listen('event1', () => {
           i++;
-          pool.unListen('event1').then(() => {
-            connection.query(`NOTIFY event1`).catch(done);
-            setTimeout(() => {
-              if (i === 1) done();
-              else done(new Error('Failed'));
-            }, 1000);
-          });
+          pool
+            .unListen('event1')
+            .then(() => {
+              connection.query(`NOTIFY event1`).catch(done);
+              setTimeout(() => {
+                if (i === 1) done();
+                else done(new Error('Failed'));
+              }, 1000);
+            })
+            .catch(() => undefined);
         })
         .then(() => {
           connection.query(`NOTIFY event1`).catch(done);
@@ -89,21 +84,24 @@ describe('notification', () => {
     });
 
     it('should unlisten all channels after release pooled connection', done => {
-      pool.acquire().then(async conn => {
-        let i = 0;
-        await conn.listen('event1', () => {
-          i++;
-          conn.close();
-          setTimeout(() => {
-            connection.query(`NOTIFY event1`).catch();
+      pool
+        .acquire()
+        .then(async conn => {
+          let i = 0;
+          await conn.listen('event1', () => {
+            i++;
+            conn.close().catch(() => undefined);
             setTimeout(() => {
-              if (i === 1) done();
-              else done(new Error('Failed'));
+              connection.query(`NOTIFY event1`).catch(() => undefined);
+              setTimeout(() => {
+                if (i === 1) done();
+                else done(new Error('Failed'));
+              }, 500);
             }, 500);
-          }, 500);
-        });
-        await connection.query(`NOTIFY event1`);
-      });
+          });
+          await connection.query(`NOTIFY event1`);
+        })
+        .catch(() => undefined);
     });
   });
 });
