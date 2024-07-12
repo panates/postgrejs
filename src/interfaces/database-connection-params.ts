@@ -10,6 +10,7 @@ export interface DatabaseConnectionParams {
   password?: string | (() => string | Promise<string>);
   database?: string;
   applicationName?: string;
+  requireSSL?: boolean;
   ssl?: TlsConnectionOptions;
   timezone?: string;
   schema?: string;

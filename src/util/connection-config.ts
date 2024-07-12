@@ -48,9 +48,10 @@ export function parseConnectionString(str: string): ConnectionConfiguration {
   if (parsed.searchParams.get('application_name')) {
     cfg.applicationName = decodeURI(getFirst(parsed.searchParams.get('application_name')));
   }
-
   if (parsed.username) cfg.user = parsed.username;
   if (parsed.password) cfg.password = parsed.password;
+
+  cfg.requireSSL = parsed.searchParams.get('sslmode') === 'require';
 
   return cfg;
 }

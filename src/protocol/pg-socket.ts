@@ -76,27 +76,30 @@ export class PgSocket extends SafeEventEmitter {
     const connectHandler = () => {
       socket.setTimeout(0);
       if (this.options.keepAlive || this.options.keepAlive == null) socket.setKeepAlive(true);
-      if (options.ssl) {
-        socket.write(this._frontend.getSSLRequestMessage());
-        socket.once('data', x => {
-          this._removeListeners();
-          if (x.toString() === 'S') {
-            const tslOptions = { ...options.ssl, socket };
-            if (options.host && net.isIP(options.host) === 0) tslOptions.servername = options.host;
-            const tlsSocket = (this._socket = tls.connect(tslOptions));
-            tlsSocket.once('error', errorHandler);
-            tlsSocket.once('secureConnect', () => {
-              this._removeListeners();
-              this._handleConnect();
-            });
-            return;
+      socket.write(this._frontend.getSSLRequestMessage());
+      socket.once('data', x => {
+        this._removeListeners();
+        if (x.toString() === 'S') {
+          const tslOptions = { ...options.ssl, socket };
+          if (options.host && net.isIP(options.host) === 0) tslOptions.servername = options.host;
+          const tlsSocket = (this._socket = tls.connect(tslOptions));
+          tlsSocket.once('error', errorHandler);
+          tlsSocket.once('secureConnect', () => {
+            this._removeListeners();
+            this._handleConnect();
+          });
+          return;
+        }
+        if (x.toString() === 'N') {
+          if (options.requireSSL) {
+            return errorHandler(new Error('Server does not support SSL connections'));
           }
-          if (x.toString() === 'N') return errorHandler(new Error('Server does not support SSL connections'));
-          return errorHandler(new Error('There was an error establishing an SSL connection'));
-        });
-      } else {
-        this._handleConnect();
-      }
+          this._removeListeners();
+          this._handleConnect();
+          return;
+        }
+        return errorHandler(new Error('There was an error establishing an SSL connection'));
+      });
     };
 
     socket.setNoDelay(true);

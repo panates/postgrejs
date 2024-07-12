@@ -14,6 +14,12 @@ describe('Connection', () => {
     expect(connection.state).toStrictEqual(ConnectionState.READY);
   });
 
+  it('should connect with ssl option', async () => {
+    connection = new Connection('postgres://localhost?sslmode=prefer');
+    await connection.connect();
+    expect(connection.state).toStrictEqual(ConnectionState.READY);
+  });
+
   it('should get process id', async () => {
     connection = new Connection();
     await connection.connect();
