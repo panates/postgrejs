@@ -1,3 +1,19 @@
+# v2.15.1
+[2024-07-22]
+
+### Changes
+
+* chore: Updated readme ([`f2db178`](https://github.com/panates/postgrejs/commit/f2db17882fb33729d2ef2044051c78affb7e6d2b))
+* Changed package name to `postgrejs` ([`5ec4852`](https://github.com/panates/postgrejs/commit/5ec485244c9ac448e82b0649110315fc4d9b789e))
+* Updated readme ([`72f6a1b`](https://github.com/panates/postgrejs/commit/72f6a1bc4bc0af17d9a7c7ce50be8ab5fcbfca2e))
+* Implemented `sqlmode` query parameter for connection string and added `requireSSL` option to connection options. Now the driver tries SSL connection as a first choice. ([`3a27e85`](https://github.com/panates/postgrejs/commit/3a27e85dcbb7bd983dd2f835fa4ac785ad34e266))
+* chore: Updated ([`a90a646`](https://github.com/panates/postgrejs/commit/a90a6461894883f12c396bc0a68518fb75d8bc17))
+* chore: Updated readme ([`c581284`](https://github.com/panates/postgrejs/commit/c581284e2751e93674a26936f31ebbd8b753c2ca))
+* chore: Updated readme ([`1f51284`](https://github.com/panates/postgrejs/commit/1f5128400a6ddff05552ad297cad930fe6244faf))
+* chore: Updated readme ([`d439659`](https://github.com/panates/postgrejs/commit/d43965906101f3494270852b61203d1ce3339437))
+* chore: Updated readme ([`2209d39`](https://github.com/panates/postgrejs/commit/2209d397ebd23d06061bfda10b49df830fb470e9))
+* Updated readme ([`a00f471`](https://github.com/panates/postgrejs/commit/a00f471da79b569d36bbe76ce517a01adba17a24))
+
 # v2.12.0
 [2024-07-12]
 
