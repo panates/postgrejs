@@ -1,6 +1,6 @@
 <td style="text-align: center;">
   <a href="https://postgrejs.panates.com/" target="blank">
-    <img src="https://postgrejs.panates.com/img/postgrejs-header-block.png" width="120" alt="PostgreJS Logo" />
+    <img src="https://postgrejs.panates.com/img/postgrejs-header-block.png" width="650" height="300" alt="PostgreJS Logo" />
   </a>
 </td>
   
