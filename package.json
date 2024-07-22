@@ -4,6 +4,7 @@
   "version": "2.15.1",
   "author": "Panates",
   "private": true,
+  "homepage": "https://postgrejs.panates.com/",
   "contributors": [
     "Eray Hanoglu <e.hanoglu@panates.com>"
   ],
