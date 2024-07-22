@@ -1,4 +1,5 @@
-<p style="text-align: center; width: 100%">
+<!--suppress HtmlDeprecatedAttribute -->
+<p align="center">¨
   <a href="https://postgrejs.panates.com/" target="blank">
     <img src="https://postgrejs.panates.com/img/postgrejs-header-block.png" width="650" height="300" alt="PostgreJS Logo" />
   </a>
