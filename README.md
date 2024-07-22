@@ -53,7 +53,6 @@ Explore the capabilities of the library and elevate your PostgreSQL integration 
 
 ```bash
 $ npm install postgrejs --save
-$ npm install postgrejs --save
 ```
 
 ## Documentation
