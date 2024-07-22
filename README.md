@@ -1,8 +1,8 @@
-<td style="text-align: center;">
+<p style="text-align: center; width: 100%">
   <a href="https://postgrejs.panates.com/" target="blank">
     <img src="https://postgrejs.panates.com/img/postgrejs-header-block.png" width="650" height="300" alt="PostgreJS Logo" />
   </a>
-</td>
+</p>
   
 [![NPM Version][npm-image]][npm-url]
 [![NPM Downloads][downloads-image]][downloads-url]
