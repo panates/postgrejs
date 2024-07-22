@@ -7,7 +7,7 @@ import {
   GlobalTypeMap,
   QueryResult,
   stringifyValueForSQL,
-} from 'postgresql-client';
+} from 'postgrejs';
 
 export async function testParse(
   connection: Connection,

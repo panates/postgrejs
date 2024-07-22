@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { Connection, Cursor } from 'postgresql-client';
+import { Connection, Cursor } from 'postgrejs';
 import { createTestSchema } from '../_support/create-db.js';
 
 (BigInt.prototype as any).toJSON = function () {

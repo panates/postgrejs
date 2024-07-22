@@ -1,4 +1,4 @@
-import { Connection, Pool } from 'postgresql-client';
+import { Connection, Pool } from 'postgrejs';
 
 describe('notification', () => {
   let connection: Connection;

@@ -1,7 +1,7 @@
 {
-  "name": "postgresql-client",
-  "description": "Enterprise level PostgreSQL client for JavaScript",
-  "version": "2.12.0",
+  "name": "postgrejs",
+  "description": "Professional PostgreSQL client NodeJS",
+  "version": "2.15.0",
   "author": "Panates",
   "private": true,
   "contributors": [
@@ -10,7 +10,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/panates/postgresql-client.git"
+    "url": "https://github.com/panates/postgrejs.git"
   },
   "type": "module",
   "main": "./cjs/index.js",
@@ -26,23 +26,23 @@
     "putil-varhelpers": "^1.6.5"
   },
   "devDependencies": {
-    "@panates/eslint-config": "^1.0.6",
-    "@panates/eslint-config-ts": "^1.0.6",
-    "@panates/tsconfig": "^1.0.6",
+    "@panates/eslint-config": "^1.0.9",
+    "@panates/eslint-config-ts": "^1.0.9",
+    "@panates/tsconfig": "^1.0.9",
     "@types/jest": "^29.5.12",
-    "@types/node": "^20.14.10",
+    "@types/node": "^20.14.11",
     "auto-changelog": "^2.4.0",
     "dotenv": "^16.4.5",
-    "husky": "^9.0.11",
+    "husky": "^9.1.1",
     "jest": "^29.7.0",
-    "prettier": "^3.3.2",
+    "prettier": "^3.3.3",
     "rimraf": "^6.0.1",
     "ts-cleanup": "^0.3.2",
-    "ts-jest": "^29.2.2",
+    "ts-jest": "^29.2.3",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "5.4.5"
+    "typescript": "^5.5.3"
   },
   "scripts": {
     "clean": "npm run clean:src && npm run clean:dist",

@@ -1,4 +1,4 @@
-import { Connection } from 'postgresql-client';
+import { Connection } from 'postgrejs';
 import { createTestSchema } from '../_support/create-db.js';
 
 describe('execute() (Simple Query)', () => {

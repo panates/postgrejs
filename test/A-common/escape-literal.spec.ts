@@ -1,4 +1,4 @@
-import { escapeLiteral } from 'postgresql-client';
+import { escapeLiteral } from 'postgrejs';
 
 describe('Escape literal', () => {
   function testLiteral(str: string, required: string): void {

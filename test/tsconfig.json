@@ -7,7 +7,7 @@
     "sourceMap": true,
     "baseUrl": "..",
     "paths": {
-      "postgresql-client": ["./src"]
+      "postgrejs": ["./src"]
     }
   }
 }

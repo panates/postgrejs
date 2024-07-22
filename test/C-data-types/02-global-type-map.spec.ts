@@ -1,4 +1,4 @@
-import { DataTypeOIDs, GlobalTypeMap } from 'postgresql-client';
+import { DataTypeOIDs, GlobalTypeMap } from 'postgrejs';
 
 describe('GlobalTypeMap', () => {
   it('should determine bool oid from "Boolean"', async () => {

@@ -1,4 +1,4 @@
-import { Connection, DataFormat, DataTypeOIDs } from 'postgresql-client';
+import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
 export function createTests(conn: () => Connection) {

@@ -1,4 +1,4 @@
-# [postgresql-client](https://github.com/panates/postgresql-client)
+# [postgrejs](https://github.com/panates/postgrejs)
 
 ---
 
@@ -56,7 +56,7 @@ you need to use `Connection` class. If you require a connection pool use `Pool` 
 *new Connection([config: String | [ConnectionConfiguration](#221-connectionconfiguration)]);*
 
 ```ts
-import { Connection } from 'postgresql-client';
+import { Connection } from 'postgrejs';
 
 const connection = new Connection({
     host: 'localhost',
@@ -126,7 +126,7 @@ or [PoolConfiguration](#222-poolconfiguration) interface
 *new Pool([config: String | [PoolConfiguration](#222-poolconfiguration)]);*
 
 ```ts
-import { Pool } from 'postgresql-client';
+import { Pool } from 'postgrejs';
 
 const dbpool = new Pool({
     host: 'postgres://localhost',
@@ -245,7 +245,7 @@ Promise\<[PreparedStatement](#214-preparedstatement)>;*
 Promise\<[PreparedStatement](#214-preparedstatement)>;*
 
 ```ts
-import { DataTypeOIDs } from 'postgresql-client';
+import { DataTypeOIDs } from 'postgrejs';
 
 // .....
 const statement = await connection.prepare(
@@ -292,7 +292,7 @@ To start a transaction in PostgreSQL you need to execute 'BEGIN' command.
 `savepoint()`, `rollbackToSavepoint()` shorthand methods which is typed and more test friendly.
 
 By default, PostgreSQL server executes SQL commands in auto-commit mode.
-`postgresql-client` has a high-level implementation to manage this.
+`postgrejs` has a high-level implementation to manage this.
 You can change this behaviour by setting `autoCommit` property to `false`.
 After that all SQL scripts will be executed in transaction and
 changes will not be applied until you call `commit()` or execute `COMMIT` command.
@@ -301,7 +301,7 @@ You can also check transaction status with `connection.inTransaction` getter.
 
 ## 1.5. Notification Listeners
 
-postgresql-client library has a high level implementation for PostgreSql's LISTEN/NOTIFY feature.
+postgrejs library has a high level implementation for PostgreSql's LISTEN/NOTIFY feature.
 You can listen for channels using both single Connection instance or a Pool instance.
 
 ### 1.5.1 Listening notifications with Connection instance
@@ -413,7 +413,7 @@ The table below lists builtin data type mappings.
 PostgreSQL wire protocol offers `text` and `binary` data transfer formats.
 Most common libraries supports only `text` transfer format which is easy to implement but poses performance and memory
 problems.
-`postgresql-client` has rich data type mappings which supports both `text` and `binary` formats.
+`postgrejs` has rich data type mappings which supports both `text` and `binary` formats.
 The default format is set to `binary`. However, you can set the format to `text` for all columns or per column.
 
 Note that binary format is faster than text format.
@@ -459,7 +459,7 @@ Connects to the server
 `connect(): Promise<void>`
 
 ````ts
-import { Connection } from 'postgresql-client';
+import { Connection } from 'postgrejs';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
@@ -483,7 +483,7 @@ At the end of time, it forces to close/release and emits `terminate` event.
 | terminateWait   | `number`  | 10000   | Time in ms that the connection will wait for active queries before terminating | 
 
 ```ts
-import { Connection } from 'postgresql-client';
+import { Connection } from 'postgrejs';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
@@ -500,7 +500,7 @@ await connection.close(30000); // will wait 30 secs before terminate the connect
 `Connection` already supports [TC30 Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management) proposal.
 
 ```ts
-import { Connection } from 'postgresql-client';
+import { Connection } from 'postgrejs';
 {
     // connection will be automatically closed when this scope ends
     await using connection = new Connection('postgres://localhost');
@@ -525,7 +525,7 @@ using [Simple Query](https://www.postgresql.org/docs/current/protocol-flow.html#
 - Returns [ScriptResult](#225-scriptresult)
 
 ```ts
-import { Connection } from 'postgresql-client';
+import { Connection } from 'postgrejs';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
@@ -550,7 +550,7 @@ using [Extended Query](https://www.postgresql.org/docs/current/protocol-flow.htm
 - Returns [QueryResult](#2210-queryresult)
 
 ```ts
-import { Connection } from 'postgresql-client';
+import { Connection } from 'postgrejs';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
@@ -580,7 +580,7 @@ Creates a [PreparedStatement](#214-preparedstatement) instance
 - Returns [PreparedStatement](#214-preparedstatement)
 
 ```ts
-import { Connection, DataTypeOIDs } from 'postgresql-client';
+import { Connection, DataTypeOIDs } from 'postgrejs';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
@@ -602,7 +602,7 @@ Starts a transaction
 `startTransaction(): Promise<void>`
 
 ```ts
-import { Connection } from 'postgresql-client';
+import { Connection } from 'postgrejs';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
@@ -620,7 +620,7 @@ Commits current transaction
 `commit(): Promise<void>`
 
 ```ts
-import { Connection } from 'postgresql-client';
+import { Connection } from 'postgrejs';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
@@ -638,7 +638,7 @@ Rolls back current transaction
 `commit(): Promise<void>`
 
 ```ts
-import { Connection } from 'postgresql-client';
+import { Connection } from 'postgrejs';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
@@ -670,7 +670,7 @@ Rolls back current transaction to given savepoint
 | name         | string      |          | Name of the savepoint | 
 
 ```ts
-import { Connection } from 'postgresql-client';
+import { Connection } from 'postgrejs';
 
 const connection = new Connection('postgres://localhost');
 await connection.connect();
@@ -803,7 +803,7 @@ Obtains a connection from the connection pool
 - Returns [Connection](#211-connection)
 
 ````ts
-import { Pool } from 'postgresql-client';
+import { Pool } from 'postgrejs';
 
 const pool = new Pool('postgres://localhost');
 const connection = await pool.acquire();
@@ -818,7 +818,7 @@ Shuts down the pool and destroys all resources.
 `close(terminateWait?: number): Promise<void>`
 
 ````ts
-import { Pool } from 'postgresql-client';
+import { Pool } from 'postgrejs';
 
 const pool = new Pool('postgres://localhost');
 const connection = await pool.acquire();
@@ -841,7 +841,7 @@ using [Simple Query](https://www.postgresql.org/docs/current/protocol-flow.html#
 - Returns [ScriptResult](#225-scriptresult)
 
 ```ts
-import { Pool } from 'postgresql-client';
+import { Pool } from 'postgrejs';
 
 const pool = new Pool('postgres://localhost');
 const executeResult = await pool.execute(
@@ -865,7 +865,7 @@ using [Extended Query](https://www.postgresql.org/docs/current/protocol-flow.htm
 - Returns [QueryResult](#2210-queryresult)
 
 ```ts
-import { Pool } from 'postgresql-client';
+import { Pool } from 'postgrejs';
 
 const pool = new Pool('postgres://localhost');
 const queryResult = await pool.query(
@@ -894,7 +894,7 @@ Acquires a connection from the pool and creates a [PreparedStatement](#214-prepa
 - Returns [PreparedStatement](#214-preparedstatement)
 
 ```ts
-import { Pool, DataTypeOIDs } from 'postgresql-client';
+import { Pool, DataTypeOIDs } from 'postgrejs';
 
 const pool = new Pool('postgres://localhost');
 const statement = await pool.prepare(

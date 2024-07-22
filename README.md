@@ -1,4 +1,4 @@
-## postgresql-client
+## postgrejs
   
 [![NPM Version][npm-image]][npm-url]
 [![NPM Downloads][downloads-image]][downloads-url]
@@ -36,7 +36,7 @@ Enterprise level PostgreSQL client for NodeJs
 ## Installation
 
 ```bash
-$ npm install postgresql-client --save
+$ npm install postgrejs --save
 ```
 
 ## Documentation
@@ -47,7 +47,7 @@ Please read :small_orange_diamond: [DOCUMENTATION](DOCUMENTATION.md) :small_oran
 ### Establish a single connection, execute a simple query
 
 ```ts
-import {Connection} from 'postgresql-client';
+import {Connection} from 'postgrejs';
 // Create connection
 const connection = new Connection('postgres://localhost');
 // Connect to database server
@@ -66,7 +66,7 @@ await connection.close();
 
 ### Establish a pooled connection, create a cursor
 ```ts
-import {Pool} from 'postgresql-client';
+import {Pool} from 'postgrejs';
 
 // Create connection pool
 const db = new Pool({
@@ -98,7 +98,7 @@ await db.close();
 
 ### Using prepared statements
 ```ts
-import {DataTypeOIDs} from 'postgresql-client'; 
+import {DataTypeOIDs} from 'postgrejs'; 
 
 // .....
 const statement = await connection.prepare( 
@@ -172,7 +172,7 @@ The table below lists builtin data type mappings.
 
 
 ## Support
-You can report bugs and discuss features on the [GitHub issues](https://github.com/panates/postgresql-client/issues) page
+You can report bugs and discuss features on the [GitHub issues](https://github.com/panates/postgrejs/issues) page
 When you open an issue please provide version of NodeJS and PostgreSQL server.
 
 ## Node Compatibility
@@ -180,21 +180,21 @@ When you open an issue please provide version of NodeJS and PostgreSQL server.
  
   
 ## License
-postgresql-client is available under [MIT](LICENSE) license.
+postgrejs is available under [MIT](LICENSE) license.
 
-[npm-image]: https://img.shields.io/npm/v/postgresql-client
-[npm-url]: https://npmjs.org/package/postgresql-client
-[circleci-image]: https://circleci.com/gh/panates/postgresql-client/tree/master.svg?style=shield
-[circleci-url]: https://circleci.com/gh/panates/postgresql-client/tree/master
-[coveralls-image]: https://img.shields.io/coveralls/panates/postgresql-client/master.svg
-[coveralls-url]: https://coveralls.io/r/panates/postgresql-client
-[downloads-image]: https://img.shields.io/npm/dm/postgresql-client.svg
-[downloads-url]: https://npmjs.org/package/postgresql-client
-[gitter-image]: https://badges.gitter.im/panates/postgresql-client.svg
-[gitter-url]: https://gitter.im/panates/postgresql-client?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
-[dependencies-image]: https://david-dm.org/panates/postgresql-client/status.svg
-[dependencies-url]:https://david-dm.org/panates/postgresql-client
-[devdependencies-image]: https://david-dm.org/panates/postgresql-client/dev-status.svg
-[devdependencies-url]:https://david-dm.org/panates/postgresql-client?type=dev
-[quality-image]: http://npm.packagequality.com/shield/postgresql-client.png
-[quality-url]: http://packagequality.com/#?package=postgresql-client
+[npm-image]: https://img.shields.io/npm/v/postgrejs
+[npm-url]: https://npmjs.org/package/postgrejs
+[circleci-image]: https://circleci.com/gh/panates/postgrejs/tree/master.svg?style=shield
+[circleci-url]: https://circleci.com/gh/panates/postgrejs/tree/master
+[coveralls-image]: https://img.shields.io/coveralls/panates/postgrejs/master.svg
+[coveralls-url]: https://coveralls.io/r/panates/postgrejs
+[downloads-image]: https://img.shields.io/npm/dm/postgrejs.svg
+[downloads-url]: https://npmjs.org/package/postgrejs
+[gitter-image]: https://badges.gitter.im/panates/postgrejs.svg
+[gitter-url]: https://gitter.im/panates/postgrejs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+[dependencies-image]: https://david-dm.org/panates/postgrejs/status.svg
+[dependencies-url]:https://david-dm.org/panates/postgrejs
+[devdependencies-image]: https://david-dm.org/panates/postgrejs/dev-status.svg
+[devdependencies-url]:https://david-dm.org/panates/postgrejs?type=dev
+[quality-image]: http://npm.packagequality.com/shield/postgrejs.png
+[quality-url]: http://packagequality.com/#?package=postgrejs

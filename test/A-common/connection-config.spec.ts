@@ -1,4 +1,4 @@
-import { getConnectionConfig, parseConnectionString } from 'postgresql-client';
+import { getConnectionConfig, parseConnectionString } from 'postgrejs';
 
 describe('Parse connection string', () => {
   const oldEnv = { ...process.env };

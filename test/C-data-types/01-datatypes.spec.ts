@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { Connection } from 'postgresql-client';
+import { Connection } from 'postgrejs';
 
 describe('Data type encode/decode', () => {
   let connection: Connection;

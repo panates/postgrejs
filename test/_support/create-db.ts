@@ -1,6 +1,6 @@
 // noinspection GrazieInspection
 
-import { Connection, stringifyValueForSQL } from 'postgresql-client';
+import { Connection, stringifyValueForSQL } from 'postgrejs';
 
 const schema = process.env.PGSCHEMA || 'test';
 let testDbCreated = false;

@@ -1,4 +1,4 @@
-import { DataTypeOIDs, Pool } from 'postgresql-client';
+import { DataTypeOIDs, Pool } from 'postgrejs';
 
 describe('Pool', () => {
   let pool: Pool;

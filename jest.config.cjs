@@ -17,7 +17,7 @@ module.exports = {
   },
   moduleNameMapper: {
     '(\\..+)\\.js': '$1',
-    'postgresql-client': '<rootDir>/src',
+    postgrejs: '<rootDir>/src',
   },
   globalSetup: '<rootDir>/test/_support/env.ts',
   modulePathIgnorePatterns: ['<rootDir>/build'],
