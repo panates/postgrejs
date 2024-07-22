@@ -1,3 +1,4 @@
+#file: noinspection YAMLSchemaValidation
 # This config is equivalent to both the '.circleci/extended/orb-free.yml' and the base '.circleci/config.yml'
 version: 2.1
 orbs:
@@ -30,7 +31,6 @@ workflows:
 
 jobs:
   test:
-    executor: node/default
     parameters:
       version:
         type: string
