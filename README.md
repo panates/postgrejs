@@ -1,7 +1,7 @@
 <!--suppress HtmlDeprecatedAttribute -->
 <p align="center">¨
   <a href="https://postgrejs.panates.com/" target="blank">
-    <img src="https://postgrejs.panates.com/img/postgrejs-header-block.png" width="800" height="300" alt="PostgreJS Logo" />
+    <img src="https://postgrejs.panates.com/img/postgrejs-header-block.png" width="800" alt="PostgreJS Logo" />
   </a>
 </p>
   
