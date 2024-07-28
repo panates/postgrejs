@@ -1,3 +1,14 @@
+# v2.15.2
+[2024-07-28]
+
+### Changes
+
+* Updated dependencies ([`164644d`](https://github.com/panates/postgrejs/commit/164644d0f872f4835c684d8ad7072af1e6b4767b))
+* chore: Minor change ([`76e0d0f`](https://github.com/panates/postgrejs/commit/76e0d0f5fc95e894b890304a53e00b08ad530415))
+* chore: Updated ([`3721d59`](https://github.com/panates/postgrejs/commit/3721d59afa3f901b0e19bd12faffb5a2268337e2))
+* chore: Updated ([`526e6be`](https://github.com/panates/postgrejs/commit/526e6be83522787f849a5208b6546b662b13a4b3))
+* chore: Updated homepage ([`b4304a7`](https://github.com/panates/postgrejs/commit/b4304a7fd4e41c04f8999b34dd2b85cd9a026209))
+
 # v2.15.1
 [2024-07-22]
 
