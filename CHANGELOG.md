@@ -1,3 +1,10 @@
+# v2.15.3
+[2024-08-03]
+
+### Changes
+
+* Added "tslib" to dependencies ([`6744420`](https://github.com/panates/postgrejs/commit/6744420cc99da7965c211c9ce526763cca1a846e))
+
 # v2.15.2
 [2024-07-28]
 
