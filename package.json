@@ -19,7 +19,7 @@
   "types": "typings/index.d.ts",
   "dependencies": {
     "doublylinked": "^2.5.4",
-    "lightning-pool": "^4.4.1",
+    "lightning-pool": "^4.4.3",
     "postgres-bytea": "^3.0.0",
     "power-tasks": "^1.7.7",
     "putil-merge": "^3.12.1",
