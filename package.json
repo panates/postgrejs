@@ -3,43 +3,31 @@
   "description": "Professional PostgreSQL client NodeJS",
   "version": "2.15.4",
   "author": "Panates",
-  "private": true,
-  "homepage": "https://postgrejs.panates.com/",
-  "contributors": [
-    "Eray Hanoglu <e.hanoglu@panates.com>"
-  ],
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/panates/postgrejs.git"
-  },
-  "type": "module",
-  "main": "./cjs/index.js",
-  "module": "./esm/index.js",
-  "types": "typings/index.d.ts",
+  "private": true,
   "dependencies": {
     "doublylinked": "^2.5.4",
-    "lightning-pool": "^4.4.3",
+    "lightning-pool": "^4.5.0",
     "postgres-bytea": "^3.0.0",
-    "power-tasks": "^1.7.7",
-    "putil-merge": "^3.12.1",
+    "power-tasks": "^1.8.0",
+    "putil-merge": "^3.13.0",
     "putil-promisify": "^1.10.1",
     "putil-varhelpers": "^1.6.5",
     "tslib": "^2.6.3"
   },
   "devDependencies": {
-    "@panates/eslint-config": "^1.0.11",
-    "@panates/eslint-config-ts": "^1.0.11",
-    "@panates/tsconfig": "^1.0.11",
+    "@panates/eslint-config": "^1.0.13",
+    "@panates/eslint-config-ts": "^1.0.13",
+    "@panates/tsconfig": "^1.0.13",
     "@types/jest": "^29.5.12",
-    "@types/node": "^22.1.0",
+    "@types/node": "^22.2.0",
     "auto-changelog": "^2.4.0",
     "dotenv": "^16.4.5",
     "husky": "^9.1.4",
     "jest": "^29.7.0",
     "prettier": "^3.3.3",
     "rimraf": "^6.0.1",
-    "ts-cleanup": "^0.3.2",
+    "ts-cleanup": "^1.0.0",
     "ts-jest": "^29.2.4",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
@@ -55,7 +43,7 @@
     "build:cjs": "tsc -b tsconfig-build-cjs.json",
     "build:esm": "tsc -b tsconfig-build-esm.json",
     "postbuild": "npm run postbuild:copyfiles && node ./support/postbuild.cjs",
-    "postbuild:copyfiles": "cp ./support/package.cjs.json ./build/cjs/package.json && cp LICENSE README.md CHANGELOG.md ./build",
+    "postbuild:copyfiles": "cp LICENSE README.md CHANGELOG.md ./build",
     "test": "jest",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --max-warnings=0 --fix",
@@ -67,13 +55,31 @@
     "version": "auto-changelog -p && git add CHANGELOG.md",
     "prepare": "husky"
   },
+  "main": "./cjs/index.js",
+  "module": "./esm/index.js",
+  "types": "./types/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./cjs/index.js",
+      "import": "./esm/index.js",
+      "types": "./types/index.d.ts"
+    }
+  },
+  "homepage": "https://postgrejs.panates.com/",
+  "contributors": [
+    "Eray Hanoglu <e.hanoglu@panates.com>"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/panates/postgrejs.git"
+  },
   "engines": {
     "node": ">=16.0"
   },
   "files": [
     "cjs/",
     "esm/",
-    "typings/",
+    "types/",
     "LICENSE",
     "README.md",
     "CHANGELOG.md"
