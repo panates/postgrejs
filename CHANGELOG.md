@@ -1,3 +1,10 @@
+# v2.16.0
+[2024-08-09]
+
+### Changes
+
+* Made ready for Node16 moduleResolution ([`6632dc0`](https://github.com/panates/postgrejs/commit/6632dc03f3c47edd1a4b2b6fea8a07aa671a10bb))
+
 # v2.15.4
 [2024-08-03]
 
