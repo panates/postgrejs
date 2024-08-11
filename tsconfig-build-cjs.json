@@ -3,7 +3,7 @@
   "compilerOptions": {
     "module": "CommonJS",
     "declaration": false,
-    "outDir": "build/cjs",
+    "outDir": "build/cjs"
   },
   "include": ["src"]
 }
