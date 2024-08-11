@@ -1,5 +1,12 @@
-# v2.17.0
+# v2.17.1
 [2024-08-11]
+
+### Changes
+
+* Updated dependencies ([`06fad33`](https://github.com/panates/postgrejs/commit/06fad33861c7245ea898edb4040cf27695d716f4))
+
+# v2.17.0
+[2024-08-12]
 
 ### Changes
 
