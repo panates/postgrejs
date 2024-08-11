@@ -1,3 +1,11 @@
+# v2.17.0
+[2024-08-11]
+
+### Changes
+
+* Rollback to ES2020 ([`279aed6`](https://github.com/panates/postgrejs/commit/279aed60b05bf7785f3785df2d43ab8c194abab2))
+* Rollback to ES2020 ([`1c0b78e`](https://github.com/panates/postgrejs/commit/1c0b78e6c0dd963f0e120031b3a5c2fe7a7b621c))
+
 # v2.16.0
 [2024-08-09]
 
