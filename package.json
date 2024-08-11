@@ -7,7 +7,7 @@
   "private": true,
   "dependencies": {
     "doublylinked": "^2.5.4",
-    "lightning-pool": "^4.6.0",
+    "lightning-pool": "^4.6.1",
     "postgres-bytea": "^3.0.0",
     "power-tasks": "^1.9.0",
     "putil-merge": "^3.13.0",
