@@ -1,7 +1,7 @@
 import decodeBytea from 'postgres-bytea';
 import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
-import type { SmartBuffer } from '../protocol/smart-buffer';
+import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
 export const ByteaType: DataType = {
   name: 'bytea',

@@ -1,6 +1,6 @@
-import type { BindParam } from '../connection/bind-param';
+import type { BindParam } from '../connection/bind-param.js';
 import type { DataFormat } from '../constants.js';
-import type { DataTypeMap } from '../data-type-map';
+import type { DataTypeMap } from '../data-type-map.js';
 import type { DataMappingOptions } from './data-mapping-options.js';
 
 export interface QueryOptions extends DataMappingOptions {

@@ -1,4 +1,4 @@
-import type { DataTypeMap } from '../data-type-map';
+import type { DataTypeMap } from '../data-type-map.js';
 import type { DataMappingOptions } from './data-mapping-options.js';
 
 export interface ScriptExecuteOptions extends DataMappingOptions {

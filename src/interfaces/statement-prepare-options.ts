@@ -1,4 +1,4 @@
-import type { DataTypeMap } from '../data-type-map';
+import type { DataTypeMap } from '../data-type-map.js';
 import type { OID } from '../types.js';
 
 export interface StatementPrepareOptions {

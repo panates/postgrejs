@@ -1,6 +1,6 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataType, Rectangle } from '../interfaces/data-type.js';
-import type { SmartBuffer } from '../protocol/smart-buffer';
+import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import type { Maybe } from '../types.js';
 
 const BOX_PATTERN1 = /^\( *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *\)$/;
