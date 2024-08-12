@@ -1,5 +1,16 @@
+# v2.18.0
+[2024-08-12]
+
+### Fixes
+
+* Fix: Added package.json in esm directory which overwrite "type" property to "module" ([`831bb08`](https://github.com/panates/postgrejs/commit/831bb083230cf3981d69c1334b2e5312de66b520))
+
+### Changes
+
+* chore: Updated dependencies ([`f3cfc97`](https://github.com/panates/postgrejs/commit/f3cfc97fd440ed5cc454bdf7ac5f254794ea9c57))
+
 # v2.17.1
-[2024-08-11]
+[2024-08-12]
 
 ### Changes
 
