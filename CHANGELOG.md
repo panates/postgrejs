@@ -1,3 +1,10 @@
+# v2.18.1
+[2024-08-12]
+
+### Changes
+
+* Applied publint to check package.json ([`8ce6bf1`](https://github.com/panates/postgrejs/commit/8ce6bf1e67a02bed513f1238e20a62895862bb5c))
+
 # v2.18.0
 [2024-08-12]
 
