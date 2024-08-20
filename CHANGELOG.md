@@ -1,3 +1,11 @@
+# v2.19.0
+[2024-08-20]
+
+### Changes
+
+* Fixed compatibility for "Node16" and "NodeNext" moduleResolution options ([`47b8fe6`](https://github.com/panates/postgrejs/commit/47b8fe6538c94494355956636733bfb12b6d8b3f))
+* Fixed compatibility for "Node16" and "NodeNext" moduleResolution options ([`b507abd`](https://github.com/panates/postgrejs/commit/b507abd282b5dac3125b82c095c1f18f8136ee7a))
+
 # v2.18.1
 [2024-08-12]
 
