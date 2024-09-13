@@ -47,7 +47,7 @@ export class Portal {
         queryOptions,
       });
       socket.sendFlushMessage();
-      return await socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?) => void) => {
+      return await socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error) => void) => {
         switch (code) {
           case Protocol.BackendMessageCode.BindComplete:
             done();
@@ -71,7 +71,7 @@ export class Portal {
       socket.sendDescribeMessage({ type: 'P', name: this.name });
       socket.sendFlushMessage();
       return await socket.capture(
-        async (code: Protocol.BackendMessageCode, msg: any, done: (err?, result?) => void) => {
+        async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error, result?: any) => void) => {
           switch (code) {
             case Protocol.BackendMessageCode.NoticeResponse:
               break;
@@ -114,8 +114,10 @@ export class Portal {
             case Protocol.BackendMessageCode.DataRow:
               if (Array.isArray(this._columnFormat)) {
                 rows.push(
-                  msg.columns.map((buf: Buffer, i) =>
-                    this._columnFormat[i] === Protocol.DataFormat.text ? buf.toString('utf8') : buf,
+                  msg.columns.map((buf: Buffer, i: number) =>
+                    (this._columnFormat as Protocol.DataFormat[])[i] === Protocol.DataFormat.text
+                      ? buf.toString('utf8')
+                      : buf,
                   ),
                 );
               } else if (this._columnFormat === Protocol.DataFormat.binary) rows.push(msg.columns);

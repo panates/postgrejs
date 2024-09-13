@@ -1,3 +1,4 @@
+// @ts-ignore -- no type definitions for decodeBytea
 import decodeBytea from 'postgres-bytea';
 import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
