@@ -164,12 +164,11 @@ export class Frontend {
         const dt = dataTypeOid ? args.typeMap.get(dataTypeOid) : undefined;
 
         if (dt) {
-          if (typeof dt.encodeAsNull === "function" && dt.encodeAsNull(v, queryOptions)) {
+          if (typeof dt.encodeAsNull === 'function' && dt.encodeAsNull(v, queryOptions)) {
             io.writeInt32BE(-1);
             continue;
           }
-
-          if (typeof dt.encodeBinary === "function") {
+          if (typeof dt.encodeBinary === 'function') {
             // Set param format to binary
             io.buffer.writeInt16BE(Protocol.DataFormat.binary, formatOffset + i * 2);
             // Preserve data length

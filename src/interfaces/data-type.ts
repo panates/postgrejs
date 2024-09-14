@@ -1,7 +1,7 @@
 import type {
   DecodeBinaryFunction,
-  EncodeBinaryFunction,
   EncodeAsNullFunction,
+  EncodeBinaryFunction,
   EncodeTextFunction,
   OID,
   ParseTextFunction,
