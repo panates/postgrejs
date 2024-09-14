@@ -1,3 +1,11 @@
+# v2.20.0
+[2024-09-14]
+
+### Changes
+
+* chore: Typing improvements ([`adb46c3`](https://github.com/panates/postgrejs/commit/adb46c3ae486e9182aa9a979bed4848c71e69af4))
+* chore: Typing improvements ([`d414463`](https://github.com/panates/postgrejs/commit/d41446345caa940294996b5662683acca12d9578))
+
 # v2.19.0
 [2024-08-20]
 
