@@ -1,7 +1,7 @@
 module.exports = {
   testEnvironment: 'node',
   verbose: true,
-  maxWorkers: 1,
+  maxWorkers: '50%',
   coveragePathIgnorePatterns: ['/build/', '/node_modules/', '_support'],
   coverageReporters: ['lcov', 'text'],
   coverageDirectory: '<rootDir>/coverage/',
@@ -19,6 +19,6 @@ module.exports = {
     '(\\..+)\\.js': '$1',
     postgrejs: '<rootDir>/src',
   },
-  globalSetup: '<rootDir>/test/_support/env.ts',
+  globalSetup: '<rootDir>/test/_support/global_setup.ts',
   modulePathIgnorePatterns: ['<rootDir>/build'],
 };

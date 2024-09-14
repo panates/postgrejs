@@ -1,5 +1,5 @@
-import { DataMappingOptions } from '../interfaces/data-mapping-options.js';
-import { AnyParseFunction } from '../types.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
+import type { AnyParseFunction } from '../types.js';
 
 export function parseRow(parsers: AnyParseFunction[], row: any[], options: DataMappingOptions): void {
   const l = row.length;

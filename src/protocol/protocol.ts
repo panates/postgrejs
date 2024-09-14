@@ -1,4 +1,4 @@
-import { Nullable } from '../types.js';
+import type { Nullable } from '../types.js';
 
 export namespace Protocol {
   export const VERSION_MAJOR = 3;

@@ -1,17 +1,17 @@
 import { Pool as LightningPool, PoolConfiguration as LPoolConfiguration, PoolFactory } from 'lightning-pool';
 import { coerceToBoolean, coerceToInt } from 'putil-varhelpers';
 import { ConnectionState } from '../constants.js';
-import { PoolConfiguration } from '../interfaces/database-connection-params.js';
-import { QueryOptions } from '../interfaces/query-options.js';
-import { QueryResult } from '../interfaces/query-result.js';
-import { ScriptExecuteOptions } from '../interfaces/script-execute-options.js';
-import { ScriptResult } from '../interfaces/script-result.js';
-import { StatementPrepareOptions } from '../interfaces/statement-prepare-options.js';
+import type { PoolConfiguration } from '../interfaces/database-connection-params.js';
+import type { QueryOptions } from '../interfaces/query-options.js';
+import type { QueryResult } from '../interfaces/query-result.js';
+import type { ScriptExecuteOptions } from '../interfaces/script-execute-options.js';
+import type { ScriptResult } from '../interfaces/script-result.js';
+import type { StatementPrepareOptions } from '../interfaces/statement-prepare-options.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import { getConnectionConfig } from '../util/connection-config.js';
-import { Connection, NotificationCallback } from './connection.js';
+import { Connection, type NotificationCallback } from './connection.js';
 import { getIntlConnection, IntlConnection } from './intl-connection.js';
-import { PreparedStatement } from './prepared-statement.js';
+import type { PreparedStatement } from './prepared-statement.js';
 
 export class Pool extends SafeEventEmitter {
   protected readonly _pool: LightningPool<IntlConnection>;

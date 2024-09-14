@@ -1,4 +1,4 @@
-import { Row } from '../types.js';
+import type { Row } from '../types.js';
 import type { FieldInfo } from './field-info.js';
 
 export interface CommandResult {

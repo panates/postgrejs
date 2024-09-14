@@ -1,5 +1,4 @@
 import { Connection } from 'postgrejs';
-import { createTestSchema } from '../_support/create-db.js';
 
 describe('Cursor support', () => {
   let connection: Connection;
@@ -7,7 +6,6 @@ describe('Cursor support', () => {
   beforeAll(async () => {
     connection = new Connection();
     await connection.connect();
-    await createTestSchema(connection);
   });
 
   afterAll(async () => {

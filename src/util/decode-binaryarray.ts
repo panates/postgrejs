@@ -1,4 +1,4 @@
-import { DataMappingOptions } from '../interfaces/data-mapping-options.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import { BufferReader } from '../protocol/buffer-reader.js';
 import type { DecodeBinaryFunction, Nullable } from '../types.js';
 

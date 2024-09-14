@@ -1,9 +1,9 @@
+/* eslint-disable import-x/extensions */
 // noinspection GrazieInspection
-
-import { Connection, stringifyValueForSQL } from 'postgrejs';
+import './env';
+import { Client } from 'pg';
 
 const schema = process.env.PGSCHEMA || 'test';
-let testDbCreated = false;
 
 const schemaSql = `
 DROP SCHEMA IF EXISTS ${schema} CASCADE;
@@ -96,23 +96,34 @@ const dataFiles: any[] = [
   require('./test-data/customers.json'),
 ];
 
-export async function createTestSchema(connection: Connection) {
-  if (testDbCreated) return;
+export async function createTestSchema() {
+  const client = new Client({
+    user: process.env.PGUSER,
+    password: process.env.PGPASSWORD,
+    host: process.env.PGHOST,
+    port: process.env.PGPORT ? parseInt(process.env.PGPORT, 10) : 5432,
+    database: process.env.PGDATABASE,
+  });
 
-  await connection.execute(schemaSql);
+  await client.connect();
+  await client.query(schemaSql);
+
   /* Create tables */
   for (const table of dataFiles) {
     /* Insert rows */
-    const keys = Object.keys(table.rows[0]);
-    const fields = keys.map(f => f.toLowerCase());
-    let sql = '';
     for (const row of table.rows) {
-      const values = keys.map(x => stringifyValueForSQL(row[x]));
-      const insertSql =
-        'insert into test.' + table.name + ' (' + fields.join(',') + ') values (' + values.join(',') + ');\n';
-      sql += insertSql;
+      const keys = Object.keys(row);
+      const values = Object.values(row);
+      const sql =
+        'insert into test.' +
+        table.name +
+        ' (' +
+        keys.join(',') +
+        ') values (' +
+        values.map((_, i) => '$' + (i + 1)).join(',') +
+        ');\n';
+      await client.query(sql, values);
     }
-    await connection.execute(sql);
   }
-  testDbCreated = true;
+  await client.end();
 }

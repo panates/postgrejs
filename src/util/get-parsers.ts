@@ -1,8 +1,8 @@
 import { DataFormat } from '../constants.js';
-import { DataTypeMap } from '../data-type-map.js';
-import { DataMappingOptions } from '../interfaces/data-mapping-options.js';
-import { Protocol } from '../protocol/protocol.js';
-import { AnyParseFunction } from '../types.js';
+import type { DataTypeMap } from '../data-type-map.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
+import type { Protocol } from '../protocol/protocol.js';
+import type { AnyParseFunction } from '../types.js';
 import { decodeBinaryArray } from './decode-binaryarray.js';
 import { parsePostgresArray } from './parse-array.js';
 

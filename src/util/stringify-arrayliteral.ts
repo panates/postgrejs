@@ -1,5 +1,5 @@
-import { DataMappingOptions } from '../interfaces/data-mapping-options.js';
-import { EncodeTextFunction } from '../types.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
+import type { EncodeTextFunction } from '../types.js';
 import { arrayCalculateDim } from './array-calculatedim.js';
 
 export function stringifyArrayLiteral(value: any[], options?: DataMappingOptions, encode?: EncodeTextFunction): string {

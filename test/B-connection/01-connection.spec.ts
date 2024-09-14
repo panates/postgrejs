@@ -1,5 +1,5 @@
+import * as process from 'node:process';
 import { Connection, ConnectionState } from 'postgrejs';
-import { createTestSchema } from '../_support/create-db.js';
 
 describe('Connection', () => {
   let connection: Connection;
@@ -19,6 +19,36 @@ describe('Connection', () => {
     await connection.connect();
     expect(connection.state).toStrictEqual(ConnectionState.READY);
   });
+
+  if (process.env.PG_UNIX_SOCKET) {
+    it('should connect with unix socket', async () => {
+      connection = new Connection(process.env.PG_UNIX_SOCKET);
+      await connection.connect();
+      expect(connection.state).toStrictEqual(ConnectionState.READY);
+    });
+  }
+
+  if (process.env.LOGIN_MD5) {
+    it('should login using MD5', async () => {
+      connection = new Connection({
+        user: process.env.LOGIN_MD5,
+        password: process.env.LOGIN_MD5,
+      });
+      await connection.connect();
+      expect(connection.state).toStrictEqual(ConnectionState.READY);
+    });
+  }
+
+  if (process.env.LOGIN_SCRAM) {
+    it('should login using scram-sha-25', async () => {
+      connection = new Connection({
+        user: process.env.LOGIN_SCRAM,
+        password: process.env.LOGIN_SCRAM,
+      });
+      await connection.connect();
+      expect(connection.state).toStrictEqual(ConnectionState.READY);
+    });
+  }
 
   it('should get process id', async () => {
     connection = new Connection();
@@ -126,13 +156,6 @@ describe('Connection', () => {
     expect(connection.inTransaction).toStrictEqual(true);
     await connection.rollback();
     expect(connection.inTransaction).toStrictEqual(false);
-    await connection.close();
-  });
-
-  it('create test schema', async () => {
-    connection = new Connection();
-    await connection.connect();
-    await createTestSchema(connection);
     await connection.close();
   });
 

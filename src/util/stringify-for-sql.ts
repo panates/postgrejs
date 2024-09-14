@@ -1,6 +1,6 @@
 import { UuidType } from '../data-types/uuid-type.js';
-import { DataMappingOptions } from '../interfaces/data-mapping-options.js';
-import { EncodeTextFunction } from '../types.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
+import type { EncodeTextFunction } from '../types.js';
 import { escapeLiteral } from './escape-literal.js';
 
 export function stringifyArrayForSQL(v: any[], options?: DataMappingOptions, encode?: EncodeTextFunction): string {

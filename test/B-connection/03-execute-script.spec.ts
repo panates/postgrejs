@@ -1,5 +1,4 @@
 import { Connection } from 'postgrejs';
-import { createTestSchema } from '../_support/create-db.js';
 
 describe('execute() (Simple Query)', () => {
   let connection: Connection;
@@ -73,10 +72,6 @@ describe('execute() (Simple Query)', () => {
     expect(x[0].results[0].rows[0][0]).toStrictEqual(1);
     expect(x[1].results[0].rows[0][0]).toStrictEqual(2);
     expect(x[2].results[0].rows[0][0]).toStrictEqual(3);
-  });
-
-  it('create test schema', async () => {
-    await createTestSchema(connection);
   });
 
   it('should select sql return data rows', async () => {

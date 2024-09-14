@@ -1,13 +1,13 @@
 import DoublyLinked from 'doublylinked';
 import { TaskQueue } from 'power-tasks';
-import { FieldInfo } from '../interfaces/field-info.js';
-import { QueryOptions } from '../interfaces/query-options.js';
+import type { FieldInfo } from '../interfaces/field-info.js';
+import type { QueryOptions } from '../interfaces/query-options.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
-import { AnyParseFunction, Maybe, Row } from '../types.js';
+import type { AnyParseFunction, Maybe, Row } from '../types.js';
 import { convertRowToObject } from '../util/convert-row-to-object.js';
 import { parseRow } from '../util/parse-row.js';
-import { Portal } from './portal.js';
-import { PreparedStatement } from './prepared-statement.js';
+import type { Portal } from './portal.js';
+import type { PreparedStatement } from './prepared-statement.js';
 
 export class Cursor extends SafeEventEmitter implements AsyncDisposable {
   private readonly _statement: PreparedStatement;

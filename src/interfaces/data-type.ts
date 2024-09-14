@@ -2,11 +2,11 @@ import type {
   DecodeBinaryFunction,
   EncodeAsNullFunction,
   EncodeBinaryFunction,
+  EncodeCalculateDimFunction,
   EncodeTextFunction,
   OID,
   ParseTextFunction,
 } from '../types.js';
-import { EncodeCalculateDimFunction } from '../types.js';
 
 export interface DataType {
   oid: OID;

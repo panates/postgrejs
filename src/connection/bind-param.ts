@@ -1,4 +1,4 @@
-import { OID } from '../types.js';
+import type { OID } from '../types.js';
 
 export class BindParam {
   constructor(

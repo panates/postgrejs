@@ -1,6 +1,5 @@
 import assert from 'assert';
 import { Connection, Cursor } from 'postgrejs';
-import { createTestSchema } from '../_support/create-db.js';
 
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
@@ -12,7 +11,6 @@ describe('query() (Extended Query)', () => {
   beforeAll(async () => {
     connection = new Connection();
     await connection.connect();
-    await createTestSchema(connection);
   });
 
   afterAll(async () => {

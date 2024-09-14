@@ -1,6 +1,6 @@
 import { DataTypeOIDs } from '../constants.js';
-import { DataType } from '../interfaces/data-type.js';
-import { SmartBuffer } from '../protocol/smart-buffer.js';
+import type { DataType } from '../interfaces/data-type.js';
+import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
 export const BoolType: DataType = {
   name: 'bool',

@@ -1,12 +1,5 @@
-import dotenv from 'dotenv';
-
-dotenv.config({ path: __dirname + '/.env' });
-
 process.env.NODE_ENV = 'test';
-process.env.PGSCHEMA = 'test';
-
-const setup = (): void => {
-  //
-};
-
-export default setup;
+process.env.PGUSER = process.env.PGUSER || 'postgres';
+process.env.PGPASSWORD = process.env.PGPASSWORD || 'postgres';
+process.env.PGDATABASE = process.env.PGDATABASE || 'postgres';
+process.env.PGSCHEMA = process.env.PGSCHEMA || 'test';

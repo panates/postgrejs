@@ -1,9 +1,9 @@
 import { DEFAULT_COLUMN_FORMAT } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
-import { QueryOptions } from '../interfaces/query-options.js';
+import type { QueryOptions } from '../interfaces/query-options.js';
 import { Protocol } from '../protocol/protocol.js';
-import { Maybe } from '../types.js';
-import { Connection } from './connection.js';
+import type { Maybe } from '../types.js';
+import type { Connection } from './connection.js';
 import { getIntlConnection } from './intl-connection.js';
 import type { PreparedStatement } from './prepared-statement.js';
 

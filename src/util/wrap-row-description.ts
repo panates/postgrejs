@@ -1,7 +1,7 @@
 import { DataFormat, DataTypeNames } from '../constants.js';
-import { DataTypeMap } from '../data-type-map.js';
-import { FieldInfo } from '../interfaces/field-info.js';
-import { Protocol } from '../protocol/protocol.js';
+import type { DataTypeMap } from '../data-type-map.js';
+import type { FieldInfo } from '../interfaces/field-info.js';
+import type { Protocol } from '../protocol/protocol.js';
 
 export function wrapRowDescription(
   typeMap: DataTypeMap,

@@ -1,12 +1,12 @@
 import { DEFAULT_COLUMN_FORMAT } from '../constants.js';
 import { DataTypeMap } from '../data-type-map.js';
-import { QueryOptions } from '../interfaces/query-options.js';
-import { Maybe, OID } from '../types.js';
+import type { QueryOptions } from '../interfaces/query-options.js';
+import type { Maybe, OID } from '../types.js';
 import { encodeBinaryArray } from '../util/encode-binaryarray.js';
 import { stringifyArrayLiteral } from '../util/stringify-arrayliteral.js';
 import { Protocol } from './protocol.js';
-import { SASL } from './sasl.js';
-import { SmartBuffer, SmartBufferConfig } from './smart-buffer.js';
+import type { SASL } from './sasl.js';
+import { SmartBuffer, type SmartBufferConfig } from './smart-buffer.js';
 
 const DataFormat = Protocol.DataFormat;
 const StaticFlushBuffer = Buffer.from([Protocol.FrontendMessageCode.Flush, 0x00, 0x00, 0x00, 0x04]);

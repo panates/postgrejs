@@ -1,5 +1,5 @@
 import { toInt, toIntDef } from 'putil-varhelpers';
-import { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
+import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
 
 export function configFromEnv(): ConnectionConfiguration {
   const env = process.env;
