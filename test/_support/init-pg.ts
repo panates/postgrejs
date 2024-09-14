@@ -15,7 +15,7 @@ export function configurePostgresql() {
   exec('psql', ['-c', `create user ${user}`]);
   exec('psql', ['-c', 'alter system set password_encryption=md5']);
   exec('psql', ['-c', 'select pg_reload_conf()']);
-  exec('psql', ['-c', 'drop user if exists $user_md5']);
+  exec('psql', ['-c', `drop user if exists $${user_md5}`]);
   exec('psql', ['-c', `create user ${user_md5} with password '${user_md5}'`]);
   exec('psql', ['-c', "alter system set password_encryption='scram-sha-256'"]);
   exec('psql', ['-c', 'select pg_reload_conf()']);
