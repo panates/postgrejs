@@ -62,5 +62,5 @@ jobs:
           PGSOCKET: /var/run/postgresql
           PGDATABASE: postgrejs_test
           INIT_PG: true
-          LOGIN_MD5: test_md5
-          LOGIN_SCRAM: test_scram
+          LOGIN_MD5: postgrejs_test_md5
+          LOGIN_SCRAM: postgrejs_test_scram
