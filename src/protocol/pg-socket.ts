@@ -1,7 +1,8 @@
-import crypto from 'crypto';
-import net from 'net';
+import crypto from 'node:crypto';
+import net from 'node:net';
+import path from 'node:path';
+import tls from 'node:tls';
 import promisify from 'putil-promisify';
-import tls from 'tls';
 import { ConnectionState } from '../constants.js';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
@@ -110,8 +111,8 @@ export class PgSocket extends SafeEventEmitter {
     this.emit('connecting');
     const port = options.port || DEFAULT_PORT_NUMBER;
     if (options.host && options.host.startsWith('/')) {
-      socket.connect(options.host + ':' + port);
-    } else socket.connect(port, options.host || 'localhost');
+      socket.connect(path.join(options.host, '/.s.PGSQL.' + port));
+    } else socket.connect(options.port || DEFAULT_PORT_NUMBER, options.host || 'localhost');
   }
 
   close(): void {
