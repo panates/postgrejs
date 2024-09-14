@@ -1,6 +1,6 @@
 name: test
 
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 jobs:
   test:
@@ -8,8 +8,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['18']
-        postgres: ['14']
+        node: [ '16', '18', '20' ]
+        postgres: [ '14', '16' ]
     runs-on: ubuntu-latest
     services:
       postgres:
