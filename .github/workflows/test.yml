@@ -26,17 +26,16 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
-      - run: date
-      - run: |
+      - name: Setup PostgreSQL
+        run: |
+          date
           sudo apt purge postgresql-14
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
           sudo apt-get update
           sudo apt-get -y install "postgresql-${{ matrix.postgres }}"
-      - run: |
           sudo cp ./test/_support/pg_hba.conf /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf
-          sudo cat /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf
-      - run: |                          
+          sudo cat /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf                          
           sudo sed -i 's/.*wal_level.*/wal_level = logical/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
           sudo sed -i 's/.*max_prepared_transactions.*/max_prepared_transactions = 100/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
           sudo sed -i 's/.*ssl = .*/ssl = on/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
@@ -46,11 +45,10 @@ jobs:
           sudo chmod og-rwx /etc/postgresql/${{ matrix.postgres }}/main/server.key
           sudo systemctl start postgresql.service
           sudo systemctl status postgresql.service
-      - run: |
           pg_isready
-      - run: |
-          sudo -u postgres dropdb postgrejs_test --if-exists
-      - run: |        
+      - name: Configure database environment
+        run: |
+          sudo -u postgres dropdb postgrejs_test --if-exists        
           sudo -u postgres psql -c "alter system set ssl=on;"
           sudo -u postgres psql -c "drop user if exists postgrejs_test;"
           sudo -u postgres psql -c "create user postgrejs_test;"
@@ -62,7 +60,6 @@ jobs:
           sudo -u postgres psql -c "select pg_reload_conf();"
           sudo -u postgres psql -c "drop user if exists postgrejs_test_scram;"
           sudo -u postgres psql -c "create user postgrejs_test_scram with password 'postgrejs_test_scram'"
-      - run: |
           sudo -u postgres createdb postgrejs_test
           sudo -u postgres psql -c "grant all on database postgrejs_test to postgrejs_test;"
           sudo -u postgres psql -c "alter database postgrejs_test owner to postgrejs_test;"
@@ -74,9 +71,12 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm install
-      - run: npm run lint
-      - run: npm run check
-      - run: npm run citest
+      - name: Run lint
+        run: npm run lint
+      - name: Check for circular imports
+        run: npm run check
+      - name: Run tests
+        run: npm run citest
         env:
           NODE_TLS_REJECT_UNAUTHORIZED: 0
           PGUSER: postgres
@@ -85,3 +85,7 @@ jobs:
           INIT_PG: true
           LOGIN_MD5: postgrejs_test_md5
           LOGIN_SCRAM: postgrejs_test_scram
+      - name: Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
