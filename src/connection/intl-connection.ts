@@ -2,21 +2,21 @@ import { TaskQueue } from 'power-tasks';
 import { coerceToBoolean } from 'putil-varhelpers';
 import { ConnectionState } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
-import { CommandResult } from '../interfaces/command-result.js';
-import { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
-import { ScriptExecuteOptions } from '../interfaces/script-execute-options.js';
-import { ScriptResult } from '../interfaces/script-result.js';
+import type { CommandResult } from '../interfaces/command-result.js';
+import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
+import type { ScriptExecuteOptions } from '../interfaces/script-execute-options.js';
+import type { ScriptResult } from '../interfaces/script-result.js';
 import { PgSocket } from '../protocol/pg-socket.js';
 import { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
-import { Maybe, type AnyParseFunction } from '../types.js';
+import type { AnyParseFunction, Maybe } from '../types.js';
 import { getConnectionConfig } from '../util/connection-config.js';
 import { convertRowToObject } from '../util/convert-row-to-object.js';
 import { escapeLiteral } from '../util/escape-literal.js';
 import { getParsers } from '../util/get-parsers.js';
 import { parseRow } from '../util/parse-row.js';
 import { wrapRowDescription } from '../util/wrap-row-description.js';
-import { Connection } from './connection.js';
+import type { Connection } from './connection.js';
 
 const DataFormat = Protocol.DataFormat;
 
