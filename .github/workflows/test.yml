@@ -59,8 +59,8 @@ jobs:
         env:
           NODE_TLS_REJECT_UNAUTHORIZED: 0
           PGUSER: postgres
+          PGSOCKET: /var/run/postgresql
           PGDATABASE: postgrejs_test
-          PG_UNIX_SOCKET: /var/run/postgresql
           INIT_PG: true
           LOGIN_MD5: test_md5
           LOGIN_SCRAM: test_scram

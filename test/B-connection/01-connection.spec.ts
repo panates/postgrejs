@@ -20,9 +20,9 @@ describe('Connection', () => {
     expect(connection.state).toStrictEqual(ConnectionState.READY);
   });
 
-  if (process.env.PG_UNIX_SOCKET) {
+  if (process.env.PGSOCKET) {
     it('should connect with unix socket', async () => {
-      connection = new Connection(process.env.PG_UNIX_SOCKET);
+      connection = new Connection(process.env.PGSOCKET);
       await connection.connect();
       expect(connection.state).toStrictEqual(ConnectionState.READY);
     });

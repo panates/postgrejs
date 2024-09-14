@@ -302,10 +302,15 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     const stack = new Error().stack;
     return promise.catch(e => {
       if (e instanceof Error && stack) {
-        e.stack = stack
-          .split('\n')
-          .filter(x => !x.includes('Connection._captureErrorStack'))
-          .join('\n');
+        if (e.stack && stack) {
+          e.stack =
+            e.stack.substring(0, e.stack.indexOf('\n')) +
+            '\n' +
+            stack
+              .split('\n')
+              .filter((x: string, i: number) => i && !x.includes('._captureErrorStack'))
+              .join('\n');
+        }
       }
       throw e;
     });
