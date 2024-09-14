@@ -108,8 +108,10 @@ export class PgSocket extends SafeEventEmitter {
     socket.once('connect', connectHandler);
 
     this.emit('connecting');
-    if (options.host && options.host.startsWith('/')) socket.connect(options.host);
-    else socket.connect(options.port || DEFAULT_PORT_NUMBER, options.host || 'localhost');
+    const port = options.port || DEFAULT_PORT_NUMBER;
+    if (options.host && options.host.startsWith('/')) {
+      socket.connect(options.host + ':' + port);
+    } else socket.connect(port, options.host || 'localhost');
   }
 
   close(): void {
