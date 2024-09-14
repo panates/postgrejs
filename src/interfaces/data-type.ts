@@ -1,6 +1,7 @@
 import type {
   DecodeBinaryFunction,
   EncodeBinaryFunction,
+  EncodeAsNullFunction,
   EncodeTextFunction,
   OID,
   ParseTextFunction,
@@ -17,6 +18,7 @@ export interface DataType {
   isType: (v: any) => boolean;
   parseBinary: DecodeBinaryFunction;
   parseText: ParseTextFunction;
+  encodeAsNull?: EncodeAsNullFunction;
   encodeBinary?: EncodeBinaryFunction;
   encodeText?: EncodeTextFunction;
   encodeCalculateDim?: EncodeCalculateDimFunction;

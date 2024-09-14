@@ -9,6 +9,7 @@ export type Callback = (err?: Error, value?: any) => void;
 export type DecodeBinaryFunction = (buf: Buffer, options: DataMappingOptions & Record<string, any>) => any;
 export type EncodeBinaryFunction = (buf: SmartBuffer, v: any, options: DataMappingOptions) => void;
 export type EncodeCalculateDimFunction = (v: any[]) => number[];
+export type EncodeAsNullFunction = (v: any, options: DataMappingOptions) => boolean;
 export type ParseTextFunction = (v: any, options: DataMappingOptions) => any;
 export type EncodeTextFunction = (v: any, options: DataMappingOptions) => string;
 export type AnyParseFunction = ParseTextFunction | DecodeBinaryFunction;
