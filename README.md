@@ -7,11 +7,11 @@
   
 [![NPM Version][npm-image]][npm-url]
 [![NPM Downloads][downloads-image]][downloads-url]
-[![CircleCI][circleci-image]][circleci-url]
+[![CI Tests][ci-test-image]][ci-test-url]
 [![Test Coverage][coveralls-image]][coveralls-url]
 
 
-PostgreJS is a enterprise-level PostgreSQL client for Node.js.
+PostgreJS is an enterprise-level PostgreSQL client for Node.js.
 It is designed to provide a robust and efficient interface to PostgreSQL databases,
 ensuring high performance and reliability for enterprise applications.
 Written entirely in TypeScript, it leverages modern JavaScript features to deliver a seamless development experience.
@@ -63,7 +63,7 @@ Please read :small_orange_diamond: [DOCUMENTATION](https://postgrejs.panates.com
 ### Establish a single connection, execute a simple query
 
 ```ts
-import {Connection} from 'postgrejs';
+import { Connection } from 'postgrejs';
 // Create connection
 const connection = new Connection('postgres://localhost');
 // Connect to database server
@@ -82,7 +82,7 @@ await connection.close();
 
 ### Establish a pooled connection, create a cursor
 ```ts
-import {Pool} from 'postgrejs';
+import { Pool } from 'postgrejs';
 
 // Create connection pool
 const db = new Pool({
@@ -114,7 +114,7 @@ await db.close();
 
 ### Using prepared statements
 ```ts
-import {DataTypeOIDs} from 'postgrejs'; 
+import { DataTypeOIDs } from 'postgrejs'; 
 
 // .....
 const statement = await connection.prepare( 
@@ -196,12 +196,12 @@ When you open an issue please provide version of NodeJS and PostgreSQL server.
  
   
 ## License
-postgrejs is available under [MIT](LICENSE) license.
+PostgreJS is available under [MIT](LICENSE) license.
 
 [npm-image]: https://img.shields.io/npm/v/postgrejs
 [npm-url]: https://npmjs.org/package/postgrejs
-[circleci-image]: https://circleci.com/gh/panates/postgrejs/tree/master.svg?style=shield
-[circleci-url]: https://circleci.com/gh/panates/postgrejs/tree/master
+[ci-test-image]: https://github.com/panates/postgrejs/actions/workflows/test.yml/badge.svg
+[ci-test-url]: https://github.com/panates/postgrejs/actions/workflows/test.yml
 [coveralls-image]: https://img.shields.io/coveralls/panates/postgrejs/master.svg
 [coveralls-url]: https://coveralls.io/r/panates/postgrejs
 [downloads-image]: https://img.shields.io/npm/dm/postgrejs.svg
