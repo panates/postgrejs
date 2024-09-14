@@ -7,7 +7,7 @@ export function configurePostgresql() {
   const database = process.env.PGDATABASE || 'postgrejs_test';
   const user = database;
   const user_md5 = process.env.LOGIN_MD5 || 'postgrejs_test_md5';
-  const user_scram = process.env.LOGIN_MD5 || 'postgrejs_test_scram';
+  const user_scram = process.env.LOGIN_SCRAM || 'postgrejs_test_scram';
   exec('dropdb', [database]);
 
   exec('psql', ['-c', 'alter system set ssl=on']);

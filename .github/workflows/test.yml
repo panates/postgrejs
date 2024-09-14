@@ -26,14 +26,17 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
+      - run: date
       - run: |
-          date
           sudo apt purge postgresql-14
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
           sudo apt-get update
           sudo apt-get -y install "postgresql-${{ matrix.postgres }}"
+      - run: |
           sudo cp ./test/_support/pg_hba.conf /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf
+          sudo cat /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf
+      - run: |                          
           sudo sed -i 's/.*wal_level.*/wal_level = logical/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
           sudo sed -i 's/.*max_prepared_transactions.*/max_prepared_transactions = 100/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
           sudo sed -i 's/.*ssl = .*/ssl = on/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
@@ -43,6 +46,7 @@ jobs:
           sudo chmod og-rwx /etc/postgresql/${{ matrix.postgres }}/main/server.key
           sudo systemctl start postgresql.service
           sudo systemctl status postgresql.service
+      - run: |
           pg_isready
           sudo -u postgres psql -c "SHOW hba_file;"
       # - uses: denoland/setup-deno@v1
@@ -55,7 +59,7 @@ jobs:
       - run: npm install
       - run: npm run lint
       - run: npm run check
-      - run: npm test
+      - run: npm run citest
         env:
           NODE_TLS_REJECT_UNAUTHORIZED: 0
           PGUSER: postgres

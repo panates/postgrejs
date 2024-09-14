@@ -98,8 +98,8 @@ const dataFiles: any[] = [
 
 export async function createTestSchema() {
   const client = new Client({
-    user: process.env.PGUSER,
-    password: process.env.PGPASSWORD,
+    user: process.env.PGUSER || 'postgres',
+    password: process.env.PGPASSWORD || 'postgres',
     host: process.env.PGHOST,
     port: process.env.PGPORT ? parseInt(process.env.PGPORT, 10) : 5432,
     database: process.env.PGDATABASE,
