@@ -1,3 +1,12 @@
+# v2.21.0
+[2024-09-14]
+
+### Changes
+
+* Abort pending operations when the socket closes ([`705063a`](https://github.com/panates/postgrejs/commit/705063a4a15267b1ce634a32f2b997c55b6aff45))
+* chore: fixed lint issues ([`f13dab2`](https://github.com/panates/postgrejs/commit/f13dab2858dac384de4c8b3c21f650995f66ff5e))
+* Throw exception when trying to run query on a connection that is not yeat ready or closing/closed ([`96bd55b`](https://github.com/panates/postgrejs/commit/96bd55bc4e6bb941a2891c79f316653c8c03e1da))
+
 # v2.20.0
 [2024-09-14]
 
