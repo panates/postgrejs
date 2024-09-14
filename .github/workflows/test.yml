@@ -48,9 +48,9 @@ jobs:
           sudo systemctl status postgresql.service
       - run: |
           pg_isready
-          sudo -u postgrejs psql -c "SHOW hba_file;"
+          sudo -u postgres psql -c "SHOW hba_file;"
       - run: |
-          sudo -u postgrejs dropdb postgrejs_test
+          sudo -u postgres dropdb postgrejs_test
       - run: |        
           sudo -u postgres psql -c "alter system set ssl=on;"
           sudo -u postgres psql -c "drop user if exists postgrejs_test;"
@@ -63,7 +63,6 @@ jobs:
           sudo -u postgres psql -c "select pg_reload_conf();"
           sudo -u postgres psql -c "drop user if exists postgrejs_test_scram;"
           sudo -u postgres psql -c "create user postgrejs_test_scram with password 'postgrejs_test_scram'"
-          sudo -u postgres psql -c ";"
       - run: |
           sudo -u postgres createdb postgrejs_test
           sudo -u postgres psql -c "grant all on database postgrejs_test to postgrejs_test;"
