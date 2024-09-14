@@ -52,22 +52,22 @@ jobs:
       - run: |
           sudo -u postgrejs dropdb postgrejs_test
       - run: |        
-          sudo -u postgrejs psql -c "alter system set ssl=on;"
-          sudo -u postgrejs psql -c "drop user if exists postgrejs_test;"
-          sudo -u postgrejs psql -c "create user postgrejs_test;"
-          sudo -u postgrejs psql -c "alter system set password_encryption=md5;"
-          sudo -u postgrejs psql -c "select pg_reload_conf();"
-          sudo -u postgrejs psql -c "drop user if exists postgrejs_test_md5;"
-          sudo -u postgrejs psql -c "create user postgrejs_test_md5 with password 'postgrejs_test_md5'"
-          sudo -u postgrejs psql -c "alter system set password_encryption='scram-sha-256';"
-          sudo -u postgrejs psql -c "select pg_reload_conf();"
-          sudo -u postgrejs psql -c "drop user if exists postgrejs_test_scram;"
-          sudo -u postgrejs psql -c "create user postgrejs_test_scram with password 'postgrejs_test_scram'"
-          sudo -u postgrejs psql -c ";"
+          sudo -u postgres psql -c "alter system set ssl=on;"
+          sudo -u postgres psql -c "drop user if exists postgrejs_test;"
+          sudo -u postgres psql -c "create user postgrejs_test;"
+          sudo -u postgres psql -c "alter system set password_encryption=md5;"
+          sudo -u postgres psql -c "select pg_reload_conf();"
+          sudo -u postgres psql -c "drop user if exists postgrejs_test_md5;"
+          sudo -u postgres psql -c "create user postgrejs_test_md5 with password 'postgrejs_test_md5'"
+          sudo -u postgres psql -c "alter system set password_encryption='scram-sha-256';"
+          sudo -u postgres psql -c "select pg_reload_conf();"
+          sudo -u postgres psql -c "drop user if exists postgrejs_test_scram;"
+          sudo -u postgres psql -c "create user postgrejs_test_scram with password 'postgrejs_test_scram'"
+          sudo -u postgres psql -c ";"
       - run: |
-          sudo -u postgrejs createdb postgrejs_test
-          sudo -u postgrejs psql -c "grant all on database postgrejs_test to postgrejs_test;"
-          sudo -u postgrejs psql -c "alter database postgrejs_test owner to postgrejs_test;"
+          sudo -u postgres createdb postgrejs_test
+          sudo -u postgres psql -c "grant all on database postgrejs_test to postgrejs_test;"
+          sudo -u postgres psql -c "alter database postgrejs_test owner to postgrejs_test;"
       # - uses: denoland/setup-deno@v1
       #  with:
       #    deno-version: v1.x
