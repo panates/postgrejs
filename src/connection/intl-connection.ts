@@ -9,7 +9,7 @@ import { ScriptResult } from '../interfaces/script-result.js';
 import { PgSocket } from '../protocol/pg-socket.js';
 import { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
-import { Maybe } from '../types.js';
+import { Maybe, type AnyParseFunction } from '../types.js';
 import { getConnectionConfig } from '../util/connection-config.js';
 import { convertRowToObject } from '../util/convert-row-to-object.js';
 import { escapeLiteral } from '../util/escape-literal.js';
@@ -70,7 +70,7 @@ export class IntlConnection extends SafeEventEmitter {
   async connect(): Promise<void> {
     if (this.socket.state === ConnectionState.READY) return;
     await new Promise<void>((resolve, reject) => {
-      const handleConnectError = err => reject(err);
+      const handleConnectError = (err: Error) => reject(err);
       this.socket.once('ready', () => {
         this.socket.removeListener('error', handleConnectError);
         resolve();
@@ -199,7 +199,7 @@ export class IntlConnection extends SafeEventEmitter {
       const opts = options || {};
       this.socket.sendQueryMessage(sql);
       let currentStart = Date.now();
-      let parsers;
+      let parsers: AnyParseFunction[] | undefined;
       let current: CommandResult = { command: undefined };
       let fields: Protocol.RowDescription[];
       const typeMap = opts.typeMap || GlobalTypeMap;
@@ -220,7 +220,8 @@ export class IntlConnection extends SafeEventEmitter {
             case Protocol.BackendMessageCode.DataRow:
               {
                 let row = msg.columns.map((x: Buffer) => x.toString('utf8'));
-                parseRow(parsers, row, opts);
+                // The null override assumes we can trust PG to always send the RowDescription first
+                parseRow(parsers!, row, opts);
                 if (opts.objectRows && current.fields) row = convertRowToObject(current.fields, row);
                 if (cb) cb('row', row);
                 current.rows = current.rows || [];

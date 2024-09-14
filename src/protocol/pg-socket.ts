@@ -64,7 +64,7 @@ export class PgSocket extends SafeEventEmitter {
     const options = this.options;
     const socket = (this._socket = new net.Socket());
 
-    const errorHandler = err => {
+    const errorHandler = (err: Error) => {
       this._state = ConnectionState.CLOSED;
       this._removeListeners();
       this._reset();

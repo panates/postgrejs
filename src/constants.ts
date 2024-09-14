@@ -135,7 +135,7 @@ export const DataTypeOIDs = {
   _jsonb: 3807,
 };
 
-export const DataTypeNames = {
+export const DataTypeNames: Record<string, string> = {
   [DataTypeOIDs.bool]: 'bool',
   [DataTypeOIDs.bytea]: 'bytea',
   [DataTypeOIDs.char]: 'char',

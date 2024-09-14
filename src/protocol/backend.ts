@@ -4,7 +4,7 @@ import { Protocol } from './protocol.js';
 // 1 byte message type, 4 byte frame length
 const HEADER_LENGTH = 5;
 
-const ErrorFieldTypes = {
+const ErrorFieldTypes: Record<string, string> = {
   M: 'message',
   S: 'severity',
   V: 'severity',
@@ -64,7 +64,7 @@ export class Backend {
   }
 }
 
-const MessageParsers = {
+const MessageParsers: Record<string, (io: BufferReader, code: Protocol.BackendMessageCode, len: number) => any> = {
   [Protocol.BackendMessageCode.Authentication]: parseAuthentication,
   [Protocol.BackendMessageCode.BackendKeyData]: parseBackendKeyData,
   [Protocol.BackendMessageCode.CommandComplete]: parseCommandComplete,
@@ -199,15 +199,15 @@ function parseDataRow(io: BufferReader): Protocol.DataRowMessage {
 }
 
 function parseErrorResponse(io: BufferReader): Protocol.ErrorResponseMessage {
-  const out = {} as Protocol.ErrorResponseMessage;
+  const out: Record<string, string> = {};
 
   let fieldType;
   while ((fieldType = io.readLString(1)) !== '\0') {
     const value = io.readCString('utf8');
-    const key = ErrorFieldTypes[fieldType];
+    const key = ErrorFieldTypes[fieldType!];
     if (key) out[key] = value;
   }
-  return out;
+  return out as Protocol.ErrorResponseMessage;
 }
 
 function parseNotificationResponse(io: BufferReader): Protocol.NotificationResponseMessage {

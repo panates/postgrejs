@@ -97,9 +97,9 @@ export namespace SASL {
     return crypto.pbkdf2Sync(text, Buffer.from(salt, 'base64'), iterations, 32, 'sha256');
   };
 
-  const encode64 = str => Buffer.from(str).toString('base64');
+  const encode64 = (str: string) => Buffer.from(str).toString('base64');
 
-  const hmac = function (key, msg): Buffer {
+  const hmac = function (key: Buffer, msg: string): Buffer {
     return crypto.createHmac('sha256', key).update(msg).digest();
   };
 
