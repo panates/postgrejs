@@ -11,7 +11,7 @@ export function configurePostgresql() {
   exec('dropdb', [database]);
 
   exec('psql', ['-c', 'alter system set ssl=on']);
-  exec('psql', ['-c', `drop user ${user}`]);
+  exec('psql', ['-c', `drop user if exists ${user}`]);
   exec('psql', ['-c', `create user ${user}`]);
   exec('psql', ['-c', 'alter system set password_encryption=md5']);
   exec('psql', ['-c', 'select pg_reload_conf()']);
