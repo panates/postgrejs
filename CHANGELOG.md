@@ -1,3 +1,31 @@
+# v2.21.1
+[2024-09-20]
+
+### Fixes
+
+* fix: Fixed error messages not showing issue ([`b1ac9be`](https://github.com/panates/postgrejs/commit/b1ac9be100941cf4a400ec0203934f23fd8189ba))
+* fix: unix socket connection issue ([`1653631`](https://github.com/panates/postgrejs/commit/1653631567361b244b21acb7fcd6c863c7fd747a))
+
+### Changes
+
+* chore: Move CI from circleci to GitHub Actions ([`e5e6d4d`](https://github.com/panates/postgrejs/commit/e5e6d4daaab6a25fee2d9ebf5ecd8eb0c88b279f))
+* chore: updated dependencies ([`0166983`](https://github.com/panates/postgrejs/commit/0166983503a6349adca87ca486b01e3215e185f9))
+* chore: updated ci urls ([`f8ccd6f`](https://github.com/panates/postgrejs/commit/f8ccd6fabce1ded8b787974d2b9d0362e058eadd))
+* chore: Move CI from circleci to GitHub Actions #13 ([`31e94bb`](https://github.com/panates/postgrejs/commit/31e94bb6e75bf645774ae06da3a0e1f4e73f0ea4))
+* chore: Added coveralls support ([`9deda5f`](https://github.com/panates/postgrejs/commit/9deda5fe53f9b8d7a7b07ce17942b23d862395ea))
+* chore: Move CI from circleci to GitHub Actions #8 ([`d5e2af2`](https://github.com/panates/postgrejs/commit/d5e2af29acc116fe2ad9cb91cda7fac3b11662bc))
+* chore: Move CI from circleci to GitHub Actions #12 ([`2088d6a`](https://github.com/panates/postgrejs/commit/2088d6a8ff268af072d6d511979c8d4812972520))
+* chore: Move CI from circleci to GitHub Actions #7 ([`8bacf98`](https://github.com/panates/postgrejs/commit/8bacf988825ef623a1c61a2471b83a685f66e924))
+* chore: Move CI from circleci to GitHub Actions #9 ([`b7211e9`](https://github.com/panates/postgrejs/commit/b7211e9e3a62d1eb3af0b87c0fb536f03a32979d))
+* chore: Move CI from circleci to GitHub Actions #6 ([`af38576`](https://github.com/panates/postgrejs/commit/af385760348e5f1fe60313115ff170c848ddc4ce))
+* chore: Move CI from circleci to GitHub Actions #4 ([`6c260f5`](https://github.com/panates/postgrejs/commit/6c260f5d40893433684743ab55f707d0a63c0b76))
+* chore: Move CI from circleci to GitHub Actions #5 ([`dbe687e`](https://github.com/panates/postgrejs/commit/dbe687e7f8719eb3d25ef24f9b4dc790917e8c2d))
+* chore: Added node 16, 20,  pg 16 ([`7458917`](https://github.com/panates/postgrejs/commit/74589172982861911968f93e6d5418f12dc17c63))
+* chore: Move CI from circleci to GitHub Actions #10 ([`8144035`](https://github.com/panates/postgrejs/commit/814403556531dc79ac5d1fb46e7620123b4f2766))
+* chore: Move CI from circleci to GitHub Actions #11 ([`a758c38`](https://github.com/panates/postgrejs/commit/a758c3806eb0cb80ac4d1ffac0cdde47b54d9c8a))
+* chore: Move CI from circleci to GitHub Actions ([`485c398`](https://github.com/panates/postgrejs/commit/485c398fee7e45d4ab623157e1d601003b44b3f1))
+* chore: Move CI from circleci to GitHub Actions #3 ([`187f12f`](https://github.com/panates/postgrejs/commit/187f12f2fe3364aa758147dbebad062f60bfc690))
+
 # v2.21.0
 [2024-09-14]
 
