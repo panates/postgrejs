@@ -25,7 +25,9 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup PostgreSQL
         run: |
           date
@@ -46,6 +48,7 @@ jobs:
           sudo systemctl start postgresql.service
           sudo systemctl status postgresql.service
           pg_isready
+
       - name: Configure database environment
         run: |
           sudo -u postgres dropdb postgrejs_test --if-exists        
@@ -66,15 +69,21 @@ jobs:
       # - uses: denoland/setup-deno@v1
       #  with:
       #    deno-version: v1.x
-      - uses: actions/setup-node@v4
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-      - run: npm install
+
+      - name: Install NodeJS dependencies
+        run: npm install
+
       - name: Run lint
         run: npm run lint
+
       - name: Check for circular imports
         run: npm run check
+
       - name: Run tests
         run: npm run citest
         env:
@@ -85,6 +94,7 @@ jobs:
           INIT_PG: true
           LOGIN_MD5: postgrejs_test_md5
           LOGIN_SCRAM: postgrejs_test_scram
+
       - name: Coveralls
         uses: coverallsapp/github-action@v2
         with:
