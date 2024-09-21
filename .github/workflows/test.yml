@@ -76,7 +76,7 @@ jobs:
           cache: npm
 
       - name: Install NodeJS dependencies
-        uses: 'dudeofawesome/npm-install@v1'
+        run: npm ci
 
       - name: Run linter test
         run: npm run lint
@@ -101,15 +101,15 @@ jobs:
 
       - name: Upload Test Artifacts
         uses: actions/upload-artifact@v4
-        #  Only run this step at last, and even if previous step failed
-        if: ${{ (success() || failure()) && matrix.last }}
+        #  run this step even if previous step failed (once)
+        if: ${{ (success() || failure()) && matrix.node == '20' }}
         with:
           name: test-results
           path: reports/jest-junit.xml
 
       - name: Send coverage to Coveralls
         uses: coverallsapp/github-action@v2
-        # Only run at last
-        if: ${{ matrix.last }}
+        # Run only once
+        if: ${{ matrix.node == '20' }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
