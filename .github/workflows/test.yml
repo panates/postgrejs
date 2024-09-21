@@ -78,15 +78,19 @@ jobs:
       - name: Install NodeJS dependencies
         run: npm install
 
-      - name: Run lint
+      - name: Run linter test
         run: npm run lint
 
-      - name: Check for circular imports
+      - name: Run circular dependency test
         run: npm run check
 
-      - name: Run tests
+      - name: Run compile test
+        run: npm run compile
+
+      - name: Run unit tests
         run: npm run citest
         env:
+          NODE_OPTIONS: "--max_old_space_size=4096"
           NODE_TLS_REJECT_UNAUTHORIZED: 0
           PGUSER: postgres
           PGSOCKET: /var/run/postgresql
@@ -95,7 +99,14 @@ jobs:
           LOGIN_MD5: postgrejs_test_md5
           LOGIN_SCRAM: postgrejs_test_scram
 
-      - name: Coveralls
+      - name: Upload test results
+        uses: actions/upload-artifact@v4  # upload test results
+        if: success() || failure()        # run this step even if previous step failed
+        with:
+          name: test-results
+          path: reports/jest-junit.xml
+
+      - name: Send coverage to Coveralls
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
