@@ -101,6 +101,7 @@ jobs:
 
   upload:
     name: Upload Test Reports
+    needs: test
     strategy:
       fail-fast: false
       matrix:
