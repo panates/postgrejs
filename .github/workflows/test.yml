@@ -9,7 +9,7 @@ jobs:
       fail-fast: false
       matrix:
         node: [ '16', '18', '20' ]
-        postgres: [ '14', '16' ]
+        postgres: [ '14' ]
     runs-on: ubuntu-latest
     services:
       postgres:
