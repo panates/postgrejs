@@ -99,20 +99,17 @@ jobs:
           LOGIN_MD5: postgrejs_test_md5
           LOGIN_SCRAM: postgrejs_test_scram
 
-  upload:
-    name: Upload Test Reports
-    needs: test
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
       - name: Upload Test Artifacts
-        uses: actions/upload-artifact@v4  # upload test results
-        if: success() || failure()        # run this step even if previous step failed
+        uses: actions/upload-artifact@v4
+        #  Only run this step at last, and even if previous step failed
+        if: ${{ (success() || failure()) && matrix.last }}
         with:
           name: test-results
           path: reports/jest-junit.xml
 
       - name: Send coverage to Coveralls
         uses: coverallsapp/github-action@v2
+        # Only run at last
+        if: ${{ matrix.last }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
