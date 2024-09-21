@@ -1,6 +1,7 @@
 node_modules
 /build
 /examples/*/package-lock.json
+*.tsbuildinfo
 
 # environment variables
 .env

@@ -5,7 +5,8 @@
     "moduleResolution": "NodeNext",
     "declaration": true,
     "outDir": "build/esm",
-    "declarationDir": "build/types"
+    "declarationDir": "build/types",
+    "tsBuildInfoFile": "esm.tsbuildinfo"
   },
   "include": ["src"]
 }
