@@ -1,4 +1,4 @@
-name: test
+name: Test
 
 on: [ push, pull_request ]
 
@@ -76,7 +76,7 @@ jobs:
           cache: npm
 
       - name: Install NodeJS dependencies
-        run: npm install
+        uses: 'dudeofawesome/npm-install@v1'
 
       - name: Run linter test
         run: npm run lint
@@ -99,7 +99,15 @@ jobs:
           LOGIN_MD5: postgrejs_test_md5
           LOGIN_SCRAM: postgrejs_test_scram
 
-      - name: Upload test results
+  upload:
+    name: Upload Test Reports
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Upload Test Artifacts
         uses: actions/upload-artifact@v4  # upload test results
         if: success() || failure()        # run this step even if previous step failed
         with:
