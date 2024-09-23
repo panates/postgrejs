@@ -17,13 +17,9 @@ jobs:
     steps:
       - name: Build test report
         id: generateReport
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         with:
           artifact: test-results            # artifact name
           name: JEST Tests                  # Name of the check run which will be created
           path: '*.xml'                     # Path to test results (inside artifact .zip)
           reporter: jest-junit              # Format of test results
-      - name: GitHub Action Summary
-        if: always()
-        run: |
-          type summary.md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
