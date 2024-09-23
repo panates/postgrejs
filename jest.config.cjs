@@ -18,22 +18,8 @@ module.exports = {
   },
   globalSetup: '<rootDir>/test/_support/global_setup.ts',
   modulePathIgnorePatterns: ['<rootDir>/build'],
+  reporters: ['default'],
+  coverageReporters: ['lcov'],
   coveragePathIgnorePatterns: ['/build/', '/node_modules/', '_support'],
-  coverageReporters: ['lcov', 'json-summary'],
   coverageDirectory: '<rootDir>/coverage/',
-  reporters: [
-    'default',
-    [
-      'jest-junit',
-      {
-        outputDirectory: 'reports',
-        outputName: 'jest-junit.xml',
-        ancestorSeparator: ' › ',
-        uniqueOutputName: 'false',
-        suiteNameTemplate: '{filepath}',
-        classNameTemplate: '{classname}',
-        titleTemplate: '{title}',
-      },
-    ],
-  ],
 };
