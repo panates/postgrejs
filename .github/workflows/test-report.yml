@@ -24,4 +24,4 @@ jobs:
           reporter: jest-junit              # Format of test results
       - name: Output report
         run: |          
-          echo "Summary HTML - ${{ steps.coverageComment.outputs.url_html }}"
+          echo "Summary HTML - ${{ steps.report.outputs.url_html }}"
