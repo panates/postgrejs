@@ -23,6 +23,7 @@ jobs:
           name: JEST Tests                  # Name of the check run which will be created
           path: '*.xml'                     # Path to test results (inside artifact .zip)
           reporter: jest-junit              # Format of test results
-      - name: Print output
+      - name: GitHub Action Summary
+        if: always()
         run: |
-          echo "Summary HTML - ${{ steps.generateReport.outputs.url_html }}"
+          type summary.md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
