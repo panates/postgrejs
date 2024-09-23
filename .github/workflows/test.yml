@@ -99,14 +99,6 @@ jobs:
           LOGIN_MD5: postgrejs_test_md5
           LOGIN_SCRAM: postgrejs_test_scram
 
-      - name: Upload Test Artifacts
-        uses: actions/upload-artifact@v4
-        #  run this step even if previous step failed (once)
-        if: ${{ (success() || failure()) && matrix.node == '20' }}
-        with:
-          name: test-results
-          path: reports/jest-junit.xml
-
       - name: Send coverage to Coveralls
         uses: coverallsapp/github-action@v2
         # Run only once
