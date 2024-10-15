@@ -7,7 +7,7 @@
   "private": true,
   "dependencies": {
     "doublylinked": "^2.5.4",
-    "lightning-pool": "^4.8.0",
+    "lightning-pool": "^4.9.0",
     "postgres-bytea": "^3.0.0",
     "power-tasks": "^1.11.0",
     "putil-merge": "^3.13.0",
@@ -20,7 +20,7 @@
     "@panates/eslint-config-ts": "^1.0.21",
     "@panates/tsconfig": "^1.0.21",
     "@types/jest": "^29.5.13",
-    "@types/node": "^22.5.5",
+    "@types/node": "^22.7.5",
     "@types/pg": "^8.11.10",
     "auto-changelog": "^2.5.0",
     "dotenv": "^16.4.5",
@@ -35,7 +35,7 @@
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.3"
   },
   "scripts": {
     "compile": "tsc -b tsconfig-build-esm.json --noEmit",
