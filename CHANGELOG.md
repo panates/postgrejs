@@ -1,3 +1,30 @@
+# v2.22.0
+[2024-10-15]
+
+### Changes
+
+* chore: Updated dependencies ([`1c7aac5`](https://github.com/panates/postgrejs/commit/1c7aac568d64eb95080e7f89faf059fcfec04614))
+* chore: Added test-reporter workflow ([`ff4b555`](https://github.com/panates/postgrejs/commit/ff4b555316fc64b0fd2fd1423d6eecccd4ac1a01))
+* chore: Added test-reporter workflow ([`29e11dd`](https://github.com/panates/postgrejs/commit/29e11dd3a8013d8ff848f3c19c3a35b2ff0f3a04))
+* chore: Added test-reporter workflow ([`5a19ad3`](https://github.com/panates/postgrejs/commit/5a19ad3610217af8690e22aeb5eb74f5e88cd852))
+* chore: Added test-reporter workflow ([`1b40995`](https://github.com/panates/postgrejs/commit/1b40995ab39f20c0c6d19f700553459067dabbf4))
+* chore: Updated jest config ([`7a54fcc`](https://github.com/panates/postgrejs/commit/7a54fcc22ba1cf242ae61a48f21214094db3281f))
+* chore: Added test-reporter workflow ([`108cee2`](https://github.com/panates/postgrejs/commit/108cee26bd4235898e4b37e0d7deb083981e86af))
+* chore: Added test-reporter workflow ([`d8e957c`](https://github.com/panates/postgrejs/commit/d8e957c1b5e3b8ce0244142e30527503dc046d52))
+* chore: Added test-reporter workflow ([`d1c6cd3`](https://github.com/panates/postgrejs/commit/d1c6cd3dba5801e23770902a8401a78ab79d04ba))
+* chore: Added test-reporter workflow ([`e9fe487`](https://github.com/panates/postgrejs/commit/e9fe4879ab1ae62597a64353cf77ea202e9b1f26))
+* chore: Added test-reporter workflow ([`a600cf8`](https://github.com/panates/postgrejs/commit/a600cf82fa53426d0fcd4051dac0a71fe0ccc03d))
+* chore: Added test-reporter workflow ([`e4f29b8`](https://github.com/panates/postgrejs/commit/e4f29b8dde342a69099cc23b6212101c5e5ed583))
+* chore: Added test-reporter workflow ([`158bc22`](https://github.com/panates/postgrejs/commit/158bc22583448717a0cb345d6333161c8212bc2a))
+* chore: Added test-reporter workflow ([`b2468f6`](https://github.com/panates/postgrejs/commit/b2468f61bc034f606828665d993a482a74ed0372))
+* chore: Added test-reporter workflow ([`5833ee1`](https://github.com/panates/postgrejs/commit/5833ee1e8d4a437fe19c16899d20e1e609e2d81e))
+* chore: Added test-reporter workflow ([`bf153bd`](https://github.com/panates/postgrejs/commit/bf153bd02dd0ab492f2bf521f1ff2f2dc3b0a4f4))
+* chore: Added test-reporter workflow ([`2a559f2`](https://github.com/panates/postgrejs/commit/2a559f21cc050fdefee63e866d13ab540c76753d))
+* chore: Added test-reporter workflow ([`cb4e6fa`](https://github.com/panates/postgrejs/commit/cb4e6facf5315d044c0088936d1ce71a7544bebe))
+* chore: Updated jest config ([`0f1fe85`](https://github.com/panates/postgrejs/commit/0f1fe85dd0858db5a7aab5812baa9b13688e9e4a))
+* chore: Added test-reporter workflow ([`1562e37`](https://github.com/panates/postgrejs/commit/1562e37c1fb8e935062aa278e261de06dd26880d))
+* chore: Added test-reporter workflow ([`ecb4ff9`](https://github.com/panates/postgrejs/commit/ecb4ff923a46539a8bac3cc2cb125170481bdcd3))
+
 # v2.21.1
 [2024-09-20]
 
