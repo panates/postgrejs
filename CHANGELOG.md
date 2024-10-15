@@ -1,29 +1,8 @@
 # v2.22.0
 [2024-10-15]
 
-### Changes
-
-* chore: Updated dependencies ([`1c7aac5`](https://github.com/panates/postgrejs/commit/1c7aac568d64eb95080e7f89faf059fcfec04614))
-* chore: Added test-reporter workflow ([`ff4b555`](https://github.com/panates/postgrejs/commit/ff4b555316fc64b0fd2fd1423d6eecccd4ac1a01))
-* chore: Added test-reporter workflow ([`29e11dd`](https://github.com/panates/postgrejs/commit/29e11dd3a8013d8ff848f3c19c3a35b2ff0f3a04))
-* chore: Added test-reporter workflow ([`5a19ad3`](https://github.com/panates/postgrejs/commit/5a19ad3610217af8690e22aeb5eb74f5e88cd852))
-* chore: Added test-reporter workflow ([`1b40995`](https://github.com/panates/postgrejs/commit/1b40995ab39f20c0c6d19f700553459067dabbf4))
-* chore: Updated jest config ([`7a54fcc`](https://github.com/panates/postgrejs/commit/7a54fcc22ba1cf242ae61a48f21214094db3281f))
-* chore: Added test-reporter workflow ([`108cee2`](https://github.com/panates/postgrejs/commit/108cee26bd4235898e4b37e0d7deb083981e86af))
-* chore: Added test-reporter workflow ([`d8e957c`](https://github.com/panates/postgrejs/commit/d8e957c1b5e3b8ce0244142e30527503dc046d52))
-* chore: Added test-reporter workflow ([`d1c6cd3`](https://github.com/panates/postgrejs/commit/d1c6cd3dba5801e23770902a8401a78ab79d04ba))
-* chore: Added test-reporter workflow ([`e9fe487`](https://github.com/panates/postgrejs/commit/e9fe4879ab1ae62597a64353cf77ea202e9b1f26))
-* chore: Added test-reporter workflow ([`a600cf8`](https://github.com/panates/postgrejs/commit/a600cf82fa53426d0fcd4051dac0a71fe0ccc03d))
-* chore: Added test-reporter workflow ([`e4f29b8`](https://github.com/panates/postgrejs/commit/e4f29b8dde342a69099cc23b6212101c5e5ed583))
-* chore: Added test-reporter workflow ([`158bc22`](https://github.com/panates/postgrejs/commit/158bc22583448717a0cb345d6333161c8212bc2a))
-* chore: Added test-reporter workflow ([`b2468f6`](https://github.com/panates/postgrejs/commit/b2468f61bc034f606828665d993a482a74ed0372))
-* chore: Added test-reporter workflow ([`5833ee1`](https://github.com/panates/postgrejs/commit/5833ee1e8d4a437fe19c16899d20e1e609e2d81e))
-* chore: Added test-reporter workflow ([`bf153bd`](https://github.com/panates/postgrejs/commit/bf153bd02dd0ab492f2bf521f1ff2f2dc3b0a4f4))
-* chore: Added test-reporter workflow ([`2a559f2`](https://github.com/panates/postgrejs/commit/2a559f21cc050fdefee63e866d13ab540c76753d))
-* chore: Added test-reporter workflow ([`cb4e6fa`](https://github.com/panates/postgrejs/commit/cb4e6facf5315d044c0088936d1ce71a7544bebe))
-* chore: Updated jest config ([`0f1fe85`](https://github.com/panates/postgrejs/commit/0f1fe85dd0858db5a7aab5812baa9b13688e9e4a))
-* chore: Added test-reporter workflow ([`1562e37`](https://github.com/panates/postgrejs/commit/1562e37c1fb8e935062aa278e261de06dd26880d))
-* chore: Added test-reporter workflow ([`ecb4ff9`](https://github.com/panates/postgrejs/commit/ecb4ff923a46539a8bac3cc2cb125170481bdcd3))
+# v2.22.0
+[2024-10-15]
 
 # v2.21.1
 [2024-09-20]
@@ -33,42 +12,16 @@
 * fix: Fixed error messages not showing issue ([`b1ac9be`](https://github.com/panates/postgrejs/commit/b1ac9be100941cf4a400ec0203934f23fd8189ba))
 * fix: unix socket connection issue ([`1653631`](https://github.com/panates/postgrejs/commit/1653631567361b244b21acb7fcd6c863c7fd747a))
 
-### Changes
-
-* chore: Move CI from circleci to GitHub Actions ([`e5e6d4d`](https://github.com/panates/postgrejs/commit/e5e6d4daaab6a25fee2d9ebf5ecd8eb0c88b279f))
-* chore: updated dependencies ([`0166983`](https://github.com/panates/postgrejs/commit/0166983503a6349adca87ca486b01e3215e185f9))
-* chore: updated ci urls ([`f8ccd6f`](https://github.com/panates/postgrejs/commit/f8ccd6fabce1ded8b787974d2b9d0362e058eadd))
-* chore: Move CI from circleci to GitHub Actions #13 ([`31e94bb`](https://github.com/panates/postgrejs/commit/31e94bb6e75bf645774ae06da3a0e1f4e73f0ea4))
-* chore: Added coveralls support ([`9deda5f`](https://github.com/panates/postgrejs/commit/9deda5fe53f9b8d7a7b07ce17942b23d862395ea))
-* chore: Move CI from circleci to GitHub Actions #8 ([`d5e2af2`](https://github.com/panates/postgrejs/commit/d5e2af29acc116fe2ad9cb91cda7fac3b11662bc))
-* chore: Move CI from circleci to GitHub Actions #12 ([`2088d6a`](https://github.com/panates/postgrejs/commit/2088d6a8ff268af072d6d511979c8d4812972520))
-* chore: Move CI from circleci to GitHub Actions #7 ([`8bacf98`](https://github.com/panates/postgrejs/commit/8bacf988825ef623a1c61a2471b83a685f66e924))
-* chore: Move CI from circleci to GitHub Actions #9 ([`b7211e9`](https://github.com/panates/postgrejs/commit/b7211e9e3a62d1eb3af0b87c0fb536f03a32979d))
-* chore: Move CI from circleci to GitHub Actions #6 ([`af38576`](https://github.com/panates/postgrejs/commit/af385760348e5f1fe60313115ff170c848ddc4ce))
-* chore: Move CI from circleci to GitHub Actions #4 ([`6c260f5`](https://github.com/panates/postgrejs/commit/6c260f5d40893433684743ab55f707d0a63c0b76))
-* chore: Move CI from circleci to GitHub Actions #5 ([`dbe687e`](https://github.com/panates/postgrejs/commit/dbe687e7f8719eb3d25ef24f9b4dc790917e8c2d))
-* chore: Added node 16, 20,  pg 16 ([`7458917`](https://github.com/panates/postgrejs/commit/74589172982861911968f93e6d5418f12dc17c63))
-* chore: Move CI from circleci to GitHub Actions #10 ([`8144035`](https://github.com/panates/postgrejs/commit/814403556531dc79ac5d1fb46e7620123b4f2766))
-* chore: Move CI from circleci to GitHub Actions #11 ([`a758c38`](https://github.com/panates/postgrejs/commit/a758c3806eb0cb80ac4d1ffac0cdde47b54d9c8a))
-* chore: Move CI from circleci to GitHub Actions ([`485c398`](https://github.com/panates/postgrejs/commit/485c398fee7e45d4ab623157e1d601003b44b3f1))
-* chore: Move CI from circleci to GitHub Actions #3 ([`187f12f`](https://github.com/panates/postgrejs/commit/187f12f2fe3364aa758147dbebad062f60bfc690))
-
 # v2.21.0
 [2024-09-14]
 
 ### Changes
 
 * Abort pending operations when the socket closes ([`705063a`](https://github.com/panates/postgrejs/commit/705063a4a15267b1ce634a32f2b997c55b6aff45))
-* chore: fixed lint issues ([`f13dab2`](https://github.com/panates/postgrejs/commit/f13dab2858dac384de4c8b3c21f650995f66ff5e))
 * Throw exception when trying to run query on a connection that is not yeat ready or closing/closed ([`96bd55b`](https://github.com/panates/postgrejs/commit/96bd55bc4e6bb941a2891c79f316653c8c03e1da))
 
 # v2.20.0
 [2024-09-14]
-
-### Changes
-
-* chore: Typing improvements ([`adb46c3`](https://github.com/panates/postgrejs/commit/adb46c3ae486e9182aa9a979bed4848c71e69af4))
-* chore: Typing improvements ([`d414463`](https://github.com/panates/postgrejs/commit/d41446345caa940294996b5662683acca12d9578))
 
 # v2.19.0
 [2024-08-20]
@@ -91,10 +44,6 @@
 ### Fixes
 
 * Fix: Added package.json in esm directory which overwrite "type" property to "module" ([`831bb08`](https://github.com/panates/postgrejs/commit/831bb083230cf3981d69c1334b2e5312de66b520))
-
-### Changes
-
-* chore: Updated dependencies ([`f3cfc97`](https://github.com/panates/postgrejs/commit/f3cfc97fd440ed5cc454bdf7ac5f254794ea9c57))
 
 # v2.17.1
 [2024-08-12]
@@ -138,25 +87,15 @@
 ### Changes
 
 * Updated dependencies ([`164644d`](https://github.com/panates/postgrejs/commit/164644d0f872f4835c684d8ad7072af1e6b4767b))
-* chore: Minor change ([`76e0d0f`](https://github.com/panates/postgrejs/commit/76e0d0f5fc95e894b890304a53e00b08ad530415))
-* chore: Updated ([`3721d59`](https://github.com/panates/postgrejs/commit/3721d59afa3f901b0e19bd12faffb5a2268337e2))
-* chore: Updated ([`526e6be`](https://github.com/panates/postgrejs/commit/526e6be83522787f849a5208b6546b662b13a4b3))
-* chore: Updated homepage ([`b4304a7`](https://github.com/panates/postgrejs/commit/b4304a7fd4e41c04f8999b34dd2b85cd9a026209))
 
 # v2.15.1
 [2024-07-22]
 
 ### Changes
 
-* chore: Updated readme ([`f2db178`](https://github.com/panates/postgrejs/commit/f2db17882fb33729d2ef2044051c78affb7e6d2b))
 * Changed package name to `postgrejs` ([`5ec4852`](https://github.com/panates/postgrejs/commit/5ec485244c9ac448e82b0649110315fc4d9b789e))
 * Updated readme ([`72f6a1b`](https://github.com/panates/postgrejs/commit/72f6a1bc4bc0af17d9a7c7ce50be8ab5fcbfca2e))
 * Implemented `sqlmode` query parameter for connection string and added `requireSSL` option to connection options. Now the driver tries SSL connection as a first choice. ([`3a27e85`](https://github.com/panates/postgrejs/commit/3a27e85dcbb7bd983dd2f835fa4ac785ad34e266))
-* chore: Updated ([`a90a646`](https://github.com/panates/postgrejs/commit/a90a6461894883f12c396bc0a68518fb75d8bc17))
-* chore: Updated readme ([`c581284`](https://github.com/panates/postgrejs/commit/c581284e2751e93674a26936f31ebbd8b753c2ca))
-* chore: Updated readme ([`1f51284`](https://github.com/panates/postgrejs/commit/1f5128400a6ddff05552ad297cad930fe6244faf))
-* chore: Updated readme ([`d439659`](https://github.com/panates/postgrejs/commit/d43965906101f3494270852b61203d1ce3339437))
-* chore: Updated readme ([`2209d39`](https://github.com/panates/postgrejs/commit/2209d397ebd23d06061bfda10b49df830fb470e9))
 * Updated readme ([`a00f471`](https://github.com/panates/postgrejs/commit/a00f471da79b569d36bbe76ce517a01adba17a24))
 
 # v2.12.0
