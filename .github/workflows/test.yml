@@ -11,19 +11,7 @@ jobs:
         node: [ '20' ]
         postgres: [ '14' ]
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:${{ matrix.postgres }}
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
