@@ -13,9 +13,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Install PostgreSQL
         run: |
           date
@@ -23,12 +20,10 @@ jobs:
           wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
           sudo apt-get update
           sudo apt-get -y install postgresql-${{ matrix.postgres }}
+          service postgresql status
 
       - name: Configure PostgreSQL
-        run: |
-          echo "Current /pg_hba.conf"
-          sudo cat /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf
-          echo "Updated /pg_hba.conf"
+        run: |        
           sudo cp ./test/_support/pg_hba.conf /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf
           sudo cat /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf                          
           sudo sed -i 's/.*wal_level.*/wal_level = logical/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
@@ -62,6 +57,10 @@ jobs:
           sudo -u postgres createdb postgrejs_test
           sudo -u postgres psql -c "grant all on database postgrejs_test to postgrejs_test;"
           sudo -u postgres psql -c "alter database postgrejs_test owner to postgrejs_test;"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
       # - uses: denoland/setup-deno@v1
       #  with:
       #    deno-version: v1.x
