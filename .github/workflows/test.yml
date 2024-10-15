@@ -11,7 +11,6 @@ jobs:
         node: [ '20' ]
         postgres: [ '14' ]
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,13 +18,14 @@ jobs:
       - name: PostgreSQL
         run: |
           date
-          echo "----- Installing PostgreSQL ${{ matrix.postgres }} -----"
+          echo "----- Remove the pre-installed PostgreSQL -----"
+          sudo apt-get remove --purge postgresql-16 postgresql-client-16 -y          
+          echo "----- Installing PostgreSQL ${{ matrix.postgres }} -----"      
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-          sudo apt-get update
-          sudo apt purge postgresql-${{ matrix.postgres }}    
-          sudo apt-get -y install postgresql-${{ matrix.postgres }}    
-          echo "----- Configuring -----"
+          sudo apt-get update            
+          sudo apt-get -y install postgresql-${{ matrix.postgres }}  postgresql-client-${{ matrix.postgres }}    
+          echo "----- Configuring -----"        
           sudo cp ./test/_support/pg_hba.conf /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf                                
           sudo sed -i 's/.*wal_level.*/wal_level = logical/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
           sudo sed -i 's/.*max_prepared_transactions.*/max_prepared_transactions = 100/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
@@ -34,11 +34,17 @@ jobs:
           sudo cp server.key /etc/postgresql/${{ matrix.postgres }}/main/server.key
           sudo cp server.crt /etc/postgresql/${{ matrix.postgres }}/main/server.crt
           sudo chmod og-rwx /etc/postgresql/${{ matrix.postgres }}/main/server.key
-          echo "----- Starting -----"        
-          sudo systemctl stop postgresql.service | cat        
-          sudo systemctl start postgresql.service
-          sudo systemctl status postgresql.service
-          pg_isready
+          echo "/usr/lib/postgresql/${{ matrix.postgres }}/bin" >> "$GITHUB_PATH"
+          export POSTGRESQL_PATH="/usr/lib/postgresql/${{ matrix.postgres }}/bin/postgres"
+          export INITDB_PATH="/usr/lib/postgresql/${{ matrix.postgres }}/bin/initdb"
+          echo "----- Starting -----"
+          sudo systemctl enable postgresql
+          sudo systemctl start postgresql
+          sudo systemctl status postgresql
+          pg_isready        
+          psql --version  # Check version to confirm
+          echo "----- hba_file -----"
+          sudo -u postgres psql -t -P format=unaligned -c 'show hba_file';
 
       - name: Configure database environment
         run: |
@@ -55,7 +61,8 @@ jobs:
           sudo -u postgres psql -c "drop user if exists postgrejs_test_scram;"
           sudo -u postgres psql -c "create user postgrejs_test_scram with password 'postgrejs_test_scram'"
           sudo -u postgres createdb postgrejs_test
-          sudo -u postgres psql -c "grant all on database postgrejs_test to postgrejs_test;"          
+          sudo -u postgres psql -c "grant all on database postgrejs_test to postgrejs_test;"
+          sudo -u postgres psql -c "alter database postgrejs_test owner to postgrejs_test;"
 
       # - uses: denoland/setup-deno@v1
       #  with:
