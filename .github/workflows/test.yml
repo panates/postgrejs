@@ -19,7 +19,7 @@ jobs:
       - name: PostgreSQL
         run: |
           date
-          echo "----- Installing -----"
+          echo "----- Installing PostgreSQL ${{ matrix.postgres }} -----"
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
           sudo apt-get update
@@ -35,8 +35,11 @@ jobs:
           sudo cp server.crt /etc/postgresql/${{ matrix.postgres }}/main/server.crt
           sudo chmod og-rwx /etc/postgresql/${{ matrix.postgres }}/main/server.key
           echo "----- Starting -----"
-          sudo service postgresql restart
-          echo "----- Waiting to be ready -----"
+          sudo systemctl status postgresql.service
+          sudo systemctl stop postgresql.service
+          sudo systemctl status postgresql.service
+          sudo systemctl start postgresql.service
+          sudo systemctl status postgresql.service
           pg_isready
 
       - name: Configure database environment
@@ -54,8 +57,7 @@ jobs:
           sudo -u postgres psql -c "drop user if exists postgrejs_test_scram;"
           sudo -u postgres psql -c "create user postgrejs_test_scram with password 'postgrejs_test_scram'"
           sudo -u postgres createdb postgrejs_test
-          sudo -u postgres psql -c "grant all on database postgrejs_test to postgrejs_test;"
-          sudo -u postgres psql -c "alter database postgrejs_test owner to postgrejs_test;"
+          sudo -u postgres psql -c "grant all on database postgrejs_test to postgrejs_test;"          
 
       # - uses: denoland/setup-deno@v1
       #  with:
