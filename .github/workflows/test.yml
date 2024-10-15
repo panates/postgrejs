@@ -34,10 +34,8 @@ jobs:
           sudo cp server.key /etc/postgresql/${{ matrix.postgres }}/main/server.key
           sudo cp server.crt /etc/postgresql/${{ matrix.postgres }}/main/server.crt
           sudo chmod og-rwx /etc/postgresql/${{ matrix.postgres }}/main/server.key
-          echo "----- Starting -----"
-          sudo systemctl status postgresql.service | cat
-          sudo systemctl stop postgresql.service
-          sudo systemctl status postgresql.service
+          echo "----- Starting -----"        
+          sudo systemctl stop postgresql.service | cat        
           sudo systemctl start postgresql.service
           sudo systemctl status postgresql.service
           pg_isready
