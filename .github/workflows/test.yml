@@ -11,37 +11,22 @@ jobs:
         node: [ '20' ]
         postgres: [ '14' ]
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:${{ matrix.postgres }}
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install PostgreSQL
+      - name: PostgreSQL
         run: |
           date
+          echo "----- Installing -----"
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
           sudo apt-get update
           sudo apt purge postgresql-${{ matrix.postgres }}    
-          sudo apt-get -y install postgresql-${{ matrix.postgres }}        
-
-      - name: Configure PostgreSQL
-        run: |        
-          sudo cp ./test/_support/pg_hba.conf /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf
-          sudo cat /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf                          
+          sudo apt-get -y install postgresql-${{ matrix.postgres }}    
+          echo "----- Configuring -----"
+          sudo cp ./test/_support/pg_hba.conf /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf                                
           sudo sed -i 's/.*wal_level.*/wal_level = logical/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
           sudo sed -i 's/.*max_prepared_transactions.*/max_prepared_transactions = 100/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
           sudo sed -i 's/.*ssl = .*/ssl = on/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
@@ -49,11 +34,9 @@ jobs:
           sudo cp server.key /etc/postgresql/${{ matrix.postgres }}/main/server.key
           sudo cp server.crt /etc/postgresql/${{ matrix.postgres }}/main/server.crt
           sudo chmod og-rwx /etc/postgresql/${{ matrix.postgres }}/main/server.key
-
-      - name: Start PostgreSQL
-        run: |
-          sudo systemctl start postgresql.service
-          sudo systemctl status postgresql.service
+          echo "----- Starting -----"
+          sudo service postgresql restart
+          echo "----- Waiting to be ready -----"
           pg_isready
 
       - name: Configure database environment

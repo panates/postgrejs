@@ -7,13 +7,13 @@
   "private": true,
   "dependencies": {
     "doublylinked": "^2.5.4",
-    "lightning-pool": "^4.9.0",
+    "lightning-pool": "^4.10.0",
     "postgres-bytea": "^3.0.0",
     "power-tasks": "^1.11.0",
     "putil-merge": "^3.13.0",
     "putil-promisify": "^1.10.1",
     "putil-varhelpers": "^1.6.5",
-    "tslib": "^2.7.0"
+    "tslib": "^2.8.0"
   },
   "devDependencies": {
     "@panates/eslint-config": "^1.0.21",
