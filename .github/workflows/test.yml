@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Install PostgreSQL
         run: |
           date
@@ -57,9 +60,6 @@ jobs:
           sudo -u postgres createdb postgrejs_test
           sudo -u postgres psql -c "grant all on database postgrejs_test to postgrejs_test;"
           sudo -u postgres psql -c "alter database postgrejs_test owner to postgrejs_test;"
-
-      - name: Checkout
-        uses: actions/checkout@v4
 
       # - uses: denoland/setup-deno@v1
       #  with:
