@@ -146,6 +146,8 @@ export class Pool extends SafeEventEmitter {
     const connection = new Connection(this, intlCon);
     /* istanbul ignore next */
     if (this.listenerCount('debug')) connection.on('debug', (...args) => this.emit('debug', ...args));
+    if (this.listenerCount('execute')) connection.on('execute', (...args) => this.emit('execute', ...args));
+    if (this.listenerCount('query')) connection.on('query', (...args) => this.emit('query', ...args));
     return connection;
   }
 

@@ -157,6 +157,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * @param options {ScriptExecuteOptions} - Execute options
    */
   async execute(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult> {
+    this.emit('execute', sql, options);
     return this._captureErrorStack(this._intlCon.execute(sql, options)).catch((e: DatabaseError) => {
       throw this._handleError(e, sql);
     });
@@ -173,6 +174,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         sql,
       });
     }
+    this.emit('query', sql, options);
     const typeMap = options?.typeMap || GlobalTypeMap;
     const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
       prm instanceof BindParam ? prm.oid : typeMap.determine(prm),
@@ -284,16 +286,15 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   protected _handleError(err: DatabaseError, script: string): DatabaseError {
-    if (err.position) {
+    if (err.position != null) {
       const i1 = script.lastIndexOf('\n', err.position) + 1;
-      let i2 = script.indexOf('\n', err.position);
-      if (i2 < 0) i2 = Number.MAX_SAFE_INTEGER;
-      err.line = script.substring(i1, i2);
       err.lineNr = [...script.substring(0, i1).matchAll(/\n/g)].length;
       err.colNr = err.position - i1;
-      err.message +=
-        `\nAt line ${err.lineNr} column ${err.colNr}` +
-        `\n |  ${err.line}\n |  ${' '.repeat(Math.max(err.colNr - 2, 0))}-^-`;
+      const lines = script.split('\n');
+      err.line = lines[err.lineNr - 1];
+      err.message += `\n    at line ${err.lineNr} column ${err.colNr}`;
+      if (err.lineNr > 1) err.message += `\n${String(err.lineNr - 1).padStart(3)}| ${lines[err.lineNr - 2]}`;
+      err.message += `\n${String(err.lineNr).padStart(3)}| ${err.line}\n   -${'-'.repeat(Math.max(err.colNr - 2, 0))}-^`;
     }
     return err;
   }
