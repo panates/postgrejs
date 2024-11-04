@@ -1,5 +1,12 @@
+# v2.22.2
+[2024-11-04]
+
+### Changes
+
+* refactor: Improved displaying error line ([`3a6bbe9`](https://github.com/panates/postgrejs/commit/3a6bbe929efdb4f46a38c7b9626b4f28739ad341))
+
 # v2.22.1
-[2024-10-15]
+[2024-10-16]
 
 # v2.22.0
 [2024-10-15]
