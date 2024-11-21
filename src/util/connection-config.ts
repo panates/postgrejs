@@ -1,4 +1,4 @@
-import merge from 'putil-merge';
+import { merge } from '@jsopen/objects';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
 import { configFromEnv } from './config-from-env.js';
 
