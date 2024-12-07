@@ -91,8 +91,11 @@ values
 `;
 
 const dataFiles: any[] = [
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   require('./test-data/continents.json'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   require('./test-data/countries.json'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   require('./test-data/customers.json'),
 ];
 

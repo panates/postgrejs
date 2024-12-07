@@ -12,7 +12,9 @@ export const TimeType: DataType = {
   jsType: 'string',
 
   parseBinary(v: Buffer, options: DataMappingOptions): Date | number | string {
-    const fetchAsString = options.fetchAsString && options.fetchAsString.includes(DataTypeOIDs.time);
+    const fetchAsString =
+      options.fetchAsString &&
+      options.fetchAsString.includes(DataTypeOIDs.time);
     const hi = v.readInt32BE();
     const lo = v.readUInt32BE(4);
 
@@ -31,11 +33,17 @@ export const TimeType: DataType = {
     return fetchAsString ? dateToTimeString(d) : d;
   },
 
-  encodeBinary(buf: SmartBuffer, v: Date | number | string, options: DataMappingOptions): void {
+  encodeBinary(
+    buf: SmartBuffer,
+    v: Date | number | string,
+    options: DataMappingOptions,
+  ): void {
     if (typeof v === 'string') v = parseTime(v, false, options.utcDates);
     if (!(v instanceof Date)) v = new Date(v);
     // Postgresql ignores timezone data so we are
-    let n = options.utcDates ? v.getTime() : v.getTime() - v.getTimezoneOffset() * 60 * 1000;
+    let n = options.utcDates
+      ? v.getTime()
+      : v.getTime() - v.getTimezoneOffset() * 60 * 1000;
     n = n * 1000;
     const hi = Math.floor(n / timeMul);
     const lo = n - hi * timeMul;
@@ -44,13 +52,20 @@ export const TimeType: DataType = {
   },
 
   parseText(v: string, options: DataMappingOptions): Date | number | string {
-    if (options.fetchAsString && options.fetchAsString.includes(DataTypeOIDs.time)) return v;
+    if (
+      options.fetchAsString &&
+      options.fetchAsString.includes(DataTypeOIDs.time)
+    )
+      return v;
     return parseTime(v, false, options.utcDates);
   },
 
   isType(v: any): boolean {
     return (
-      (v instanceof Date && v.getFullYear() === 1970 && v.getMonth() === 0 && v.getDate() === 1) ||
+      (v instanceof Date &&
+        v.getFullYear() === 1970 &&
+        v.getMonth() === 0 &&
+        v.getDate() === 1) ||
       (typeof v === 'string' && STRICT_TIME_PATTERN.test(v))
     );
   },
@@ -61,7 +76,13 @@ function padZero(v: number): string {
 }
 
 function dateToTimeString(d: Date): string {
-  return padZero(d.getHours()) + ':' + padZero(d.getMinutes()) + ':' + padZero(d.getSeconds());
+  return (
+    padZero(d.getHours()) +
+    ':' +
+    padZero(d.getMinutes()) +
+    ':' +
+    padZero(d.getSeconds())
+  );
 }
 
 export const ArrayTimeType: DataType = {

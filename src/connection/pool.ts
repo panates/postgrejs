@@ -1,4 +1,8 @@
-import { Pool as LightningPool, PoolConfiguration as LPoolConfiguration, PoolFactory } from 'lightning-pool';
+import {
+  Pool as LightningPool,
+  PoolConfiguration as LPoolConfiguration,
+  PoolFactory,
+} from 'lightning-pool';
 import { coerceToBoolean, coerceToInt } from 'putil-varhelpers';
 import { ConnectionState } from '../constants.js';
 import type { PoolConfiguration } from '../interfaces/database-connection-params.js';
@@ -96,7 +100,8 @@ export class Pool extends SafeEventEmitter {
             message: `[${intlCon.processID}] connection validate`,
           });
         }
-        if (intlCon.state !== ConnectionState.READY) throw new Error('Connection is not active');
+        if (intlCon.state !== ConnectionState.READY)
+          throw new Error('Connection is not active');
         await intlCon.execute('select 1;');
       },
     };
@@ -145,9 +150,12 @@ export class Pool extends SafeEventEmitter {
     }
     const connection = new Connection(this, intlCon);
     /* istanbul ignore next */
-    if (this.listenerCount('debug')) connection.on('debug', (...args) => this.emit('debug', ...args));
-    if (this.listenerCount('execute')) connection.on('execute', (...args) => this.emit('execute', ...args));
-    if (this.listenerCount('query')) connection.on('query', (...args) => this.emit('query', ...args));
+    if (this.listenerCount('debug'))
+      connection.on('debug', (...args) => this.emit('debug', ...args));
+    if (this.listenerCount('execute'))
+      connection.on('execute', (...args) => this.emit('execute', ...args));
+    if (this.listenerCount('query'))
+      connection.on('query', (...args) => this.emit('query', ...args));
     return connection;
   }
 
@@ -164,7 +172,10 @@ export class Pool extends SafeEventEmitter {
   /**
    * Executes a script
    */
-  async execute(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult> {
+  async execute(
+    sql: string,
+    options?: ScriptExecuteOptions,
+  ): Promise<ScriptResult> {
     const connection = await this.acquire();
     try {
       return await connection.execute(sql, options);
@@ -185,10 +196,15 @@ export class Pool extends SafeEventEmitter {
     }
   }
 
-  async prepare(sql: string, options?: StatementPrepareOptions): Promise<PreparedStatement> {
+  async prepare(
+    sql: string,
+    options?: StatementPrepareOptions,
+  ): Promise<PreparedStatement> {
     const connection = await this.acquire();
     const statement = await connection.prepare(sql, options);
-    statement.once('close', () => this._pool.release(getIntlConnection(connection)));
+    statement.once('close', () =>
+      this._pool.release(getIntlConnection(connection)),
+    );
     return statement;
   }
 
@@ -197,17 +213,20 @@ export class Pool extends SafeEventEmitter {
   }
 
   async listen(channel: string, callback: NotificationCallback) {
-    if (!/^[A-Z]\w+$/i.test(channel)) throw new TypeError(`Invalid channel name`);
+    if (!/^[A-Z]\w+$/i.test(channel))
+      throw new TypeError(`Invalid channel name`);
     this._notificationListeners.on(channel, callback);
     await this._initNotificationConnection();
   }
 
   async unListen(channel: string) {
-    if (!/^[A-Z]\w+$/i.test(channel)) throw new TypeError(`Invalid channel name`);
+    if (!/^[A-Z]\w+$/i.test(channel))
+      throw new TypeError(`Invalid channel name`);
     this._notificationListeners.removeAllListeners(channel);
     if (!this._notificationListeners.eventNames().length) {
       await this.unListenAll();
-    } else if (this._notificationConnection) await this._notificationConnection.unListen(channel);
+    } else if (this._notificationConnection)
+      await this._notificationConnection.unListen(channel);
   }
 
   async unListenAll() {

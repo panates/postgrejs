@@ -169,7 +169,9 @@ describe('Connection', () => {
     await connection.query('insert into test.dummy_table1 (id) values (2)');
     expect(connection.inTransaction).toStrictEqual(false);
 
-    let x = await connection.query('select * from test.dummy_table1 where id = 2');
+    let x = await connection.query(
+      'select * from test.dummy_table1 where id = 2',
+    );
     expect(connection.inTransaction).toStrictEqual(false);
     expect(x.rows?.length).toStrictEqual(1);
     expect(x.rows?.[0][0]).toStrictEqual(2);
@@ -188,14 +190,18 @@ describe('Connection', () => {
   it('should automatically start transaction when connection.options.autoCommit = false', async () => {
     connection = new Connection({ autoCommit: false });
     await connection.connect();
-    await connection.execute('delete from test.dummy_table1', { autoCommit: true });
+    await connection.execute('delete from test.dummy_table1', {
+      autoCommit: true,
+    });
 
     expect(connection.inTransaction).toStrictEqual(false);
 
     await connection.query('insert into test.dummy_table1 (id) values (3)');
     expect(connection.inTransaction).toStrictEqual(true);
 
-    let x = await connection.query('select * from test.dummy_table1 where id = 3');
+    let x = await connection.query(
+      'select * from test.dummy_table1 where id = 3',
+    );
     expect(connection.inTransaction).toStrictEqual(true);
     expect(x.rows?.length).toStrictEqual(1);
     expect(x.rows?.[0][0]).toStrictEqual(3);
@@ -215,10 +221,15 @@ describe('Connection', () => {
     await connection.connect();
     expect(connection.inTransaction).toStrictEqual(false);
 
-    await connection.execute('insert into test.dummy_table1 (id) values (3)', { autoCommit: false });
+    await connection.execute('insert into test.dummy_table1 (id) values (3)', {
+      autoCommit: false,
+    });
     expect(connection.inTransaction).toStrictEqual(true);
 
-    let x = await connection.execute('select * from test.dummy_table1 where id = 3', { autoCommit: false });
+    let x = await connection.execute(
+      'select * from test.dummy_table1 where id = 3',
+      { autoCommit: false },
+    );
     expect(connection.inTransaction).toStrictEqual(true);
     expect(x.results[0].rows?.length).toStrictEqual(1);
     expect(x.results[0].rows?.[0][0]).toStrictEqual(3);
@@ -226,7 +237,9 @@ describe('Connection', () => {
     await connection.query('ROLLBACK');
     expect(connection.inTransaction).toStrictEqual(false);
 
-    x = await connection.execute('select * from test.dummy_table1 where id = 3');
+    x = await connection.execute(
+      'select * from test.dummy_table1 where id = 3',
+    );
     expect(connection.inTransaction).toStrictEqual(false);
     expect(x.results[0].rows?.length).toStrictEqual(0);
 
@@ -238,10 +251,15 @@ describe('Connection', () => {
     await connection.connect();
     expect(connection.inTransaction).toStrictEqual(false);
 
-    await connection.query('insert into test.dummy_table1 (id) values (3)', { autoCommit: false });
+    await connection.query('insert into test.dummy_table1 (id) values (3)', {
+      autoCommit: false,
+    });
     expect(connection.inTransaction).toStrictEqual(true);
 
-    let x = await connection.query('select * from test.dummy_table1 where id = 3', { autoCommit: false });
+    let x = await connection.query(
+      'select * from test.dummy_table1 where id = 3',
+      { autoCommit: false },
+    );
     expect(connection.inTransaction).toStrictEqual(true);
     expect(x.rows?.length).toStrictEqual(1);
     expect(x.rows?.[0][0]).toStrictEqual(3);
@@ -266,13 +284,15 @@ describe('Connection', () => {
     await connection.startTransaction();
     try {
       await connection.execute('invalid sql');
-    } catch (e) {
-      //
+    } catch {
+      // ignore
     }
 
     await connection.execute('insert into test.dummy_table1 (id) values (5)');
 
-    const x = await connection.query('select count(*) from test.dummy_table1', { autoCommit: false });
+    const x = await connection.query('select count(*) from test.dummy_table1', {
+      autoCommit: false,
+    });
     expect(x.rows?.length).toStrictEqual(1);
     expect(x.rows?.[0][0]).toStrictEqual(1);
 
@@ -281,7 +301,7 @@ describe('Connection', () => {
 
   it('should automatically close with "using" syntax', async () => {
     let closed = false;
-    // eslint-disable-next-line no-lone-blocks
+
     {
       await using conn = new Connection();
       await conn.connect();

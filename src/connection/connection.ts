@@ -28,8 +28,13 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   constructor(config?: ConnectionConfiguration | string);
   constructor(arg0: any, arg1?: any) {
     super();
-    if (arg0 && typeof arg0 === 'object' && typeof arg0.acquire === 'function') {
-      if (!(arg1 instanceof IntlConnection)) throw new TypeError('Invalid argument');
+    if (
+      arg0 &&
+      typeof arg0 === 'object' &&
+      typeof arg0.acquire === 'function'
+    ) {
+      if (!(arg1 instanceof IntlConnection))
+        throw new TypeError('Invalid argument');
       this._pool = arg0;
       this._intlCon = arg1;
     } else {
@@ -38,10 +43,14 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     this._intlCon.on('ready', (...args) => this.emit('ready', ...args));
     this._intlCon.on('error', (...args) => this.emit('error', ...args));
     this._intlCon.on('close', (...args) => this.emit('close', ...args));
-    this._intlCon.on('connecting', (...args) => this.emit('connecting', ...args));
+    this._intlCon.on('connecting', (...args) =>
+      this.emit('connecting', ...args),
+    );
     this._intlCon.on('ready', (...args) => this.emit('ready', ...args));
     this._intlCon.on('terminate', (...args) => this.emit('terminate', ...args));
-    this._intlCon.on('notification', (msg: NotificationMessage) => this._handleNotification(msg));
+    this._intlCon.on('notification', (msg: NotificationMessage) =>
+      this._handleNotification(msg),
+    );
   }
 
   /**
@@ -115,7 +124,11 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     }
 
     this._closing = true;
-    if (this._intlCon.refCount > 0 && typeof terminateWait === 'number' && terminateWait > 0) {
+    if (
+      this._intlCon.refCount > 0 &&
+      typeof terminateWait === 'number' &&
+      terminateWait > 0
+    ) {
       const startTime = Date.now();
       return this._captureErrorStack(
         new Promise((resolve, reject) => {
@@ -128,7 +141,10 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
             });
           }
           const timer = setInterval(() => {
-            if (this._intlCon.refCount <= 0 || Date.now() > startTime + terminateWait) {
+            if (
+              this._intlCon.refCount <= 0 ||
+              Date.now() > startTime + terminateWait
+            ) {
               clearInterval(timer);
               if (this._intlCon.refCount > 0) {
                 /* istanbul ignore next */
@@ -156,11 +172,16 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * @param sql {string} - SQL script that will be executed
    * @param options {ScriptExecuteOptions} - Execute options
    */
-  async execute(sql: string, options?: ScriptExecuteOptions): Promise<ScriptResult> {
+  async execute(
+    sql: string,
+    options?: ScriptExecuteOptions,
+  ): Promise<ScriptResult> {
     this.emit('execute', sql, options);
-    return this._captureErrorStack(this._intlCon.execute(sql, options)).catch((e: DatabaseError) => {
-      throw this._handleError(e, sql);
-    });
+    return this._captureErrorStack(this._intlCon.execute(sql, options)).catch(
+      (e: DatabaseError) => {
+        throw this._handleError(e, sql);
+      },
+    );
   }
 
   async query(sql: string, options?: QueryOptions): Promise<QueryResult> {
@@ -179,12 +200,18 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
       prm instanceof BindParam ? prm.oid : typeMap.determine(prm),
     );
-    const statement = await this.prepare(sql, { paramTypes, typeMap }).catch((e: DatabaseError) => {
-      throw this._handleError(e, sql);
-    });
+    const statement = await this.prepare(sql, { paramTypes, typeMap }).catch(
+      (e: DatabaseError) => {
+        throw this._handleError(e, sql);
+      },
+    );
     try {
-      const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm => (prm instanceof BindParam ? prm.value : prm));
-      return await this._captureErrorStack(statement.execute({ ...options, params }));
+      const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm =>
+        prm instanceof BindParam ? prm.value : prm,
+      );
+      return await this._captureErrorStack(
+        statement.execute({ ...options, params }),
+      );
     } finally {
       await statement.close();
     }
@@ -195,7 +222,10 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * @param sql {string} - SQL script that will be executed
    * @param options {StatementPrepareOptions} - Options
    */
-  async prepare(sql: string, options?: StatementPrepareOptions): Promise<PreparedStatement> {
+  async prepare(
+    sql: string,
+    options?: StatementPrepareOptions,
+  ): Promise<PreparedStatement> {
     /* istanbul ignore next */
     if (this.listenerCount('debug')) {
       this.emit('debug', {
@@ -205,7 +235,9 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         sql,
       });
     }
-    return await this._captureErrorStack(PreparedStatement.prepare(this, sql, options));
+    return await this._captureErrorStack(
+      PreparedStatement.prepare(this, sql, options),
+    );
   }
 
   /**
@@ -255,14 +287,17 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   async listen(channel: string, callback: NotificationCallback) {
-    if (!/^[A-Z]\w+$/i.test(channel)) throw new TypeError(`Invalid channel name`);
+    if (!/^[A-Z]\w+$/i.test(channel))
+      throw new TypeError(`Invalid channel name`);
     const registered = !!this._notificationListeners.eventNames().length;
     this._notificationListeners.on(channel, callback);
-    if (!registered) await this._captureErrorStack(this.query('LISTEN ' + channel));
+    if (!registered)
+      await this._captureErrorStack(this.query('LISTEN ' + channel));
   }
 
   async unListen(channel: string) {
-    if (!/^[A-Z]\w+$/i.test(channel)) throw new TypeError(`Invalid channel name`);
+    if (!/^[A-Z]\w+$/i.test(channel))
+      throw new TypeError(`Invalid channel name`);
     this._notificationListeners.removeAllListeners(channel);
     await this._captureErrorStack(this.query('UNLISTEN ' + channel));
   }
@@ -293,7 +328,8 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       const lines = script.split('\n');
       err.line = lines[err.lineNr - 1];
       err.message += `\n    at line ${err.lineNr} column ${err.colNr}`;
-      if (err.lineNr > 1) err.message += `\n${String(err.lineNr - 1).padStart(3)}| ${lines[err.lineNr - 2]}`;
+      if (err.lineNr > 1)
+        err.message += `\n${String(err.lineNr - 1).padStart(3)}| ${lines[err.lineNr - 2]}`;
       err.message += `\n${String(err.lineNr).padStart(3)}| ${err.line}\n    .${'-'.repeat(Math.max(err.colNr - 1, 0))}^`;
     }
     return err;
@@ -309,7 +345,10 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
             '\n' +
             stack
               .split('\n')
-              .filter((x: string, i: number) => i && !x.includes('._captureErrorStack'))
+              .filter(
+                (x: string, i: number) =>
+                  i && !x.includes('._captureErrorStack'),
+              )
               .join('\n');
         }
       }

@@ -71,47 +71,57 @@ export namespace Protocol {
     kind: AuthenticationMessageKind;
   }
 
-  export interface AuthenticationKerberosV5Message extends AuthenticationRequiredMessage {
+  export interface AuthenticationKerberosV5Message
+    extends AuthenticationRequiredMessage {
     kind: AuthenticationMessageKind.KerberosV5;
   }
 
-  export interface AuthenticationCleartextPasswordMessage extends AuthenticationRequiredMessage {
+  export interface AuthenticationCleartextPasswordMessage
+    extends AuthenticationRequiredMessage {
     kind: AuthenticationMessageKind.CleartextPassword;
   }
 
-  export interface AuthenticationMD5PasswordMessage extends AuthenticationRequiredMessage {
+  export interface AuthenticationMD5PasswordMessage
+    extends AuthenticationRequiredMessage {
     kind: AuthenticationMessageKind.MD5Password;
     salt: Buffer;
   }
 
-  export interface AuthenticationSCMCredentialMessage extends AuthenticationRequiredMessage {
+  export interface AuthenticationSCMCredentialMessage
+    extends AuthenticationRequiredMessage {
     kind: AuthenticationMessageKind.SCMCredential;
   }
 
-  export interface AuthenticationGSSMessage extends AuthenticationRequiredMessage {
+  export interface AuthenticationGSSMessage
+    extends AuthenticationRequiredMessage {
     kind: AuthenticationMessageKind.GSS;
   }
 
-  export interface AuthenticationSSPIMessage extends AuthenticationRequiredMessage {
+  export interface AuthenticationSSPIMessage
+    extends AuthenticationRequiredMessage {
     kind: AuthenticationMessageKind.SSPI;
   }
 
-  export interface AuthenticationGSSContinueMessage extends AuthenticationRequiredMessage {
+  export interface AuthenticationGSSContinueMessage
+    extends AuthenticationRequiredMessage {
     kind: AuthenticationMessageKind.GSSContinue;
     data: Buffer;
   }
 
-  export interface AuthenticationSASLMessage extends AuthenticationRequiredMessage {
+  export interface AuthenticationSASLMessage
+    extends AuthenticationRequiredMessage {
     kind: AuthenticationMessageKind.SASL;
     mechanisms: string[];
   }
 
-  export interface AuthenticationSASLContinueMessage extends AuthenticationRequiredMessage {
+  export interface AuthenticationSASLContinueMessage
+    extends AuthenticationRequiredMessage {
     kind: AuthenticationMessageKind.SASLContinue;
     data: string;
   }
 
-  export interface AuthenticationSASLFinalMessage extends AuthenticationRequiredMessage {
+  export interface AuthenticationSASLFinalMessage
+    extends AuthenticationRequiredMessage {
     kind: AuthenticationMessageKind.SASLFinal;
     data: string;
   }

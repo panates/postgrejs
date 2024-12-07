@@ -42,7 +42,9 @@ describe('Parse connection string', () => {
     });
 
     it('should get host from query', () => {
-      const cfg = parseConnectionString('postgres://me:1234@127.0.0.1:5555/any db?host=127.0.0.1');
+      const cfg = parseConnectionString(
+        'postgres://me:1234@127.0.0.1:5555/any db?host=127.0.0.1',
+      );
       expect(cfg.host).toStrictEqual('127.0.0.1');
       expect(cfg.port).toStrictEqual(5555);
       expect(cfg.database).toStrictEqual('any db');

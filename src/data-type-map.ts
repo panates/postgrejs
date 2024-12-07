@@ -8,7 +8,10 @@ import { ArrayDateType, DateType } from './data-types/date-type.js';
 import { ArrayFloat4Type, Float4Type } from './data-types/float4-type.js';
 import { ArrayFloat8Type, Float8Type } from './data-types/float8-type.js';
 import { ArrayInt2Type, Int2Type } from './data-types/int2-type.js';
-import { ArrayInt2VectorType, Int2VectorType } from './data-types/int2-vector-type.js';
+import {
+  ArrayInt2VectorType,
+  Int2VectorType,
+} from './data-types/int2-vector-type.js';
 import { ArrayInt4Type, Int4Type } from './data-types/int4-type.js';
 import { ArrayInt8Type, Int8Type } from './data-types/int8-type.js';
 import { ArrayJsonType, JsonType } from './data-types/json-type.js';
@@ -18,8 +21,14 @@ import { ArrayNumericType, NumericType } from './data-types/numeric-type.js';
 import { ArrayOidType, OidType, VectorOidType } from './data-types/oid-type.js';
 import { ArrayPointType, PointType } from './data-types/point-type.js';
 import { ArrayTimeType, TimeType } from './data-types/time-type.js';
-import { ArrayTimestampType, TimestampType } from './data-types/timestamp-type.js';
-import { ArrayTimestamptzType, TimestamptzType } from './data-types/timestamptz-type.js';
+import {
+  ArrayTimestampType,
+  TimestampType,
+} from './data-types/timestamp-type.js';
+import {
+  ArrayTimestamptzType,
+  TimestamptzType,
+} from './data-types/timestamptz-type.js';
 import { ArrayUuidType, UuidType } from './data-types/uuid-type.js';
 import { ArrayVarcharType, VarcharType } from './data-types/varchar-type.js';
 import { DataType } from './interfaces/data-type.js';
@@ -84,7 +93,11 @@ GlobalTypeMap.register([BoxType, ArrayBoxType]);
 
 GlobalTypeMap.register([Int2VectorType, ArrayInt2VectorType]);
 
-GlobalTypeMap.register({ ...VarcharType, name: 'bpchar', oid: DataTypeOIDs.bpchar });
+GlobalTypeMap.register({
+  ...VarcharType,
+  name: 'bpchar',
+  oid: DataTypeOIDs.bpchar,
+});
 GlobalTypeMap.register({
   ...ArrayVarcharType,
   name: '_bpchar',
@@ -92,7 +105,11 @@ GlobalTypeMap.register({
   elementsOID: DataTypeOIDs.bpchar,
 });
 
-GlobalTypeMap.register({ ...VarcharType, name: 'name', oid: DataTypeOIDs.name });
+GlobalTypeMap.register({
+  ...VarcharType,
+  name: 'name',
+  oid: DataTypeOIDs.name,
+});
 GlobalTypeMap.register({
   ...ArrayVarcharType,
   name: '_name',
@@ -100,7 +117,11 @@ GlobalTypeMap.register({
   elementsOID: DataTypeOIDs.name,
 });
 
-GlobalTypeMap.register({ ...VarcharType, name: 'text', oid: DataTypeOIDs.text });
+GlobalTypeMap.register({
+  ...VarcharType,
+  name: 'text',
+  oid: DataTypeOIDs.text,
+});
 GlobalTypeMap.register({
   ...ArrayVarcharType,
   name: '_text',

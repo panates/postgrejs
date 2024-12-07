@@ -3,9 +3,12 @@ import type { Circle, DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import type { Maybe } from '../types.js';
 
-const CIRCLE_PATTERN1 = /^< *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *(-?\d+\.?\d*) *>$/;
-const CIRCLE_PATTERN2 = /^\( *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *(-?\d+\.?\d*) *\)$/;
-const CIRCLE_PATTERN3 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *(-?\d+\.?\d*)$/;
+const CIRCLE_PATTERN1 =
+  /^< *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *(-?\d+\.?\d*) *>$/;
+const CIRCLE_PATTERN2 =
+  /^\( *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *(-?\d+\.?\d*) *\)$/;
+const CIRCLE_PATTERN3 =
+  /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *(-?\d+\.?\d*)$/;
 const CIRCLE_PATTERN4 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 
 export const CircleType: DataType = {
@@ -29,7 +32,10 @@ export const CircleType: DataType = {
 
   parseText(v: string): Maybe<Circle> {
     const m =
-      v.match(CIRCLE_PATTERN1) || v.match(CIRCLE_PATTERN2) || v.match(CIRCLE_PATTERN3) || v.match(CIRCLE_PATTERN4);
+      v.match(CIRCLE_PATTERN1) ||
+      v.match(CIRCLE_PATTERN2) ||
+      v.match(CIRCLE_PATTERN3) ||
+      v.match(CIRCLE_PATTERN4);
     if (!m) return undefined;
     return {
       x: parseFloat(m[1]),

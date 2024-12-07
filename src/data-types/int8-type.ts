@@ -11,7 +11,10 @@ export const Int8Type: DataType = {
   jsType: 'BigInt',
 
   parseBinary(buf: Buffer): bigint | number {
-    const v = typeof buf.readBigInt64BE === 'function' ? buf.readBigInt64BE(0) : readBigInt64BE(buf);
+    const v =
+      typeof buf.readBigInt64BE === 'function'
+        ? buf.readBigInt64BE(0)
+        : readBigInt64BE(buf);
     return v >= -maxSafeInteger && v <= maxSafeInteger ? Number(v) : v;
   },
 
@@ -25,7 +28,12 @@ export const Int8Type: DataType = {
   },
 
   isType(v: any): boolean {
-    return typeof v === 'bigint' || (typeof v === 'number' && Number.isInteger(v) && v > Number.MAX_SAFE_INTEGER);
+    return (
+      typeof v === 'bigint' ||
+      (typeof v === 'number' &&
+        Number.isInteger(v) &&
+        v > Number.MAX_SAFE_INTEGER)
+    );
   },
 };
 

@@ -13,11 +13,15 @@ export const TimestamptzType: DataType = {
   jsType: 'Date',
 
   parseBinary(v: Buffer, options: DataMappingOptions): Date | number | string {
-    const fetchAsString = options.fetchAsString && options.fetchAsString.includes(DataTypeOIDs.timestamptz);
+    const fetchAsString =
+      options.fetchAsString &&
+      options.fetchAsString.includes(DataTypeOIDs.timestamptz);
     const hi = v.readInt32BE();
     const lo = v.readUInt32BE(4);
-    if (lo === 0xffffffff && hi === 0x7fffffff) return fetchAsString ? 'infinity' : Infinity;
-    if (lo === 0x00000000 && hi === -0x80000000) return fetchAsString ? '-infinity' : -Infinity;
+    if (lo === 0xffffffff && hi === 0x7fffffff)
+      return fetchAsString ? 'infinity' : Infinity;
+    if (lo === 0x00000000 && hi === -0x80000000)
+      return fetchAsString ? '-infinity' : -Infinity;
 
     // Shift from 2000 to 1970
     let d = new Date((lo + hi * timeMul) / 1000 + timeShift);
@@ -35,8 +39,13 @@ export const TimestamptzType: DataType = {
     return fetchAsString ? dateToTimestamptzString(d) : d;
   },
 
-  encodeBinary(buf: SmartBuffer, v: Date | number | string, options: DataMappingOptions): void {
-    if (typeof v === 'string') v = parseDateTime(v, true, true, options.utcDates);
+  encodeBinary(
+    buf: SmartBuffer,
+    v: Date | number | string,
+    options: DataMappingOptions,
+  ): void {
+    if (typeof v === 'string')
+      v = parseDateTime(v, true, true, options.utcDates);
     if (v === Infinity) {
       buf.writeInt32BE(0x7fffffff); // hi
       buf.writeUInt32BE(0xffffffff); // lo
@@ -58,7 +67,10 @@ export const TimestamptzType: DataType = {
 
   parseText(v: string, options: DataMappingOptions): Date | number | string {
     const d = parseDateTime(v, true, true, options.utcDates);
-    if (options.fetchAsString && options.fetchAsString.includes(DataTypeOIDs.timestamptz)) {
+    if (
+      options.fetchAsString &&
+      options.fetchAsString.includes(DataTypeOIDs.timestamptz)
+    ) {
       if (d instanceof Date) return dateToTimestamptzString(d);
       if (d === Infinity) return 'infinity';
       if (d === -Infinity) return '-infinity';

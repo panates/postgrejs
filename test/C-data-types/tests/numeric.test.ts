@@ -3,15 +3,27 @@ import { testEncode, testParse } from './_testers.js';
 
 export function createTests(conn: () => Connection) {
   it('should parse "numeric" field (text)', async () => {
-    await testParse(conn(), DataTypeOIDs.numeric, ['321.2345', '-1232.567'], [321.2345, -1232.567], {
-      columnFormat: DataFormat.text,
-    });
+    await testParse(
+      conn(),
+      DataTypeOIDs.numeric,
+      ['321.2345', '-1232.567'],
+      [321.2345, -1232.567],
+      {
+        columnFormat: DataFormat.text,
+      },
+    );
   });
 
   it('should parse "numeric" field (binary)', async () => {
-    await testParse(conn(), DataTypeOIDs.numeric, ['12345.123456789', '-1232.567'], [12345.123456789, -1232.567], {
-      columnFormat: DataFormat.binary,
-    });
+    await testParse(
+      conn(),
+      DataTypeOIDs.numeric,
+      ['12345.123456789', '-1232.567'],
+      [12345.123456789, -1232.567],
+      {
+        columnFormat: DataFormat.binary,
+      },
+    );
   });
 
   it('should parse "numeric" array field (text)', async () => {
@@ -25,7 +37,9 @@ export function createTests(conn: () => Connection) {
         [null, 6.5, null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._numeric, input, input, { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs._numeric, input, input, {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "numeric" array field (binary)', async () => {
@@ -39,7 +53,9 @@ export function createTests(conn: () => Connection) {
         [null, 2.5, null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._numeric, input, input, { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs._numeric, input, input, {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should encode "numeric" param', async () => {

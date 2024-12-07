@@ -1,4 +1,4 @@
-/* eslint-disable camelcase,import-x/extensions */
+/* eslint-disable import-x/extensions */
 import './env';
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
@@ -20,7 +20,10 @@ export function configurePostgresql() {
   exec('psql', ['-c', "alter system set password_encryption='scram-sha-256'"]);
   exec('psql', ['-c', 'select pg_reload_conf()']);
   exec('psql', ['-c', `drop user if exists ${user_scram}`]);
-  exec('psql', ['-c', `create user ${user_scram} with password '${user_scram}'`]);
+  exec('psql', [
+    '-c',
+    `create user ${user_scram} with password '${user_scram}'`,
+  ]);
 
   exec('createdb', [database]);
   exec('psql', ['-c', `grant all on database ${database} to ${user}`]);
@@ -29,5 +32,10 @@ export function configurePostgresql() {
 
 export function exec(cmd: string, args: readonly string[]) {
   const { stderr } = spawnSync(cmd, args, { stdio: 'pipe', encoding: 'utf8' });
-  if (stderr && !stderr.includes('already exists') && !stderr.includes('does not exist')) throw stderr;
+  if (
+    stderr &&
+    !stderr.includes('already exists') &&
+    !stderr.includes('does not exist')
+  )
+    throw stderr;
 }

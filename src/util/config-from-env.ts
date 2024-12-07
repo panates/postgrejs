@@ -13,7 +13,8 @@ export function configFromEnv(): ConnectionConfiguration {
   if (env.PGAPPNAME) result.applicationName = env.PGAPPNAME;
   if (env.PGTZ) result.timezone = env.PGTZ;
   if (env.PGSCHEMA) result.schema = env.PGSCHEMA;
-  if (env.PGCONNECT_TIMEOUT) result.connectTimeoutMs = toIntDef(env.PGCONNECT_TIMEOUT, 30000);
+  if (env.PGCONNECT_TIMEOUT)
+    result.connectTimeoutMs = toIntDef(env.PGCONNECT_TIMEOUT, 30000);
   if (env.PGMAX_BUFFER_SIZE) {
     result.buffer = { maxLength: toInt(env.PGMAX_BUFFER_SIZE) };
   }

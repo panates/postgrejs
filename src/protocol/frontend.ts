@@ -9,9 +9,27 @@ import type { SASL } from './sasl.js';
 import { SmartBuffer, type SmartBufferConfig } from './smart-buffer.js';
 
 const DataFormat = Protocol.DataFormat;
-const StaticFlushBuffer = Buffer.from([Protocol.FrontendMessageCode.Flush, 0x00, 0x00, 0x00, 0x04]);
-const StaticTerminateBuffer = Buffer.from([Protocol.FrontendMessageCode.Terminate, 0x00, 0x00, 0x00, 0x04]);
-const StaticSyncBuffer = Buffer.from([Protocol.FrontendMessageCode.Sync, 0x00, 0x00, 0x00, 0x04]);
+const StaticFlushBuffer = Buffer.from([
+  Protocol.FrontendMessageCode.Flush,
+  0x00,
+  0x00,
+  0x00,
+  0x04,
+]);
+const StaticTerminateBuffer = Buffer.from([
+  Protocol.FrontendMessageCode.Terminate,
+  0x00,
+  0x00,
+  0x00,
+  0x04,
+]);
+const StaticSyncBuffer = Buffer.from([
+  Protocol.FrontendMessageCode.Sync,
+  0x00,
+  0x00,
+  0x00,
+  0x04,
+]);
 
 export interface FrontendOptions {
   buffer?: SmartBufferConfig;
@@ -79,9 +97,12 @@ export class Frontend {
       .writeInt16BE(Protocol.VERSION_MAJOR)
       .writeInt16BE(Protocol.VERSION_MINOR);
     for (const [k, v] of Object.entries(args)) {
-      if (k !== 'client_encoding') io.writeCString(k, 'utf8').writeCString(v, 'utf8');
+      if (k !== 'client_encoding')
+        io.writeCString(k, 'utf8').writeCString(v, 'utf8');
     }
-    io.writeCString('client_encoding', 'utf8').writeCString('UTF8', 'utf8').writeUInt8(0);
+    io.writeCString('client_encoding', 'utf8')
+      .writeCString('UTF8', 'utf8')
+      .writeUInt8(0);
 
     return setLengthAndFlush(io, 0);
   }
@@ -115,7 +136,8 @@ export class Frontend {
   }
 
   getParseMessage(args: Frontend.ParseMessageArgs): Buffer {
-    if (args.statement && args.statement.length > 63) throw new Error('Query name length must be lower than 63');
+    if (args.statement && args.statement.length > 63)
+      throw new Error('Query name length must be lower than 63');
     const io = this._io
       .start()
       .writeInt8(Protocol.FrontendMessageCode.Parse)
@@ -132,8 +154,10 @@ export class Frontend {
   }
 
   getBindMessage(args: Frontend.BindMessageArgs): Buffer {
-    if (args.portal && args.portal.length > 63) throw new Error('Portal name length must be lower than 63');
-    if (args.statement && args.statement.length > 63) throw new Error('Query name length must be lower than 63');
+    if (args.portal && args.portal.length > 63)
+      throw new Error('Portal name length must be lower than 63');
+    if (args.statement && args.statement.length > 63)
+      throw new Error('Query name length must be lower than 63');
 
     const io = this._io
       .start()
@@ -142,7 +166,10 @@ export class Frontend {
       .writeCString(args.portal || '', 'utf8')
       .writeCString(args.statement || '', 'utf8');
     const { params, paramTypes, queryOptions } = args;
-    const columnFormat = queryOptions.columnFormat != null ? queryOptions.columnFormat : DEFAULT_COLUMN_FORMAT;
+    const columnFormat =
+      queryOptions.columnFormat != null
+        ? queryOptions.columnFormat
+        : DEFAULT_COLUMN_FORMAT;
 
     if (params && params.length) {
       io.writeInt16BE(params.length);
@@ -164,31 +191,49 @@ export class Frontend {
         const dt = dataTypeOid ? args.typeMap.get(dataTypeOid) : undefined;
 
         if (dt) {
-          if (typeof dt.encodeAsNull === 'function' && dt.encodeAsNull(v, queryOptions)) {
+          if (
+            typeof dt.encodeAsNull === 'function' &&
+            dt.encodeAsNull(v, queryOptions)
+          ) {
             io.writeInt32BE(-1);
             continue;
           }
           if (typeof dt.encodeBinary === 'function') {
             // Set param format to binary
-            io.buffer.writeInt16BE(Protocol.DataFormat.binary, formatOffset + i * 2);
+            io.buffer.writeInt16BE(
+              Protocol.DataFormat.binary,
+              formatOffset + i * 2,
+            );
             // Preserve data length
             io.writeInt32BE(0);
             const dataOffset = io.offset;
             if (dt.elementsOID) {
               // If data type is array
               v = Array.isArray(v) ? v : [v];
-              encodeBinaryArray(io, v, dt.elementsOID, queryOptions, dt.encodeBinary, dt.encodeCalculateDim);
+              encodeBinaryArray(
+                io,
+                v,
+                dt.elementsOID,
+                queryOptions,
+                dt.encodeBinary,
+                dt.encodeCalculateDim,
+              );
             } else {
               dt.encodeBinary(io, v, queryOptions);
             }
             io.buffer.writeInt32BE(io.length - dataOffset, dataOffset - 4); // Update length
           } else if (typeof dt.encodeText === 'function') {
-            v = dt.elementsOID ? stringifyArrayLiteral(v, queryOptions, dt.encodeText) : dt.encodeText(v, queryOptions);
+            v = dt.elementsOID
+              ? stringifyArrayLiteral(v, queryOptions, dt.encodeText)
+              : dt.encodeText(v, queryOptions);
             io.writeLString(v, 'utf8');
           }
         } else if (Buffer.isBuffer(v)) {
           // Set param format to binary
-          io.buffer.writeInt16BE(Protocol.DataFormat.binary, formatOffset + i * 2);
+          io.buffer.writeInt16BE(
+            Protocol.DataFormat.binary,
+            formatOffset + i * 2,
+          );
           // Preserve data length
           io.writeInt32BE(0);
           const dataOffset = io.offset;
@@ -218,7 +263,11 @@ export class Frontend {
 
   getDescribeMessage(args: Frontend.DescribeMessageArgs): Buffer {
     if (args.name && args.name.length > 63) {
-      throw new Error(args.type === 'P' ? 'Portal' : 'Statement name length must be lower than 63');
+      throw new Error(
+        args.type === 'P'
+          ? 'Portal'
+          : 'Statement name length must be lower than 63',
+      );
     }
     const io = this._io
       .start()
@@ -230,7 +279,10 @@ export class Frontend {
   }
 
   getExecuteMessage(args: Frontend.ExecuteMessageArgs): Buffer {
-    if (args.fetchCount && (args.fetchCount < 0 || args.fetchCount > 4294967295)) {
+    if (
+      args.fetchCount &&
+      (args.fetchCount < 0 || args.fetchCount > 4294967295)
+    ) {
       throw new Error('fetchCount can be between 0 and 4294967295');
     }
     const io = this._io
@@ -244,7 +296,11 @@ export class Frontend {
 
   getCloseMessage(args: Frontend.CloseMessageArgs): Buffer {
     if (args.name && args.name.length > 63) {
-      throw new Error(args.type === 'P' ? 'Portal' : 'Statement name length must be lower than 63');
+      throw new Error(
+        args.type === 'P'
+          ? 'Portal'
+          : 'Statement name length must be lower than 63',
+      );
     }
     const io = this._io
       .start()

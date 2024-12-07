@@ -13,11 +13,15 @@ export const TimestampType: DataType = {
   jsType: 'Date',
 
   parseBinary(v: Buffer, options: DataMappingOptions): Date | number | string {
-    const fetchAsString = options.fetchAsString && options.fetchAsString.includes(DataTypeOIDs.timestamp);
+    const fetchAsString =
+      options.fetchAsString &&
+      options.fetchAsString.includes(DataTypeOIDs.timestamp);
     const hi = v.readInt32BE();
     const lo = v.readUInt32BE(4);
-    if (lo === 0xffffffff && hi === 0x7fffffff) return fetchAsString ? 'infinity' : Infinity;
-    if (lo === 0x00000000 && hi === -0x80000000) return fetchAsString ? '-infinity' : -Infinity;
+    if (lo === 0xffffffff && hi === 0x7fffffff)
+      return fetchAsString ? 'infinity' : Infinity;
+    if (lo === 0x00000000 && hi === -0x80000000)
+      return fetchAsString ? '-infinity' : -Infinity;
 
     // Shift from 2000 to 1970
     let d = new Date((lo + hi * timeMul) / 1000 + timeShift);
@@ -35,8 +39,13 @@ export const TimestampType: DataType = {
     return fetchAsString ? dateToTimestampString(d) : d;
   },
 
-  encodeBinary(buf: SmartBuffer, v: Date | number | string, options: DataMappingOptions): void {
-    if (typeof v === 'string') v = parseDateTime(v, true, false, options.utcDates);
+  encodeBinary(
+    buf: SmartBuffer,
+    v: Date | number | string,
+    options: DataMappingOptions,
+  ): void {
+    if (typeof v === 'string')
+      v = parseDateTime(v, true, false, options.utcDates);
     if (v === Infinity) {
       buf.writeInt32BE(0x7fffffff); // hi
       buf.writeUInt32BE(0xffffffff); // lo
@@ -49,7 +58,9 @@ export const TimestampType: DataType = {
     }
     if (!(v instanceof Date)) v = new Date(v);
     // Postgresql ignores timezone data so we are
-    let n = options.utcDates ? v.getTime() : v.getTime() - v.getTimezoneOffset() * 60 * 1000;
+    let n = options.utcDates
+      ? v.getTime()
+      : v.getTime() - v.getTimezoneOffset() * 60 * 1000;
     n = (n - timeShift) * 1000;
     const hi = Math.floor(n / timeMul);
     const lo = n - hi * timeMul;
@@ -58,7 +69,11 @@ export const TimestampType: DataType = {
   },
 
   parseText(v: string, options: DataMappingOptions): Date | number | string {
-    if (options.fetchAsString && options.fetchAsString.includes(DataTypeOIDs.timestamp)) return v;
+    if (
+      options.fetchAsString &&
+      options.fetchAsString.includes(DataTypeOIDs.timestamp)
+    )
+      return v;
     return parseDateTime(v, true, false, options.utcDates);
   },
 
@@ -66,7 +81,12 @@ export const TimestampType: DataType = {
     return (
       v instanceof Date &&
       !(v.getFullYear() === 1970 && v.getMonth() === 0 && v.getDate() === 1) &&
-      !(v.getHours() === 0 && v.getMinutes() === 0 && v.getSeconds() === 0 && v.getMilliseconds() === 0)
+      !(
+        v.getHours() === 0 &&
+        v.getMinutes() === 0 &&
+        v.getSeconds() === 0 &&
+        v.getMilliseconds() === 0
+      )
     );
   },
 };

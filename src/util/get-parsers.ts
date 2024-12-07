@@ -8,7 +8,10 @@ import { parsePostgresArray } from './parse-array.js';
 
 const DefaultColumnParser = (v: any) => v;
 
-export function getParsers(typeMap: DataTypeMap, fields: Protocol.RowDescription[]): AnyParseFunction[] {
+export function getParsers(
+  typeMap: DataTypeMap,
+  fields: Protocol.RowDescription[],
+): AnyParseFunction[] {
   const parsers = new Array(fields.length);
   const l = fields.length;
   let f: Protocol.RowDescription;
@@ -23,7 +26,8 @@ export function getParsers(typeMap: DataTypeMap, fields: Protocol.RowDescription
         if (decode) {
           parsers[i] = !isArray
             ? decode
-            : (v: Buffer, options: DataMappingOptions) => decodeBinaryArray(v, decode, options);
+            : (v: Buffer, options: DataMappingOptions) =>
+                decodeBinaryArray(v, decode, options);
         }
       } else if (f.format === DataFormat.text) {
         const parse = dataTypeReg.parseText;

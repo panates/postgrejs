@@ -13,7 +13,10 @@ describe('Cursor support', () => {
   });
 
   it('should next() fetch next row', async () => {
-    const result = await connection.query(`select * from customers order by id`, { objectRows: false, cursor: true });
+    const result = await connection.query(
+      `select * from customers order by id`,
+      { objectRows: false, cursor: true },
+    );
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     const row = await cursor?.next();
@@ -22,7 +25,10 @@ describe('Cursor support', () => {
   });
 
   it('should next() fetch next row as object', async () => {
-    const result = await connection.query(`select * from customers order by id`, { objectRows: true, cursor: true });
+    const result = await connection.query(
+      `select * from customers order by id`,
+      { objectRows: true, cursor: true },
+    );
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     const row = await cursor?.next();
@@ -32,11 +38,14 @@ describe('Cursor support', () => {
   });
 
   it('should fetch() fetch multiple rows', async () => {
-    const result = await connection.query(`select * from customers order by id`, {
-      objectRows: false,
-      cursor: true,
-      fetchCount: 5,
-    });
+    const result = await connection.query(
+      `select * from customers order by id`,
+      {
+        objectRows: false,
+        cursor: true,
+        fetchCount: 5,
+      },
+    );
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     const rows = await cursor?.fetch(10);
@@ -46,7 +55,10 @@ describe('Cursor support', () => {
   });
 
   it('should automatically close cursor after fetching all rows', async () => {
-    const result = await connection.query(`select * from customers limit 10`, { objectRows: true, cursor: true });
+    const result = await connection.query(`select * from customers limit 10`, {
+      objectRows: true,
+      cursor: true,
+    });
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     let closed = false;
@@ -58,7 +70,10 @@ describe('Cursor support', () => {
   });
 
   it('should emit "close" event', async () => {
-    const result = await connection.query(`select * from customers order by id`, { objectRows: true, cursor: true });
+    const result = await connection.query(
+      `select * from customers order by id`,
+      { objectRows: true, cursor: true },
+    );
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     let closed = false;
@@ -70,7 +85,10 @@ describe('Cursor support', () => {
   });
 
   it('should emit "fetch" event', async () => {
-    const result = await connection.query(`select * from customers limit 10`, { objectRows: true, cursor: true });
+    const result = await connection.query(`select * from customers limit 10`, {
+      objectRows: true,
+      cursor: true,
+    });
     const cursor = result.cursor;
     expect(cursor).toBeDefined();
     let count = 0;
@@ -83,7 +101,10 @@ describe('Cursor support', () => {
   it('should automatically close with "using" syntax', async () => {
     let closed = false;
     {
-      const result = await connection.query(`select * from customers order by id`, { objectRows: false, cursor: true });
+      const result = await connection.query(
+        `select * from customers order by id`,
+        { objectRows: false, cursor: true },
+      );
       await using cursor = result.cursor!;
       expect(cursor).toBeDefined();
       cursor.on('close', () => (closed = true));

@@ -18,7 +18,9 @@ describe('query() (Extended Query)', () => {
   });
 
   it('should return QueryResult', async () => {
-    const result = await connection.query(`select * from countries order by code`);
+    const result = await connection.query(
+      `select * from countries order by code`,
+    );
     expect(result).toBeDefined();
     expect(result.fields).toBeDefined();
     expect(result.rows).toBeDefined();
@@ -33,7 +35,10 @@ describe('query() (Extended Query)', () => {
   });
 
   it('should return object rows', async () => {
-    const result = await connection.query(`select * from countries order by code`, { objectRows: true });
+    const result = await connection.query(
+      `select * from countries order by code`,
+      { objectRows: true },
+    );
     expect(result).toBeDefined();
     expect(result.command).toStrictEqual('SELECT');
     assert(result.fields);
@@ -45,7 +50,9 @@ describe('query() (Extended Query)', () => {
   });
 
   it('should limit number of returning rows with "fetchCount" property', async () => {
-    const result = await connection.query(`select * from customers`, { fetchCount: 10 });
+    const result = await connection.query(`select * from customers`, {
+      fetchCount: 10,
+    });
     expect(result).toBeDefined();
     expect(result.command).toStrictEqual('SELECT');
     expect(result.rowType).toStrictEqual('array');
@@ -54,16 +61,19 @@ describe('query() (Extended Query)', () => {
   });
 
   it('should check "fetchCount" value range', async () => {
-    await expect(() => connection.query(`select * from customers`, { fetchCount: -1 })).rejects.toThrow(
-      'fetchCount can be between',
-    );
-    await expect(() => connection.query(`select * from customers`, { fetchCount: 4294967296 })).rejects.toThrow(
-      'fetchCount can be between',
-    );
+    await expect(() =>
+      connection.query(`select * from customers`, { fetchCount: -1 }),
+    ).rejects.toThrow('fetchCount can be between');
+    await expect(() =>
+      connection.query(`select * from customers`, { fetchCount: 4294967296 }),
+    ).rejects.toThrow('fetchCount can be between');
   });
 
   it('should use bind parameters', async () => {
-    const result = await connection.query(`select * from customers where id=$1`, { params: [1], objectRows: true });
+    const result = await connection.query(
+      `select * from customers where id=$1`,
+      { params: [1], objectRows: true },
+    );
     expect(result).toBeDefined();
     expect(result.command).toStrictEqual('SELECT');
     expect(result.rowType).toStrictEqual('object');
@@ -74,15 +84,21 @@ describe('query() (Extended Query)', () => {
   });
 
   it('should pass null value to bind parameters', async () => {
-    const result = await connection.query(`select * from customers where id=$1`, { params: [null], objectRows: true });
+    const result = await connection.query(
+      `select * from customers where id=$1`,
+      { params: [null], objectRows: true },
+    );
     expect(result).toBeDefined();
   });
 
   it('should detect bool value when binding parameters', async () => {
-    const result = await connection.query(`select f_bool from data_types where f_bool = $1`, {
-      params: [true],
-      objectRows: false,
-    });
+    const result = await connection.query(
+      `select f_bool from data_types where f_bool = $1`,
+      {
+        params: [true],
+        objectRows: false,
+      },
+    );
     expect(result).toBeDefined();
     assert(result.rows);
     expect(result.rows.length).toStrictEqual(1);
@@ -90,21 +106,29 @@ describe('query() (Extended Query)', () => {
   });
 
   it('should detect uuid value when binding parameters', async () => {
-    const result = await connection.query(`select f_uuid from data_types where f_uuid = $1`, {
-      params: ['87d48838-02b3-4e26-8fec-bcc8c00e3772'],
-      objectRows: false,
-    });
+    const result = await connection.query(
+      `select f_uuid from data_types where f_uuid = $1`,
+      {
+        params: ['87d48838-02b3-4e26-8fec-bcc8c00e3772'],
+        objectRows: false,
+      },
+    );
     expect(result).toBeDefined();
     assert(result.rows);
     expect(result.rows.length).toStrictEqual(1);
-    expect(result.rows[0][0]).toStrictEqual('87d48838-02b3-4e26-8fec-bcc8c00e3772');
+    expect(result.rows[0][0]).toStrictEqual(
+      '87d48838-02b3-4e26-8fec-bcc8c00e3772',
+    );
   });
 
   it('should use bind array parameters', async () => {
-    let result = await connection.query(`select * from customers where id = ANY($1)`, {
-      params: [[1, 2, 3]],
-      objectRows: true,
-    });
+    let result = await connection.query(
+      `select * from customers where id = ANY($1)`,
+      {
+        params: [[1, 2, 3]],
+        objectRows: true,
+      },
+    );
     expect(result).toBeDefined();
     expect(result.command).toStrictEqual('SELECT');
     expect(result.rowType).toStrictEqual('object');
@@ -115,10 +139,13 @@ describe('query() (Extended Query)', () => {
     expect(result.rows[2].id).toStrictEqual(3);
 
     const arr = ['DE', 'US', 'TR'];
-    result = await connection.query(`select * from customers where country_code = ANY($1)`, {
-      params: [arr],
-      objectRows: true,
-    });
+    result = await connection.query(
+      `select * from customers where country_code = ANY($1)`,
+      {
+        params: [arr],
+        objectRows: true,
+      },
+    );
     expect(result).toBeDefined();
     expect(result.command).toStrictEqual('SELECT');
     expect(result.rowType).toStrictEqual('object');
@@ -129,7 +156,10 @@ describe('query() (Extended Query)', () => {
   });
 
   it('should wrap undefined parameters to null ', async () => {
-    const result = await connection.query(`select $1`, { params: [null], objectRows: false });
+    const result = await connection.query(`select $1`, {
+      params: [null],
+      objectRows: false,
+    });
     expect(result).toBeDefined();
     assert(result.rows);
     expect(result.rows.length).toStrictEqual(1);
@@ -137,14 +167,19 @@ describe('query() (Extended Query)', () => {
   });
 
   it('should return cursor', async () => {
-    const result = await connection.query(`select * from customers`, { objectRows: true, cursor: true });
+    const result = await connection.query(`select * from customers`, {
+      objectRows: true,
+      cursor: true,
+    });
     expect(result).toBeDefined();
     expect(result.cursor).toBeDefined();
     expect(result.cursor).toBeInstanceOf(Cursor);
   });
 
   it('should select sql return data rows', async () => {
-    const result = await connection.query(`select * from data_types`, { objectRows: true });
+    const result = await connection.query(`select * from data_types`, {
+      objectRows: true,
+    });
     expect(result).toBeDefined();
     expect(result.rows).toBeDefined();
     assert(result.rows);
@@ -164,7 +199,9 @@ describe('query() (Extended Query)', () => {
     expect(row.f_xml).toStrictEqual('<tag1>123</tag1>');
     expect(row.f_date).toStrictEqual(new Date('2010-03-22T00:00:00'));
     expect(row.f_timestamp).toStrictEqual(new Date('2020-01-10T15:45:12.123'));
-    expect(row.f_timestamptz).toStrictEqual(new Date('2005-07-01T01:21:11.123+03:00'));
+    expect(row.f_timestamptz).toStrictEqual(
+      new Date('2005-07-01T01:21:11.123+03:00'),
+    );
     expect(row.f_bytea).toStrictEqual(Buffer.from([65, 66, 67, 68, 69]));
     expect(row.f_point).toStrictEqual({ x: -1.2, y: 3.5 });
     expect(row.f_circle).toStrictEqual({ x: -1.2, y: 3.5, r: 4.6 });
@@ -173,7 +210,9 @@ describe('query() (Extended Query)', () => {
   });
 
   it('should not crash protocol on invalid query ', async () => {
-    await expect(() => connection.query(`invalid sql`)).rejects.toThrow('invalid');
+    await expect(() => connection.query(`invalid sql`)).rejects.toThrow(
+      'invalid',
+    );
     await connection.execute('select 1');
   });
 });

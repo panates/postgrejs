@@ -34,7 +34,9 @@ export class IntlConnection extends SafeEventEmitter {
     this.socket = new PgSocket(this._config);
     this.socket.on('error', err => this._onError(err));
     this.socket.on('close', () => this.emit('close'));
-    this.socket.on('notification', payload => this.emit('notification', payload));
+    this.socket.on('notification', payload =>
+      this.emit('notification', payload),
+    );
     this.socket.on('connecting', () => this.emit('connecting'));
     this._onErrorSavePoint = 'SP_' + Math.round(Math.random() * 100000000);
   }
@@ -79,9 +81,14 @@ export class IntlConnection extends SafeEventEmitter {
       this.socket.connect();
     });
     let startupCommand = '';
-    if (this.config.schema) startupCommand += 'SET search_path = ' + escapeLiteral(this.config.schema) + ';';
-    if (this.config.timezone) startupCommand += 'SET timezone TO ' + escapeLiteral(this.config.timezone) + ';';
-    if (startupCommand) await this.execute(startupCommand, { autoCommit: true });
+    if (this.config.schema)
+      startupCommand +=
+        'SET search_path = ' + escapeLiteral(this.config.schema) + ';';
+    if (this.config.timezone)
+      startupCommand +=
+        'SET timezone TO ' + escapeLiteral(this.config.timezone) + ';';
+    if (startupCommand)
+      await this.execute(startupCommand, { autoCommit: true });
     this.emit('ready');
   }
 
@@ -106,13 +113,17 @@ export class IntlConnection extends SafeEventEmitter {
     this.assertConnected();
     return this.statementQueue
       .enqueue(async (): Promise<ScriptResult> => {
-        const transactionCommand = sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i);
+        const transactionCommand = sql.match(
+          /^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i,
+        );
         let beginFirst = false;
         let commitLast = false;
         if (!transactionCommand) {
           if (
             !this.inTransaction &&
-            (options?.autoCommit != null ? options?.autoCommit : this.config.autoCommit) === false
+            (options?.autoCommit != null
+              ? options?.autoCommit
+              : this.config.autoCommit) === false
           ) {
             beginFirst = true;
           }
@@ -126,7 +137,8 @@ export class IntlConnection extends SafeEventEmitter {
             ? options.rollbackOnError
             : coerceToBoolean(this.config.rollbackOnError, true));
 
-        if (this.inTransaction && rollbackOnError) await this._execute('SAVEPOINT ' + this._onErrorSavePoint);
+        if (this.inTransaction && rollbackOnError)
+          await this._execute('SAVEPOINT ' + this._onErrorSavePoint);
         try {
           const result = await this._execute(sql, options, cb);
           if (commitLast) await this._execute('COMMIT');
@@ -135,7 +147,8 @@ export class IntlConnection extends SafeEventEmitter {
           }
           return result;
         } catch (e: any) {
-          if (this.inTransaction && rollbackOnError) await this._execute('ROLLBACK TO ' + this._onErrorSavePoint + ';');
+          if (this.inTransaction && rollbackOnError)
+            await this._execute('ROLLBACK TO ' + this._onErrorSavePoint + ';');
           throw e;
         }
       })
@@ -147,7 +160,8 @@ export class IntlConnection extends SafeEventEmitter {
   }
 
   async savepoint(name: string): Promise<void> {
-    if (!(name && name.match(/^[a-zA-Z]\w+$/))) throw new Error(`Invalid savepoint "${name}`);
+    if (!(name && name.match(/^[a-zA-Z]\w+$/)))
+      throw new Error(`Invalid savepoint "${name}`);
     await this.execute('BEGIN; SAVEPOINT ' + name);
   }
 
@@ -160,12 +174,14 @@ export class IntlConnection extends SafeEventEmitter {
   }
 
   async rollbackToSavepoint(name: string): Promise<void> {
-    if (!(name && name.match(/^[a-zA-Z]\w+$/))) throw new Error(`Invalid savepoint "${name}`);
+    if (!(name && name.match(/^[a-zA-Z]\w+$/)))
+      throw new Error(`Invalid savepoint "${name}`);
     await this.execute('ROLLBACK TO SAVEPOINT ' + name, { autoCommit: false });
   }
 
   async releaseSavepoint(name: string): Promise<void> {
-    if (!(name && name.match(/^[a-zA-Z]\w+$/))) throw new Error(`Invalid savepoint "${name}`);
+    if (!(name && name.match(/^[a-zA-Z]\w+$/)))
+      throw new Error(`Invalid savepoint "${name}`);
     await this.execute('RELEASE SAVEPOINT ' + name, { autoCommit: false });
   }
 
@@ -179,8 +195,10 @@ export class IntlConnection extends SafeEventEmitter {
   }
 
   assertConnected(): void {
-    if (this.state === ConnectionState.CLOSING) throw new Error('Connection is closing');
-    if (this.state === ConnectionState.CLOSED) throw new Error('Connection closed');
+    if (this.state === ConnectionState.CLOSING)
+      throw new Error('Connection is closing');
+    if (this.state === ConnectionState.CLOSED)
+      throw new Error('Connection closed');
   }
 
   protected async _execute(
@@ -204,7 +222,11 @@ export class IntlConnection extends SafeEventEmitter {
       let fields: Protocol.RowDescription[];
       const typeMap = opts.typeMap || GlobalTypeMap;
       return await this.socket.capture(
-        async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error, result?: any) => void) => {
+        async (
+          code: Protocol.BackendMessageCode,
+          msg: any,
+          done: (err?: Error, result?: any) => void,
+        ) => {
           switch (code) {
             case Protocol.BackendMessageCode.NoticeResponse:
             case Protocol.BackendMessageCode.CopyInResponse:
@@ -214,7 +236,11 @@ export class IntlConnection extends SafeEventEmitter {
             case Protocol.BackendMessageCode.RowDescription:
               fields = msg.fields;
               parsers = getParsers(typeMap, fields);
-              current.fields = wrapRowDescription(typeMap, fields, DataFormat.text);
+              current.fields = wrapRowDescription(
+                typeMap,
+                fields,
+                DataFormat.text,
+              );
               current.rows = [];
               break;
             case Protocol.BackendMessageCode.DataRow:
@@ -222,7 +248,8 @@ export class IntlConnection extends SafeEventEmitter {
                 let row = msg.columns.map((x: Buffer) => x.toString('utf8'));
                 // The null override assumes we can trust PG to always send the RowDescription first
                 parseRow(parsers!, row, opts);
-                if (opts.objectRows && current.fields) row = convertRowToObject(current.fields, row);
+                if (opts.objectRows && current.fields)
+                  row = convertRowToObject(current.fields, row);
                 if (cb) cb('row', row);
                 current.rows = current.rows || [];
                 current.rows.push(row);
@@ -231,11 +258,17 @@ export class IntlConnection extends SafeEventEmitter {
             case Protocol.BackendMessageCode.CommandComplete:
               // Ignore BEGIN command that we added to sql
               current.command = msg.command;
-              if (current.command === 'DELETE' || current.command === 'INSERT' || current.command === 'UPDATE') {
+              if (
+                current.command === 'DELETE' ||
+                current.command === 'INSERT' ||
+                current.command === 'UPDATE'
+              ) {
                 current.rowsAffected = msg.rowCount;
               }
               current.executeTime = Date.now() - currentStart;
-              if (current.rows) current.rowType = opts.objectRows && current.fields ? 'object' : 'array';
+              if (current.rows)
+                current.rowType =
+                  opts.objectRows && current.fields ? 'object' : 'array';
               result.results.push(current);
               if (cb) cb('command-complete', current);
               current = { command: undefined };

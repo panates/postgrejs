@@ -16,14 +16,15 @@
     "tslib": "^2.8.1"
   },
   "devDependencies": {
-    "@panates/eslint-config": "^1.0.21",
-    "@panates/eslint-config-ts": "^1.0.21",
-    "@panates/tsconfig": "^1.0.21",
+    "@panates/eslint-config": "^2.0.2",
+    "@panates/eslint-config-ts": "^2.0.2",
+    "@panates/tsconfig": "^2.0.2",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.9.1",
     "@types/pg": "^8.11.10",
     "auto-changelog": "^2.5.0",
     "dotenv": "^16.4.5",
+    "globals": "^15.13.0",
     "husky": "^9.1.7",
     "jest": "^29.7.0",
     "madge": "^8.0.0",

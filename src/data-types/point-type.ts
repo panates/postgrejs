@@ -33,7 +33,12 @@ export const PointType: DataType = {
   },
 
   isType(v: any): boolean {
-    return typeof v === 'object' && Object.keys(v).length === 2 && typeof v.x === 'number' && typeof v.y === 'number';
+    return (
+      typeof v === 'object' &&
+      Object.keys(v).length === 2 &&
+      typeof v.x === 'number' &&
+      typeof v.y === 'number'
+    );
   },
 };
 

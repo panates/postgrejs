@@ -19,7 +19,9 @@ export const Int2Type: DataType = {
   parseText: fastParseInt,
 
   isType(v: any): boolean {
-    return typeof v === 'number' && Number.isInteger(v) && v >= -32768 && v <= 32767;
+    return (
+      typeof v === 'number' && Number.isInteger(v) && v >= -32768 && v <= 32767
+    );
   },
 };
 

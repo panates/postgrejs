@@ -22,7 +22,8 @@ export function wrapRowDescription(
     if (x.isArray) {
       x.elementDataTypeName = x.dataTypeName.substring(1);
       for (const oid of Object.keys(DataTypeNames)) {
-        if (DataTypeNames[oid] === x.elementDataTypeName) x.elementDataTypeId = parseInt(oid, 10);
+        if (DataTypeNames[oid] === x.elementDataTypeName)
+          x.elementDataTypeId = parseInt(oid, 10);
       }
     }
     if (f.fixedSize && f.fixedSize > 0) x.fixedSize = f.fixedSize;

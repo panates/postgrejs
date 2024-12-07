@@ -32,7 +32,9 @@ describe('execute() (Simple Query)', () => {
   });
 
   it('should return fields info', async () => {
-    const result = await connection.execute(`select 1 as one, 'two'::varchar as two `);
+    const result = await connection.execute(
+      `select 1 as one, 'two'::varchar as two `,
+    );
     expect(result).toBeDefined();
     expect(result.totalCommands).toStrictEqual(1);
     expect(result.results[0].fields).toBeDefined();
@@ -44,7 +46,9 @@ describe('execute() (Simple Query)', () => {
   });
 
   it('should return rows', async () => {
-    const result = await connection.execute(`select 1 as one, 'two'::varchar as two `);
+    const result = await connection.execute(
+      `select 1 as one, 'two'::varchar as two `,
+    );
     expect(result).toBeDefined();
     expect(result.results[0].rows).toBeDefined();
     expect(result.results[0].rowType).toStrictEqual('array');
@@ -53,7 +57,10 @@ describe('execute() (Simple Query)', () => {
   });
 
   it('should return object rows if required', async () => {
-    const result = await connection.execute(`select 1 as one, 'two'::varchar as two `, { objectRows: true });
+    const result = await connection.execute(
+      `select 1 as one, 'two'::varchar as two `,
+      { objectRows: true },
+    );
     expect(result).toBeDefined();
     expect(result.results[0].rows).toBeDefined();
     expect(result.results[0].rowType).toStrictEqual('object');
@@ -75,7 +82,9 @@ describe('execute() (Simple Query)', () => {
   });
 
   it('should select sql return data rows', async () => {
-    const result = await connection.execute(`select * from test.data_types`, { objectRows: true });
+    const result = await connection.execute(`select * from test.data_types`, {
+      objectRows: true,
+    });
     expect(result).toBeDefined();
     expect(result.results[0].rows).toBeDefined();
     const row = result.results[0].rows?.[0];
@@ -95,7 +104,9 @@ describe('execute() (Simple Query)', () => {
     expect(row.f_xml).toStrictEqual('<tag1>123</tag1>');
     expect(row.f_date).toStrictEqual(new Date('2010-03-22T00:00:00'));
     expect(row.f_timestamp).toStrictEqual(new Date('2020-01-10T15:45:12.123'));
-    expect(row.f_timestamptz).toStrictEqual(new Date('2005-07-01T01:21:11.123+03:00'));
+    expect(row.f_timestamptz).toStrictEqual(
+      new Date('2005-07-01T01:21:11.123+03:00'),
+    );
     expect(row.f_bytea).toStrictEqual(Buffer.from([65, 66, 67, 68, 69]));
     expect(row.f_point).toStrictEqual({ x: -1.2, y: 3.5 });
     expect(row.f_circle).toStrictEqual({ x: -1.2, y: 3.5, r: 4.6 });
@@ -105,7 +116,9 @@ describe('execute() (Simple Query)', () => {
   });
 
   it('should return all rows', async () => {
-    const result = await connection.execute(`select * from countries`, { objectRows: true });
+    const result = await connection.execute(`select * from countries`, {
+      objectRows: true,
+    });
     expect(result).toBeDefined();
     expect(result.results[0].rows).toBeDefined();
     expect(result.results[0].rows?.length).toStrictEqual(4);

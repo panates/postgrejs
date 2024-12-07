@@ -26,25 +26,32 @@ export async function testParse(
     sql = `select ${s}::${typeName} as f1`;
   } else {
     const inp = input.map(x => stringifyValueForSQL(x, mappingOptions));
-    sql = 'select ' + inp.map((x: string, i: number) => `${x}::${typeName} as f${i + 1}`).join(', ');
+    sql =
+      'select ' +
+      inp
+        .map((x: string, i: number) => `${x}::${typeName} as f${i + 1}`)
+        .join(', ');
   }
-  const resp = await connection.query(sql, { ...mappingOptions, columnFormat: opts.columnFormat });
+  const resp = await connection.query(sql, {
+    ...mappingOptions,
+    columnFormat: opts.columnFormat,
+  });
   expect(resp).toBeDefined();
   expect(resp.rows).toBeDefined();
 
   if (reg.elementsOID) {
     expect(resp.fields?.[0].dataTypeId).toStrictEqual(reg.oid);
     expect(resp.fields?.[0].jsType).toStrictEqual(reg.jsType);
-    if (reg.oid !== DataTypeOIDs.char) expect(resp.fields?.[0].elementDataTypeId).toStrictEqual(reg.elementsOID);
+    if (reg.oid !== DataTypeOIDs.char)
+      expect(resp.fields?.[0].elementDataTypeId).toStrictEqual(reg.elementsOID);
     expect(resp.rows?.[0][0]).toStrictEqual(output);
-  }
-  // eslint-disable-next-line prefer-const
-  else {
+  } else {
     let i: number;
     let v: any;
     for ([i, v] of output.entries()) {
       expect(resp.fields?.[i].jsType).toStrictEqual(reg.jsType);
-      if (reg.oid !== DataTypeOIDs.char) expect(resp.fields?.[i].dataTypeId).toStrictEqual(reg.oid);
+      if (reg.oid !== DataTypeOIDs.char)
+        expect(resp.fields?.[i].dataTypeId).toStrictEqual(reg.oid);
       let n = resp.rows?.[0][i];
       if (typeof n === 'bigint') n = '' + n;
       if (typeof v === 'bigint') v = '' + v;
@@ -62,7 +69,10 @@ export async function testEncode(
   mappingOptions?: DataMappingOptions,
 ): Promise<QueryResult> {
   const reg = GlobalTypeMap.get(dataTypeId);
-  if (!reg) throw new Error(`Data type "0x${dataTypeId.toString(16)}" is not registered.`);
+  if (!reg)
+    throw new Error(
+      `Data type "0x${dataTypeId.toString(16)}" is not registered.`,
+    );
   let sql;
   let params;
   if (reg.elementsOID) {
@@ -72,19 +82,24 @@ export async function testEncode(
     sql = 'select ' + input.map((x, i) => `$${i + 1} as f${i + 1}`).join(', ');
     params = input.map(v => new BindParam(dataTypeId, v));
   }
-  const resp: QueryResult = await connection.query(sql, { ...mappingOptions, params });
+  const resp: QueryResult = await connection.query(sql, {
+    ...mappingOptions,
+    params,
+  });
   expect(resp).toBeDefined();
   expect(resp.rows).toBeDefined();
   output = output === undefined ? input : output;
   if (reg.elementsOID) {
     expect(resp.fields?.[0].dataTypeId).toStrictEqual(reg.oid);
     expect(resp.fields?.[0].jsType).toStrictEqual(reg.jsType);
-    if (reg.oid !== DataTypeOIDs.char) expect(resp.fields?.[0].elementDataTypeId).toStrictEqual(reg.elementsOID);
+    if (reg.oid !== DataTypeOIDs.char)
+      expect(resp.fields?.[0].elementDataTypeId).toStrictEqual(reg.elementsOID);
     expect(resp.rows?.[0][0]).toStrictEqual(output);
   } else {
     for (const [i, v] of output.entries()) {
       expect(resp.fields?.[i].jsType).toStrictEqual(reg.jsType);
-      if (reg.oid !== DataTypeOIDs.char) expect(resp.fields?.[i].dataTypeId).toStrictEqual(reg.oid);
+      if (reg.oid !== DataTypeOIDs.char)
+        expect(resp.fields?.[i].dataTypeId).toStrictEqual(reg.oid);
       expect(resp.rows?.[0][i]).toStrictEqual(v);
     }
   }

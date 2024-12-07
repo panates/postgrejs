@@ -7,13 +7,17 @@ export function createTests(conn: () => Connection) {
   it('should parse "json" field (text)', async () => {
     const output = [{ a: 1 }, { a: 2 }];
     const input = toStringArray(output);
-    await testParse(conn(), DataTypeOIDs.json, input, output, { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs.json, input, output, {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "json" field (binary)', async () => {
     const output = [{ a: 1 }, { a: 2 }];
     const input = toStringArray(output);
-    await testParse(conn(), DataTypeOIDs.json, input, output, { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs.json, input, output, {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should parse "json" array field (text)', async () => {
@@ -28,7 +32,9 @@ export function createTests(conn: () => Connection) {
       ],
     ];
     const input = toStringArray(output);
-    await testParse(conn(), DataTypeOIDs._json, input, output, { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs._json, input, output, {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "json" array field (binary)', async () => {
@@ -43,7 +49,9 @@ export function createTests(conn: () => Connection) {
       ],
     ];
     const input = toStringArray(output);
-    await testParse(conn(), DataTypeOIDs._json, input, output, { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs._json, input, output, {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should encode "json" param', async () => {

@@ -3,11 +3,15 @@ import { testEncode, testParse } from './_testers.js';
 
 export function createTests(conn: () => Connection) {
   it('should parse "int4" field (text)', async () => {
-    await testParse(conn(), DataTypeOIDs.int4, ['1', '-2'], [1, -2], { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs.int4, ['1', '-2'], [1, -2], {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "int4" field (binary)', async () => {
-    await testParse(conn(), DataTypeOIDs.int4, ['1', '-2'], [1, -2], { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs.int4, ['1', '-2'], [1, -2], {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should parse "int4" array field (text)', async () => {
@@ -21,7 +25,9 @@ export function createTests(conn: () => Connection) {
         [null, 2, null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._int4, input, input, { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs._int4, input, input, {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "int4" array field (binary)', async () => {
@@ -35,7 +41,9 @@ export function createTests(conn: () => Connection) {
         [null, 2, null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._int4, input, input, { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs._int4, input, input, {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should encode "int4" param', async () => {

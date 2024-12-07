@@ -1,7 +1,11 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
-import type { EncodeBinaryFunction, EncodeCalculateDimFunction, OID } from '../types.js';
+import type {
+  EncodeBinaryFunction,
+  EncodeCalculateDimFunction,
+  OID,
+} from '../types.js';
 import { arrayCalculateDim } from './array-calculatedim.js';
 
 export function encodeBinaryArray(

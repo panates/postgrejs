@@ -4,14 +4,29 @@ import { testEncode, testParse } from './_testers.js';
 export function createTests(conn: () => Connection) {
   it('should parse "time" field (text)', async () => {
     const input = ['10:30', '10:30:12'];
-    const output = [new Date('1970-01-01T10:30:00'), new Date('1970-01-01T10:30:12')];
-    await testParse(conn(), DataTypeOIDs.time, input, output, { columnFormat: DataFormat.text });
+    const output = [
+      new Date('1970-01-01T10:30:00'),
+      new Date('1970-01-01T10:30:12'),
+    ];
+    await testParse(conn(), DataTypeOIDs.time, input, output, {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "time" field (text, utcDates)', async () => {
     const input = ['10:30', '10:30:12'];
-    const output = [new Date('1970-01-01T10:30:00Z'), new Date('1970-01-01T10:30:12Z')];
-    await testParse(conn(), DataTypeOIDs.time, input, output, { columnFormat: DataFormat.text }, { utcDates: true });
+    const output = [
+      new Date('1970-01-01T10:30:00Z'),
+      new Date('1970-01-01T10:30:12Z'),
+    ];
+    await testParse(
+      conn(),
+      DataTypeOIDs.time,
+      input,
+      output,
+      { columnFormat: DataFormat.text },
+      { utcDates: true },
+    );
   });
 
   it('should parse "time" field (text, fetchAsString)', async () => {
@@ -29,14 +44,29 @@ export function createTests(conn: () => Connection) {
 
   it('should parse "time" field (binary)', async () => {
     const input = ['10:30', '10:30:12'];
-    const output = [new Date('1970-01-01T10:30:00'), new Date('1970-01-01T10:30:12')];
-    await testParse(conn(), DataTypeOIDs.time, input, output, { columnFormat: DataFormat.binary });
+    const output = [
+      new Date('1970-01-01T10:30:00'),
+      new Date('1970-01-01T10:30:12'),
+    ];
+    await testParse(conn(), DataTypeOIDs.time, input, output, {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should parse "time" field (binary, utcDates)', async () => {
     const input = ['10:30', '10:30:12'];
-    const output = [new Date('1970-01-01T10:30:00Z'), new Date('1970-01-01T10:30:12Z')];
-    await testParse(conn(), DataTypeOIDs.time, input, output, { columnFormat: DataFormat.binary }, { utcDates: true });
+    const output = [
+      new Date('1970-01-01T10:30:00Z'),
+      new Date('1970-01-01T10:30:12Z'),
+    ];
+    await testParse(
+      conn(),
+      DataTypeOIDs.time,
+      input,
+      output,
+      { columnFormat: DataFormat.binary },
+      { utcDates: true },
+    );
   });
 
   it('should parse "time" field (binary, fetchAsString)', async () => {
@@ -54,31 +84,52 @@ export function createTests(conn: () => Connection) {
 
   it('should parse "time" array field (text)', async () => {
     const input = ['10:30', '10:30:12'];
-    const output = [new Date('1970-01-01T10:30:00'), new Date('1970-01-01T10:30:12')];
-    await testParse(conn(), DataTypeOIDs._time, input, output, { columnFormat: DataFormat.text });
+    const output = [
+      new Date('1970-01-01T10:30:00'),
+      new Date('1970-01-01T10:30:12'),
+    ];
+    await testParse(conn(), DataTypeOIDs._time, input, output, {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "time" array field (binary)', async () => {
     const input = ['10:30', '10:30:12'];
-    const output = [new Date('1970-01-01T10:30:00'), new Date('1970-01-01T10:30:12')];
-    await testParse(conn(), DataTypeOIDs._time, input, output, { columnFormat: DataFormat.binary });
+    const output = [
+      new Date('1970-01-01T10:30:00'),
+      new Date('1970-01-01T10:30:12'),
+    ];
+    await testParse(conn(), DataTypeOIDs._time, input, output, {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should encode "time" param', async () => {
     const input = ['10:30', '10:30:12'];
-    const output = [new Date('1970-01-01T10:30:00'), new Date('1970-01-01T10:30:12')];
+    const output = [
+      new Date('1970-01-01T10:30:00'),
+      new Date('1970-01-01T10:30:12'),
+    ];
     await testEncode(conn(), DataTypeOIDs.time, input, output);
   });
 
   it('should encode "time" param (utcDates)', async () => {
     const input = ['10:30', '10:30:12'];
-    const output = [new Date('1970-01-01T10:30:00Z'), new Date('1970-01-01T10:30:12Z')];
-    await testEncode(conn(), DataTypeOIDs.time, input, output, { utcDates: true });
+    const output = [
+      new Date('1970-01-01T10:30:00Z'),
+      new Date('1970-01-01T10:30:12Z'),
+    ];
+    await testEncode(conn(), DataTypeOIDs.time, input, output, {
+      utcDates: true,
+    });
   });
 
   it('should encode array "time" param', async () => {
     const input = ['10:30', '10:30:12'];
-    const output = [new Date('1970-01-01T10:30:00'), new Date('1970-01-01T10:30:12')];
+    const output = [
+      new Date('1970-01-01T10:30:00'),
+      new Date('1970-01-01T10:30:12'),
+    ];
     await testEncode(conn(), DataTypeOIDs._time, input, output);
   });
 }

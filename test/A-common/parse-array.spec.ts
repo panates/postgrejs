@@ -42,12 +42,16 @@ describe('Parse PostgreSQL arrays', () => {
   });
 
   it('should call transform callback', async () => {
-    const arr = parsePostgresArray('{1,2,NULL}', { transform: s => parseInt(s, 10) });
+    const arr = parsePostgresArray('{1,2,NULL}', {
+      transform: s => parseInt(s, 10),
+    });
     expect(arr).toStrictEqual([1, 2, null]);
   });
 
   it('should parse multi dimensional array string', async () => {
-    const arr = parsePostgresArray('{{{t,f,NULL},{f,t,NULL}},{{t,NULL,f},{NULL,f,NULL}}}');
+    const arr = parsePostgresArray(
+      '{{{t,f,NULL},{f,t,NULL}},{{t,NULL,f},{NULL,f,NULL}}}',
+    );
     expect(arr).toStrictEqual([
       [
         ['t', 'f', null],

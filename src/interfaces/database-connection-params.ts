@@ -34,8 +34,12 @@ export interface SocketOptions {
   keepAlive?: boolean;
 }
 
-export interface ConnectionConfiguration extends DatabaseConnectionParams, SocketOptions {
+export interface ConnectionConfiguration
+  extends DatabaseConnectionParams,
+    SocketOptions {
   buffer?: SmartBufferConfig;
 }
 
-export interface PoolConfiguration extends ConnectionConfiguration, LPoolConfiguration {}
+export interface PoolConfiguration
+  extends ConnectionConfiguration,
+    LPoolConfiguration {}

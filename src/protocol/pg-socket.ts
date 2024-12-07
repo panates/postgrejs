@@ -43,7 +43,8 @@ export class PgSocket extends SafeEventEmitter {
   }
 
   get state(): ConnectionState {
-    if (!this._socket || this._socket.destroyed) this._state = ConnectionState.CLOSED;
+    if (!this._socket || this._socket.destroyed)
+      this._state = ConnectionState.CLOSED;
     return this._state;
   }
 
@@ -76,13 +77,15 @@ export class PgSocket extends SafeEventEmitter {
 
     const connectHandler = () => {
       socket.setTimeout(0);
-      if (this.options.keepAlive || this.options.keepAlive == null) socket.setKeepAlive(true);
+      if (this.options.keepAlive || this.options.keepAlive == null)
+        socket.setKeepAlive(true);
       socket.write(this._frontend.getSSLRequestMessage());
       socket.once('data', x => {
         this._removeListeners();
         if (x.toString() === 'S') {
           const tslOptions = { ...options.ssl, socket };
-          if (options.host && net.isIP(options.host) === 0) tslOptions.servername = options.host;
+          if (options.host && net.isIP(options.host) === 0)
+            tslOptions.servername = options.host;
           const tlsSocket = (this._socket = tls.connect(tslOptions));
           tlsSocket.once('error', errorHandler);
           tlsSocket.once('secureConnect', () => {
@@ -93,18 +96,24 @@ export class PgSocket extends SafeEventEmitter {
         }
         if (x.toString() === 'N') {
           if (options.requireSSL) {
-            return errorHandler(new Error('Server does not support SSL connections'));
+            return errorHandler(
+              new Error('Server does not support SSL connections'),
+            );
           }
           this._removeListeners();
           this._handleConnect();
           return;
         }
-        return errorHandler(new Error('There was an error establishing an SSL connection'));
+        return errorHandler(
+          new Error('There was an error establishing an SSL connection'),
+        );
       });
     };
 
     socket.setNoDelay(true);
-    socket.setTimeout(options.connectTimeoutMs || 30000, () => errorHandler(new Error('Connection timed out')));
+    socket.setTimeout(options.connectTimeoutMs || 30000, () =>
+      errorHandler(new Error('Connection timed out')),
+    );
     socket.once('error', errorHandler);
     socket.once('connect', connectHandler);
 
@@ -112,7 +121,11 @@ export class PgSocket extends SafeEventEmitter {
     const port = options.port || DEFAULT_PORT_NUMBER;
     if (options.host && options.host.startsWith('/')) {
       socket.connect(path.join(options.host, '/.s.PGSQL.' + port));
-    } else socket.connect(options.port || DEFAULT_PORT_NUMBER, options.host || 'localhost');
+    } else
+      socket.connect(
+        options.port || DEFAULT_PORT_NUMBER,
+        options.host || 'localhost',
+      );
   }
 
   close(): void {
@@ -131,64 +144,77 @@ export class PgSocket extends SafeEventEmitter {
   }
 
   sendParseMessage(args: Frontend.ParseMessageArgs, cb?: Callback): void {
-    if (this.listenerCount('debug')) this.emit('debug', { location: 'PgSocket.sendParseMessage', args });
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'PgSocket.sendParseMessage', args });
 
     this._send(this._frontend.getParseMessage(args), cb);
   }
 
   sendBindMessage(args: Frontend.BindMessageArgs, cb?: Callback): void {
-    if (this.listenerCount('debug')) this.emit('debug', { location: 'PgSocket.sendBindMessage', args });
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'PgSocket.sendBindMessage', args });
 
     this._send(this._frontend.getBindMessage(args), cb);
   }
 
   sendDescribeMessage(args: Frontend.DescribeMessageArgs, cb?: Callback): void {
-    if (this.listenerCount('debug')) this.emit('debug', { location: 'PgSocket.sendDescribeMessage', args });
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'PgSocket.sendDescribeMessage', args });
 
     this._send(this._frontend.getDescribeMessage(args), cb);
   }
 
   sendExecuteMessage(args: Frontend.ExecuteMessageArgs, cb?: Callback): void {
-    if (this.listenerCount('debug')) this.emit('debug', { location: 'PgSocket.sendDescribeMessage', args });
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'PgSocket.sendDescribeMessage', args });
 
     this._send(this._frontend.getExecuteMessage(args), cb);
   }
 
   sendCloseMessage(args: Frontend.CloseMessageArgs, cb?: Callback): void {
-    if (this.listenerCount('debug')) this.emit('debug', { location: 'PgSocket.sendCloseMessage', args });
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'PgSocket.sendCloseMessage', args });
 
     this._send(this._frontend.getCloseMessage(args), cb);
   }
 
   sendQueryMessage(sql: string, cb?: Callback): void {
-    if (this.listenerCount('debug')) this.emit('debug', { location: 'PgSocket.sendQueryMessage', sql });
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'PgSocket.sendQueryMessage', sql });
 
     this._send(this._frontend.getQueryMessage(sql), cb);
   }
 
   sendFlushMessage(cb?: Callback): void {
-    if (this.listenerCount('debug')) this.emit('debug', { location: 'PgSocket.sendFlushMessage' });
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'PgSocket.sendFlushMessage' });
 
     this._send(this._frontend.getFlushMessage(), cb);
   }
 
   sendTerminateMessage(cb?: Callback): void {
-    if (this.listenerCount('debug')) this.emit('debug', { location: 'PgSocket.sendTerminateMessage' });
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'PgSocket.sendTerminateMessage' });
 
     this._send(this._frontend.getTerminateMessage(), cb);
   }
 
   sendSyncMessage(): void {
-    if (this.listenerCount('debug')) this.emit('debug', { location: 'PgSocket.sendSyncMessage' });
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'PgSocket.sendSyncMessage' });
 
     this._send(this._frontend.getSyncMessage());
   }
 
   capture(callback: CaptureCallback): Promise<any> {
-    if (this._state === ConnectionState.CLOSING || this._state === ConnectionState.CLOSED) {
+    if (
+      this._state === ConnectionState.CLOSING ||
+      this._state === ConnectionState.CLOSED
+    ) {
       return Promise.reject(new Error('Connection closed'));
     }
-    if (this._state !== ConnectionState.READY) return Promise.reject(new Error('Connection is not ready'));
+    if (this._state !== ConnectionState.READY)
+      return Promise.reject(new Error('Connection is not ready'));
     return new Promise((resolve, reject) => {
       const done = (err?: Error, result?: any) => {
         this.removeListener('close', closeHandler);
@@ -209,7 +235,8 @@ export class PgSocket extends SafeEventEmitter {
       };
       const msgHandler = (code: Protocol.BackendMessageCode, msg: any) => {
         const x = callback(code, msg, done);
-        if (promisify.isPromise(x)) (x as Promise<void>).catch(err => done(err));
+        if (promisify.isPromise(x))
+          (x as Promise<void>).catch(err => done(err));
       };
       this.once('close', closeHandler);
       this.once('error', errorHandler);
@@ -264,50 +291,60 @@ export class PgSocket extends SafeEventEmitter {
   }
 
   protected _handleData(data: Buffer): void {
-    this._backend.parse(data, (code: Protocol.BackendMessageCode, payload?: any) => {
-      try {
-        switch (code) {
-          case Protocol.BackendMessageCode.Authentication:
-            this._handleAuthenticationMessage(payload);
-            break;
-          case Protocol.BackendMessageCode.ErrorResponse:
-            this.emit('error', new DatabaseError(payload));
-            break;
-          case Protocol.BackendMessageCode.NoticeResponse:
-            this.emit('notice', payload);
-            break;
-          case Protocol.BackendMessageCode.NotificationResponse:
-            this.emit('notification', payload);
-            break;
-          case Protocol.BackendMessageCode.ParameterStatus:
-            this._handleParameterStatus(payload as Protocol.ParameterStatusMessage);
-            break;
-          case Protocol.BackendMessageCode.BackendKeyData:
-            this._handleBackendKeyData(payload as Protocol.BackendKeyDataMessage);
-            break;
-          case Protocol.BackendMessageCode.ReadyForQuery:
-            if (this._state !== ConnectionState.READY) {
-              this._state = ConnectionState.READY;
-              this.emit('ready');
-            } else this.emit('message', code, payload);
-            break;
-          case Protocol.BackendMessageCode.CommandComplete: {
-            const msg = this._handleCommandComplete(payload);
-            this.emit('message', code, msg);
-            break;
+    this._backend.parse(
+      data,
+      (code: Protocol.BackendMessageCode, payload?: any) => {
+        try {
+          switch (code) {
+            case Protocol.BackendMessageCode.Authentication:
+              this._handleAuthenticationMessage(payload);
+              break;
+            case Protocol.BackendMessageCode.ErrorResponse:
+              this.emit('error', new DatabaseError(payload));
+              break;
+            case Protocol.BackendMessageCode.NoticeResponse:
+              this.emit('notice', payload);
+              break;
+            case Protocol.BackendMessageCode.NotificationResponse:
+              this.emit('notification', payload);
+              break;
+            case Protocol.BackendMessageCode.ParameterStatus:
+              this._handleParameterStatus(
+                payload as Protocol.ParameterStatusMessage,
+              );
+              break;
+            case Protocol.BackendMessageCode.BackendKeyData:
+              this._handleBackendKeyData(
+                payload as Protocol.BackendKeyDataMessage,
+              );
+              break;
+            case Protocol.BackendMessageCode.ReadyForQuery:
+              if (this._state !== ConnectionState.READY) {
+                this._state = ConnectionState.READY;
+                this.emit('ready');
+              } else this.emit('message', code, payload);
+              break;
+            case Protocol.BackendMessageCode.CommandComplete: {
+              const msg = this._handleCommandComplete(payload);
+              this.emit('message', code, msg);
+              break;
+            }
+            default:
+              this.emit('message', code, payload);
           }
-          default:
-            this.emit('message', code, payload);
+        } catch (e) {
+          this._handleError(e);
         }
-      } catch (e) {
-        this._handleError(e);
-      }
-    });
+      },
+    );
   }
 
   protected _resolvePassword(cb: (password: string) => void): void {
     (async (): Promise<void> => {
-      const pass = typeof this.options.password === 'function' ? await this.options.password() : this.options.password;
+      const pass =
+        typeof this.options.password === 'function'
+          ? await this.options.password()
+          : this.options.password;
       cb(pass || '');
     })().catch(err => this._handleError(err));
   }
@@ -326,7 +363,8 @@ export class PgSocket extends SafeEventEmitter {
         break;
       case Protocol.AuthenticationMessageKind.MD5Password:
         this._resolvePassword(password => {
-          const md5 = (x: any) => crypto.createHash('md5').update(x, 'utf8').digest('hex');
+          const md5 = (x: any) =>
+            crypto.createHash('md5').update(x, 'utf8').digest('hex');
           const l = md5(password + this.options.user);
           const r = md5(Buffer.concat([Buffer.from(l), msg.salt]));
           const pass = 'md5' + r;
@@ -335,9 +373,14 @@ export class PgSocket extends SafeEventEmitter {
         break;
       case Protocol.AuthenticationMessageKind.SASL: {
         if (!msg.mechanisms.includes('SCRAM-SHA-256')) {
-          throw new Error('SASL: Only mechanism SCRAM-SHA-256 is currently supported');
+          throw new Error(
+            'SASL: Only mechanism SCRAM-SHA-256 is currently supported',
+          );
         }
-        const saslSession = (this._saslSession = SASL.createSession(this.options.user || '', 'SCRAM-SHA-256'));
+        const saslSession = (this._saslSession = SASL.createSession(
+          this.options.user || '',
+          'SCRAM-SHA-256',
+        ));
         this._send(this._frontend.getSASLMessage(saslSession));
         break;
       }

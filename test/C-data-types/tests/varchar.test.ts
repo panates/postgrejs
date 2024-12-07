@@ -4,12 +4,16 @@ import { testEncode, testParse } from './_testers.js';
 export function createTests(conn: () => Connection) {
   it('should parse "varchar" field (text)', async () => {
     const input = ['abc"\'', 'bcd'];
-    await testParse(conn(), DataTypeOIDs.varchar, input, input, { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs.varchar, input, input, {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "varchar" field (binary)', async () => {
     const input = ['abc"\'', 'bcd'];
-    await testParse(conn(), DataTypeOIDs.varchar, input, input, { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs.varchar, input, input, {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should parse "varchar" array field (text)', async () => {
@@ -23,7 +27,9 @@ export function createTests(conn: () => Connection) {
         [null, 'h', null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._varchar, input, input, { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs._varchar, input, input, {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "varchar" array field (binary)', async () => {
@@ -37,7 +43,9 @@ export function createTests(conn: () => Connection) {
         [null, 'h', null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._varchar, input, input, { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs._varchar, input, input, {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should encode "varchar" param', async () => {

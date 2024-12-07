@@ -25,7 +25,12 @@ export class SmartBuffer extends BufferReader {
 
   constructor(cfg?: SmartBufferConfig) {
     // @ts-ignore
-    super(Buffer.allocUnsafe((cfg?.pageSize ? parseInt(cfg.pageSize, 10) : 0) || SmartBuffer.DEFAULT_PAGE_SIZE));
+    super(
+      Buffer.allocUnsafe(
+        (cfg?.pageSize ? parseInt(cfg.pageSize, 10) : 0) ||
+          SmartBuffer.DEFAULT_PAGE_SIZE,
+      ),
+    );
     this._houseKeepInterval = cfg?.houseKeepInterval || 5000;
     this.pageSize = this.buffer.length;
     this.maxSize = cfg?.maxLength || SmartBuffer.DEFAULT_MAX_SIZE;
@@ -59,7 +64,8 @@ export class SmartBuffer extends BufferReader {
 
     const pages = length ? Math.ceil(length / this.pageSize) : 1;
     this._stMaxPages = Math.max(this._stMaxPages, pages);
-    if (this._lastHouseKeep < Date.now() + this._houseKeepInterval) this._houseKeep();
+    if (this._lastHouseKeep < Date.now() + this._houseKeepInterval)
+      this._houseKeep();
 
     this._houseKeepTimer = setTimeout(() => {
       this._houseKeepTimer = undefined;
@@ -105,7 +111,8 @@ export class SmartBuffer extends BufferReader {
     this.growSize(len + 4);
     this.writeInt32BE(str == null ? -1 : len);
     if (str) {
-      if (encoding) this.offset += this.buffer.write(str, this.offset, encoding);
+      if (encoding)
+        this.offset += this.buffer.write(str, this.offset, encoding);
       else this.offset += this.buffer.write(str, this.offset);
     }
     return this;
@@ -165,7 +172,8 @@ export class SmartBuffer extends BufferReader {
   writeBigInt64BE(n: bigint | number): this {
     n = typeof n === 'bigint' ? n : BigInt(n);
     this.growSize(8);
-    if (typeof this.buffer.writeBigInt64BE === 'function') this.buffer.writeBigInt64BE(n, this.offset);
+    if (typeof this.buffer.writeBigInt64BE === 'function')
+      this.buffer.writeBigInt64BE(n, this.offset);
     else writeBigUInt64BE(this.buffer, n, this.offset);
     this.offset += 8;
     return this;
@@ -194,7 +202,8 @@ export class SmartBuffer extends BufferReader {
 
   private _houseKeep(): void {
     const needSize = this._stMaxPages * this.pageSize;
-    if (this.buffer.length > needSize) this.buffer = Buffer.allocUnsafe(needSize);
+    if (this.buffer.length > needSize)
+      this.buffer = Buffer.allocUnsafe(needSize);
     this._stMaxPages = this.length ? Math.ceil(this.length / this.pageSize) : 1;
   }
 }

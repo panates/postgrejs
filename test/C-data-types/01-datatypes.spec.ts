@@ -19,6 +19,8 @@ describe('Data type encode/decode', () => {
 
   const files = fs.readdirSync(path.join(__dirname, 'tests'));
   for (const f of files) {
-    if (f.endsWith('.test.ts')) require('./tests/' + f).createTests(() => connection);
+    if (f.endsWith('.test.ts'))
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('./tests/' + f).createTests(() => connection);
   }
 });

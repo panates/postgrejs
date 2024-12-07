@@ -3,11 +3,15 @@ import { testEncode, testParse } from './_testers.js';
 
 export function createTests(conn: () => Connection) {
   it('should parse "char" field (text)', async () => {
-    await testParse(conn(), DataTypeOIDs.char, ['abc', 'bcd'], ['a', 'b'], { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs.char, ['abc', 'bcd'], ['a', 'b'], {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "char" field (binary)', async () => {
-    await testParse(conn(), DataTypeOIDs.char, ['abc', 'bcd'], ['a', 'b'], { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs.char, ['abc', 'bcd'], ['a', 'b'], {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should parse "char" array field (text)', async () => {
@@ -31,7 +35,9 @@ export function createTests(conn: () => Connection) {
         [null, 'h', null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._char, input, output, { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs._char, input, output, {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "char" array field (binary)', async () => {
@@ -55,7 +61,9 @@ export function createTests(conn: () => Connection) {
         [null, 'h', null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._char, input, output, { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs._char, input, output, {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should encode "char" param', async () => {

@@ -15,7 +15,9 @@ export function createTests(conn: () => Connection) {
       { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testParse(conn(), DataTypeOIDs.lseg, input, output, { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs.lseg, input, output, {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "lseg" field (binary)', async () => {
@@ -31,7 +33,9 @@ export function createTests(conn: () => Connection) {
       { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testParse(conn(), DataTypeOIDs.lseg, input, output, { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs.lseg, input, output, {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should parse "lseg" array field (text)', async () => {
@@ -47,7 +51,9 @@ export function createTests(conn: () => Connection) {
       { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testParse(conn(), DataTypeOIDs._lseg, input, output, { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs._lseg, input, output, {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "lseg" array field (binary)', async () => {
@@ -63,7 +69,9 @@ export function createTests(conn: () => Connection) {
       { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testParse(conn(), DataTypeOIDs._lseg, input, output, { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs._lseg, input, output, {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should encode "lseg" param', async () => {

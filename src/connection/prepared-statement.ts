@@ -21,7 +21,10 @@ import { Portal } from './portal.js';
 let statementCounter = 0;
 let portalCounter = 0;
 
-export class PreparedStatement extends SafeEventEmitter implements AsyncDisposable {
+export class PreparedStatement
+  extends SafeEventEmitter
+  implements AsyncDisposable
+{
   private readonly _connection: Connection;
   private readonly _sql: string = '';
   private readonly _name: string = '';
@@ -46,7 +49,11 @@ export class PreparedStatement extends SafeEventEmitter implements AsyncDisposab
     const intoCon = getIntlConnection(connection);
     intoCon.assertConnected();
     const socket = intoCon.socket;
-    const statement = new PreparedStatement(connection, sql, options?.paramTypes);
+    const statement = new PreparedStatement(
+      connection,
+      sql,
+      options?.paramTypes,
+    );
     await intoCon.statementQueue
       .enqueue<void>(async () => {
         intoCon.ref();
@@ -109,13 +116,17 @@ export class PreparedStatement extends SafeEventEmitter implements AsyncDisposab
   async execute(options: QueryOptions = {}): Promise<QueryResult> {
     const intlCon = getIntlConnection(this.connection);
 
-    const transactionCommand = this.sql.match(/^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i);
+    const transactionCommand = this.sql.match(
+      /^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i,
+    );
     let beginFirst = false;
     let commitLast = false;
     if (!transactionCommand) {
       if (
         !intlCon.inTransaction &&
-        (options?.autoCommit != null ? options?.autoCommit : intlCon.config.autoCommit) === false
+        (options?.autoCommit != null
+          ? options?.autoCommit
+          : intlCon.config.autoCommit) === false
       ) {
         beginFirst = true;
       }
@@ -129,9 +140,12 @@ export class PreparedStatement extends SafeEventEmitter implements AsyncDisposab
         ? options.rollbackOnError
         : coerceToBoolean(intlCon.config.rollbackOnError, true));
 
-    if (intlCon.inTransaction && rollbackOnError) await intlCon.execute('SAVEPOINT ' + this._onErrorSavePoint);
+    if (intlCon.inTransaction && rollbackOnError)
+      await intlCon.execute('SAVEPOINT ' + this._onErrorSavePoint);
     try {
-      const result = await intlCon.statementQueue.enqueue<QueryResult>(() => this._execute(options)).toPromise();
+      const result = await intlCon.statementQueue
+        .enqueue<QueryResult>(() => this._execute(options))
+        .toPromise();
       if (commitLast) await intlCon.execute('COMMIT');
       else if (intlCon.inTransaction && rollbackOnError) {
         await intlCon.execute('RELEASE ' + this._onErrorSavePoint + ';');
@@ -178,11 +192,21 @@ export class PreparedStatement extends SafeEventEmitter implements AsyncDisposab
 
       if (fields) {
         parsers = getParsers(typeMap, fields);
-        resultFields = wrapRowDescription(typeMap, fields, options.columnFormat || DEFAULT_COLUMN_FORMAT);
+        resultFields = wrapRowDescription(
+          typeMap,
+          fields,
+          options.columnFormat || DEFAULT_COLUMN_FORMAT,
+        );
         result.fields = resultFields;
         result.rowType = options.objectRows ? 'object' : 'array';
         if (options.cursor) {
-          result.cursor = new Cursor(this, portal, resultFields, parsers, options);
+          result.cursor = new Cursor(
+            this,
+            portal,
+            resultFields,
+            parsers,
+            options,
+          );
           this._refCount++;
           portal = undefined;
           return result;
@@ -204,7 +228,11 @@ export class PreparedStatement extends SafeEventEmitter implements AsyncDisposab
           }
         }
       }
-      if (result.command === 'DELETE' || result.command === 'INSERT' || result.command === 'UPDATE') {
+      if (
+        result.command === 'DELETE' ||
+        result.command === 'INSERT' ||
+        result.command === 'UPDATE'
+      ) {
         result.rowsAffected = executeResult.rowCount;
       }
 
@@ -225,21 +253,31 @@ export class PreparedStatement extends SafeEventEmitter implements AsyncDisposab
       const socket = intoCon.socket;
       socket.sendCloseMessage({ type: 'S', name: this.name });
       socket.sendSyncMessage();
-      await socket.capture(async (code: Protocol.BackendMessageCode, msg: any, done: (err?: Error) => void) => {
-        switch (code) {
-          case Protocol.BackendMessageCode.NoticeResponse:
-            this.emit('notice', msg);
-            break;
-          case Protocol.BackendMessageCode.CloseComplete:
-            break;
-          case Protocol.BackendMessageCode.ReadyForQuery:
-            intoCon.transactionStatus = msg.status;
-            done();
-            break;
-          default:
-            done(new Error(`Server returned unexpected response message (0x${code.toString(16)})`));
-        }
-      });
+      await socket.capture(
+        async (
+          code: Protocol.BackendMessageCode,
+          msg: any,
+          done: (err?: Error) => void,
+        ) => {
+          switch (code) {
+            case Protocol.BackendMessageCode.NoticeResponse:
+              this.emit('notice', msg);
+              break;
+            case Protocol.BackendMessageCode.CloseComplete:
+              break;
+            case Protocol.BackendMessageCode.ReadyForQuery:
+              intoCon.transactionStatus = msg.status;
+              done();
+              break;
+            default:
+              done(
+                new Error(
+                  `Server returned unexpected response message (0x${code.toString(16)})`,
+                ),
+              );
+          }
+        },
+      );
     } finally {
       intoCon.unref();
     }

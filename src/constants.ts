@@ -72,7 +72,7 @@ export const DataTypeOIDs = {
   anyarray: 2277,
   void: 2278,
   trigger: 2279,
-  // eslint-disable-next-line camelcase
+
   language_handler: 2280,
   internal: 2281,
   anyelement: 2283,

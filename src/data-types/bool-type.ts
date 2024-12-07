@@ -16,7 +16,15 @@ export const BoolType: DataType = {
   },
 
   parseText(v: string): boolean {
-    return v === 'TRUE' || v === 't' || v === 'true' || v === 'y' || v === 'yes' || v === 'on' || v === '1';
+    return (
+      v === 'TRUE' ||
+      v === 't' ||
+      v === 'true' ||
+      v === 'y' ||
+      v === 'yes' ||
+      v === 'on' ||
+      v === '1'
+    );
   },
 
   isType(v: any): boolean {

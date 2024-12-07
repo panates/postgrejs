@@ -9,19 +9,24 @@ export const JsonType: DataType = {
 
   parseBinary(v: Buffer, options: DataMappingOptions): string {
     const content = v.toString('utf8');
-    const fetchAsString = options.fetchAsString && options.fetchAsString.includes(DataTypeOIDs.jsonb);
+    const fetchAsString =
+      options.fetchAsString &&
+      options.fetchAsString.includes(DataTypeOIDs.jsonb);
     if (fetchAsString) return content;
     return content ? JSON.parse(content) : undefined;
   },
 
   encodeText(v): string {
-    if (typeof v === 'object' || typeof v === 'bigint') return JSON.stringify(v);
+    if (typeof v === 'object' || typeof v === 'bigint')
+      return JSON.stringify(v);
     if (typeof v === 'boolean') return v ? 'true' : 'false';
     return '' + v;
   },
 
   parseText(v: string, options: DataMappingOptions): object | string | null {
-    const fetchAsString = options.fetchAsString && options.fetchAsString.includes(DataTypeOIDs.jsonb);
+    const fetchAsString =
+      options.fetchAsString &&
+      options.fetchAsString.includes(DataTypeOIDs.jsonb);
     if (fetchAsString) return v;
     return v ? JSON.parse(v) : null;
   },

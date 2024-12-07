@@ -8,7 +8,9 @@ export function createTests(conn: () => Connection) {
       { x: -1.2, y: 3.5 },
       { x: 2.1, y: 6.3 },
     ];
-    await testParse(conn(), DataTypeOIDs.point, input, output, { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs.point, input, output, {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "point" field (binary)', async () => {
@@ -17,7 +19,9 @@ export function createTests(conn: () => Connection) {
       { x: -1.2, y: 3.5 },
       { x: 2.1, y: 6.3 },
     ];
-    await testParse(conn(), DataTypeOIDs.point, input, output, { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs.point, input, output, {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should parse "point" array field (text)', async () => {
@@ -26,7 +30,9 @@ export function createTests(conn: () => Connection) {
       { x: -1.2, y: 3.5 },
       { x: 2.1, y: 6.3 },
     ];
-    await testParse(conn(), DataTypeOIDs._point, input, output, { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs._point, input, output, {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "point" array field (binary)', async () => {
@@ -35,7 +41,9 @@ export function createTests(conn: () => Connection) {
       { x: -1.2, y: 3.5 },
       { x: 2.1, y: 6.3 },
     ];
-    await testParse(conn(), DataTypeOIDs._point, input, output, { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs._point, input, output, {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should encode "point" param', async () => {

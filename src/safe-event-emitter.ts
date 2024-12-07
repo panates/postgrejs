@@ -5,7 +5,7 @@ export class SafeEventEmitter extends EventEmitter {
     try {
       if (event === 'error' && !this.listenerCount('error')) return false;
       return super.emit(event, ...args);
-    } catch (ignored) {
+    } catch {
       return false;
     }
   }

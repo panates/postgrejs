@@ -56,7 +56,12 @@ export const ArrayNumericType: DataType = {
  * @param sign the sign of the number
  * @return String the number as String
  */
-export function numberBytesToString(digits: number[], scale: number, weight: number, sign: number): string {
+export function numberBytesToString(
+  digits: number[],
+  scale: number,
+  weight: number,
+  sign: number,
+): string {
   let i: number;
   let d: number;
 
@@ -113,7 +118,11 @@ export function numberBytesToString(digits: number[], scale: number, weight: num
  * @param alwaysPutIt a flag that indicate whether or not to put the digit char even if it is zero
  * @return String the number as String
  */
-function digitToString(idx: number, digits: number[], alwaysPutIt: boolean): string {
+function digitToString(
+  idx: number,
+  digits: number[],
+  alwaysPutIt: boolean,
+): string {
   let out = '';
   let dig = idx >= 0 && idx < digits.length ? digits[idx] : 0;
   // Each dig represents 4 decimal digits (e.g. 9999)

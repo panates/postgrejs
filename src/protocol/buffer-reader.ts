@@ -79,6 +79,7 @@ export class BufferReader {
   }
 
   private _checkReadable(size: number): void {
-    if (this.offset + size - 1 >= this.length) throw new Error('Eof in buffer detected');
+    if (this.offset + size - 1 >= this.length)
+      throw new Error('Eof in buffer detected');
   }
 }

@@ -1,4 +1,3 @@
-/* eslint-disable no-bitwise */
 import crypto from 'crypto';
 
 export namespace SASL {
@@ -26,7 +25,11 @@ export namespace SASL {
     } as Session;
   }
 
-  export function continueSession(session: Session, password: string, data: string) {
+  export function continueSession(
+    session: Session,
+    password: string,
+    data: string,
+  ) {
     const s = data.toString();
     const items = s.split(',');
     let nonce = '';
@@ -47,11 +50,15 @@ export namespace SASL {
           break;
       }
     }
-    if (!nonce) throw new Error('SASL: SCRAM-SERVER-FIRST-MESSAGE: nonce missing');
-    if (!salt) throw new Error('SASL: SCRAM-SERVER-FIRST-MESSAGE: salt missing');
-    if (!iteration) throw new Error('SASL: SCRAM-SERVER-FIRST-MESSAGE: iteration missing');
+    if (!nonce)
+      throw new Error('SASL: SCRAM-SERVER-FIRST-MESSAGE: nonce missing');
+    if (!salt)
+      throw new Error('SASL: SCRAM-SERVER-FIRST-MESSAGE: salt missing');
+    if (!iteration)
+      throw new Error('SASL: SCRAM-SERVER-FIRST-MESSAGE: iteration missing');
 
-    if (!nonce.startsWith(session.nonce)) throw new Error('SASL: Server nonce does not start with client nonce');
+    if (!nonce.startsWith(session.nonce))
+      throw new Error('SASL: Server nonce does not start with client nonce');
 
     const serverFirstMessage = `r=${nonce},s=${salt},i=${iteration}`;
     const clientFinalMessageWithoutProof = `c=${encode64(GS2_HEADER)},r=${nonce}`;
@@ -70,7 +77,8 @@ export namespace SASL {
     const serverKey = hmac(saltPass, SERVER_KEY);
     const serverSignatureBytes = hmac(serverKey, authMessage);
     session.serverSignature = serverSignatureBytes.toString('base64');
-    session.clientFinalMessage = clientFinalMessageWithoutProof + ',p=' + clientProof;
+    session.clientFinalMessage =
+      clientFinalMessageWithoutProof + ',p=' + clientProof;
   }
 
   export function finalizeSession(session: Session, data: string) {
@@ -81,7 +89,8 @@ export namespace SASL {
       if (s[0] === 'v') serverSignature = s.substr(2);
     }
 
-    if (serverSignature !== session.serverSignature) throw new Error('SASL: Server signature does not match');
+    if (serverSignature !== session.serverSignature)
+      throw new Error('SASL: Server signature does not match');
   }
 
   const firstMessageBare = function (username: string, nonce: string): string {
@@ -94,7 +103,13 @@ export namespace SASL {
    * HMAC() == output length of H()
    */
   const hi = function (text: string, salt: string, iterations: number): Buffer {
-    return crypto.pbkdf2Sync(text, Buffer.from(salt, 'base64'), iterations, 32, 'sha256');
+    return crypto.pbkdf2Sync(
+      text,
+      Buffer.from(salt, 'base64'),
+      iterations,
+      32,
+      'sha256',
+    );
   };
 
   const encode64 = (str: string) => Buffer.from(str).toString('base64');
@@ -110,7 +125,8 @@ export namespace SASL {
   const xor = function (a: any, b: any): Buffer {
     a = Buffer.isBuffer(a) ? a : Buffer.from(a);
     b = Buffer.isBuffer(b) ? b : Buffer.from(b);
-    if (a.length !== b.length) throw new Error('Buffers must be of the same length');
+    if (a.length !== b.length)
+      throw new Error('Buffers must be of the same length');
     const l = a.length;
     const out = Buffer.allocUnsafe(l);
     for (let i = 0; i < l; i++) {

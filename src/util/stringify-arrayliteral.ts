@@ -2,7 +2,11 @@ import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { EncodeTextFunction } from '../types.js';
 import { arrayCalculateDim } from './array-calculatedim.js';
 
-export function stringifyArrayLiteral(value: any[], options?: DataMappingOptions, encode?: EncodeTextFunction): string {
+export function stringifyArrayLiteral(
+  value: any[],
+  options?: DataMappingOptions,
+  encode?: EncodeTextFunction,
+): string {
   const dim = arrayCalculateDim(value);
   const writeDim = (arr: any[], level: number) => {
     const elemCount = dim[level];

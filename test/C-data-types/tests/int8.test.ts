@@ -29,11 +29,17 @@ export function createTests(conn: () => Connection) {
         [BigInt('9007199254740997'), BigInt('9007199254740998'), null],
       ],
       [
-        [-BigInt('9007199254740999'), BigInt('9007199254740997'), BigInt('9007199254740995')],
+        [
+          -BigInt('9007199254740999'),
+          BigInt('9007199254740997'),
+          BigInt('9007199254740995'),
+        ],
         [null, BigInt('9007199254740994'), null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._int8, input, input, { columnFormat: DataFormat.text });
+    await testParse(conn(), DataTypeOIDs._int8, input, input, {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "int8" array field (binary)', async () => {
@@ -43,15 +49,24 @@ export function createTests(conn: () => Connection) {
         [BigInt('9007199254740997'), BigInt('9007199254740998'), null],
       ],
       [
-        [-BigInt('9007199254740999'), BigInt('9007199254740997'), BigInt('9007199254740995')],
+        [
+          -BigInt('9007199254740999'),
+          BigInt('9007199254740997'),
+          BigInt('9007199254740995'),
+        ],
         [null, BigInt('9007199254740994'), null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._int8, input, input, { columnFormat: DataFormat.binary });
+    await testParse(conn(), DataTypeOIDs._int8, input, input, {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should encode "int8" param', async () => {
-    await testEncode(conn(), DataTypeOIDs.int8, [-BigInt('9007199254740995'), BigInt('9007199254740996')]);
+    await testEncode(conn(), DataTypeOIDs.int8, [
+      -BigInt('9007199254740995'),
+      BigInt('9007199254740996'),
+    ]);
   });
 
   it('should encode "int8" array param', async () => {
@@ -61,7 +76,11 @@ export function createTests(conn: () => Connection) {
         [BigInt('9007199254740997'), BigInt('9007199254740998'), null],
       ],
       [
-        [-BigInt('9007199254740999'), BigInt('9007199254740997'), BigInt('9007199254740995')],
+        [
+          -BigInt('9007199254740999'),
+          BigInt('9007199254740997'),
+          BigInt('9007199254740995'),
+        ],
         [null, BigInt('9007199254740994'), null],
       ],
     ];
@@ -71,7 +90,11 @@ export function createTests(conn: () => Connection) {
         [BigInt('9007199254740997'), BigInt('9007199254740998'), null],
       ],
       [
-        [-BigInt('9007199254740999'), BigInt('9007199254740997'), BigInt('9007199254740995')],
+        [
+          -BigInt('9007199254740999'),
+          BigInt('9007199254740997'),
+          BigInt('9007199254740995'),
+        ],
         [null, BigInt('9007199254740994'), null],
       ],
     ];

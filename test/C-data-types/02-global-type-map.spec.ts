@@ -12,7 +12,9 @@ describe('GlobalTypeMap', () => {
   });
 
   it('should determine int8 oid from "Number"', async () => {
-    expect(GlobalTypeMap.determine(Number.MAX_SAFE_INTEGER + 1)).toStrictEqual(DataTypeOIDs.int8);
+    expect(GlobalTypeMap.determine(Number.MAX_SAFE_INTEGER + 1)).toStrictEqual(
+      DataTypeOIDs.int8,
+    );
   });
 
   it('should determine int8 oid from "BigInt"', async () => {
@@ -25,35 +27,51 @@ describe('GlobalTypeMap', () => {
   });
 
   it('should determine timestamp oid from "Date"', async () => {
-    expect(GlobalTypeMap.determine(new Date())).toStrictEqual(DataTypeOIDs.timestamp);
+    expect(GlobalTypeMap.determine(new Date())).toStrictEqual(
+      DataTypeOIDs.timestamp,
+    );
   });
 
   it('should determine date oid from "Date"', async () => {
-    expect(GlobalTypeMap.determine(new Date('2020-12-15T00:00:00'))).toStrictEqual(DataTypeOIDs.date);
+    expect(
+      GlobalTypeMap.determine(new Date('2020-12-15T00:00:00')),
+    ).toStrictEqual(DataTypeOIDs.date);
   });
 
   it('should determine time oid from "Date"', async () => {
-    expect(GlobalTypeMap.determine(new Date('1970-01-01T10:30:00'))).toStrictEqual(DataTypeOIDs.time);
+    expect(
+      GlobalTypeMap.determine(new Date('1970-01-01T10:30:00')),
+    ).toStrictEqual(DataTypeOIDs.time);
   });
 
   it('should determine time oid from "String"', async () => {
-    expect(GlobalTypeMap.determine('10:30:00')).toStrictEqual(DataTypeOIDs.time);
+    expect(GlobalTypeMap.determine('10:30:00')).toStrictEqual(
+      DataTypeOIDs.time,
+    );
   });
 
   it('should determine bytea oid from "Buffer"', async () => {
-    expect(GlobalTypeMap.determine(Buffer.from('abc'))).toStrictEqual(DataTypeOIDs.bytea);
+    expect(GlobalTypeMap.determine(Buffer.from('abc'))).toStrictEqual(
+      DataTypeOIDs.bytea,
+    );
   });
 
   it('should determine box oid from "Object"', async () => {
-    expect(GlobalTypeMap.determine({ x1: 1, x2: 2, y1: 1, y2: 2 })).toStrictEqual(DataTypeOIDs.box);
+    expect(
+      GlobalTypeMap.determine({ x1: 1, x2: 2, y1: 1, y2: 2 }),
+    ).toStrictEqual(DataTypeOIDs.box);
   });
 
   it('should determine point oid from "Object"', async () => {
-    expect(GlobalTypeMap.determine({ x: 1, y: 2 })).toStrictEqual(DataTypeOIDs.point);
+    expect(GlobalTypeMap.determine({ x: 1, y: 2 })).toStrictEqual(
+      DataTypeOIDs.point,
+    );
   });
 
   it('should determine circle oid from "Object"', async () => {
-    expect(GlobalTypeMap.determine({ x: 1, y: 2, r: 3 })).toStrictEqual(DataTypeOIDs.circle);
+    expect(GlobalTypeMap.determine({ x: 1, y: 2, r: 3 })).toStrictEqual(
+      DataTypeOIDs.circle,
+    );
   });
 
   it('should determine json oid from "Object"', async () => {
@@ -63,11 +81,15 @@ describe('GlobalTypeMap', () => {
   });
 
   it('should determine uuid oid from UUID formatted string', async () => {
-    expect(GlobalTypeMap.determine('17869c99-1fc0-4cbd-aaf8-2c197052464b')).toStrictEqual(DataTypeOIDs.uuid);
+    expect(
+      GlobalTypeMap.determine('17869c99-1fc0-4cbd-aaf8-2c197052464b'),
+    ).toStrictEqual(DataTypeOIDs.uuid);
   });
 
   it('should determine varchar oid from "String"', async () => {
-    expect(GlobalTypeMap.determine('hello world')).toStrictEqual(DataTypeOIDs.varchar);
+    expect(GlobalTypeMap.determine('hello world')).toStrictEqual(
+      DataTypeOIDs.varchar,
+    );
   });
 
   it('should determine char oid from "String"', async () => {

@@ -2,7 +2,8 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
-const GUID_PATTERN = /^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$/;
+const GUID_PATTERN =
+  /^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$/;
 
 export const UuidType: DataType = {
   name: 'uuid',
@@ -24,7 +25,8 @@ export const UuidType: DataType = {
   },
 
   encodeBinary(buf: SmartBuffer, v: string): void {
-    if (!GUID_PATTERN.test(v)) throw new Error(`"${v}" is not a valid guid value`);
+    if (!GUID_PATTERN.test(v))
+      throw new Error(`"${v}" is not a valid guid value`);
     const b = Buffer.from(v.replace(/-/g, ''), 'hex');
     buf.writeBuffer(b);
   },

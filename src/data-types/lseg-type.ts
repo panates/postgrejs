@@ -3,10 +3,14 @@ import type { DataType, Rectangle } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import type { Maybe } from '../types.js';
 
-const LSEG_PATTERN1 = /^\[ *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *]$/;
-const LSEG_PATTERN2 = /^\( *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *\)$/;
-const LSEG_PATTERN3 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\)$/;
-const LSEG_PATTERN4 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
+const LSEG_PATTERN1 =
+  /^\[ *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *]$/;
+const LSEG_PATTERN2 =
+  /^\( *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *\)$/;
+const LSEG_PATTERN3 =
+  /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\)$/;
+const LSEG_PATTERN4 =
+  /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 
 export const LsegType: DataType = {
   name: 'lseg',
@@ -30,7 +34,11 @@ export const LsegType: DataType = {
   },
 
   parseText(v: string): Maybe<Rectangle> {
-    const m = v.match(LSEG_PATTERN1) || v.match(LSEG_PATTERN2) || v.match(LSEG_PATTERN3) || v.match(LSEG_PATTERN4);
+    const m =
+      v.match(LSEG_PATTERN1) ||
+      v.match(LSEG_PATTERN2) ||
+      v.match(LSEG_PATTERN3) ||
+      v.match(LSEG_PATTERN4);
     if (!m) return undefined;
     return {
       x1: parseFloat(m[1]),
