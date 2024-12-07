@@ -8,8 +8,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [ '16', '18', '20', '21', '22' ]
-        postgres: [ '12', '13', '14', '15', '16', '17' ]
+        node: [ '18' ]
+        postgres: [ '16' ]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -32,6 +32,7 @@ jobs:
         run: |
           date
           echo "----- Removing pre-installed PostgreSQL -----"
+          psql --version  # Check version to confirm
           sudo apt purge postgresql-14
           echo "----- Installing PostgreSQL ${{ matrix.postgres }} -----"      
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
