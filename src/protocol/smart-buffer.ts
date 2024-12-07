@@ -24,13 +24,7 @@ export class SmartBuffer extends BufferReader {
   readonly maxSize: number;
 
   constructor(cfg?: SmartBufferConfig) {
-    // @ts-ignore
-    super(
-      Buffer.allocUnsafe(
-        (cfg?.pageSize ? parseInt(cfg.pageSize, 10) : 0) ||
-          SmartBuffer.DEFAULT_PAGE_SIZE,
-      ),
-    );
+    super(Buffer.allocUnsafe(cfg?.pageSize || SmartBuffer.DEFAULT_PAGE_SIZE));
     this._houseKeepInterval = cfg?.houseKeepInterval || 5000;
     this.pageSize = this.buffer.length;
     this.maxSize = cfg?.maxLength || SmartBuffer.DEFAULT_MAX_SIZE;
