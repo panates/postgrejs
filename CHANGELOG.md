@@ -1,3 +1,16 @@
+# v2.22.3
+[2025-01-21]
+
+### Changes
+
+* dev: Moved to ESLing 9 ([`ce0306a`](https://github.com/panates/postgrejs/commit/ce0306a0ed7dd08ed60c6c05d120c1c7132d3d01))
+* refactor: Updated dependencies ([`8a1eafc`](https://github.com/panates/postgrejs/commit/8a1eafcffae0249a7a4a04330f4d49326c94752b))
+* refactor: Fixed typescript check ([`8e2b843`](https://github.com/panates/postgrejs/commit/8e2b843a1fcd3f871c1103d20ab2672a53ecfef6))
+* ci: Fix purge pg error ([`0c69a55`](https://github.com/panates/postgrejs/commit/0c69a55be31c96a03fb1f2550cc9c7b31a0b02b3))
+* ci: Fix purge pg error ([`bd2ce09`](https://github.com/panates/postgrejs/commit/bd2ce09f50e044e8affc6f0510be38b711f6fc4f))
+* ci: Fix purge pg error ([`e6d8828`](https://github.com/panates/postgrejs/commit/e6d88283d0250141717b3f6587cb7c518ea188fc))
+* ci: Fix purge pg error ([`f1121f3`](https://github.com/panates/postgrejs/commit/f1121f3fd346617e81e1cec0a5592bb3b8643556))
+
 # v2.22.2
 [2024-11-04]
 
