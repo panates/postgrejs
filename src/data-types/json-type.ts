@@ -7,7 +7,7 @@ export const JsonType: DataType = {
   oid: DataTypeOIDs.json,
   jsType: 'string',
 
-  parseBinary(v: Buffer, options: DataMappingOptions): string {
+  parseBinary(v: Buffer, options: DataMappingOptions): string | object | null | undefined {
     const content = v.toString('utf8');
     const fetchAsString =
       options.fetchAsString &&
