@@ -1,7 +1,9 @@
-/* eslint-disable import-x/extensions */
-// noinspection GrazieInspection
-import './env';
-import { Client } from 'pg';
+import './env.js';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+import pg from 'pg';
 
 const schema = process.env.PGSCHEMA || 'test';
 
@@ -90,17 +92,8 @@ values
     );
 `;
 
-const dataFiles: any[] = [
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require('./test-data/continents.json'),
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require('./test-data/countries.json'),
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require('./test-data/customers.json'),
-];
-
 export async function createTestSchema() {
-  const client = new Client({
+  const client = new pg.Client({
     user: process.env.PGUSER || 'postgres',
     password: process.env.PGPASSWORD || 'postgres',
     host: process.env.PGHOST,
@@ -110,6 +103,20 @@ export async function createTestSchema() {
 
   await client.connect();
   await client.query(schemaSql);
+
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+  const dataFiles: any[] = [
+    JSON.parse(
+      fs.readFileSync(__dirname + '/test-data/continents.json', 'utf8'),
+    ),
+    JSON.parse(
+      fs.readFileSync(__dirname + '/test-data/countries.json', 'utf8'),
+    ),
+    JSON.parse(
+      fs.readFileSync(__dirname + '/test-data/customers.json', 'utf8'),
+    ),
+  ];
 
   /* Create tables */
   for (const table of dataFiles) {
@@ -129,4 +136,8 @@ export async function createTestSchema() {
     }
   }
   await client.end();
+}
+
+export async function mochaGlobalSetup() {
+  await createTestSchema();
 }

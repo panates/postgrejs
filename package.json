@@ -57,7 +57,7 @@
     "check": "madge --circular src/**",
     "test": "mocha",
     "precitest": "rimraf coverage",
-    "citest": "nyc mocha",
+    "citest": "c8 mocha",
     "qc": "npm run lint && npm run check",
     "version": "auto-changelog -p && git add CHANGELOG.md",
     "prepare": "husky"
