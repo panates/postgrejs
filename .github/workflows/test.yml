@@ -11,6 +11,14 @@ on:
   push:
     branches:
       - dev
+    paths:
+      - src/**/*.*
+      - package.json
+      - test/**/*.*
+      - support/**/*.*
+      - .mocharc.cjs
+      - .c8rc.json
+      - tsconfig*.json
 
 # Only one run per branch at a time
 concurrency:
