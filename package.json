@@ -114,5 +114,8 @@
     "typescript",
     "ts",
     "esm"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }
