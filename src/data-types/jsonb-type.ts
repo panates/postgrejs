@@ -8,7 +8,10 @@ export const JsonbType: DataType = {
   oid: DataTypeOIDs.jsonb,
   jsType: 'string',
 
-  parseBinary(v: Buffer, options: DataMappingOptions): object | string | null | undefined {
+  parseBinary(
+    v: Buffer,
+    options: DataMappingOptions,
+  ): object | string | null | undefined {
     const buf = new BufferReader(v);
     if (buf.readUInt8() !== 1)
       throw new Error('Unexpected Jsonb version value in header');
