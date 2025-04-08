@@ -1,0 +1,21 @@
+name: Quality Check
+on:
+  # Can be run manually
+  workflow_dispatch:
+
+  # on pull request
+  push:
+    branches-ignore:
+      - main
+      - dev
+
+# Only one run per branch at a time
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qc:
+    uses: panates/github-actions/.github/workflows/node-qc.yaml@v1
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}

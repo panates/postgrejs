@@ -1,0 +1,72 @@
+name: Release
+on:
+  # Can be run manually
+  workflow_dispatch:
+    inputs:
+      skip-tests:
+        description: Skip test
+        type: boolean
+        default: false
+
+  # on git push
+  push:
+    branches:
+      - main
+    paths:
+      - './package.json'
+
+# Only one run at a time
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    if: >
+      !contains(github.event.head_commit.message, 'no-release') &&
+      (
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.skip-tests != 'true') ||
+        (
+          github.event_name == 'push' &&
+          !(
+            contains(github.event.head_commit.message, 'no-test') ||
+            ( 
+              startsWith(github.event.head_commit.message, 'Merge pull request') &&
+              contains(github.event.head_commit.message, '/dev')
+            )
+          )
+        )
+      )
+    uses: ./.github/workflows/test.yml
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+
+  release_after_test:
+    # Wait for "test" job
+    needs: test
+    uses: panates/github-actions/.github/workflows/node-release.yaml@v1
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  release:
+    if: >
+      !contains(github.event.head_commit.message, 'no-release') &&
+      !(
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.skip-tests != 'true') ||
+        (
+          github.event_name == 'push' &&
+          !(
+            contains(github.event.head_commit.message, 'no-test') ||
+            ( 
+              startsWith(github.event.head_commit.message, 'Merge pull request') &&
+              contains(github.event.head_commit.message, '/dev')
+            )
+          )
+        )
+      )
+    uses: panates/github-actions/.github/workflows/node-release.yaml@v1
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
