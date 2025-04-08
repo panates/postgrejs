@@ -1,3 +1,4 @@
+import { expect } from 'expect';
 import { parsePostgresArray } from '../../src/util/parse-array.js';
 
 describe('Parse PostgreSQL arrays', () => {

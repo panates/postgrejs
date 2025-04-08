@@ -1,10 +1,14 @@
 import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
-export function createTests(conn: () => Connection) {
+describe('DataType: int8', () => {
+  const conn = new Connection();
+  before(() => conn.connect());
+  after(() => conn.close(0));
+
   it('should parse "int8" field (text)', async () => {
     await testParse(
-      conn(),
+      conn,
       DataTypeOIDs.int8,
       ['9007199254740995', '-9007199254740996'],
       [BigInt('9007199254740995'), -BigInt('9007199254740996')],
@@ -14,7 +18,7 @@ export function createTests(conn: () => Connection) {
 
   it('should parse "int8" field (binary)', async () => {
     await testParse(
-      conn(),
+      conn,
       DataTypeOIDs.int8,
       ['9007199254740995', '-9007199254740995'],
       [BigInt('9007199254740995'), -BigInt('9007199254740995')],
@@ -37,7 +41,7 @@ export function createTests(conn: () => Connection) {
         [null, BigInt('9007199254740994'), null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._int8, input, input, {
+    await testParse(conn, DataTypeOIDs._int8, input, input, {
       columnFormat: DataFormat.text,
     });
   });
@@ -57,13 +61,13 @@ export function createTests(conn: () => Connection) {
         [null, BigInt('9007199254740994'), null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._int8, input, input, {
+    await testParse(conn, DataTypeOIDs._int8, input, input, {
       columnFormat: DataFormat.binary,
     });
   });
 
   it('should encode "int8" param', async () => {
-    await testEncode(conn(), DataTypeOIDs.int8, [
+    await testEncode(conn, DataTypeOIDs.int8, [
       -BigInt('9007199254740995'),
       BigInt('9007199254740996'),
     ]);
@@ -98,6 +102,6 @@ export function createTests(conn: () => Connection) {
         [null, BigInt('9007199254740994'), null],
       ],
     ];
-    await testEncode(conn(), DataTypeOIDs._int8, input, output);
+    await testEncode(conn, DataTypeOIDs._int8, input, output);
   });
-}
+});

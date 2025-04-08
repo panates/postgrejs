@@ -4,13 +4,13 @@ describe('notification', () => {
   let connection: Connection;
   let pool: Pool;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     pool = new Pool();
     connection = new Connection();
     await connection.connect();
   });
 
-  afterAll(async () => {
+  afterEach(async () => {
     await connection.close(0);
     await pool.close(0);
   });
@@ -18,7 +18,7 @@ describe('notification', () => {
   describe('notification with Connection class', () => {
     it("should emit 'notification' event emitter", done => {
       connection.once('notification', () => {
-        done();
+        setTimeout(done, 100);
       });
       connection
         .query('LISTEN event1')
@@ -29,9 +29,13 @@ describe('notification', () => {
     });
 
     it("should listen events using 'listen' feature", done => {
-      connection
-        .listen('event1', () => done())
-        .then(() => connection.query(`NOTIFY event1`))
+      Promise.resolve()
+        .then(async () => {
+          await connection.listen('event1', () => {
+            setTimeout(done, 100);
+          });
+          await connection.query(`NOTIFY event1`).catch(done);
+        })
         .catch(done);
     });
 
@@ -56,7 +60,11 @@ describe('notification', () => {
   describe('notification with Pool', () => {
     it('should create new connection and listen for events', done => {
       pool
-        .listen('event1', () => pool.unListenAll().then(done))
+        .listen('event1', () =>
+          pool.unListenAll().then(() => {
+            setTimeout(done, 100);
+          }),
+        )
         .then(() => connection.query(`NOTIFY event1`))
         .catch(done);
     });

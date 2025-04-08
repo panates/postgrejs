@@ -1,7 +1,11 @@
 import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
-export function createTests(conn: () => Connection) {
+describe('DataType: timestamptz', () => {
+  const conn = new Connection();
+  before(() => conn.connect());
+  after(() => conn.close(0));
+
   it('should parse "timestamptz" field (text)', async () => {
     const input = [
       '2020-10-22T23:45:00Z',
@@ -17,7 +21,7 @@ export function createTests(conn: () => Connection) {
       Infinity,
       -Infinity,
     ];
-    await testParse(conn(), DataTypeOIDs.timestamptz, input, output, {
+    await testParse(conn, DataTypeOIDs.timestamptz, input, output, {
       columnFormat: DataFormat.text,
     });
   });
@@ -38,7 +42,7 @@ export function createTests(conn: () => Connection) {
       -Infinity,
     ];
     await testParse(
-      conn(),
+      conn,
       DataTypeOIDs.timestamptz,
       input,
       output,
@@ -63,7 +67,7 @@ export function createTests(conn: () => Connection) {
       '-infinity',
     ];
     await testParse(
-      conn(),
+      conn,
       DataTypeOIDs.timestamptz,
       input,
       output,
@@ -87,7 +91,7 @@ export function createTests(conn: () => Connection) {
       Infinity,
       -Infinity,
     ];
-    await testParse(conn(), DataTypeOIDs.timestamptz, input, output, {
+    await testParse(conn, DataTypeOIDs.timestamptz, input, output, {
       columnFormat: DataFormat.binary,
     });
   });
@@ -108,7 +112,7 @@ export function createTests(conn: () => Connection) {
       '-infinity',
     ];
     await testParse(
-      conn(),
+      conn,
       DataTypeOIDs.timestamptz,
       input,
       output,
@@ -133,7 +137,7 @@ export function createTests(conn: () => Connection) {
       -Infinity,
     ];
     await testParse(
-      conn(),
+      conn,
       DataTypeOIDs.timestamptz,
       input,
       output,
@@ -157,7 +161,7 @@ export function createTests(conn: () => Connection) {
       Infinity,
       -Infinity,
     ];
-    await testParse(conn(), DataTypeOIDs._timestamptz, input, output, {
+    await testParse(conn, DataTypeOIDs._timestamptz, input, output, {
       columnFormat: DataFormat.text,
     });
   });
@@ -177,7 +181,7 @@ export function createTests(conn: () => Connection) {
       Infinity,
       -Infinity,
     ];
-    await testParse(conn(), DataTypeOIDs._timestamptz, input, output, {
+    await testParse(conn, DataTypeOIDs._timestamptz, input, output, {
       columnFormat: DataFormat.binary,
     });
   });
@@ -190,7 +194,7 @@ export function createTests(conn: () => Connection) {
       Infinity,
       -Infinity,
     ];
-    await testEncode(conn(), DataTypeOIDs.timestamptz, input);
+    await testEncode(conn, DataTypeOIDs.timestamptz, input);
   });
 
   it('should encode "timestamptz" param (utcDates)', async () => {
@@ -201,7 +205,7 @@ export function createTests(conn: () => Connection) {
       Infinity,
       -Infinity,
     ];
-    await testEncode(conn(), DataTypeOIDs.timestamptz, input, undefined, {
+    await testEncode(conn, DataTypeOIDs.timestamptz, input, undefined, {
       utcDates: true,
     });
   });
@@ -214,6 +218,6 @@ export function createTests(conn: () => Connection) {
       Infinity,
       -Infinity,
     ];
-    await testEncode(conn(), DataTypeOIDs._timestamptz, input);
+    await testEncode(conn, DataTypeOIDs._timestamptz, input);
   });
-}
+});

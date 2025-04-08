@@ -1,20 +1,24 @@
 import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
-export function createTests(conn: () => Connection) {
-  it('should parse "int2" field (text)', async () => {
-    await testParse(conn(), DataTypeOIDs.int2, ['1', '-2'], [1, -2], {
+describe('DataType: int4', () => {
+  const conn = new Connection();
+  before(() => conn.connect());
+  after(() => conn.close(0));
+
+  it('should parse "int4" field (text)', async () => {
+    await testParse(conn, DataTypeOIDs.int4, ['1', '-2'], [1, -2], {
       columnFormat: DataFormat.text,
     });
   });
 
-  it('should parse "int2" field (binary)', async () => {
-    await testParse(conn(), DataTypeOIDs.int2, ['1', '-2'], [1, -2], {
+  it('should parse "int4" field (binary)', async () => {
+    await testParse(conn, DataTypeOIDs.int4, ['1', '-2'], [1, -2], {
       columnFormat: DataFormat.binary,
     });
   });
 
-  it('should parse "int2" array field (text)', async () => {
+  it('should parse "int4" array field (text)', async () => {
     const input = [
       [
         [-1, 5, null],
@@ -25,12 +29,12 @@ export function createTests(conn: () => Connection) {
         [null, 2, null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._int2, input, input, {
+    await testParse(conn, DataTypeOIDs._int4, input, input, {
       columnFormat: DataFormat.text,
     });
   });
 
-  it('should parse "int2" array field (binary)', async () => {
+  it('should parse "int4" array field (binary)', async () => {
     const input = [
       [
         [-1, 5, null],
@@ -41,16 +45,16 @@ export function createTests(conn: () => Connection) {
         [null, 2, null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._int2, input, input, {
+    await testParse(conn, DataTypeOIDs._int4, input, input, {
       columnFormat: DataFormat.binary,
     });
   });
 
-  it('should encode "int2" param', async () => {
-    await testEncode(conn(), DataTypeOIDs.int2, [-1, 5]);
+  it('should encode "int4" param', async () => {
+    await testEncode(conn, DataTypeOIDs.int4, [-1, 5]);
   });
 
-  it('should encode "int2" array param', async () => {
+  it('should encode "int4" array param', async () => {
     const input = [
       [
         [-1, 5],
@@ -71,6 +75,6 @@ export function createTests(conn: () => Connection) {
         [null, 2, null],
       ],
     ];
-    await testEncode(conn(), DataTypeOIDs._int2, input, output);
+    await testEncode(conn, DataTypeOIDs._int4, input, output);
   });
-}
+});

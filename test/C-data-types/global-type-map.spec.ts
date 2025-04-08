@@ -1,3 +1,4 @@
+import { expect } from 'expect';
 import { DataTypeOIDs, GlobalTypeMap } from 'postgrejs';
 
 describe('GlobalTypeMap', () => {

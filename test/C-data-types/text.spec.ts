@@ -1,22 +1,26 @@
 import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
-export function createTests(conn: () => Connection) {
-  it('should parse "bpchar" field (text)', async () => {
+describe('DataType: text', () => {
+  const conn = new Connection();
+  before(() => conn.connect());
+  after(() => conn.close(0));
+
+  it('should parse "text" field (text)', async () => {
     const input = ['abc', 'bcd'];
-    await testParse(conn(), DataTypeOIDs.bpchar, input, input, {
+    await testParse(conn, DataTypeOIDs.text, input, input, {
       columnFormat: DataFormat.text,
     });
   });
 
-  it('should parse "bpchar" field (binary)', async () => {
+  it('should parse "text" field (binary)', async () => {
     const input = ['abc', 'bcd'];
-    await testParse(conn(), DataTypeOIDs.bpchar, input, input, {
+    await testParse(conn, DataTypeOIDs.text, input, input, {
       columnFormat: DataFormat.binary,
     });
   });
 
-  it('should parse "bpchar" array field (text)', async () => {
+  it('should parse "text" array field (text)', async () => {
     const input = [
       [
         ['a', 'b', null],
@@ -27,12 +31,12 @@ export function createTests(conn: () => Connection) {
         [null, 'h', null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._bpchar, input, input, {
+    await testParse(conn, DataTypeOIDs._text, input, input, {
       columnFormat: DataFormat.text,
     });
   });
 
-  it('should parse "bpchar" array field (binary)', async () => {
+  it('should parse "text" array field (binary)', async () => {
     const input = [
       [
         ['a', 'b', null],
@@ -43,16 +47,17 @@ export function createTests(conn: () => Connection) {
         [null, 'h', null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._bpchar, input, input, {
+    await testParse(conn, DataTypeOIDs._text, input, input, {
       columnFormat: DataFormat.binary,
     });
   });
 
-  it('should encode "bpchar" param', async () => {
-    await testEncode(conn(), DataTypeOIDs.bpchar, ['abc', 'bcd']);
+  it('should encode "text" param', async () => {
+    const input = ['abc', 'bcd'];
+    await testEncode(conn, DataTypeOIDs.text, input, input);
   });
 
-  it('should encode "bpchar" array param', async () => {
+  it('should encode "text" array param', async () => {
     const input = [
       [
         ['a', 'b', null],
@@ -63,6 +68,6 @@ export function createTests(conn: () => Connection) {
         [null, 'h', null],
       ],
     ];
-    await testEncode(conn(), DataTypeOIDs._bpchar, input);
+    await testEncode(conn, DataTypeOIDs._text, input, input);
   });
-}
+});

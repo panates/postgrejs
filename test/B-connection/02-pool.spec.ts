@@ -1,13 +1,14 @@
+import { expect } from 'expect';
 import { DataTypeOIDs, Pool } from 'postgrejs';
 
 describe('Pool', () => {
   let pool: Pool;
 
-  beforeAll(async () => {
+  before(async () => {
     pool = new Pool();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await pool.close(0);
   });
 

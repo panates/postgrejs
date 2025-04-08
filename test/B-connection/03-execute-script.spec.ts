@@ -1,14 +1,15 @@
+import { expect } from 'expect';
 import { Connection } from 'postgrejs';
 
 describe('execute() (Simple Query)', () => {
   let connection: Connection;
 
-  beforeAll(async () => {
+  before(async () => {
     connection = new Connection();
     await connection.connect();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await connection.close(0);
   });
 

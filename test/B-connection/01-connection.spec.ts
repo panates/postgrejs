@@ -1,4 +1,5 @@
 import * as process from 'node:process';
+import { expect } from 'expect';
 import { Connection, ConnectionState } from 'postgrejs';
 
 describe('Connection', () => {

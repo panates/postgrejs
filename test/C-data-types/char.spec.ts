@@ -1,15 +1,19 @@
 import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
-export function createTests(conn: () => Connection) {
+describe('DataType: char', () => {
+  const conn = new Connection();
+  before(() => conn.connect());
+  after(() => conn.close(0));
+
   it('should parse "char" field (text)', async () => {
-    await testParse(conn(), DataTypeOIDs.char, ['abc', 'bcd'], ['a', 'b'], {
+    await testParse(conn, DataTypeOIDs.char, ['abc', 'bcd'], ['a', 'b'], {
       columnFormat: DataFormat.text,
     });
   });
 
   it('should parse "char" field (binary)', async () => {
-    await testParse(conn(), DataTypeOIDs.char, ['abc', 'bcd'], ['a', 'b'], {
+    await testParse(conn, DataTypeOIDs.char, ['abc', 'bcd'], ['a', 'b'], {
       columnFormat: DataFormat.binary,
     });
   });
@@ -35,7 +39,7 @@ export function createTests(conn: () => Connection) {
         [null, 'h', null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._char, input, output, {
+    await testParse(conn, DataTypeOIDs._char, input, output, {
       columnFormat: DataFormat.text,
     });
   });
@@ -61,13 +65,13 @@ export function createTests(conn: () => Connection) {
         [null, 'h', null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._char, input, output, {
+    await testParse(conn, DataTypeOIDs._char, input, output, {
       columnFormat: DataFormat.binary,
     });
   });
 
   it('should encode "char" param', async () => {
-    await testEncode(conn(), DataTypeOIDs.char, ['abc', 'bcd'], ['a', 'b']);
+    await testEncode(conn, DataTypeOIDs.char, ['abc', 'bcd'], ['a', 'b']);
   });
 
   it('should encode "char" array param', async () => {
@@ -91,6 +95,6 @@ export function createTests(conn: () => Connection) {
         [null, 'h', null],
       ],
     ];
-    await testEncode(conn(), DataTypeOIDs._char, input, output);
+    await testEncode(conn, DataTypeOIDs._char, input, output);
   });
-}
+});

@@ -3,24 +3,28 @@ import { testEncode, testParse } from './_testers.js';
 
 const toStringArray = arr => arr.map(o => (o ? JSON.stringify(o) : null));
 
-export function createTests(conn: () => Connection) {
-  it('should parse "json" field (text)', async () => {
+describe('DataType: jsonb', () => {
+  const conn = new Connection();
+  before(() => conn.connect());
+  after(() => conn.close(0));
+
+  it('should parse "jsonb" field (text)', async () => {
     const output = [{ a: 1 }, { a: 2 }];
     const input = toStringArray(output);
-    await testParse(conn(), DataTypeOIDs.json, input, output, {
+    await testParse(conn, DataTypeOIDs.jsonb, input, output, {
       columnFormat: DataFormat.text,
     });
   });
 
-  it('should parse "json" field (binary)', async () => {
+  it('should parse "jsonb" field (binary)', async () => {
     const output = [{ a: 1 }, { a: 2 }];
     const input = toStringArray(output);
-    await testParse(conn(), DataTypeOIDs.json, input, output, {
+    await testParse(conn, DataTypeOIDs.jsonb, input, output, {
       columnFormat: DataFormat.binary,
     });
   });
 
-  it('should parse "json" array field (text)', async () => {
+  it('should parse "jsonb" array field (text)', async () => {
     const output = [
       [
         [{ a: 1 }, { a: 2 }, null],
@@ -32,12 +36,12 @@ export function createTests(conn: () => Connection) {
       ],
     ];
     const input = toStringArray(output);
-    await testParse(conn(), DataTypeOIDs._json, input, output, {
+    await testParse(conn, DataTypeOIDs._json, input, output, {
       columnFormat: DataFormat.text,
     });
   });
 
-  it('should parse "json" array field (binary)', async () => {
+  it('should parse "jsonb" array field (binary)', async () => {
     const output = [
       [
         [{ a: 1 }, { a: 2 }, null],
@@ -49,17 +53,17 @@ export function createTests(conn: () => Connection) {
       ],
     ];
     const input = toStringArray(output);
-    await testParse(conn(), DataTypeOIDs._json, input, output, {
+    await testParse(conn, DataTypeOIDs._json, input, output, {
       columnFormat: DataFormat.binary,
     });
   });
 
-  it('should encode "json" param', async () => {
+  it('should encode "jsonb" param', async () => {
     const input = [{ a: 1 }, { a: 2 }];
-    await testEncode(conn(), DataTypeOIDs.json, input, input);
+    await testEncode(conn, DataTypeOIDs.jsonb, input, input);
   });
 
-  it('should encode "json" array param', async () => {
+  it('should encode "jsonb" array param', async () => {
     const input = [
       [
         [{ a: 1 }, { a: 2 }],
@@ -80,6 +84,6 @@ export function createTests(conn: () => Connection) {
         [null, { a: 8 }, null],
       ],
     ];
-    await testEncode(conn(), DataTypeOIDs._json, input, output);
+    await testEncode(conn, DataTypeOIDs._json, input, output);
   });
-}
+});

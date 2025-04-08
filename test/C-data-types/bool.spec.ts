@@ -1,25 +1,21 @@
 import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
-export function createTests(conn: () => Connection) {
+describe('DataType: bool', () => {
+  const conn = new Connection();
+  before(() => conn.connect());
+  after(() => conn.close(0));
+
   it('should parse "bool" field (text)', async () => {
-    await testParse(
-      conn(),
-      DataTypeOIDs.bool,
-      ['true', 'false'],
-      [true, false],
-      { columnFormat: DataFormat.text },
-    );
+    await testParse(conn, DataTypeOIDs.bool, ['true', 'false'], [true, false], {
+      columnFormat: DataFormat.text,
+    });
   });
 
   it('should parse "bool" field (binary)', async () => {
-    await testParse(
-      conn(),
-      DataTypeOIDs.bool,
-      ['true', 'false'],
-      [true, false],
-      { columnFormat: DataFormat.binary },
-    );
+    await testParse(conn, DataTypeOIDs.bool, ['true', 'false'], [true, false], {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should parse "bool" array field (text)', async () => {
@@ -33,7 +29,7 @@ export function createTests(conn: () => Connection) {
         [null, false, null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._bool, input, input, {
+    await testParse(conn, DataTypeOIDs._bool, input, input, {
       columnFormat: DataFormat.text,
     });
   });
@@ -49,14 +45,14 @@ export function createTests(conn: () => Connection) {
         [null, false, null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._bool, arr, arr, {
+    await testParse(conn, DataTypeOIDs._bool, arr, arr, {
       columnFormat: DataFormat.binary,
     });
   });
 
   it('should encode "bool" param', async () => {
     const input = [true, false];
-    await testEncode(conn(), DataTypeOIDs.bool, input, input);
+    await testEncode(conn, DataTypeOIDs.bool, input, input);
   });
 
   it('should encode "bool" array param', async () => {
@@ -77,6 +73,6 @@ export function createTests(conn: () => Connection) {
         [null, false, null],
       ],
     ];
-    await testEncode(conn(), DataTypeOIDs._bool, input, output);
+    await testEncode(conn, DataTypeOIDs._bool, input, output);
   });
-}
+});

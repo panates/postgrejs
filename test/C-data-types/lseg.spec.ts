@@ -1,7 +1,11 @@
 import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
-export function createTests(conn: () => Connection) {
+describe('DataType: lseg', () => {
+  const conn = new Connection();
+  before(() => conn.connect());
+  after(() => conn.close(0));
+
   it('should parse "lseg" field (text)', async () => {
     const input = [
       '[(1.2, 3.5), (4.6, 5.2)]',
@@ -15,7 +19,7 @@ export function createTests(conn: () => Connection) {
       { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testParse(conn(), DataTypeOIDs.lseg, input, output, {
+    await testParse(conn, DataTypeOIDs.lseg, input, output, {
       columnFormat: DataFormat.text,
     });
   });
@@ -33,7 +37,7 @@ export function createTests(conn: () => Connection) {
       { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testParse(conn(), DataTypeOIDs.lseg, input, output, {
+    await testParse(conn, DataTypeOIDs.lseg, input, output, {
       columnFormat: DataFormat.binary,
     });
   });
@@ -51,7 +55,7 @@ export function createTests(conn: () => Connection) {
       { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testParse(conn(), DataTypeOIDs._lseg, input, output, {
+    await testParse(conn, DataTypeOIDs._lseg, input, output, {
       columnFormat: DataFormat.text,
     });
   });
@@ -69,7 +73,7 @@ export function createTests(conn: () => Connection) {
       { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testParse(conn(), DataTypeOIDs._lseg, input, output, {
+    await testParse(conn, DataTypeOIDs._lseg, input, output, {
       columnFormat: DataFormat.binary,
     });
   });
@@ -81,7 +85,7 @@ export function createTests(conn: () => Connection) {
       { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testEncode(conn(), DataTypeOIDs.lseg, input, input);
+    await testEncode(conn, DataTypeOIDs.lseg, input, input);
   });
 
   it('should encode "lseg" array param', async () => {
@@ -91,6 +95,6 @@ export function createTests(conn: () => Connection) {
       { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testEncode(conn(), DataTypeOIDs._lseg, input);
+    await testEncode(conn, DataTypeOIDs._lseg, input);
   });
-}
+});

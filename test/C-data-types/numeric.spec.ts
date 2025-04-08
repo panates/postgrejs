@@ -1,10 +1,14 @@
 import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
-export function createTests(conn: () => Connection) {
+describe('DataType: numeric', () => {
+  const conn = new Connection();
+  before(() => conn.connect());
+  after(() => conn.close(0));
+
   it('should parse "numeric" field (text)', async () => {
     await testParse(
-      conn(),
+      conn,
       DataTypeOIDs.numeric,
       ['321.2345', '-1232.567'],
       [321.2345, -1232.567],
@@ -16,7 +20,7 @@ export function createTests(conn: () => Connection) {
 
   it('should parse "numeric" field (binary)', async () => {
     await testParse(
-      conn(),
+      conn,
       DataTypeOIDs.numeric,
       ['12345.123456789', '-1232.567'],
       [12345.123456789, -1232.567],
@@ -37,7 +41,7 @@ export function createTests(conn: () => Connection) {
         [null, 6.5, null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._numeric, input, input, {
+    await testParse(conn, DataTypeOIDs._numeric, input, input, {
       columnFormat: DataFormat.text,
     });
   });
@@ -53,13 +57,13 @@ export function createTests(conn: () => Connection) {
         [null, 2.5, null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._numeric, input, input, {
+    await testParse(conn, DataTypeOIDs._numeric, input, input, {
       columnFormat: DataFormat.binary,
     });
   });
 
   it('should encode "numeric" param', async () => {
-    await testEncode(conn(), DataTypeOIDs.numeric, [-1.2345, 1232.567]);
+    await testEncode(conn, DataTypeOIDs.numeric, [-1.2345, 1232.567]);
   });
 
   it('should encode "numeric" array param', async () => {
@@ -83,6 +87,6 @@ export function createTests(conn: () => Connection) {
         [null, 2.53, null],
       ],
     ];
-    await testEncode(conn(), DataTypeOIDs._numeric, input, output);
+    await testEncode(conn, DataTypeOIDs._numeric, input, output);
   });
-}
+});

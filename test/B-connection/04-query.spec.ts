@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { expect } from 'expect';
 import { Connection, Cursor } from 'postgrejs';
 
 (BigInt.prototype as any).toJSON = function () {
@@ -8,12 +9,12 @@ import { Connection, Cursor } from 'postgrejs';
 describe('query() (Extended Query)', () => {
   let connection: Connection;
 
-  beforeAll(async () => {
+  before(async () => {
     connection = new Connection();
     await connection.connect();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await connection.close();
   });
 

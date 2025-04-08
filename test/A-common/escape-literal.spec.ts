@@ -1,3 +1,4 @@
+import { expect } from 'expect';
 import { escapeLiteral } from 'postgrejs';
 
 describe('Escape literal', () => {

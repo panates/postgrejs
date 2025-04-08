@@ -1,7 +1,11 @@
 import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
-export function createTests(conn: () => Connection) {
+describe('DataType: box', () => {
+  const conn = new Connection();
+  before(() => conn.connect());
+  after(() => conn.close(0));
+
   it('should parse "box" field (text)', async () => {
     const input = [
       '((-1.6, 3.0), (4.6, 0.1))',
@@ -13,7 +17,7 @@ export function createTests(conn: () => Connection) {
       { x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testParse(conn(), DataTypeOIDs.box, input, output, {
+    await testParse(conn, DataTypeOIDs.box, input, output, {
       columnFormat: DataFormat.text,
     });
   });
@@ -29,7 +33,7 @@ export function createTests(conn: () => Connection) {
       { x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testParse(conn(), DataTypeOIDs.box, input, output, {
+    await testParse(conn, DataTypeOIDs.box, input, output, {
       columnFormat: DataFormat.binary,
     });
   });
@@ -45,7 +49,7 @@ export function createTests(conn: () => Connection) {
       { x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testParse(conn(), DataTypeOIDs._box, input, output, {
+    await testParse(conn, DataTypeOIDs._box, input, output, {
       columnFormat: DataFormat.text,
     });
   });
@@ -61,7 +65,7 @@ export function createTests(conn: () => Connection) {
       { x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testParse(conn(), DataTypeOIDs._box, input, output, {
+    await testParse(conn, DataTypeOIDs._box, input, output, {
       columnFormat: DataFormat.binary,
     });
   });
@@ -77,7 +81,7 @@ export function createTests(conn: () => Connection) {
       { x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testEncode(conn(), DataTypeOIDs.box, input, output);
+    await testEncode(conn, DataTypeOIDs.box, input, output);
   });
 
   it('should encode "box" array param', async () => {
@@ -91,6 +95,6 @@ export function createTests(conn: () => Connection) {
       { x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5 },
       { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
     ];
-    await testEncode(conn(), DataTypeOIDs._box, input, output);
+    await testEncode(conn, DataTypeOIDs._box, input, output);
   });
-}
+});

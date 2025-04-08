@@ -1,3 +1,4 @@
+import { expect } from 'expect';
 import { SmartBuffer } from '../../src/protocol/smart-buffer.js';
 
 describe('SmartBuffer', () => {

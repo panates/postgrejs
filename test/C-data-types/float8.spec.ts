@@ -1,21 +1,21 @@
 import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
-export function createTests(conn: () => Connection) {
+describe('DataType: float8', () => {
+  const conn = new Connection();
+  before(() => conn.connect());
+  after(() => conn.close(0));
+
   it('should parse "float8" field (text)', async () => {
-    await testParse(conn(), DataTypeOIDs.float8, ['1.2', '-2.5'], [1.2, -2.5], {
+    await testParse(conn, DataTypeOIDs.float8, ['1.2', '-2.5'], [1.2, -2.5], {
       columnFormat: DataFormat.text,
     });
   });
 
   it('should parse "float8" field (binary)', async () => {
-    await testParse(
-      conn(),
-      DataTypeOIDs.float8,
-      ['1.25', '-2.5'],
-      [1.25, -2.5],
-      { columnFormat: DataFormat.binary },
-    );
+    await testParse(conn, DataTypeOIDs.float8, ['1.25', '-2.5'], [1.25, -2.5], {
+      columnFormat: DataFormat.binary,
+    });
   });
 
   it('should parse "float8" array field (text)', async () => {
@@ -29,7 +29,7 @@ export function createTests(conn: () => Connection) {
         [null, 2.536322, null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._float8, input, input, {
+    await testParse(conn, DataTypeOIDs._float8, input, input, {
       columnFormat: DataFormat.text,
     });
   });
@@ -45,13 +45,13 @@ export function createTests(conn: () => Connection) {
         [null, 2.5, null],
       ],
     ];
-    await testParse(conn(), DataTypeOIDs._float8, input, input, {
+    await testParse(conn, DataTypeOIDs._float8, input, input, {
       columnFormat: DataFormat.binary,
     });
   });
 
   it('should encode "float8" param', async () => {
-    await testEncode(conn(), DataTypeOIDs.float8, [-1.2, 5.5]);
+    await testEncode(conn, DataTypeOIDs.float8, [-1.2, 5.5]);
   });
 
   it('should encode "float8" array param', async () => {
@@ -75,6 +75,6 @@ export function createTests(conn: () => Connection) {
         [null, 2.536322, null],
       ],
     ];
-    await testEncode(conn(), DataTypeOIDs._float8, input, output);
+    await testEncode(conn, DataTypeOIDs._float8, input, output);
   });
-}
+});

@@ -1,7 +1,11 @@
 import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
-export function createTests(conn: () => Connection) {
+describe('DataType: circle', () => {
+  const conn = new Connection();
+  before(() => conn.connect());
+  after(() => conn.close(0));
+
   it('should parse "circle" field (text)', async () => {
     const input = [
       '<(-1.2, 3.5), 4.6>',
@@ -15,7 +19,7 @@ export function createTests(conn: () => Connection) {
       { x: 6.2, y: -3, r: 7.2 },
       { x: 1.1, y: 3.9, r: 8.6 },
     ];
-    await testParse(conn(), DataTypeOIDs.circle, input, output, {
+    await testParse(conn, DataTypeOIDs.circle, input, output, {
       columnFormat: DataFormat.text,
     });
   });
@@ -33,7 +37,7 @@ export function createTests(conn: () => Connection) {
       { x: 6.2, y: -3, r: 7.2 },
       { x: 1.1, y: 3.9, r: 8.6 },
     ];
-    await testParse(conn(), DataTypeOIDs.circle, input, output, {
+    await testParse(conn, DataTypeOIDs.circle, input, output, {
       columnFormat: DataFormat.binary,
     });
   });
@@ -51,7 +55,7 @@ export function createTests(conn: () => Connection) {
       { x: 6.2, y: -3, r: 7.2 },
       { x: 1.1, y: 3.9, r: 8.6 },
     ];
-    await testParse(conn(), DataTypeOIDs._circle, input, output, {
+    await testParse(conn, DataTypeOIDs._circle, input, output, {
       columnFormat: DataFormat.text,
     });
   });
@@ -69,7 +73,7 @@ export function createTests(conn: () => Connection) {
       { x: 6.2, y: -3, r: 7.2 },
       { x: 1.1, y: 3.9, r: 8.6 },
     ];
-    await testParse(conn(), DataTypeOIDs._circle, input, output, {
+    await testParse(conn, DataTypeOIDs._circle, input, output, {
       columnFormat: DataFormat.binary,
     });
   });
@@ -81,7 +85,7 @@ export function createTests(conn: () => Connection) {
       { x: 6.2, y: -3, r: 7.2 },
       { x: 1.1, y: 3.9, r: 8.6 },
     ];
-    await testEncode(conn(), DataTypeOIDs.circle, input, input);
+    await testEncode(conn, DataTypeOIDs.circle, input, input);
   });
 
   it('should encode "circle" array param', async () => {
@@ -91,6 +95,6 @@ export function createTests(conn: () => Connection) {
       { x: 6.2, y: -3, r: 7.2 },
       { x: 1.1, y: 3.9, r: 8.6 },
     ];
-    await testEncode(conn(), DataTypeOIDs._circle, input);
+    await testEncode(conn, DataTypeOIDs._circle, input);
   });
-}
+});

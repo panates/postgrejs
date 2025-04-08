@@ -1,9 +1,11 @@
+import process from 'node:process';
+import { expect } from 'expect';
 import { getConnectionConfig, parseConnectionString } from 'postgrejs';
 
 describe('Parse connection string', () => {
   const oldEnv = { ...process.env };
 
-  afterAll(() => {
+  after(() => {
     process.env = oldEnv;
   });
 
@@ -53,7 +55,7 @@ describe('Parse connection string', () => {
     });
   });
 
-  describe('Get connection config from environment variables', () => {
+  it('Get connection config from environment variables', () => {
     process.env.PGHOST = 'PGHOST';
     process.env.PGPORT = '1234';
     process.env.PGDATABASE = 'PGDATABASE';

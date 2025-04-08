@@ -1,14 +1,18 @@
 import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
-export function createTests(conn: () => Connection) {
+describe('DataType: point', () => {
+  const conn = new Connection();
+  before(() => conn.connect());
+  after(() => conn.close(0));
+
   it('should parse "point" field (text)', async () => {
     const input = ['(-1.2, 3.5)', '2.1, 6.3'];
     const output = [
       { x: -1.2, y: 3.5 },
       { x: 2.1, y: 6.3 },
     ];
-    await testParse(conn(), DataTypeOIDs.point, input, output, {
+    await testParse(conn, DataTypeOIDs.point, input, output, {
       columnFormat: DataFormat.text,
     });
   });
@@ -19,7 +23,7 @@ export function createTests(conn: () => Connection) {
       { x: -1.2, y: 3.5 },
       { x: 2.1, y: 6.3 },
     ];
-    await testParse(conn(), DataTypeOIDs.point, input, output, {
+    await testParse(conn, DataTypeOIDs.point, input, output, {
       columnFormat: DataFormat.binary,
     });
   });
@@ -30,7 +34,7 @@ export function createTests(conn: () => Connection) {
       { x: -1.2, y: 3.5 },
       { x: 2.1, y: 6.3 },
     ];
-    await testParse(conn(), DataTypeOIDs._point, input, output, {
+    await testParse(conn, DataTypeOIDs._point, input, output, {
       columnFormat: DataFormat.text,
     });
   });
@@ -41,7 +45,7 @@ export function createTests(conn: () => Connection) {
       { x: -1.2, y: 3.5 },
       { x: 2.1, y: 6.3 },
     ];
-    await testParse(conn(), DataTypeOIDs._point, input, output, {
+    await testParse(conn, DataTypeOIDs._point, input, output, {
       columnFormat: DataFormat.binary,
     });
   });
@@ -51,7 +55,7 @@ export function createTests(conn: () => Connection) {
       { x: -1.2, y: 3.5 },
       { x: 2.1, y: 6.3 },
     ];
-    await testEncode(conn(), DataTypeOIDs.point, input, input);
+    await testEncode(conn, DataTypeOIDs.point, input, input);
   });
 
   it('should encode "point" array param', async () => {
@@ -59,6 +63,6 @@ export function createTests(conn: () => Connection) {
       { x: -1.2, y: 3.5 },
       { x: 2.1, y: 6.3 },
     ];
-    await testEncode(conn(), DataTypeOIDs._point, input);
+    await testEncode(conn, DataTypeOIDs._point, input);
   });
-}
+});
