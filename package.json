@@ -1,7 +1,7 @@
 {
   "name": "postgrejs",
   "description": "Professional PostgreSQL client NodeJS",
-  "version": "2.22.3",
+  "version": "2.22.4",
   "author": "Panates",
   "license": "MIT",
   "private": true,
