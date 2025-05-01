@@ -60,7 +60,7 @@
     "citest": "c8 mocha",
     "qc": "npm run lint && npm run check",
     "version": "auto-changelog -p && git add CHANGELOG.md",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "type": "module",
   "exports": {
