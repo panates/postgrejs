@@ -5,7 +5,7 @@ export type OID = number;
 export type Maybe<T> = T | undefined;
 export type Nullable<T> = T | null;
 export type Row = any;
-export type Callback = (err?: Error, value?: any) => void;
+export type Callback = (err?: Error | null) => void;
 export type DecodeBinaryFunction = (
   buf: Buffer,
   options: DataMappingOptions & Record<string, any>,

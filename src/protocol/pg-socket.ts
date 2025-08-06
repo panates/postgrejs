@@ -6,7 +6,7 @@ import promisify from 'putil-promisify';
 import { ConnectionState } from '../constants.js';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
-import type { Callback, Maybe } from '../types.js';
+import { Callback, Maybe } from '../types.js';
 import { Backend } from './backend.js';
 import { DatabaseError } from './database-error.js';
 import { Frontend } from './frontend.js';
