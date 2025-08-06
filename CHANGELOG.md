@@ -1,6 +1,21 @@
 ## Changelog
 
-### [v2.22.4](https://github.com/panates/postgrejs/compare/v2.22.3...v2.22.4) - 
+### [v2.22.5](https://github.com/panates/postgrejs/compare/v2.22.4...v2.22.5) - 
+
+#### 🪲 Fixes
+
+- fix: Fixed global setup issue @Eray Hanoğlu 
+- fix: Fixed node version in "if" condition @Eray Hanoğlu 
+
+#### 💬 General Changes
+
+- dev: Updated workflows @Eray Hanoğlu 
+- dev: Typing fixes and script fix @Eray Hanoğlu 
+- dev: Added "paths" filter @Eray Hanoğlu 
+- dev: Typing fixes and script fix @Eray Hanoğlu 
+- dev: Added publishConfig @Eray Hanoğlu 
+
+### [v2.22.4](https://github.com/panates/postgrejs/compare/v2.22.3...v2.22.4) -  8 April 2025 
 
 #### 💬 General Changes
 

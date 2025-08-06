@@ -144,6 +144,6 @@ jobs:
       - name: Send coverage to Coveralls
         uses: coverallsapp/github-action@v2
         # Run only once
-        if: ${{ matrix.node == '20' && matrix.postgres == '16' }}
+        if: ${{ matrix.node == '22' && matrix.postgres == '16' }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}

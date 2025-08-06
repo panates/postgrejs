@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import pg from 'pg';
+import { Client } from 'pg';
 
 const schema = process.env.PGSCHEMA || 'test';
 
@@ -93,7 +93,7 @@ values
 `;
 
 export async function createTestSchema() {
-  const client = new pg.Client({
+  const client = new Client({
     user: process.env.PGUSER || 'postgres',
     password: process.env.PGPASSWORD || 'postgres',
     host: process.env.PGHOST,
