@@ -12,8 +12,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - './package.json'
 
 # Only one run at a time
 concurrency:
