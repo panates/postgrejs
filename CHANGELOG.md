@@ -1,6 +1,10 @@
 ## Changelog
 
-### [v2.22.5](https://github.com/panates/postgrejs/compare/v2.22.4...v2.22.5) - 
+### [v2.22.6](https://github.com/panates/postgrejs/compare/v2.22.5...v2.22.6) - 
+
+- fix: Fixed applicationName connection option has no effect issue. closes #51
+
+### [v2.22.5](https://github.com/panates/postgrejs/compare/v2.22.4...v2.22.5) -  6 August 2025 
 
 #### 🪲 Fixes
 
