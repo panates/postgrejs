@@ -63,6 +63,19 @@ describe('Connection', () => {
     expect(connection.secretKey).toBeGreaterThan(0);
   });
 
+  it('should set application_name', async () => {
+    connection = new Connection({
+      applicationName: 'test',
+    });
+    await connection.connect();
+    const r = await connection.execute(
+      "SELECT current_setting('application_name');",
+    );
+    expect(r.results.length).toStrictEqual(1);
+    expect(r.results[0].rows).toBeDefined();
+    expect(r.results[0].rows![0]).toEqual(['test']);
+  });
+
   it('should execute simple query', async () => {
     connection = new Connection();
     await connection.connect();

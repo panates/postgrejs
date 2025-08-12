@@ -272,6 +272,7 @@ export class PgSocket extends SafeEventEmitter {
       this._frontend.getStartupMessage({
         user: this.options.user || 'postgres',
         database: this.options.database || '',
+        application_name: this.options.applicationName || '',
       }),
     );
   }
