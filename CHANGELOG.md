@@ -1,6 +1,12 @@
 ## Changelog
 
-### [v2.22.6](https://github.com/panates/postgrejs/compare/v2.22.5...v2.22.6) - 
+### [v2.22.7](https://github.com/panates/postgrejs/compare/v2.22.6...v2.22.7) - 
+
+#### 💬 General Changes
+
+- dev: Removed path filter @Eray Hanoğlu 
+
+### [v2.22.6](https://github.com/panates/postgrejs/compare/v2.22.5...v2.22.6) -  12 August 2025 
 
 - fix: Fixed applicationName connection option has no effect issue. closes #51
 
