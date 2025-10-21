@@ -1,4 +1,3 @@
-workspaces: true
 peer: true
 dep: prod,dev,optional,peer
-rejectVersion: "/(\\|\\|)|(&&)|>|<|^\\^/"
+rejectVersion: "/(\\|\\|)|(&&)|>|<|^[0-9]/"
