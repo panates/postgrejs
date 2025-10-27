@@ -1,6 +1,16 @@
 ## Changelog
 
-### [v2.22.7](https://github.com/panates/postgrejs/compare/v2.22.6...v2.22.7) - 
+### [v2.22.8](https://github.com/panates/postgrejs/compare/v2.22.7...v2.22.8) - 
+
+#### 🪲 Fixes
+
+- fix: SmartBuffer grows when offset isn't at last @Eray Hanoğlu 
+
+#### 💬 General Changes
+
+- dev: npm Trusted publishing update @Eray Hanoğlu 
+
+### [v2.22.7](https://github.com/panates/postgrejs/compare/v2.22.6...v2.22.7) -  21 October 2025 
 
 #### 💬 General Changes
 
