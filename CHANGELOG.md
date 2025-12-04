@@ -1,6 +1,8 @@
 ## Changelog
 
-### [v2.22.8](https://github.com/panates/postgrejs/compare/v2.22.7...v2.22.8) - 
+### [v2.22.9](https://github.com/panates/postgrejs/compare/v2.22.8...v2.22.9) - 
+
+### [v2.22.8](https://github.com/panates/postgrejs/compare/v2.22.7...v2.22.8) -  27 October 2025 
 
 #### 🪲 Fixes
 
