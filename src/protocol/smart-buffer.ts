@@ -83,7 +83,7 @@ export class SmartBuffer extends BufferReader {
   }
 
   fill(value = 0, len = 1): this {
-    this.growSize(len);
+    this.ensureSize(len);
     this.buffer.fill(value, this.offset, this.offset + len);
     this.offset += len;
     return this;
@@ -91,7 +91,7 @@ export class SmartBuffer extends BufferReader {
 
   writeCString(str: string, encoding?: BufferEncoding): this {
     const len = str ? Buffer.byteLength(str, encoding) : 0;
-    this.growSize(len + 1);
+    this.ensureSize(len + 1);
     if (str) {
       this.buffer.write(str, this.offset, encoding);
       this.offset += len;
@@ -102,7 +102,7 @@ export class SmartBuffer extends BufferReader {
 
   writeLString(str?: string, encoding?: BufferEncoding): this {
     const len = str ? Buffer.byteLength(str, encoding) : 0;
-    this.growSize(len + 4);
+    this.ensureSize(len + 4);
     this.writeInt32BE(str == null ? -1 : len);
     if (str) {
       if (encoding)
@@ -115,49 +115,49 @@ export class SmartBuffer extends BufferReader {
   writeString(str: string, encoding?: BufferEncoding): this {
     if (str) {
       const len = Buffer.byteLength(str, encoding);
-      this.growSize(len);
+      this.ensureSize(len);
       this.offset += this.buffer.write(str, this.offset, encoding);
     }
     return this;
   }
 
   writeInt8(n: number): this {
-    this.growSize(1);
+    this.ensureSize(1);
     this.buffer.writeInt8(n, this.offset);
     this.offset++;
     return this;
   }
 
   writeUInt8(n: number): this {
-    this.growSize(1);
+    this.ensureSize(1);
     this.buffer.writeUInt8(n, this.offset);
     this.offset++;
     return this;
   }
 
   writeUInt16BE(n: number): this {
-    this.growSize(2);
+    this.ensureSize(2);
     this.buffer.writeUInt16BE(n, this.offset);
     this.offset += 2;
     return this;
   }
 
   writeUInt32BE(n: number): this {
-    this.growSize(4);
+    this.ensureSize(4);
     this.buffer.writeUInt32BE(n, this.offset);
     this.offset += 4;
     return this;
   }
 
   writeInt16BE(n: number): this {
-    this.growSize(2);
+    this.ensureSize(2);
     this.buffer.writeInt16BE(n, this.offset);
     this.offset += 2;
     return this;
   }
 
   writeInt32BE(n: number): this {
-    this.growSize(4);
+    this.ensureSize(4);
     this.buffer.writeInt32BE(n, this.offset);
     this.offset += 4;
     return this;
@@ -165,7 +165,7 @@ export class SmartBuffer extends BufferReader {
 
   writeBigInt64BE(n: bigint | number): this {
     n = typeof n === 'bigint' ? n : BigInt(n);
-    this.growSize(8);
+    this.ensureSize(8);
     if (typeof this.buffer.writeBigInt64BE === 'function')
       this.buffer.writeBigInt64BE(n, this.offset);
     else writeBigUInt64BE(this.buffer, n, this.offset);
@@ -174,23 +174,29 @@ export class SmartBuffer extends BufferReader {
   }
 
   writeFloatBE(n: number): this {
-    this.growSize(4);
+    this.ensureSize(4);
     this.buffer.writeFloatBE(n, this.offset);
     this.offset += 4;
     return this;
   }
 
   writeDoubleBE(n: number): this {
-    this.growSize(8);
+    this.ensureSize(8);
     this.buffer.writeDoubleBE(n, this.offset);
     this.offset += 8;
     return this;
   }
 
   writeBuffer(buffer: Buffer): this {
-    this.growSize(buffer.length);
+    this.ensureSize(buffer.length);
     buffer.copy(this.buffer, this.offset, 0, buffer.length);
     this.offset += buffer.length;
+    return this;
+  }
+
+  private ensureSize(len: number): this {
+    const n = this.offset + len - this.length;
+    if (n > 0) this.growSize(n);
     return this;
   }
 
