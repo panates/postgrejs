@@ -47,7 +47,6 @@
     "prebuild": "npm run check && npm run clean:dist && npm run lint",
     "build": "tsc -b tsconfig-build.json",
     "postbuild": "node postbuild.cjs && rimraf build/*.tsbuildinfo",
-
     "_postbuild": "npm run postbuild:copyfiles && node postbuild.cjs",
     "_postbuild:copyfiles": "cp LICENSE README.md CHANGELOG.md ./build && cp ./support/package.esm.json ./build/esm/package.json",
     "lint": "eslint . --max-warnings=0",

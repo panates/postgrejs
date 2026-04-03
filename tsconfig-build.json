@@ -4,7 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "declaration": true,
-    "outDir": "build",
+    "outDir": "build"
   },
   "include": ["src"]
 }
