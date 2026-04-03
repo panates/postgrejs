@@ -1,60 +1,59 @@
 {
   "name": "postgrejs",
   "description": "Professional PostgreSQL client NodeJS",
-  "version": "2.22.9",
+  "version": "2.23.0",
   "author": "Panates",
   "license": "MIT",
   "private": true,
   "dependencies": {
-    "@jsopen/objects": "^2.0.2",
+    "@jsopen/objects": "^2.2.0",
     "doublylinked": "^2.5.6",
     "lightning-pool": "^4.12.0",
     "postgres-bytea": "^3.0.0",
-    "power-tasks": "^1.11.1",
+    "power-tasks": "^1.14.2",
     "putil-promisify": "^1.10.1",
-    "putil-varhelpers": "^1.6.5",
+    "putil-varhelpers": "^1.7.0",
     "tslib": "^2.8.1"
   },
   "devDependencies": {
-    "@panates/eslint-config": "^2.0.6",
-    "@panates/eslint-config-ts": "^2.0.6",
-    "@panates/tsconfig": "^2.0.6",
+    "@panates/eslint-config": "^2.1.0",
+    "@panates/eslint-config-ts": "^2.1.0",
+    "@panates/tsconfig": "^2.1.0",
     "@swc-node/register": "^1.11.1",
-    "@swc/core": "^1.15.3",
-    "@swc/helpers": "^0.5.17",
+    "@swc/core": "^1.15.21",
+    "@swc/helpers": "^0.5.21",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^24.10.1",
-    "@types/pg": "^8.15.6",
+    "@types/node": "^25.5.2",
+    "@types/pg": "^8.20.0",
     "auto-changelog": "^2.5.0",
-    "c8": "^10.1.3",
-    "dotenv": "^17.2.3",
-    "expect": "^30.2.0",
-    "globals": "^16.5.0",
+    "c8": "^11.0.0",
+    "dotenv": "^17.4.0",
+    "expect": "^30.3.0",
+    "globals": "^17.4.0",
     "husky": "^9.1.7",
-    "madge": "^8.0.0",
+    "dpdm": "^4.0.1",
     "mocha": "^11.7.5",
-    "pg": "^8.16.3",
-    "prettier": "^3.7.4",
-    "rimraf": "^6.1.2",
+    "pg": "^8.20.0",
+    "prettier": "^3.8.1",
+    "rimraf": "^6.1.3",
     "ts-cleanup": "^1.3.0",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.2"
   },
   "scripts": {
-    "compile": "tsc -b tsconfig-build-esm.json --noEmit",
+    "compile": "tsc -b tsconfig-build.json --noEmit",
     "clean": "npm run clean:src && npm run clean:dist",
     "clean:dist": "rimraf build coverage",
     "clean:src": "ts-cleanup -s src --all | ts-cleanup -s test",
-    "prebuild": "npm run clean:dist && npm run lint",
-    "build": "npm run build:cjs && npm run build:esm",
-    "build:cjs": "tsc -b tsconfig-build-cjs.json && cp support/package.cjs.json ./build/cjs/package.json",
-    "build:esm": "tsc -b tsconfig-build-esm.json && cp support/package.esm.json ./build/esm/package.json",
-    "postbuild": "npm run postbuild:copyfiles && node ./support/postbuild.cjs",
-    "postbuild:copyfiles": "cp LICENSE README.md CHANGELOG.md ./build && cp ./support/package.esm.json ./build/esm/package.json",
+    "prebuild": "npm run check && npm run clean:dist && npm run lint",
+    "build": "tsc -b tsconfig-build.json",
+    "postbuild": "node postbuild.cjs && rimraf build/*.tsbuildinfo",
+    "_postbuild": "npm run postbuild:copyfiles && node postbuild.cjs",
+    "_postbuild:copyfiles": "cp LICENSE README.md CHANGELOG.md ./build && cp ./support/package.esm.json ./build/esm/package.json",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --max-warnings=0 --fix",
     "format": "prettier . --write --log-level=warn",
     "precover": "rimraf coverage",
-    "check": "madge --circular src/**",
+    "check": "dpdm -T --no-warning --no-tree ./src/index.ts",
     "test": "mocha",
     "precitest": "rimraf coverage",
     "citest": "c8 mocha",
@@ -63,23 +62,18 @@
     "prepare": "husky || true"
   },
   "type": "module",
+  "module": "./index.js",
+  "types": "./index.d.ts",
   "exports": {
     ".": {
-      "import": {
-        "types": "./types/index.d.ts",
-        "default": "./esm/index.js"
-      },
-      "require": {
-        "types": "./types/index.d.cts",
-        "default": "./cjs/index.js"
-      },
-      "default": "./esm/index.js"
+      "types": "./index.d.ts",
+      "default": "./index.js"
     },
     "./package.json": "./package.json"
   },
-  "main": "./cjs/index.js",
-  "module": "./esm/index.js",
-  "types": "./types/index.d.ts",
+  "engines": {
+    "node": ">=20.0"
+  },
   "homepage": "https://postgrejs.panates.com/",
   "contributors": [
     "Eray Hanoglu <e.hanoglu@panates.com>"
@@ -88,17 +82,6 @@
     "type": "git",
     "url": "https://github.com/panates/postgrejs.git"
   },
-  "engines": {
-    "node": ">=16.0"
-  },
-  "files": [
-    "cjs/",
-    "esm/",
-    "types/",
-    "LICENSE",
-    "README.md",
-    "CHANGELOG.md"
-  ],
   "keywords": [
     "postgresql",
     "postgres",
@@ -110,10 +93,7 @@
     "client",
     "backend",
     "rdbms",
-    "sql",
-    "typescript",
-    "ts",
-    "esm"
+    "sql"
   ],
   "publishConfig": {
     "access": "public"
