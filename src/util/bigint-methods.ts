@@ -18,7 +18,7 @@ export function readBigInt64BE(buf: Buffer, offset = 0): bigint {
     BigInt(
       buf[++offset] * 2 ** 24 +
         buf[++offset] * 2 ** 16 +
-        // eslint-disable-next-line no-useless-assignment
+        // eslint-disable-next-line
         buf[++offset] * 2 ** 8 +
         last,
     )

@@ -40,7 +40,7 @@
     "typescript": "^6.0.2"
   },
   "scripts": {
-    "compile": "tsc -b tsconfig-build-esm.json --noEmit",
+    "compile": "tsc -b tsconfig-build.json --noEmit",
     "clean": "npm run clean:src && npm run clean:dist",
     "clean:dist": "rimraf build coverage",
     "clean:src": "ts-cleanup -s src --all | ts-cleanup -s test",
