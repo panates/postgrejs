@@ -1,6 +1,13 @@
 ## Changelog
 
-### [v2.22.9](https://github.com/panates/postgrejs/compare/v2.22.8...v2.22.9) - 
+### [v2.23.0](https://github.com/panates/postgrejs/compare/v2.22.9...v2.23.0) - 
+
+#### 🛠 Refactoring and Updates
+
+- dev: Updated deps to support latest TypeScript and NodeJS. @Eray Hanoğlu 
+- dev: Updated deps to support latest TypeScript and NodeJS. @Eray Hanoğlu 
+
+### [v2.22.9](https://github.com/panates/postgrejs/compare/v2.22.8...v2.22.9) -  4 December 2025 
 
 ### [v2.22.8](https://github.com/panates/postgrejs/compare/v2.22.7...v2.22.8) -  27 October 2025 
 
