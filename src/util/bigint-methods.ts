@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-assignment */
 const big0 = BigInt(0);
 const beAnd = BigInt('0xffffffff');
 const big32 = BigInt(32);
@@ -18,7 +19,6 @@ export function readBigInt64BE(buf: Buffer, offset = 0): bigint {
     BigInt(
       buf[++offset] * 2 ** 24 +
         buf[++offset] * 2 ** 16 +
-        // eslint-disable-next-line
         buf[++offset] * 2 ** 8 +
         last,
     )
