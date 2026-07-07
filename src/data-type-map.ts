@@ -31,8 +31,8 @@ import {
 } from './data-types/timestamptz-type.js';
 import { ArrayUuidType, UuidType } from './data-types/uuid-type.js';
 import { ArrayVarcharType, VarcharType } from './data-types/varchar-type.js';
-import { DataType } from './interfaces/data-type.js';
-import { OID } from './types.js';
+import type { DataType } from './interfaces/data-type.js';
+import type { OID } from './types.js';
 
 export class DataTypeMap {
   private _itemsByOID: Record<OID, DataType> = {};

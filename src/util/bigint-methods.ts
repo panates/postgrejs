@@ -1,4 +1,4 @@
-/* eslint-disable no-useless-assignment */
+/* eslint-disable */
 const big0 = BigInt(0);
 const beAnd = BigInt('0xffffffff');
 const big32 = BigInt(32);
