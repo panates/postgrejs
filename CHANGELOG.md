@@ -1,6 +1,16 @@
 ## Changelog
 
-### [v2.23.0](https://github.com/panates/postgrejs/compare/v2.22.9...v2.23.0) - 
+### [v2.23.1](https://github.com/panates/postgrejs/compare/v2.23.0...v2.23.1) - 
+
+#### 💬 General Changes
+
+- dev: Updated dependencies and switched to `import type` for cleaner type imports @Eray Hanoğlu 
+- dev: Minor lint issue @Eray Hanoğlu 
+- dev: Updated action/chechout version @Eray Hanoğlu 
+- dev: Minor lint issue @Eray Hanoğlu 
+- dev: Set min node test version to 20 @Eray Hanoğlu 
+
+### [v2.23.0](https://github.com/panates/postgrejs/compare/v2.22.9...v2.23.0) -  3 April 2026 
 
 #### 🛠 Refactoring and Updates
 
