@@ -1,7 +1,7 @@
 import {
   Pool as LightningPool,
-  PoolConfiguration as LPoolConfiguration,
-  PoolFactory,
+  type PoolConfiguration as LPoolConfiguration,
+  type PoolFactory,
 } from 'lightning-pool';
 import { coerceToBoolean, coerceToInt } from 'putil-varhelpers';
 import { ConnectionState } from '../constants.js';
