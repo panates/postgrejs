@@ -1,5 +1,5 @@
 import { expect } from 'expect';
-import { SmartBuffer } from '../../src/protocol/smart-buffer.js';
+import { SmartBuffer } from '../../src/index.js';
 
 describe('SmartBuffer', () => {
   it('should automatically grow', () => {
