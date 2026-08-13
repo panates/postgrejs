@@ -1,5 +1,4 @@
-/* eslint-disable import-x/extensions */
-import './env';
+import './env.js';
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 
