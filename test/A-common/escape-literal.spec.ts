@@ -37,4 +37,12 @@ describe('Escape literal', () => {
   it('Contains single quotes, double quotes, and backslashes', () => {
     testLiteral('hello \\ \' " world', " E'hello \\\\ '' \" world'");
   });
+
+  it('Throws on embedded NUL byte', () => {
+    // Regression test: PostgreSQL's simple-query protocol frames the SQL
+    // text as a C-string, so an embedded \0 can never be represented in a
+    // literal - it must fail fast here instead of producing a malformed
+    // message that the server rejects with a cryptic protocol error.
+    expect(() => escapeLiteral('hello \0 world')).toThrow(/NUL/);
+  });
 });

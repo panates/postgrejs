@@ -1,5 +1,9 @@
 // Ported from PostgreSQL 9.2.4 source code in src/interfaces/libpq/fe-exec.c
 export function escapeLiteral(str: string): string {
+  if (str.indexOf('\0') >= 0) {
+    throw new Error('PostgreSQL text values cannot contain NUL (\\0) bytes');
+  }
+
   let backSlash = false;
   let out = "'";
   let i;
