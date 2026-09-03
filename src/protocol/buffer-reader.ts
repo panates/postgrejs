@@ -47,6 +47,7 @@ export class BufferReader {
 
   readCString(encoding?: BufferEncoding): string {
     const idx = this.buffer.indexOf(0, this.offset);
+    if (idx === -1) throw new Error('Eof in buffer detected (readCString)');
     const v = this.buffer.toString(encoding, this.offset, idx);
     this.offset = idx + 1;
     return v;

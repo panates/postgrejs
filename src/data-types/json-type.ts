@@ -14,7 +14,7 @@ export const JsonType: DataType = {
     const content = v.toString('utf8');
     const fetchAsString =
       options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.jsonb);
+      options.fetchAsString.includes(DataTypeOIDs.json);
     if (fetchAsString) return content;
     return content ? JSON.parse(content) : undefined;
   },
@@ -29,7 +29,7 @@ export const JsonType: DataType = {
   parseText(v: string, options: DataMappingOptions): object | string | null {
     const fetchAsString =
       options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.jsonb);
+      options.fetchAsString.includes(DataTypeOIDs.json);
     if (fetchAsString) return v;
     return v ? JSON.parse(v) : null;
   },

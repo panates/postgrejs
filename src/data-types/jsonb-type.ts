@@ -17,7 +17,7 @@ export const JsonbType: DataType = {
       throw new Error('Unexpected Jsonb version value in header');
     const fetchAsString =
       options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.json);
+      options.fetchAsString.includes(DataTypeOIDs.jsonb);
     const content = buf.readLString(buf.length - buf.offset);
     if (fetchAsString) return content;
     return content ? JSON.parse(content) : undefined;
@@ -33,7 +33,7 @@ export const JsonbType: DataType = {
   parseText(v: string, options: DataMappingOptions): object | string | null {
     const fetchAsString =
       options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.json);
+      options.fetchAsString.includes(DataTypeOIDs.jsonb);
     if (fetchAsString) return v;
     return v ? JSON.parse(v) : null;
   },

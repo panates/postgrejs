@@ -12,8 +12,10 @@ export function getConnectionConfig(
     merge(cfg, config);
   }
   if (cfg.host) {
+    const explicitRequireSSL = cfg.requireSSL;
     const x = parseConnectionString('' + cfg.host);
     merge(cfg, x);
+    if (explicitRequireSSL !== undefined) cfg.requireSSL = explicitRequireSSL;
   }
   cfg.user = cfg.user || 'postgres';
   cfg.database = cfg.database || 'postgres';
@@ -57,10 +59,12 @@ export function parseConnectionString(str: string): ConnectionConfiguration {
       getFirst(parsed.searchParams.get('application_name')),
     );
   }
-  if (parsed.username) cfg.user = parsed.username;
-  if (parsed.password) cfg.password = parsed.password;
+  if (parsed.username) cfg.user = decodeURIComponent(parsed.username);
+  if (parsed.password) cfg.password = decodeURIComponent(parsed.password);
 
-  cfg.requireSSL = parsed.searchParams.get('sslmode') === 'require';
+  cfg.requireSSL = ['require', 'verify-ca', 'verify-full', 'prefer'].includes(
+    parsed.searchParams.get('sslmode') || '',
+  );
 
   return cfg;
 }
