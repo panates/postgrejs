@@ -31,6 +31,7 @@ export class PreparedStatement
   private readonly _paramTypes: Maybe<Maybe<OID>[]>;
   protected _onErrorSavePoint: string;
   private _refCount = 0;
+  private _closed = false;
 
   constructor(connection: Connection, sql: string, paramTypes?: OID[]) {
     super();
@@ -160,8 +161,10 @@ export class PreparedStatement
   }
 
   async close(): Promise<void> {
+    if (this._closed) return;
     --this._refCount;
     if (this._refCount > 0) return;
+    this._closed = true;
     const intoCon = getIntlConnection(this.connection);
     await intoCon.statementQueue.enqueue<void>(() => this._close()).toPromise();
   }
@@ -246,7 +249,6 @@ export class PreparedStatement
   }
 
   protected async _close(): Promise<void> {
-    if (--this._refCount > 0) return;
     const intoCon = getIntlConnection(this.connection);
     intoCon.ref();
     try {
