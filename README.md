@@ -200,17 +200,9 @@ PostgreJS is available under [MIT](LICENSE) license.
 
 [npm-image]: https://img.shields.io/npm/v/postgrejs
 [npm-url]: https://npmjs.org/package/postgrejs
+[downloads-image]: https://img.shields.io/npm/dm/postgrejs.svg
+[downloads-url]: https://npmjs.org/package/postgrejs
 [ci-test-image]: https://github.com/panates/postgrejs/actions/workflows/test.yml/badge.svg
 [ci-test-url]: https://github.com/panates/postgrejs/actions/workflows/test.yml
 [coveralls-image]: https://img.shields.io/coveralls/panates/postgrejs/master.svg
 [coveralls-url]: https://coveralls.io/r/panates/postgrejs
-[downloads-image]: https://img.shields.io/npm/dm/postgrejs.svg
-[downloads-url]: https://npmjs.org/package/postgrejs
-[gitter-image]: https://badges.gitter.im/panates/postgrejs.svg
-[gitter-url]: https://gitter.im/panates/postgrejs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
-[dependencies-image]: https://david-dm.org/panates/postgrejs/status.svg
-[dependencies-url]:https://david-dm.org/panates/postgrejs
-[devdependencies-image]: https://david-dm.org/panates/postgrejs/dev-status.svg
-[devdependencies-url]:https://david-dm.org/panates/postgrejs?type=dev
-[quality-image]: http://npm.packagequality.com/shield/postgrejs.png
-[quality-url]: http://packagequality.com/#?package=postgrejs
