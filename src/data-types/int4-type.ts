@@ -22,7 +22,8 @@ export const Int4Type: DataType = {
     return (
       typeof v === 'number' &&
       Number.isInteger(v) &&
-      v <= Number.MAX_SAFE_INTEGER
+      v >= -2147483648 &&
+      v <= 2147483647
     );
   },
 };

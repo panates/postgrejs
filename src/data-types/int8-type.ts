@@ -32,7 +32,7 @@ export const Int8Type: DataType = {
       typeof v === 'bigint' ||
       (typeof v === 'number' &&
         Number.isInteger(v) &&
-        v > Number.MAX_SAFE_INTEGER)
+        (v > 2147483647 || v < -2147483648))
     );
   },
 };

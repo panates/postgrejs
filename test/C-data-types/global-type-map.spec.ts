@@ -18,6 +18,34 @@ describe('GlobalTypeMap', () => {
     );
   });
 
+  it('should determine int8 oid for numbers outside the 32-bit int4 range', async () => {
+    // Regression test: values between the int4 boundary and
+    // Number.MAX_SAFE_INTEGER used to be mis-detected as int4 (isType()
+    // only checked <= MAX_SAFE_INTEGER, not the real int4 range), causing
+    // a RangeError from writeInt32BE when encoding.
+    expect(GlobalTypeMap.determine(2147483648)).toStrictEqual(
+      DataTypeOIDs.int8,
+    );
+    expect(GlobalTypeMap.determine(-2147483649)).toStrictEqual(
+      DataTypeOIDs.int8,
+    );
+    expect(GlobalTypeMap.determine(5000000000)).toStrictEqual(
+      DataTypeOIDs.int8,
+    );
+    expect(GlobalTypeMap.determine(-5000000000)).toStrictEqual(
+      DataTypeOIDs.int8,
+    );
+  });
+
+  it('should determine int4 oid for numbers at the exact 32-bit boundary', async () => {
+    expect(GlobalTypeMap.determine(2147483647)).toStrictEqual(
+      DataTypeOIDs.int4,
+    );
+    expect(GlobalTypeMap.determine(-2147483648)).toStrictEqual(
+      DataTypeOIDs.int4,
+    );
+  });
+
   it('should determine int8 oid from "BigInt"', async () => {
     expect(GlobalTypeMap.determine(BigInt(1))).toStrictEqual(DataTypeOIDs.int8);
   });
