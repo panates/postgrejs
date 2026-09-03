@@ -3,6 +3,8 @@ import type { DataType } from '../interfaces/data-type.js';
 
 const NUMERIC_NEG = 0x4000;
 const NUMERIC_NAN = 0xc000;
+const NUMERIC_PINF = 0xd000;
+const NUMERIC_NINF = 0xf000;
 const DEC_DIGITS = 4;
 const ROUND_POWERS = [0, 1000, 100, 10];
 
@@ -14,10 +16,15 @@ export const NumericType: DataType = {
   parseBinary(v: Buffer): number {
     const len = v.readInt16BE();
     const weight = v.readInt16BE(2);
-    const sign = v.readInt16BE(4);
+    // sign is a bitmask (0x0000/0x4000/0xC000/0xD000/0xF000), not a two's
+    // complement quantity - must be read unsigned or NaN/Infinity sign
+    // values (which set the top bit) never compare equal to the constants.
+    const sign = v.readUInt16BE(4);
     const scale = v.readInt16BE(6);
 
     if (sign === NUMERIC_NAN) return NaN;
+    if (sign === NUMERIC_PINF) return Infinity;
+    if (sign === NUMERIC_NINF) return -Infinity;
 
     const digits: number[] = [];
     for (let i = 0; i < len; i++) {

@@ -30,6 +30,34 @@ describe('DataType: numeric', () => {
     );
   });
 
+  it('should parse "NaN"/"Infinity"/"-Infinity" (text)', async () => {
+    await testParse(
+      conn,
+      DataTypeOIDs.numeric,
+      ['NaN', 'Infinity', '-Infinity'],
+      [NaN, Infinity, -Infinity],
+      {
+        columnFormat: DataFormat.text,
+      },
+    );
+  });
+
+  it('should parse "NaN"/"Infinity"/"-Infinity" (binary)', async () => {
+    // Regression test: the sign field was read as a signed int16, so the
+    // NaN/+Infinity/-Infinity sign bitmasks (0xC000/0xD000/0xF000, all with
+    // the top bit set) never matched their unsigned constants and silently
+    // decoded as 0.
+    await testParse(
+      conn,
+      DataTypeOIDs.numeric,
+      ['NaN', 'Infinity', '-Infinity'],
+      [NaN, Infinity, -Infinity],
+      {
+        columnFormat: DataFormat.binary,
+      },
+    );
+  });
+
   it('should parse "numeric" array field (text)', async () => {
     const input = [
       [
