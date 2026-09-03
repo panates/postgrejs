@@ -124,4 +124,14 @@ describe('GlobalTypeMap', () => {
   it('should determine char oid from "String"', async () => {
     expect(GlobalTypeMap.determine('y')).toStrictEqual(DataTypeOIDs.char);
   });
+
+  it('should not determine char oid for a single multi-byte character', async () => {
+    // Regression test: isType() used to check JS string .length (UTF-16
+    // code units) instead of UTF-8 byte length, so any single non-ASCII
+    // character (e.g. 'é', '中') was wrongly auto-detected as PostgreSQL's
+    // 1-byte "char" type, whose encoder then wrote 2-3 bytes for it,
+    // causing the server to reject the bind parameter outright.
+    expect(GlobalTypeMap.determine('é')).toStrictEqual(DataTypeOIDs.varchar);
+    expect(GlobalTypeMap.determine('中')).toStrictEqual(DataTypeOIDs.varchar);
+  });
 });

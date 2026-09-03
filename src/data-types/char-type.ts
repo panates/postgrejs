@@ -20,7 +20,7 @@ export const CharType: DataType = {
   },
 
   isType(v: any): boolean {
-    return typeof v === 'string' && v.length === 1;
+    return typeof v === 'string' && Buffer.byteLength(v, 'utf8') === 1;
   },
 };
 
