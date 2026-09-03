@@ -62,7 +62,7 @@ export function parseConnectionString(str: string): ConnectionConfiguration {
   if (parsed.username) cfg.user = decodeURIComponent(parsed.username);
   if (parsed.password) cfg.password = decodeURIComponent(parsed.password);
 
-  cfg.requireSSL = ['require', 'verify-ca', 'verify-full', 'prefer'].includes(
+  cfg.requireSSL = ['require', 'verify-ca', 'verify-full'].includes(
     parsed.searchParams.get('sslmode') || '',
   );
 

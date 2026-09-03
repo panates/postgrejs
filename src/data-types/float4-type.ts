@@ -8,7 +8,7 @@ export const Float4Type: DataType = {
   jsType: 'number',
 
   parseBinary(v: Buffer): number {
-    return Math.round((v.readFloatBE(0) + Number.EPSILON) * 100) / 100;
+    return v.readFloatBE(0);
   },
 
   encodeBinary(buf: SmartBuffer, v: number | string): void {
