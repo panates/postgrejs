@@ -22,9 +22,23 @@ describe('Parse PostgreSQL arrays', () => {
     expect(arr).toStrictEqual(['1', 'NULL']);
   });
 
-  it('should not transform to null if value in single quote', async () => {
+  it('should treat single quotes as literal characters, not quoting', async () => {
+    // PostgreSQL's array text format only uses double quotes for quoting;
+    // a single quote has no special meaning and is never escaped/stripped.
+    // Verified against a live server: ARRAY['1', '''NULL''']::text[]::text
+    // renders as {1,'NULL'} (unquoted, apostrophes kept literally).
     const arr = parsePostgresArray("{1,'NULL'}");
-    expect(arr).toStrictEqual(['1', 'NULL']);
+    expect(arr).toStrictEqual(['1', "'NULL'"]);
+  });
+
+  it('should not merge/corrupt elements containing an apostrophe', async () => {
+    // Regression test: an apostrophe inside a quoted element (e.g. from a
+    // text[]/varchar[] column) used to be misread as a quote toggle,
+    // dropping the apostrophe and merging it with the next element.
+    // Verified against a live server: ARRAY['O''Brien, Jr.', 'Smith']
+    // renders as {"O'Brien, Jr.",Smith}.
+    const arr = parsePostgresArray('{"O\'Brien, Jr.",Smith}');
+    expect(arr).toStrictEqual(["O'Brien, Jr.", 'Smith']);
   });
 
   it('should ignore separator and curly brackets characters in a quote', async () => {

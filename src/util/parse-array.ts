@@ -48,8 +48,8 @@ export function parsePostgresArray(
         continue;
       }
 
-      if (c === '"' || c === "'") {
-        if (quote && quote === c) {
+      if (c === '"') {
+        if (quote) {
           quote = '';
         } else {
           exactlyValue = true;
