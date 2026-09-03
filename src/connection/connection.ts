@@ -61,35 +61,35 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   /**
-   * Returns true if connection is in a transaction
+   * Returns true if the connection is in a transaction
    */
   get inTransaction(): boolean {
     return this._intlCon.inTransaction;
   }
 
   /**
-   * Returns current state of the connection
+   * Returns the current state of the connection
    */
   get state(): ConnectionState {
     return this._intlCon.state;
   }
 
   /**
-   * Returns processId of current session
+   * Returns processId of the current session
    */
   get processID(): Maybe<number> {
     return this._intlCon.processID;
   }
 
   /**
-   * Returns information parameters for current session
+   * Returns information parameters for the current session
    */
   get sessionParameters(): Record<string, string> {
     return this._intlCon.sessionParameters;
   }
 
   /**
-   * Returns secret key of current session
+   * Returns the secret key of the current session
    */
   get secretKey(): Maybe<number> {
     return this._intlCon.secretKey;
@@ -106,7 +106,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   /**
    * Closes connection. You can define how long time the connection will
    * wait for active queries before terminating the connection.
-   * On the end of the given time, it forces to close the socket and than emits `terminate` event.
+   * At the end of the given time, it forces to close the socket and then emits the ` terminate ` event.
    *
    * @param terminateWait {number} - Determines how long the connection will wait for active queries before terminating.
    */
