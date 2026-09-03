@@ -78,15 +78,13 @@ export const TimestampType: DataType = {
   },
 
   isType(v: any): boolean {
+    // A midnight-exact Date is ambiguous between "date-only" and "a real
+    // timestamp that happens to fall on midnight" - default to timestamp,
+    // since a timestamp/timestamptz column represents midnight just fine,
+    // whereas a date column can never represent a non-midnight time.
     return (
       v instanceof Date &&
-      !(v.getFullYear() === 1970 && v.getMonth() === 0 && v.getDate() === 1) &&
-      !(
-        v.getHours() === 0 &&
-        v.getMinutes() === 0 &&
-        v.getSeconds() === 0 &&
-        v.getMilliseconds() === 0
-      )
+      !(v.getFullYear() === 1970 && v.getMonth() === 0 && v.getDate() === 1)
     );
   },
 };

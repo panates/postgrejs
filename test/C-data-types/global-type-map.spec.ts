@@ -61,10 +61,23 @@ describe('GlobalTypeMap', () => {
     );
   });
 
-  it('should determine date oid from "Date"', async () => {
+  it('should determine date oid from "Date" (epoch date at midnight)', async () => {
+    // 1970-01-01 is the one case unambiguous enough to auto-detect as
+    // "date": it carries no information beyond "date-only, no time set".
+    expect(
+      GlobalTypeMap.determine(new Date('1970-01-01T00:00:00')),
+    ).toStrictEqual(DataTypeOIDs.date);
+  });
+
+  it('should determine timestamp oid for a midnight Date on a non-epoch day', async () => {
+    // Regression test: a Date exactly at midnight on a real (non-epoch)
+    // day is ambiguous between "date-only" and "a timestamp that happens
+    // to fall on midnight". This used to be mis-detected as date, losing
+    // type information for genuine timestamp values. A timestamp/timestamptz
+    // column represents midnight just fine, so timestamp is the safe default.
     expect(
       GlobalTypeMap.determine(new Date('2020-12-15T00:00:00')),
-    ).toStrictEqual(DataTypeOIDs.date);
+    ).toStrictEqual(DataTypeOIDs.timestamp);
   });
 
   it('should determine time oid from "Date"', async () => {
