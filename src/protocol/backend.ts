@@ -340,11 +340,23 @@ function parseParameterDescription(
   io: BufferReader,
 ): Protocol.ParameterDescriptionMessage {
   const out = {
-    parameterCount: io.readUInt32BE(),
+    // Int16 per the PostgreSQL wire protocol (ParameterDescription's
+    // parameter count field, unlike RowDescription's Int16 field count or
+    // this same message's own per-parameter Int32 OIDs below) - reading
+    // this as UInt32BE shifted every subsequent read 2 bytes into the
+    // wrong place, eventually running past the buffer ("Eof in buffer
+    // detected"). Apparently never exercised before: postgrejs only ever
+    // Describe()'d already-bound portals (type 'P'), whose response never
+    // includes a ParameterDescription - this path (Describe(type:'S'),
+    // used by the new PreparedStatement.prepare() fast path) is its first
+    // real caller.
+    parameterCount: io.readUInt16BE(),
     parameterIds: [],
   } as Protocol.ParameterDescriptionMessage;
 
-  for (let i = 0; i < out.parameterCount; i++) {
+  const l = out.parameterCount;
+  let i: number;
+  for (i = 0; i < l; i++) {
     out.parameterIds.push(io.readUInt32BE());
   }
 
