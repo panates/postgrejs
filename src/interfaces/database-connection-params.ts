@@ -40,4 +40,35 @@ export interface ConnectionConfiguration
 }
 
 export interface PoolConfiguration
-  extends ConnectionConfiguration, LPoolConfiguration {}
+  extends ConnectionConfiguration, LPoolConfiguration {
+  /**
+   * How many of Pool.query()'s one-shot queries may share a single pooled
+   * connection at the same time (default 100).
+   *
+   * PostgreSQL correlates responses to requests by order, so several
+   * queries can be in flight on one connection at once, each with its own
+   * Sync and therefore its own error boundary. Dispatching that way means
+   * `max` stops being a ceiling on concurrent queries and becomes only a
+   * ceiling on connections - with the default pool of 10, a burst of 1000
+   * queries no longer has to run as 100 sequential rounds of 10.
+   *
+   * Set to 1 for the older behaviour, where Pool.query() holds a
+   * connection exclusively for the duration of each query. Connections
+   * handed out by acquire() are never shared, whatever this is set to, so
+   * transactions, cursors and prepared statements are unaffected.
+   */
+  pipelineMaxQueries?: number;
+
+  /**
+   * How many pooled connections the pipelined path may borrow at once
+   * (default: the pool's own `max`).
+   *
+   * The server runs one connection's statements serially, so a burst
+   * spread over ten connections finishes in a fraction of the time it
+   * takes on one. Borrowed connections are handed straight back the
+   * moment they go idle, so this is a ceiling on how wide a single burst
+   * may fan out, not a reservation - lower it to keep connections free
+   * for acquire() while a burst is running.
+   */
+  pipelineMaxConnections?: number;
+}
