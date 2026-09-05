@@ -13,7 +13,7 @@ import type { ScriptResult } from '../interfaces/script-result.js';
 import type { StatementPrepareOptions } from '../interfaces/statement-prepare-options.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import { getConnectionConfig } from '../util/connection-config.js';
-import { startsTransaction } from '../util/starts-transaction.js';
+import { startsCopy, startsTransaction } from '../util/starts-transaction.js';
 import { Connection, type NotificationCallback } from './connection.js';
 import { getIntlConnection, IntlConnection } from './intl-connection.js';
 import type { PreparedStatement } from './prepared-statement.js';
@@ -319,7 +319,11 @@ export class Pool extends SafeEventEmitter {
       // the connection back to the pool with the query only half done.
       autoCommit !== false &&
       this.config.autoCommit !== false &&
-      !startsTransaction(sql)
+      !startsTransaction(sql) &&
+      // A COPY puts the connection into a mode where the next pipelined
+      // query's Query message is a protocol error, which would take down
+      // every caller sharing it, not just this one.
+      !startsCopy(sql)
     );
   }
 

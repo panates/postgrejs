@@ -19,6 +19,7 @@ import { getParsers } from '../util/get-parsers.js';
 import { parseObjectRow, parseRow } from '../util/parse-row.js';
 import { wrapRowDescription } from '../util/wrap-row-description.js';
 import type { Connection } from './connection.js';
+import { CopyFromStream, CopyToStream } from './copy-stream.js';
 
 const DataFormat = Protocol.DataFormat;
 
@@ -224,6 +225,53 @@ export class IntlConnection extends SafeEventEmitter {
       throw new Error('Connection closed');
   }
 
+  /**
+   * Runs a COPY ... TO STDOUT and hands back its bytes as they arrive.
+   * Resolves once the server has accepted the copy, not once it has
+   * finished - the whole point is not to hold the export in memory.
+   */
+  async copyTo(sql: string): Promise<CopyToStream> {
+    this.assertConnected();
+    this.ref();
+    this.runningQueryCount++;
+    const stream = new CopyToStream(this.socket);
+    // Held open until ReadyForQuery, which the stream's own capture waits
+    // for before ending - so the connection is never handed back (nor
+    // reported idle to a pool) while the copy is still running.
+    this.socket
+      .sendQueryMessage(sql, stream.capture)
+      // The stream, not this promise, is where a copy reports itself - but
+      // a failure that never reaches the message flow at all (a dead
+      // socket) would otherwise leave waitStarted() hanging forever.
+      .catch(err => stream.fail(err))
+      .finally(() => {
+        this.runningQueryCount--;
+        this.unref();
+      });
+    await stream.waitStarted();
+    return stream;
+  }
+
+  /**
+   * Runs a COPY ... FROM STDIN and hands back a stream to feed it.
+   * Resolves once the server is ready for data.
+   */
+  async copyFrom(sql: string): Promise<CopyFromStream> {
+    this.assertConnected();
+    this.ref();
+    this.runningQueryCount++;
+    const stream = new CopyFromStream(this.socket);
+    this.socket
+      .sendQueryMessage(sql, stream.capture)
+      .catch(err => stream.fail(err))
+      .finally(() => {
+        this.runningQueryCount--;
+        this.unref();
+      });
+    await stream.waitStarted();
+    return stream;
+  }
+
   protected async _execute(
     sql: string,
     options?: ScriptExecuteOptions,
@@ -256,9 +304,28 @@ export class IntlConnection extends SafeEventEmitter {
             case Protocol.BackendMessageCode.ErrorResponse:
               error = msg;
               break;
-            case Protocol.BackendMessageCode.NoticeResponse:
             case Protocol.BackendMessageCode.CopyInResponse:
+              // The server is now waiting for data this path has no way to
+              // send, so it would wait forever. CopyFail gets it out of
+              // copy-in mode; the caller gets told what to use instead.
+              error =
+                error ||
+                new Error(
+                  'COPY FROM STDIN is not supported by execute() - use copyFrom() instead',
+                );
+              this.socket.sendCopyFail(error.message);
+              break;
             case Protocol.BackendMessageCode.CopyOutResponse:
+              // Harmless to keep reading (the rows are simply dropped), but
+              // silently returning an empty result would be worse than
+              // saying so.
+              error =
+                error ||
+                new Error(
+                  'COPY TO STDOUT is not supported by execute() - use copyTo() instead',
+                );
+              break;
+            case Protocol.BackendMessageCode.NoticeResponse:
             case Protocol.BackendMessageCode.EmptyQueryResponse:
               break;
             case Protocol.BackendMessageCode.RowDescription:

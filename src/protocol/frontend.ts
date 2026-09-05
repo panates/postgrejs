@@ -30,6 +30,13 @@ const StaticSyncBuffer = Buffer.from([
   0x00,
   0x04,
 ]);
+const StaticCopyDoneBuffer = Buffer.from([
+  Protocol.FrontendMessageCode.CopyDone,
+  0x00,
+  0x00,
+  0x00,
+  0x04,
+]);
 
 export interface FrontendOptions {
   buffer?: SmartBufferConfig;
@@ -322,6 +329,32 @@ export class Frontend {
       .writeInt8(Protocol.FrontendMessageCode.Query)
       .writeInt32BE(0) // Preserve header
       .writeCString(sql || '', 'utf8');
+    return setLengthAndFlush(io, 1);
+  }
+
+  /**
+   * Returns the CopyData header and the caller's payload as two buffers
+   * rather than one, so a bulk import never copies the caller's bytes.
+   * PgSocket writes an array of buffers as a single corked write anyway,
+   * so this costs nothing on the wire.
+   */
+  getCopyDataMessage(data: Buffer): Buffer[] {
+    const header = Buffer.allocUnsafe(5);
+    header[0] = Protocol.FrontendMessageCode.CopyData;
+    header.writeUInt32BE(data.length + 4, 1);
+    return [header, data];
+  }
+
+  getCopyDoneMessage(): Buffer {
+    return StaticCopyDoneBuffer;
+  }
+
+  getCopyFailMessage(message: string): Buffer {
+    const io = this._io
+      .start()
+      .writeInt8(Protocol.FrontendMessageCode.CopyFail)
+      .writeInt32BE(0) // Preserve header
+      .writeCString(message || '', 'utf8');
     return setLengthAndFlush(io, 1);
   }
 

@@ -3,6 +3,7 @@
 // accurate (and more expensive) pass below. It over-matches on purpose -
 // comments, string literals and PL/pgSQL blocks all get through here.
 const MAYBE_TRANSACTION = /\b(?:begin|start)\b/i;
+const MAYBE_COPY = /\bcopy\b/i;
 
 function isWordChar(code: number): boolean {
   return (
@@ -33,31 +34,12 @@ function nextWordIs(sql: string, from: number, word: string): boolean {
 }
 
 /**
- * Does this SQL open a transaction?
- *
- * Pool.query()/Pool.execute() may share one connection between several
- * in-flight queries, which is only safe while none of them opens a
- * transaction: the others are already dispatched on that connection by the
- * time a BEGIN takes effect, so they would silently join it. Knowing
- * BEFORE dispatch is what makes the difference between routing the
- * statement to a connection of its own - where it simply works - and
- * finding out afterwards, when the damage is done and all that is left is
- * to report it.
- *
- * Two passes: a cheap regex rejects the overwhelming majority, and only a
- * hit pays for the accurate scan below, which skips comments and quoted
- * text so `select 'begin'`, `-- begin`, and a `DO $$ BEGIN ... END $$`
- * block (PL/pgSQL, not a transaction) are not mistaken for one. It looks
- * ANYWHERE rather than only at the start, since execute() runs
- * multi-statement scripts where the BEGIN can be the second statement.
- *
- * What it cannot see is a transaction opened inside a called procedure -
- * no reading of the SQL can reveal that. Pool keeps a second, authoritative
- * check on the server's own transaction status for exactly that case.
+ * Walks `sql` calling `at(i)` at every position that is real code, skipping
+ * line and (nestable) block comments, single- and double-quoted text and
+ * dollar-quoted bodies. Reports whether `at` ever returned true, stopping
+ * at the first one that does.
  */
-export function startsTransaction(sql: string): boolean {
-  if (!MAYBE_TRANSACTION.test(sql)) return false;
-
+function scanCode(sql: string, at: (i: number) => boolean): boolean {
   const n = sql.length;
   let i = 0;
   while (i < n) {
@@ -111,12 +93,60 @@ export function startsTransaction(sql: string): boolean {
       }
     }
 
-    if (matchesWord(sql, i, 'begin')) return true;
-    if (matchesWord(sql, i, 'start') && nextWordIs(sql, i + 5, 'transaction')) {
-      return true;
-    }
+    if (at(i)) return true;
 
     i++;
   }
   return false;
+}
+
+/**
+ * Does this SQL open a transaction?
+ *
+ * Pool.query()/Pool.execute() may share one connection between several
+ * in-flight queries, which is only safe while none of them opens a
+ * transaction: the others are already dispatched on that connection by the
+ * time a BEGIN takes effect, so they would silently join it. Knowing
+ * BEFORE dispatch is what makes the difference between routing the
+ * statement to a connection of its own - where it simply works - and
+ * finding out afterwards, when the damage is done and all that is left is
+ * to report it.
+ *
+ * Two passes: a cheap regex rejects the overwhelming majority, and only a
+ * hit pays for the accurate scan below, which skips comments and quoted
+ * text so `select 'begin'`, `-- begin`, and a `DO $$ BEGIN ... END $$`
+ * block (PL/pgSQL, not a transaction) are not mistaken for one. It looks
+ * ANYWHERE rather than only at the start, since execute() runs
+ * multi-statement scripts where the BEGIN can be the second statement.
+ *
+ * What it cannot see is a transaction opened inside a called procedure -
+ * no reading of the SQL can reveal that. Pool keeps a second, authoritative
+ * check on the server's own transaction status for exactly that case.
+ */
+export function startsTransaction(sql: string): boolean {
+  if (!MAYBE_TRANSACTION.test(sql)) return false;
+  return scanCode(
+    sql,
+    i =>
+      matchesWord(sql, i, 'begin') ||
+      (matchesWord(sql, i, 'start') && nextWordIs(sql, i + 5, 'transaction')),
+  );
+}
+
+/**
+ * Reports whether `sql` contains a COPY statement.
+ *
+ * Pooled pipelining has to refuse these outright: a COPY puts the server
+ * into copy-in/copy-out mode, where the only messages it will accept are
+ * CopyData/CopyDone/CopyFail - the next pipelined query's Query message
+ * arriving mid-copy is a protocol error that takes the whole shared
+ * connection down with it, not just that one caller.
+ *
+ * Deliberately blunt: it matches the word anywhere outside comments and
+ * quoted text, so a column actually named "copy" costs its query a
+ * dedicated connection. That is the harmless direction to be wrong in.
+ */
+export function startsCopy(sql: string): boolean {
+  if (!MAYBE_COPY.test(sql)) return false;
+  return scanCode(sql, i => matchesWord(sql, i, 'copy'));
 }

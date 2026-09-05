@@ -91,6 +91,25 @@ describe('Pool', () => {
     }
   });
 
+  it('should not pipeline a COPY', async () => {
+    // A COPY puts the connection in a mode where the next pipelined
+    // query's Query message is a protocol error, so it must never share.
+    await pool.execute(`drop table if exists pool_copy_test;
+      create table pool_copy_test (id int4)`);
+    const results = await Promise.allSettled([
+      pool.execute(`copy pool_copy_test from stdin`, { pipeline: true }),
+      pool.execute(`select 1`, { pipeline: true }),
+      pool.execute(`select 2`, { pipeline: true }),
+    ]);
+    expect(results[0].status).toStrictEqual('rejected');
+    expect(results[1].status).toStrictEqual('fulfilled');
+    expect(results[2].status).toStrictEqual('fulfilled');
+    // The connections the other two rode on must still work.
+    const r = await pool.execute(`select 3 as v`);
+    expect((r.results[0].rows as any)[0][0]).toStrictEqual(3);
+    await pool.execute(`drop table pool_copy_test`);
+  });
+
   it('should not pipeline when autoCommit is false', async () => {
     // That path prepares, executes and closes as separate steps, and the
     // connection reports itself idle between them - it must not be shared.

@@ -11,6 +11,7 @@ import type { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { Maybe, OID } from '../types.js';
 import { BindParam } from './bind-param.js';
+import type { CopyFromStream, CopyToStream } from './copy-stream.js';
 import { IntlConnection } from './intl-connection.js';
 import type { Pool } from './pool.js';
 import { PreparedStatement } from './prepared-statement.js';
@@ -228,6 +229,79 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     } finally {
       await statement.close();
     }
+  }
+
+  /**
+   * Runs a `COPY ... TO STDOUT` and returns its output as a stream of the
+   * raw bytes the server sends - text, CSV or binary, whichever the
+   * statement asked for. Nothing is decoded and nothing is copied.
+   *
+   * Resolves as soon as the server accepts the copy, so a large export is
+   * never held in memory; a consumer that falls behind pauses the socket
+   * rather than buffering. `rowCount` is set before the stream ends.
+   *
+   * ```ts
+   * const out = await connection.copyTo(`COPY users TO STDOUT (FORMAT csv)`);
+   * await pipeline(out, fs.createWriteStream('users.csv'));
+   * console.log(out.rowCount);
+   * ```
+   *
+   * The stream must be consumed or destroyed: until the copy finishes the
+   * connection is still mid-statement.
+   *
+   * @param sql {string} - A COPY ... TO STDOUT statement
+   */
+  async copyTo(sql: string): Promise<CopyToStream> {
+    /* istanbul ignore next */
+    if (this.listenerCount('debug')) {
+      this.emit('debug', {
+        location: 'Connection.copyTo',
+        connection: this,
+        message: `[${this.processID}] copyTo | ${sql}`,
+        sql,
+      });
+    }
+    this.emit('execute', sql);
+    return await this._captureErrorStack(this._intlCon.copyTo(sql)).catch(
+      (e: DatabaseError) => {
+        throw this._handleError(e, sql);
+      },
+    );
+  }
+
+  /**
+   * Runs a `COPY ... FROM STDIN` and returns a stream to feed it. Whatever
+   * is written is forwarded verbatim, so the statement's own FORMAT decides
+   * the encoding.
+   *
+   * ```ts
+   * const inp = await connection.copyFrom(`COPY users FROM STDIN (FORMAT csv)`);
+   * await pipeline(fs.createReadStream('users.csv'), inp);
+   * console.log(inp.rowCount);
+   * ```
+   *
+   * 'finish' means the server accepted the copy, not merely that the last
+   * byte was written. If the source fails, `pipeline()` destroys the stream
+   * and a CopyFail is sent, so the connection stays usable.
+   *
+   * @param sql {string} - A COPY ... FROM STDIN statement
+   */
+  async copyFrom(sql: string): Promise<CopyFromStream> {
+    /* istanbul ignore next */
+    if (this.listenerCount('debug')) {
+      this.emit('debug', {
+        location: 'Connection.copyFrom',
+        connection: this,
+        message: `[${this.processID}] copyFrom | ${sql}`,
+        sql,
+      });
+    }
+    this.emit('execute', sql);
+    return await this._captureErrorStack(this._intlCon.copyFrom(sql)).catch(
+      (e: DatabaseError) => {
+        throw this._handleError(e, sql);
+      },
+    );
   }
 
   /**

@@ -394,6 +394,47 @@ export class PgSocket extends SafeEventEmitter {
     );
   }
 
+  /**
+   * COPY IN data. Unlike every other send*() here this pushes nothing onto
+   * the capture queue: while a COPY is in progress the server answers no
+   * individual CopyData message, so the response still belongs to the
+   * Query capture that opened the copy.
+   *
+   * Returns false when the socket's buffer is full, exactly as
+   * net.Socket.write() does - the caller is expected to stop writing until
+   * `cb` fires, which is what CopyFromStream hands straight to its own
+   * Writable callback.
+   */
+  sendCopyData(data: Buffer, cb?: Callback): boolean {
+    return this._sendCopy(this._frontend.getCopyDataMessage(data), cb);
+  }
+
+  /** Ends a COPY IN normally; the server replies CommandComplete. */
+  sendCopyDone(cb?: Callback): boolean {
+    return this._sendCopy(this._frontend.getCopyDoneMessage(), cb);
+  }
+
+  /**
+   * Aborts a COPY IN. The server discards the copy, reports `message` as an
+   * ErrorResponse and returns to its normal state - without this a failed
+   * import would leave the connection waiting for data forever.
+   */
+  sendCopyFail(message: string, cb?: Callback): boolean {
+    return this._sendCopy(this._frontend.getCopyFailMessage(message), cb);
+  }
+
+  /**
+   * Stops reading from the socket, so a COPY OUT consumer that cannot keep
+   * up doesn't buffer the whole export in memory. Safe to call repeatedly.
+   */
+  pause(): void {
+    this._socket?.pause();
+  }
+
+  resume(): void {
+    this._socket?.resume();
+  }
+
   sendFlushMessage(cb?: Callback): void {
     if (this.listenerCount('debug'))
       this.emit('debug', { location: 'PgSocket.sendFlushMessage' });
@@ -753,6 +794,37 @@ export class PgSocket extends SafeEventEmitter {
       }
     } else this._flushPendingWrites();
     return true;
+  }
+
+  /**
+   * Writes COPY bytes straight through instead of queueing them for the
+   * next tick like _send() does. Two reasons: during a copy the capture
+   * queue holds exactly one entry (the Query that opened it), so _send()'s
+   * "batch only when more than one request is in flight" test would never
+   * fire and every chunk would be written on its own anyway; and the
+   * caller needs write()'s own return value to know when to stop, which a
+   * deferred write cannot give it.
+   */
+  protected _sendCopy(data: Buffer | Buffer[], cb?: Callback): boolean {
+    const socket = this._socket;
+    if (!socket || !socket.writable) return false;
+    // Whatever _send() queued for this tick belongs to the request that
+    // opened the copy, so it has to reach the wire ahead of these bytes.
+    this._flushPendingWrites();
+    if (!Array.isArray(data)) return socket.write(data, cb);
+    // Corked so a message split across buffers (CopyData's header and the
+    // caller's payload) still leaves as one write.
+    socket.cork();
+    try {
+      const l = data.length;
+      let writable = true;
+      let i: number;
+      for (i = 0; i < l; i++)
+        writable = socket.write(data[i], i === l - 1 ? cb : undefined);
+      return writable;
+    } finally {
+      socket.uncork();
+    }
   }
 
   /** Arrow property, not a method: used as a bare process.nextTick callback. */

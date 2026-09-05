@@ -1,5 +1,8 @@
 import { expect } from 'expect';
-import { startsTransaction } from '../../src/util/starts-transaction.js';
+import {
+  startsCopy,
+  startsTransaction,
+} from '../../src/util/starts-transaction.js';
 
 describe('startsTransaction()', () => {
   const opens = [
@@ -57,6 +60,42 @@ describe('startsTransaction()', () => {
   for (const sql of doesNotOpen) {
     it(`ignores: ${JSON.stringify(sql)}`, () => {
       expect(startsTransaction(sql)).toBe(false);
+    });
+  }
+});
+
+describe('startsCopy()', () => {
+  const copies = [
+    'COPY t TO STDOUT',
+    'copy t from stdin',
+    'copy t (a, b) from stdin with (format csv)',
+    '-- load it\ncopy t from stdin',
+    '/* wrap */ COPY t TO STDOUT',
+    'select 1; copy t to stdout',
+  ];
+
+  const notCopies = [
+    'select 1',
+    // The word appears, but only as data or a name.
+    "select 'copy'",
+    'select copy_id from t',
+    'select t.xcopy from t',
+    '-- copy\nselect 1',
+    '/* copy */ select 1',
+    "select * from t where note = 'copy this'",
+    // The cheap pre-filter rejects these outright.
+    'update t set a = 1',
+  ];
+
+  for (const sql of copies) {
+    it(`detects: ${JSON.stringify(sql)}`, () => {
+      expect(startsCopy(sql)).toBe(true);
+    });
+  }
+
+  for (const sql of notCopies) {
+    it(`ignores: ${JSON.stringify(sql)}`, () => {
+      expect(startsCopy(sql)).toBe(false);
     });
   }
 });

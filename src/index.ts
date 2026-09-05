@@ -1,5 +1,6 @@
 export * from './connection/bind-param.js';
 export * from './connection/connection.js';
+export * from './connection/copy-stream.js';
 export * from './connection/cursor.js';
 export * from './connection/pool.js';
 export * from './connection/prepared-statement.js';
