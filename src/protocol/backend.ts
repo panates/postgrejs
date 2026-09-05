@@ -275,29 +275,26 @@ function parseCopyResponse(io: BufferReader): Protocol.CopyResponseMessage {
   return out;
 }
 
-function parseDataRow(io: BufferReader): Protocol.DataRowMessage {
-  const out = {
-    columnCount: io.readUInt16BE(),
-  } as Protocol.DataRowMessage;
-
-  if (out.columnCount) {
-    out.columns = [];
-    for (let i = 0; i < out.columnCount; i++) {
-      // The length of the column value, in bytes (this count does not include itself).
-      // Can be zero. As a special case, -1 indicates a NULL column value.
-      // No value bytes follow in the NULL case.
-      const l = io.readInt32BE();
-      if (l < 0) out.columns.push(null);
-      else out.columns.push(io.readBuffer(l));
-    }
-  }
-  return out;
+function parseDataRow(
+  io: BufferReader,
+  code: Protocol.BackendMessageCode,
+  len: number,
+): Protocol.DataRowMessage {
+  const columnCount = io.readUInt16BE();
+  // len is the wire length field (includes itself, excludes the 1-byte
+  // code): body after code+len is `len - 4` bytes; columnCount (2 bytes)
+  // is already consumed above, leaving `len - 6` bytes of column data -
+  // one Buffer.subarray() for the WHOLE row instead of one per column
+  // (each column's own length-prefix framing is walked lazily by
+  // parseRow/get-parsers.ts during decode instead of eagerly here).
+  const data = io.readBuffer(len - 6);
+  return { columnCount, data };
 }
 
 function parseErrorResponse(io: BufferReader): Protocol.ErrorResponseMessage {
   const out: Record<string, string> = {};
 
-  let fieldType;
+  let fieldType: string | null;
   while ((fieldType = io.readLString(1)) !== '\0') {
     const value = io.readCString('utf8');
     const key = ErrorFieldTypes[fieldType!];

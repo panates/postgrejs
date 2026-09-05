@@ -13,14 +13,14 @@ export const NumericType: DataType = {
   oid: DataTypeOIDs.numeric,
   jsType: 'number',
 
-  parseBinary(v: Buffer): number {
-    const len = v.readInt16BE();
-    const weight = v.readInt16BE(2);
+  parseBinary(v: Buffer, offset: number = 0): number {
+    const len = v.readInt16BE(offset);
+    const weight = v.readInt16BE(offset + 2);
     // sign is a bitmask (0x0000/0x4000/0xC000/0xD000/0xF000), not a two's
     // complement quantity - must be read unsigned or NaN/Infinity sign
     // values (which set the top bit) never compare equal to the constants.
-    const sign = v.readUInt16BE(4);
-    const scale = v.readInt16BE(6);
+    const sign = v.readUInt16BE(offset + 4);
+    const scale = v.readInt16BE(offset + 6);
 
     if (sign === NUMERIC_NAN) return NaN;
     if (sign === NUMERIC_PINF) return Infinity;
@@ -28,7 +28,7 @@ export const NumericType: DataType = {
 
     const digits: number[] = [];
     for (let i = 0; i < len; i++) {
-      digits[i] = v.readInt16BE(8 + i * 2);
+      digits[i] = v.readInt16BE(offset + 8 + i * 2);
     }
 
     const numString = numberBytesToString(digits, scale, weight, sign);
@@ -41,6 +41,11 @@ export const NumericType: DataType = {
   },
 
   parseText: parseFloat,
+
+  // See float4-type.ts's parseTextBuffer comment - same rationale.
+  parseTextBuffer(buf: Buffer, offset: number, len: number): number {
+    return parseFloat(buf.toString('latin1', offset, offset + len));
+  },
 
   isType(v: any): boolean {
     return typeof v === 'number';
@@ -134,7 +139,9 @@ function digitToString(
   let dig = idx >= 0 && idx < digits.length ? digits[idx] : 0;
   // Each dig represents 4 decimal digits (e.g. 9999)
   // If we continue the number, then we need to print 0 as 0000 (alwaysPutIt parameter is true)
-  for (let p = 1; p < ROUND_POWERS.length; p++) {
+  const l = ROUND_POWERS.length;
+  let p: number;
+  for (p = 1; p < l; p++) {
     const pow = ROUND_POWERS[p];
     const d1 = Math.trunc(dig / pow);
     dig -= d1 * pow;

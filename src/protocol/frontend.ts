@@ -174,14 +174,17 @@ export class Frontend {
     if (params && params.length) {
       io.writeInt16BE(params.length);
       const formatOffset = io.offset;
-      for (let i = 0; i < params.length; i++) {
+      const l = params.length;
+      let i: number;
+      for (i = 0; i < l; i++) {
         io.writeInt16BE(0); // Preserve
       }
 
       // Write parameter values
-      io.writeUInt16BE(params.length);
-      for (let i = 0; i < params?.length; i++) {
-        let v = params[i];
+      io.writeUInt16BE(l);
+      let v: any;
+      for (i = 0; i < l; i++) {
+        v = params[i];
         if (v === null || v === undefined) {
           io.writeInt32BE(-1);
           continue;
@@ -249,8 +252,10 @@ export class Frontend {
     }
 
     if (Array.isArray(columnFormat)) {
-      io.writeUInt16BE(columnFormat.length);
-      for (let i = 0; i < columnFormat.length; i++) {
+      const l = columnFormat.length;
+      io.writeUInt16BE(l);
+      let i: number;
+      for (i = 0; i < l; i++) {
         io.writeUInt16BE(columnFormat[i]);
       }
     } else if (columnFormat === DataFormat.binary) {

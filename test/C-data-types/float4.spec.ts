@@ -18,6 +18,16 @@ describe('DataType: float4', () => {
     });
   });
 
+  it('should parse "NaN"/"Infinity"/"-Infinity" (text)', async () => {
+    await testParse(
+      conn,
+      DataTypeOIDs.float4,
+      ['NaN', 'Infinity', '-Infinity'],
+      [NaN, Infinity, -Infinity],
+      { columnFormat: DataFormat.text },
+    );
+  });
+
   it('should parse "float4" array field (text)', async () => {
     const input = [
       [

@@ -1,4 +1,5 @@
 import { DataTypeOIDs } from '../constants.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType, Rectangle } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import type { Maybe } from '../types.js';
@@ -15,13 +16,14 @@ export const BoxType: DataType = {
   oid: DataTypeOIDs.box,
   jsType: 'object',
   arraySeparator: ';',
+  fixedBinarySize: 32,
 
-  parseBinary(v: Buffer): Rectangle {
+  parseBinary(v: Buffer, offset: number = 0): Rectangle {
     return {
-      x1: v.readDoubleBE(0),
-      y1: v.readDoubleBE(8),
-      x2: v.readDoubleBE(16),
-      y2: v.readDoubleBE(24),
+      x1: v.readDoubleBE(offset),
+      y1: v.readDoubleBE(offset + 8),
+      x2: v.readDoubleBE(offset + 16),
+      y2: v.readDoubleBE(offset + 24),
     };
   },
 
@@ -42,6 +44,22 @@ export const BoxType: DataType = {
       x2: parseFloat(m[3]),
       y2: parseFloat(m[4]),
     };
+  },
+
+  // PostgreSQL's box text output is pure ASCII, so 'latin1' decodes
+  // identically to 'utf8' here but skips V8's multi-byte-sequence
+  // detection. Delegates to parseText by reference rather than duplicating
+  // its logic, so the two can never drift apart.
+  parseTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): Maybe<Rectangle> {
+    return BoxType.parseText(
+      buf.toString('latin1', offset, offset + len),
+      options,
+    );
   },
 
   isType(v: any): boolean {

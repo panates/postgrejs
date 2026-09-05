@@ -6,25 +6,28 @@ export const BoolType: DataType = {
   name: 'bool',
   oid: DataTypeOIDs.bool,
   jsType: 'boolean',
+  fixedBinarySize: 1,
 
-  parseBinary(v: Buffer): boolean {
-    return !!v.readUInt8();
+  parseBinary(v: Buffer, offset: number = 0): boolean {
+    return !!v.readUInt8(offset);
   },
 
   encodeBinary(buf: SmartBuffer, v: boolean): void {
     buf.writeInt8(v ? 1 : 0);
   },
 
+  // PostgreSQL's boolout() always emits exactly 't' or 'f' for a bool
+  // column's text-format wire output, regardless of how the value was
+  // originally inserted (confirmed live: `select b from t` where t is a
+  // real bool column returns "t"/"f", never "true"/"y"/"on"/etc) - the
+  // other literal forms are only valid as *input* to a bool cast, never as
+  // output, so they can never match here.
   parseText(v: string): boolean {
-    return (
-      v === 'TRUE' ||
-      v === 't' ||
-      v === 'true' ||
-      v === 'y' ||
-      v === 'yes' ||
-      v === 'on' ||
-      v === '1'
-    );
+    return v === 't';
+  },
+
+  parseTextBuffer(buf: Buffer, offset: number): boolean {
+    return buf[offset] === 0x74; /* 't' */
   },
 
   isType(v: any): boolean {

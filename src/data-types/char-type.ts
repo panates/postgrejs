@@ -7,8 +7,8 @@ export const CharType: DataType = {
   oid: DataTypeOIDs.char,
   jsType: 'string',
 
-  parseBinary(v: Buffer): string {
-    return v.toString('utf8');
+  parseBinary(v: Buffer, offset: number = 0): string {
+    return v.toString('utf8', offset);
   },
 
   encodeBinary(buf: SmartBuffer, v: string): void {
@@ -16,7 +16,15 @@ export const CharType: DataType = {
   },
 
   parseText(v): string {
-    return '' + v;
+    // The wire decoder always hands this a string (see intl-connection.ts's
+    // DataRow handling) - no coercion needed.
+    return v;
+  },
+
+  // char(1) can hold a multi-byte Unicode character (e.g. 'é'), so this
+  // must stay 'utf8' - see varchar-type.ts's parseTextBuffer comment.
+  parseTextBuffer(buf: Buffer, offset: number, len: number): string {
+    return buf.toString('utf8', offset, offset + len);
   },
 
   isType(v: any): boolean {

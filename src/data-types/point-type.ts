@@ -1,4 +1,5 @@
 import { DataTypeOIDs } from '../constants.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType, Point } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import type { Maybe } from '../types.js';
@@ -10,11 +11,12 @@ export const PointType: DataType = {
   name: 'point',
   oid: DataTypeOIDs.point,
   jsType: 'object',
+  fixedBinarySize: 16,
 
-  parseBinary(v: Buffer): Point {
+  parseBinary(v: Buffer, offset: number = 0): Point {
     return {
-      x: v.readDoubleBE(0),
-      y: v.readDoubleBE(8),
+      x: v.readDoubleBE(offset),
+      y: v.readDoubleBE(offset + 8),
     };
   },
 
@@ -30,6 +32,19 @@ export const PointType: DataType = {
       x: parseFloat(m[1]),
       y: parseFloat(m[2]),
     };
+  },
+
+  // See box-type.ts's parseTextBuffer comment - same rationale.
+  parseTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): Maybe<Point> {
+    return PointType.parseText(
+      buf.toString('latin1', offset, offset + len),
+      options,
+    );
   },
 
   isType(v: any): boolean {

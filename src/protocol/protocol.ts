@@ -1,5 +1,3 @@
-import type { Nullable } from '../types.js';
-
 export namespace Protocol {
   export const VERSION_MAJOR = 3;
   export const VERSION_MINOR = 0;
@@ -141,7 +139,7 @@ export namespace Protocol {
 
   export interface DataRowMessage {
     columnCount: number;
-    columns: Nullable<Buffer>[];
+    data: Buffer;
   }
 
   export interface ErrorResponseMessage {

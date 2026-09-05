@@ -18,10 +18,12 @@ import { PreparedStatement } from './prepared-statement.js';
 export type NotificationMessage = Protocol.NotificationResponseMessage;
 export type NotificationCallback = (msg: NotificationMessage) => any;
 
+const CAPTURE_STACK_TRACE_LIMIT = 5;
+
 export class Connection extends SafeEventEmitter implements AsyncDisposable {
-  protected readonly _pool?: Pool;
-  protected readonly _intlCon: IntlConnection;
-  protected readonly _notificationListeners = new SafeEventEmitter();
+  protected _pool?: Pool;
+  protected _intlCon: IntlConnection;
+  protected _notificationListeners?: SafeEventEmitter;
   protected _closing = false;
 
   constructor(pool: Pool, intlCon: IntlConnection);
@@ -33,24 +35,12 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       typeof arg0 === 'object' &&
       typeof arg0.acquire === 'function'
     ) {
-      if (!(arg1 instanceof IntlConnection))
-        throw new TypeError('Invalid argument');
       this._pool = arg0;
       this._intlCon = arg1;
     } else {
       this._intlCon = new IntlConnection(arg0);
     }
-    this._intlCon.on('ready', (...args) => this.emit('ready', ...args));
-    this._intlCon.on('error', (...args) => this.emit('error', ...args));
-    this._intlCon.on('close', (...args) => this.emit('close', ...args));
-    this._intlCon.on('connecting', (...args) =>
-      this.emit('connecting', ...args),
-    );
-    this._intlCon.on('ready', (...args) => this.emit('ready', ...args));
-    this._intlCon.on('terminate', (...args) => this.emit('terminate', ...args));
-    this._intlCon.on('notification', (msg: NotificationMessage) =>
-      this._handleNotification(msg),
-    );
+    this._intlCon.owner = this;
   }
 
   /**
@@ -95,6 +85,10 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     return this._intlCon.secretKey;
   }
 
+  get runningQueryCount(): number {
+    return this._intlCon.runningQueryCount;
+  }
+
   /**
    * Connects to the server
    */
@@ -111,8 +105,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * @param terminateWait {number} - Determines how long the connection will wait for active queries before terminating.
    */
   async close(terminateWait?: number): Promise<void> {
-    this._notificationListeners.removeAllListeners();
-    this._intlCon.statementQueue.clearQueue();
+    this._notificationListeners?.removeAllListeners();
     if (this.state === ConnectionState.CLOSED || this._closing) return;
     /* istanbul ignore next */
     if (this.listenerCount('debug')) {
@@ -200,6 +193,26 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
       prm instanceof BindParam ? prm.oid : typeMap.determine(prm),
     );
+
+    const effectiveAutoCommit =
+      options?.autoCommit != null
+        ? options.autoCommit
+        : this._intlCon.config.autoCommit;
+    if (
+      !options?.cursor &&
+      !this._intlCon.inTransaction &&
+      effectiveAutoCommit !== false
+    ) {
+      const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm =>
+        prm instanceof BindParam ? prm.value : prm,
+      );
+      return await this._captureErrorStack(
+        this._intlCon.queryOnce(sql, paramTypes, params, options || {}),
+      ).catch((e: DatabaseError) => {
+        throw this._handleError(e, sql);
+      });
+    }
+
     const statement = await this.prepare(sql, { paramTypes, typeMap }).catch(
       (e: DatabaseError) => {
         throw this._handleError(e, sql);
@@ -271,7 +284,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   /**
-   * Rolls back current transaction to given savepoint
+   * Rolls back the current transaction to given savepoint
    * @param name {string} - Name of the savepoint
    */
   rollbackToSavepoint(name: string): Promise<void> {
@@ -289,7 +302,13 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   async listen(channel: string, callback: NotificationCallback) {
     if (!/^[A-Z]\w+$/i.test(channel))
       throw new TypeError(`Invalid channel name`);
-    const registered = !!this._notificationListeners.eventNames().length;
+    if (!this._notificationListeners) {
+      this._notificationListeners = new SafeEventEmitter();
+      this._intlCon.on('notification', (msg: NotificationMessage) =>
+        this._handleNotification(msg),
+      );
+    }
+    const registered = !!this._notificationListeners?.eventNames().length;
     this._notificationListeners.on(channel, callback);
     if (!registered)
       await this._captureErrorStack(this.query('LISTEN ' + channel));
@@ -298,21 +317,28 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   async unListen(channel: string) {
     if (!/^[A-Z]\w+$/i.test(channel))
       throw new TypeError(`Invalid channel name`);
-    this._notificationListeners.removeAllListeners(channel);
-    await this._captureErrorStack(this.query('UNLISTEN ' + channel));
+    if (this._notificationListeners?.listenerCount(channel)) {
+      this._notificationListeners?.removeAllListeners(channel);
+      await this._captureErrorStack(this.query('UNLISTEN ' + channel));
+    }
   }
 
   async unListenAll() {
-    this._notificationListeners.removeAllListeners();
-    await this._captureErrorStack(this.query('UNLISTEN *'));
+    if (this._notificationListeners?.eventNames().length) {
+      this._notificationListeners.removeAllListeners();
+      await this._captureErrorStack(this.query('UNLISTEN *'));
+    }
   }
 
   protected _handleNotification(msg: NotificationMessage) {
     this.emit('notification', msg);
-    this._notificationListeners.emit(msg.channel, msg);
+    this._notificationListeners?.emit(msg.channel, msg);
   }
 
   protected async _close(): Promise<void> {
+    if (this._notificationListeners?.eventNames().length)
+      await this.unListenAll();
+    if (this.inTransaction) await this.rollback();
     if (this._pool) {
       await this._captureErrorStack(this._pool.release(this));
       this.emit('release');
@@ -336,20 +362,20 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   protected async _captureErrorStack<T>(promise: Promise<T>): Promise<T> {
-    const stack = new Error().stack;
+    const stackHolder: { stack?: string } = {};
+    const originalStackTraceLimit = Error.stackTraceLimit;
+    Error.stackTraceLimit = CAPTURE_STACK_TRACE_LIMIT;
+    Error.captureStackTrace(stackHolder, this._captureErrorStack);
+    Error.stackTraceLimit = originalStackTraceLimit;
+
     return promise.catch(e => {
+      const stack = stackHolder.stack;
       if (e instanceof Error && stack) {
         if (e.stack && stack) {
           e.stack =
             e.stack.substring(0, e.stack.indexOf('\n')) +
             '\n' +
-            stack
-              .split('\n')
-              .filter(
-                (x: string, i: number) =>
-                  i && !x.includes('._captureErrorStack'),
-              )
-              .join('\n');
+            stack.split('\n').slice(1).join('\n');
         }
       }
       throw e;

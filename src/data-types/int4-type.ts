@@ -1,15 +1,16 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
-import { fastParseInt } from '../util/fast-parseint.js';
+import { fastParseInt, fastParseIntBuffer } from '../util/fast-parseint.js';
 
 export const Int4Type: DataType = {
   name: 'int4',
   oid: DataTypeOIDs.int4,
   jsType: 'number',
+  fixedBinarySize: 4,
 
-  parseBinary(v: Buffer): number {
-    return v.readInt32BE(0);
+  parseBinary(v: Buffer, offset: number = 0): number {
+    return v.readInt32BE(offset);
   },
 
   encodeBinary(buf: SmartBuffer, v: number): void {
@@ -17,6 +18,7 @@ export const Int4Type: DataType = {
   },
 
   parseText: fastParseInt,
+  parseTextBuffer: fastParseIntBuffer,
 
   isType(v: any): boolean {
     return (

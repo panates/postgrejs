@@ -1,4 +1,5 @@
 import { DataTypeOIDs } from '../constants.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { Circle, DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import type { Maybe } from '../types.js';
@@ -15,12 +16,13 @@ export const CircleType: DataType = {
   name: 'circle',
   oid: DataTypeOIDs.circle,
   jsType: 'object',
+  fixedBinarySize: 24,
 
-  parseBinary(v: Buffer): Circle {
+  parseBinary(v: Buffer, offset: number = 0): Circle {
     return {
-      x: v.readDoubleBE(0),
-      y: v.readDoubleBE(8),
-      r: v.readDoubleBE(16),
+      x: v.readDoubleBE(offset),
+      y: v.readDoubleBE(offset + 8),
+      r: v.readDoubleBE(offset + 16),
     } as Circle;
   },
 
@@ -42,6 +44,19 @@ export const CircleType: DataType = {
       y: parseFloat(m[2]),
       r: parseFloat(m[3]),
     } as Circle;
+  },
+
+  // See box-type.ts's parseTextBuffer comment - same rationale.
+  parseTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): Maybe<Circle> {
+    return CircleType.parseText(
+      buf.toString('latin1', offset, offset + len),
+      options,
+    );
   },
 
   isType(v: any): boolean {

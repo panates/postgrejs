@@ -114,4 +114,146 @@ describe('Cursor support', () => {
     }
     expect(closed).toStrictEqual(true);
   });
+
+  it('should stay usable after closing a cursor opened from an externally-prepared statement', async () => {
+    const statement = await connection.prepare(
+      'select generate_series(1,20) as n',
+    );
+    try {
+      const result = await statement.execute({
+        cursor: true,
+        fetchCount: 5,
+      });
+      const cursor = result.cursor!;
+      const rows = await cursor.fetch(5);
+      expect(rows.length).toStrictEqual(5);
+      await cursor.close();
+      // The statement's refcount only reaches 0 on statement.close() below,
+      // not on cursor.close() - so it must still be usable here.
+      const r2 = await statement.execute({});
+      expect(r2.rows?.length).toStrictEqual(20);
+    } finally {
+      await statement.close();
+    }
+  });
+
+  it('should support two cursors sharing one prepared statement', async () => {
+    const statement = await connection.prepare(
+      'select generate_series(1,30) as n',
+    );
+    try {
+      const cursorA = (await statement.execute({ cursor: true, fetchCount: 5 }))
+        .cursor!;
+      const cursorB = (await statement.execute({ cursor: true, fetchCount: 5 }))
+        .cursor!;
+      const rowsA = await cursorA.fetch(5);
+      const rowsB = await cursorB.fetch(5);
+      expect(rowsA.length).toStrictEqual(5);
+      expect(rowsB.length).toStrictEqual(5);
+      await cursorA.close();
+      // Statement must still be usable - cursorB still references it.
+      const r2 = await statement.execute({});
+      expect(r2.rows?.length).toStrictEqual(30);
+      await cursorB.close();
+    } finally {
+      await statement.close();
+    }
+  });
+
+  it('should not throw when a cursor is closed after its statement was already closed directly', async () => {
+    const statement = await connection.prepare(
+      'select generate_series(1,10) as n',
+    );
+    const result = await statement.execute({ cursor: true, fetchCount: 5 });
+    const cursor = result.cursor!;
+    await cursor.fetch(5);
+    await statement.close();
+    await expect(cursor.close()).resolves.toBeUndefined();
+  });
+
+  it('should open a cursor in 1 round trip and close it in 1 round trip (common path)', async () => {
+    const socket = (connection as any)._intlCon.socket;
+    const events: string[] = [];
+    const onDebug = (e: any) => events.push(e.location);
+    socket.on('debug', onDebug);
+    try {
+      const result = await connection.query(
+        `select generate_series(1,20) as n`,
+        { cursor: true, fetchCount: 5 },
+      );
+      const cursor = result.cursor!;
+      expect(
+        events.filter(e => e === 'PgSocket.sendBindDescribeMessages').length,
+      ).toStrictEqual(1);
+      expect(
+        events.some(
+          e =>
+            e === 'PgSocket.sendBindMessage' ||
+            e === 'PgSocket.sendDescribeMessage',
+        ),
+      ).toStrictEqual(false);
+
+      await cursor.fetch(5);
+      events.length = 0;
+      await cursor.close();
+      expect(
+        events.filter(e => e === 'PgSocket.sendClosePortalAndStatementMessages')
+          .length,
+      ).toStrictEqual(1);
+      expect(
+        events.some(
+          e =>
+            e === 'PgSocket.sendCloseMessage' ||
+            e === 'PgSocket.sendSyncMessage',
+        ),
+      ).toStrictEqual(false);
+    } finally {
+      socket.off('debug', onDebug);
+    }
+  });
+
+  it('should surface the real error when a cursor Bind fails, and leave the connection usable', async () => {
+    const statement = await connection.prepare('select $1::int4 as v');
+    try {
+      let error: any;
+      try {
+        await statement.execute({
+          params: ['not-a-number'],
+          cursor: true,
+          objectRows: true,
+        });
+      } catch (e: any) {
+        error = e;
+      }
+      // Not the protocol-level confusion ("unexpected response message (Z)")
+      // that the two-capture Close+Sync teardown used to produce, and that
+      // _execute()'s finally used to let mask the original failure.
+      expect(error).toBeDefined();
+      expect(error.message).toContain('invalid input syntax');
+
+      // The failed teardown must not leave an orphaned capture behind: an
+      // orphan silently eats the first message of whatever comes next, so
+      // these follow-ups would drift out of alignment.
+      for (const [sql, expected] of [
+        ['select 42 as v', 42],
+        ['select 7 as v', 7],
+        ['select 9 as v', 9],
+      ] as const) {
+        const r = await connection.query(sql, { objectRows: true });
+        expect((r.rows?.[0] as any)?.v).toStrictEqual(expected);
+      }
+
+      // ...and a healthy cursor on the same statement still works.
+      const ok = await statement.execute({
+        params: [5],
+        cursor: true,
+        objectRows: true,
+      });
+      const row: any = await ok.cursor!.next();
+      expect(row.v).toStrictEqual(5);
+      await ok.cursor!.close();
+    } finally {
+      await statement.close().catch(() => undefined);
+    }
+  });
 });

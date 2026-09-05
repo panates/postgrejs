@@ -11,13 +11,18 @@ export const TimestampType: DataType = {
   name: 'timestamp',
   oid: DataTypeOIDs.timestamp,
   jsType: 'Date',
+  fixedBinarySize: 8,
 
-  parseBinary(v: Buffer, options: DataMappingOptions): Date | number | string {
-    const fetchAsString =
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.timestamp);
-    const hi = v.readInt32BE();
-    const lo = v.readUInt32BE(4);
+  parseBinary(
+    v: Buffer,
+    offset: number = 0,
+    options: DataMappingOptions,
+  ): Date | number | string {
+    const fetchAsString = options.fetchAsString?.includes(
+      DataTypeOIDs.timestamp,
+    );
+    const hi = v.readInt32BE(offset);
+    const lo = v.readUInt32BE(offset + 4);
     if (lo === 0xffffffff && hi === 0x7fffffff)
       return fetchAsString ? 'infinity' : Infinity;
     if (lo === 0x00000000 && hi === -0x80000000)
@@ -44,8 +49,7 @@ export const TimestampType: DataType = {
     v: Date | number | string,
     options: DataMappingOptions,
   ): void {
-    if (typeof v === 'string')
-      v = parseDateTime(v, true, false, options.utcDates);
+    if (typeof v === 'string') v = parseDateTime(v, options.utcDates);
     if (v === Infinity) {
       buf.writeInt32BE(0x7fffffff); // hi
       buf.writeUInt32BE(0xffffffff); // lo
@@ -69,12 +73,21 @@ export const TimestampType: DataType = {
   },
 
   parseText(v: string, options: DataMappingOptions): Date | number | string {
-    if (
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.timestamp)
-    )
-      return v;
-    return parseDateTime(v, true, false, options.utcDates);
+    if (options.fetchAsString?.includes(DataTypeOIDs.timestamp)) return v;
+    return parseDateTime(v, options.utcDates);
+  },
+
+  // See date-type.ts's parseTextBuffer comment - same rationale.
+  parseTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): Date | number | string {
+    return TimestampType.parseText(
+      buf.toString('latin1', offset, offset + len),
+      options,
+    );
   },
 
   isType(v: any): boolean {

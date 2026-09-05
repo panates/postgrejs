@@ -9,12 +9,11 @@ export const JsonType: DataType = {
 
   parseBinary(
     v: Buffer,
+    offset: number = 0,
     options: DataMappingOptions,
   ): string | object | null | undefined {
-    const content = v.toString('utf8');
-    const fetchAsString =
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.json);
+    const content = v.toString('utf8', offset);
+    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.json);
     if (fetchAsString) return content;
     return content ? JSON.parse(content) : undefined;
   },
@@ -27,11 +26,25 @@ export const JsonType: DataType = {
   },
 
   parseText(v: string, options: DataMappingOptions): object | string | null {
-    const fetchAsString =
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.json);
+    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.json);
     if (fetchAsString) return v;
     return v ? JSON.parse(v) : null;
+  },
+
+  // JSON content is arbitrary Unicode, so this must stay 'utf8' - same
+  // allocation as the default path, this only skips the extra parseText
+  // wrapper-closure call get-parsers.ts would otherwise add (not a real
+  // performance win, just consistency with the dispatch mechanism).
+  parseTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): object | string | null {
+    return JsonType.parseText(
+      buf.toString('utf8', offset, offset + len),
+      options,
+    );
   },
 
   isType(v: any): boolean {

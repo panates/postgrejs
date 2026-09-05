@@ -10,14 +10,13 @@ export const JsonbType: DataType = {
 
   parseBinary(
     v: Buffer,
+    offset: number = 0,
     options: DataMappingOptions,
   ): object | string | null | undefined {
-    const buf = new BufferReader(v);
+    const buf = new BufferReader(offset ? v.subarray(offset) : v);
     if (buf.readUInt8() !== 1)
       throw new Error('Unexpected Jsonb version value in header');
-    const fetchAsString =
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.jsonb);
+    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.jsonb);
     const content = buf.readLString(buf.length - buf.offset);
     if (fetchAsString) return content;
     return content ? JSON.parse(content) : undefined;
@@ -31,11 +30,22 @@ export const JsonbType: DataType = {
   },
 
   parseText(v: string, options: DataMappingOptions): object | string | null {
-    const fetchAsString =
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.jsonb);
+    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.jsonb);
     if (fetchAsString) return v;
     return v ? JSON.parse(v) : null;
+  },
+
+  // See json-type.ts's parseTextBuffer comment - same rationale.
+  parseTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): object | string | null {
+    return JsonbType.parseText(
+      buf.toString('utf8', offset, offset + len),
+      options,
+    );
   },
 
   isType(v: any): boolean {

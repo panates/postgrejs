@@ -3,6 +3,17 @@ import type { DataTypeMap } from '../data-type-map.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
 import type { Protocol } from '../protocol/protocol.js';
 
+// DataTypeNames (oid -> name) is a static, never-mutated map, so its
+// reverse (name -> oid) can be precomputed once here instead of rebuilding
+// Object.keys(DataTypeNames) and linearly rescanning it (with no early
+// exit) for every array-typed column in every query. Duplicate names would
+// resolve to the same "last one wins" oid either way, matching the old
+// loop's behavior exactly.
+const DataTypeOIDByName: Record<string, number> = {};
+for (const oid of Object.keys(DataTypeNames)) {
+  DataTypeOIDByName[DataTypeNames[oid]] = Number(oid);
+}
+
 export function wrapRowDescription(
   typeMap: DataTypeMap,
   fields: Protocol.RowDescription[],
@@ -21,10 +32,8 @@ export function wrapRowDescription(
     x.isArray = x.dataTypeName.startsWith('_');
     if (x.isArray) {
       x.elementDataTypeName = x.dataTypeName.substring(1);
-      for (const oid of Object.keys(DataTypeNames)) {
-        if (DataTypeNames[oid] === x.elementDataTypeName)
-          x.elementDataTypeId = parseInt(oid, 10);
-      }
+      const elementOid = DataTypeOIDByName[x.elementDataTypeName];
+      if (elementOid !== undefined) x.elementDataTypeId = elementOid;
     }
     if (f.fixedSize && f.fixedSize > 0) x.fixedSize = f.fixedSize;
     if (f.modifier && f.modifier > 0) x.modifier = f.modifier;

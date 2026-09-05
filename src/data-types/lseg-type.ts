@@ -1,4 +1,5 @@
 import { DataTypeOIDs } from '../constants.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType, Rectangle } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import type { Maybe } from '../types.js';
@@ -16,13 +17,14 @@ export const LsegType: DataType = {
   name: 'lseg',
   oid: DataTypeOIDs.lseg,
   jsType: 'object',
+  fixedBinarySize: 32,
 
-  parseBinary(v: Buffer): Rectangle {
+  parseBinary(v: Buffer, offset: number = 0): Rectangle {
     return {
-      x1: v.readDoubleBE(0),
-      y1: v.readDoubleBE(8),
-      x2: v.readDoubleBE(16),
-      y2: v.readDoubleBE(24),
+      x1: v.readDoubleBE(offset),
+      y1: v.readDoubleBE(offset + 8),
+      x2: v.readDoubleBE(offset + 16),
+      y2: v.readDoubleBE(offset + 24),
     };
   },
 
@@ -46,6 +48,19 @@ export const LsegType: DataType = {
       x2: parseFloat(m[3]),
       y2: parseFloat(m[4]),
     };
+  },
+
+  // See box-type.ts's parseTextBuffer comment - same rationale.
+  parseTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): Maybe<Rectangle> {
+    return LsegType.parseText(
+      buf.toString('latin1', offset, offset + len),
+      options,
+    );
   },
 
   isType(v: any): boolean {

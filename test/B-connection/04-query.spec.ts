@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { expect } from 'expect';
-import { Connection, Cursor } from 'postgrejs';
+import { Connection, Cursor, DataFormat } from 'postgrejs';
 
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
@@ -33,6 +33,29 @@ describe('query() (Extended Query)', () => {
     assert(result.rows);
     expect(result.rows[0][0]).toStrictEqual('CA');
     expect(result.rows[0][1]).toStrictEqual('Canada');
+  });
+
+  it('should correctly decode a fixed-width column following a variable-width one (binary)', async () => {
+    // Regression test for the row-level buffer decode change: bytea/json
+    // have no fixedBinarySize (their parseBinary has no way to know
+    // where its own value ends other than the buffer it's handed), so
+    // get-parsers.ts MUST give them a bounded slice - if that gate were
+    // ever wrong, a following column would silently decode using the
+    // wrong offset/bytes instead of throwing.
+    const result = await connection.query(
+      `select '\\xdeadbeef'::bytea as blob, 12345::int4 as after_bytea,
+              '{"a":1}'::json as js, 999::int4 as after_json,
+              'hello world'::varchar as txt, 42::int4 as after_varchar`,
+      { objectRows: true, columnFormat: DataFormat.binary },
+    );
+    assert(result.rows);
+    const row = result.rows[0] as Record<string, any>;
+    expect(row.blob).toStrictEqual(Buffer.from([0xde, 0xad, 0xbe, 0xef]));
+    expect(row.after_bytea).toStrictEqual(12345);
+    expect(row.js).toStrictEqual({ a: 1 });
+    expect(row.after_json).toStrictEqual(999);
+    expect(row.txt).toStrictEqual('hello world');
+    expect(row.after_varchar).toStrictEqual(42);
   });
 
   it('should return object rows', async () => {
@@ -217,5 +240,20 @@ describe('query() (Extended Query)', () => {
       'invalid',
     );
     await connection.execute('select 1');
+  });
+
+  it('should return a column named __proto__ as its own property, with its value', async () => {
+    const result = await connection.query(`select 42 as "__proto__", 7 as ok`, {
+      objectRows: true,
+    });
+    const row = result.rows?.[0] as any;
+    // Defined as an own property rather than assigned, so it can't reach
+    // Object.prototype...
+    expect(Object.prototype.hasOwnProperty.call(row, '__proto__')).toBe(true);
+    expect(({} as any).polluted).toBeUndefined();
+    expect(Object.getPrototypeOf(row)).toBe(Object.prototype);
+    // ...but it must still carry the column's actual value, not undefined.
+    expect(Object.getOwnPropertyDescriptor(row, '__proto__')?.value).toBe(42);
+    expect(row.ok).toBe(7);
   });
 });

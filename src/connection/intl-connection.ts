@@ -1,32 +1,59 @@
-import { TaskQueue } from 'power-tasks';
 import { coerceToBoolean } from 'putil-varhelpers';
-import { ConnectionState } from '../constants.js';
+import { ConnectionState, DEFAULT_COLUMN_FORMAT } from '../constants.js';
+import type { DataTypeMap } from '../data-type-map.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import type { CommandResult } from '../interfaces/command-result.js';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
+import type { FieldInfo } from '../interfaces/field-info.js';
+import type { QueryOptions } from '../interfaces/query-options.js';
+import type { QueryResult } from '../interfaces/query-result.js';
 import type { ScriptExecuteOptions } from '../interfaces/script-execute-options.js';
 import type { ScriptResult } from '../interfaces/script-result.js';
 import { PgSocket } from '../protocol/pg-socket.js';
 import { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
-import type { AnyParseFunction, Maybe } from '../types.js';
+import type { AnyParseFunction, Maybe, OID } from '../types.js';
 import { getConnectionConfig } from '../util/connection-config.js';
-import { convertRowToObject } from '../util/convert-row-to-object.js';
 import { escapeLiteral } from '../util/escape-literal.js';
 import { getParsers } from '../util/get-parsers.js';
-import { parseRow } from '../util/parse-row.js';
+import { parseObjectRow, parseRow } from '../util/parse-row.js';
 import { wrapRowDescription } from '../util/wrap-row-description.js';
 import type { Connection } from './connection.js';
 
 const DataFormat = Protocol.DataFormat;
 
+interface ExecuteReusedParserCacheEntry {
+  typeMap: DataTypeMap;
+  columnFormat: Protocol.DataFormat | Protocol.DataFormat[];
+  parsers: AnyParseFunction[];
+  resultFields: FieldInfo[];
+}
+
+function columnFormatsEqual(
+  a: Protocol.DataFormat | Protocol.DataFormat[],
+  b: Protocol.DataFormat | Protocol.DataFormat[],
+): boolean {
+  if (a === b) return true;
+  if (!Array.isArray(a) || !Array.isArray(b)) return false;
+  if (a.length !== b.length) return false;
+  const l = a.length;
+  let i: number;
+  for (i = 0; i < l; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 export class IntlConnection extends SafeEventEmitter {
+  private _executeReusedParserCache = new WeakMap<
+    Protocol.RowDescription[],
+    ExecuteReusedParserCacheEntry
+  >();
   protected _refCount = 0;
   protected _config: ConnectionConfiguration;
   protected _onErrorSavePoint: string;
   transactionStatus = 'I';
   socket: PgSocket;
-  statementQueue = new TaskQueue({ concurrency: 1 });
+  owner?: SafeEventEmitter;
+  runningQueryCount: number = 0;
 
   constructor(config?: ConnectionConfiguration | string) {
     super();
@@ -94,7 +121,6 @@ export class IntlConnection extends SafeEventEmitter {
 
   async close(): Promise<void> {
     if (this.state === ConnectionState.CLOSED) return;
-    this.statementQueue.clearQueue();
     return new Promise(resolve => {
       if (this.socket.state === ConnectionState.CLOSED) return;
       this.socket.once('close', resolve);
@@ -111,48 +137,44 @@ export class IntlConnection extends SafeEventEmitter {
     cb?: (event: string, ...args: any[]) => void,
   ): Promise<ScriptResult> {
     this.assertConnected();
-    return this.statementQueue
-      .enqueue(async (): Promise<ScriptResult> => {
-        const transactionCommand = sql.match(
-          /^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i,
-        );
-        let beginFirst = false;
-        let commitLast = false;
-        if (!transactionCommand) {
-          if (
-            !this.inTransaction &&
-            (options?.autoCommit != null
-              ? options?.autoCommit
-              : this.config.autoCommit) === false
-          ) {
-            beginFirst = true;
-          }
-          if (this.inTransaction && options?.autoCommit) commitLast = true;
-        }
-        if (beginFirst) await this._execute('BEGIN');
+    const transactionCommand = sql.match(
+      /^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i,
+    );
+    let beginFirst = false;
+    let commitLast = false;
+    if (!transactionCommand) {
+      if (
+        !this.inTransaction &&
+        (options?.autoCommit != null
+          ? options?.autoCommit
+          : this.config.autoCommit) === false
+      ) {
+        beginFirst = true;
+      }
+      if (this.inTransaction && options?.autoCommit) commitLast = true;
+    }
+    if (beginFirst) await this._execute('BEGIN');
 
-        const rollbackOnError =
-          !transactionCommand &&
-          (options?.rollbackOnError != null
-            ? options.rollbackOnError
-            : coerceToBoolean(this.config.rollbackOnError, true));
+    const rollbackOnError =
+      !transactionCommand &&
+      (options?.rollbackOnError != null
+        ? options.rollbackOnError
+        : coerceToBoolean(this.config.rollbackOnError, true));
 
-        if (this.inTransaction && rollbackOnError)
-          await this._execute('SAVEPOINT ' + this._onErrorSavePoint);
-        try {
-          const result = await this._execute(sql, options, cb);
-          if (commitLast) await this._execute('COMMIT');
-          else if (this.inTransaction && rollbackOnError) {
-            await this._execute('RELEASE ' + this._onErrorSavePoint + ';');
-          }
-          return result;
-        } catch (e: any) {
-          if (this.inTransaction && rollbackOnError)
-            await this._execute('ROLLBACK TO ' + this._onErrorSavePoint + ';');
-          throw e;
-        }
-      })
-      .toPromise();
+    if (this.inTransaction && rollbackOnError)
+      await this._execute('SAVEPOINT ' + this._onErrorSavePoint);
+    try {
+      const result = await this._execute(sql, options, cb);
+      if (commitLast) await this._execute('COMMIT');
+      else if (this.inTransaction && rollbackOnError) {
+        await this._execute('RELEASE ' + this._onErrorSavePoint + ';');
+      }
+      return result;
+    } catch (e: any) {
+      if (this.inTransaction && rollbackOnError)
+        await this._execute('ROLLBACK TO ' + this._onErrorSavePoint + ';');
+      throw e;
+    }
   }
 
   async startTransaction(): Promise<void> {
@@ -191,6 +213,7 @@ export class IntlConnection extends SafeEventEmitter {
 
   unref(): boolean {
     this._refCount--;
+    if (!this._refCount) this.emit('idle');
     return !this._refCount;
   }
 
@@ -215,19 +238,24 @@ export class IntlConnection extends SafeEventEmitter {
         results: [],
       };
       const opts = options || {};
-      this.socket.sendQueryMessage(sql);
       let currentStart = Date.now();
       let parsers: AnyParseFunction[] | undefined;
       let current: CommandResult = { command: undefined };
       let fields: Protocol.RowDescription[];
+      let error: Error | undefined;
       const typeMap = opts.typeMap || GlobalTypeMap;
-      return await this.socket.capture(
-        async (
+      this.runningQueryCount++;
+      return await this.socket.sendQueryMessage(
+        sql,
+        (
           code: Protocol.BackendMessageCode,
           msg: any,
           done: (err?: Error, result?: any) => void,
         ) => {
           switch (code) {
+            case Protocol.BackendMessageCode.ErrorResponse:
+              error = msg;
+              break;
             case Protocol.BackendMessageCode.NoticeResponse:
             case Protocol.BackendMessageCode.CopyInResponse:
             case Protocol.BackendMessageCode.CopyOutResponse:
@@ -245,11 +273,16 @@ export class IntlConnection extends SafeEventEmitter {
               break;
             case Protocol.BackendMessageCode.DataRow:
               {
-                let row = msg.columns.map((x: Buffer) => x.toString('utf8'));
-                // The null override assumes we can trust PG to always send the RowDescription first
-                parseRow(parsers!, row, opts);
-                if (opts.objectRows && current.fields)
-                  row = convertRowToObject(current.fields, row);
+                const row: any =
+                  opts.objectRows && current.fields
+                    ? parseObjectRow(
+                        parsers!,
+                        msg.data,
+                        msg.columnCount,
+                        opts,
+                        current.fields,
+                      )
+                    : parseRow(parsers!, msg.data, msg.columnCount, opts);
                 if (cb) cb('row', row);
                 current.rows = current.rows || [];
                 current.rows.push(row);
@@ -276,6 +309,10 @@ export class IntlConnection extends SafeEventEmitter {
               break;
             case Protocol.BackendMessageCode.ReadyForQuery:
               this.transactionStatus = msg.status;
+              if (error) {
+                done(error);
+                break;
+              }
               result.totalTime = Date.now() - startTime;
               // Ignore COMMIT command that we added to sql
               result.totalCommands = result.results.length;
@@ -287,8 +324,355 @@ export class IntlConnection extends SafeEventEmitter {
         },
       );
     } finally {
+      this.runningQueryCount--;
       this.unref();
     }
+  }
+
+  /**
+   * One-shot Extended Query fast path: Parse+Bind+Describe+Execute+Sync as
+   * a single round trip (unnamed statement/portal, no Close needed), used
+   * by Connection.query() instead of prepare()+PreparedStatement.execute()
+   * +close()'s 7 round trips whenever there's no cursor and no explicit/
+   * active transaction to wrap (see Connection.query() for that gating).
+   */
+  async queryOnce(
+    sql: string,
+    paramTypes: Maybe<Maybe<OID>[]>,
+    params: Maybe<Maybe<any>[]>,
+    options: QueryOptions,
+  ): Promise<QueryResult> {
+    this.assertConnected();
+    this.ref();
+    try {
+      const typeMap = options.typeMap || GlobalTypeMap;
+      const startTime = Date.now();
+      const result: QueryResult = { command: undefined };
+      const rows: any[] = [];
+      let parsers: AnyParseFunction[] | undefined;
+      let resultFields: FieldInfo[] | undefined;
+      let commandTag: Protocol.CommandCompleteMessage | undefined;
+      let error: Error | undefined;
+
+      this.runningQueryCount++;
+      await this.socket
+        .sendExtendedQueryMessages(
+          {
+            parse: { sql, paramTypes },
+            bind: { typeMap, paramTypes, params, queryOptions: options },
+            describe: { type: 'P' },
+            execute: { fetchCount: options.fetchCount || 100 },
+          },
+          (
+            code: Protocol.BackendMessageCode,
+            msg: any,
+            done: (err?: Error, result?: any) => void,
+          ) => {
+            switch (code) {
+              case Protocol.BackendMessageCode.ParseComplete:
+              case Protocol.BackendMessageCode.BindComplete:
+              case Protocol.BackendMessageCode.NoData:
+              case Protocol.BackendMessageCode.NoticeResponse:
+              case Protocol.BackendMessageCode.PortalSuspended:
+                break;
+              case Protocol.BackendMessageCode.RowDescription:
+                parsers = getParsers(typeMap, msg.fields);
+                resultFields = wrapRowDescription(
+                  typeMap,
+                  msg.fields,
+                  options.columnFormat || DEFAULT_COLUMN_FORMAT,
+                );
+                result.fields = resultFields;
+                result.rowType = options.objectRows ? 'object' : 'array';
+                break;
+              case Protocol.BackendMessageCode.DataRow:
+                rows.push(msg);
+                break;
+              case Protocol.BackendMessageCode.CommandComplete:
+                // Deferred, like ErrorResponse below - only ReadyForQuery is
+                // guaranteed to arrive exactly once, so done() waits for it.
+                commandTag = msg;
+                break;
+              case Protocol.BackendMessageCode.ErrorResponse:
+                // See _execute()'s ErrorResponse case above for why done()
+                // must not be called here.
+                error = msg;
+                break;
+              case Protocol.BackendMessageCode.ReadyForQuery:
+                this.transactionStatus = msg.status;
+                done(error);
+                break;
+              default:
+                done(
+                  new Error(
+                    `Server returned unexpected response message (${String.fromCharCode(code)})`,
+                  ),
+                );
+            }
+          },
+        )
+        .finally(() => {
+          this.runningQueryCount--;
+        });
+
+      if (commandTag?.command) result.command = commandTag.command;
+      if (resultFields && parsers) {
+        if (!result.command) result.command = 'SELECT';
+        result.rows = rows;
+        const l = rows.length;
+        let i: number;
+        for (i = 0; i < l; i++) {
+          rows[i] = options.objectRows
+            ? parseObjectRow(
+                parsers,
+                rows[i].data,
+                rows[i].columnCount,
+                options,
+                resultFields,
+              )
+            : parseRow(parsers, rows[i].data, rows[i].columnCount, options);
+        }
+      }
+      if (
+        result.command === 'DELETE' ||
+        result.command === 'INSERT' ||
+        result.command === 'UPDATE'
+      ) {
+        result.rowsAffected = commandTag?.rowCount;
+      }
+      result.executeTime = Date.now() - startTime;
+      return result;
+    } finally {
+      this.unref();
+    }
+  }
+
+  /**
+   * Parse+Describe(statement)+Sync as a single round trip - used by
+   * PreparedStatement.prepare() instead of a separately-awaited Parse then
+   * a separately-awaited Sync, and fetches the RowDescription/NoData in the
+   * same round trip so the caller can cache it (see executeReused()) rather
+   * than every later execute() re-Describing its own portal.
+   */
+  async prepareOnce(
+    sql: string,
+    paramTypes: Maybe<Maybe<OID>[]>,
+    statementName: string,
+  ): Promise<{ fields?: Protocol.RowDescription[] }> {
+    this.assertConnected();
+    this.ref();
+    try {
+      let fields: Protocol.RowDescription[] | undefined;
+      let error: Error | undefined;
+
+      this.runningQueryCount++;
+      await this.socket
+        .sendPrepareMessages(
+          {
+            parse: { statement: statementName, sql, paramTypes },
+            describe: { type: 'S', name: statementName },
+          },
+          (
+            code: Protocol.BackendMessageCode,
+            msg: any,
+            done: (err?: Error, result?: any) => void,
+          ) => {
+            switch (code) {
+              case Protocol.BackendMessageCode.ParseComplete:
+              case Protocol.BackendMessageCode.ParameterDescription:
+              case Protocol.BackendMessageCode.NoData:
+              case Protocol.BackendMessageCode.NoticeResponse:
+                break;
+              case Protocol.BackendMessageCode.RowDescription:
+                fields = msg.fields;
+                break;
+              case Protocol.BackendMessageCode.ErrorResponse:
+                // See queryOnce()'s ErrorResponse case for why done() must
+                // not be called here.
+                error = msg;
+                break;
+              case Protocol.BackendMessageCode.ReadyForQuery:
+                this.transactionStatus = msg.status;
+                done(error);
+                break;
+              default:
+                done(
+                  new Error(
+                    `Server returned unexpected response message (${String.fromCharCode(code)})`,
+                  ),
+                );
+            }
+          },
+        )
+        .finally(() => {
+          this.runningQueryCount--;
+        });
+
+      return { fields };
+    } finally {
+      this.unref();
+    }
+  }
+
+  /**
+   * Bind+Execute+Sync as a single round trip against an unnamed portal, for
+   * an already-prepared (named) statement - used by
+   * PreparedStatement._execute()'s non-cursor path instead of the 4-round-
+   * trip Portal.bind()/retrieveFields()/execute()/close() sequence. Takes
+   * the RowDescription fields prepareOnce() already fetched instead of
+   * re-Describing a fresh portal on every call.
+   */
+  async executeReused(
+    statementName: string,
+    cachedFields: Protocol.RowDescription[] | undefined,
+    paramTypes: Maybe<Maybe<OID>[]>,
+    params: Maybe<Maybe<any>[]>,
+    options: QueryOptions,
+  ): Promise<QueryResult> {
+    this.assertConnected();
+    this.ref();
+    try {
+      const typeMap = options.typeMap || GlobalTypeMap;
+      const startTime = Date.now();
+      const result: QueryResult = { command: undefined };
+      const rows: any[] = [];
+      let parsers: AnyParseFunction[] | undefined;
+      let resultFields: FieldInfo[] | undefined;
+      let commandTag: Protocol.CommandCompleteMessage | undefined;
+      let error: Error | undefined;
+
+      if (cachedFields) {
+        // A statement-level Describe (done once in prepareOnce()) always
+        // reports format 0 (text) for every column, regardless of what a
+        // later Bind actually requests - get-parsers.ts picks parseBinary
+        // vs parseText by reading each field's own .format, so the cached
+        // fields must be patched to the format THIS call is actually
+        // requesting before parser selection, or a binary-format execute()
+        // on a reused statement would silently pick the text parser (or
+        // vice versa) and decode garbage instead of throwing.
+        const columnFormat =
+          options.columnFormat != null
+            ? options.columnFormat
+            : DEFAULT_COLUMN_FORMAT;
+        // Repeated execute()s of the same prepared statement overwhelmingly
+        // reuse the same (typeMap, columnFormat) pair - only rebuild the
+        // patched fields/parsers/resultFields when either actually changed
+        // from the last execute() of THIS statement, instead of on every
+        // single call regardless.
+        const cached = this._executeReusedParserCache.get(cachedFields);
+        if (
+          cached &&
+          cached.typeMap === typeMap &&
+          columnFormatsEqual(cached.columnFormat, columnFormat)
+        ) {
+          parsers = cached.parsers;
+          resultFields = cached.resultFields;
+        } else {
+          const fields = cachedFields.map((f, i) => ({
+            ...f,
+            format: Array.isArray(columnFormat)
+              ? columnFormat[i]
+              : columnFormat,
+          }));
+          parsers = getParsers(typeMap, fields);
+          resultFields = wrapRowDescription(typeMap, fields, columnFormat);
+          this._executeReusedParserCache.set(cachedFields, {
+            typeMap,
+            columnFormat,
+            parsers,
+            resultFields,
+          });
+        }
+        result.fields = resultFields;
+        result.rowType = options.objectRows ? 'object' : 'array';
+      }
+
+      this.runningQueryCount++;
+      await this.socket
+        .sendBindExecuteMessages(
+          {
+            bind: {
+              typeMap,
+              statement: statementName,
+              paramTypes,
+              params,
+              queryOptions: options,
+            },
+            execute: { fetchCount: options.fetchCount || 100 },
+          },
+          (
+            code: Protocol.BackendMessageCode,
+            msg: any,
+            done: (err?: Error, result?: any) => void,
+          ) => {
+            switch (code) {
+              case Protocol.BackendMessageCode.BindComplete:
+              case Protocol.BackendMessageCode.NoticeResponse:
+              case Protocol.BackendMessageCode.PortalSuspended:
+                break;
+              case Protocol.BackendMessageCode.DataRow:
+                rows.push(msg);
+                break;
+              case Protocol.BackendMessageCode.CommandComplete:
+                // Deferred, like ErrorResponse below - only ReadyForQuery is
+                // guaranteed to arrive exactly once, so done() waits for it.
+                commandTag = msg;
+                break;
+              case Protocol.BackendMessageCode.ErrorResponse:
+                error = msg;
+                break;
+              case Protocol.BackendMessageCode.ReadyForQuery:
+                this.transactionStatus = msg.status;
+                done(error);
+                break;
+              default:
+                done(
+                  new Error(
+                    `Server returned unexpected response message (${String.fromCharCode(code)})`,
+                  ),
+                );
+            }
+          },
+        )
+        .finally(() => {
+          this.runningQueryCount--;
+        });
+
+      if (commandTag?.command) result.command = commandTag.command;
+      if (resultFields && parsers) {
+        if (!result.command) result.command = 'SELECT';
+        result.rows = rows;
+        const l = rows.length;
+        let i: number;
+        for (i = 0; i < l; i++) {
+          rows[i] = options.objectRows
+            ? parseObjectRow(
+                parsers,
+                rows[i].data,
+                rows[i].columnCount,
+                options,
+                resultFields,
+              )
+            : parseRow(parsers, rows[i].data, rows[i].columnCount, options);
+        }
+      }
+      if (
+        result.command === 'DELETE' ||
+        result.command === 'INSERT' ||
+        result.command === 'UPDATE'
+      ) {
+        result.rowsAffected = commandTag?.rowCount;
+      }
+      result.executeTime = Date.now() - startTime;
+      return result;
+    } finally {
+      this.unref();
+    }
+  }
+
+  emit(event: string | symbol, ...args: any[]): boolean {
+    const handled = super.emit(event, ...args);
+    return this.owner ? this.owner.emit(event, ...args) || handled : handled;
   }
 
   protected _onError(err: Error): void {

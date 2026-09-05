@@ -6,9 +6,10 @@ export const Float8Type: DataType = {
   name: 'float8',
   oid: DataTypeOIDs.float8,
   jsType: 'number',
+  fixedBinarySize: 8,
 
-  parseBinary(v: Buffer): number {
-    return v.readDoubleBE(0);
+  parseBinary(v: Buffer, offset: number = 0): number {
+    return v.readDoubleBE(offset);
   },
 
   encodeBinary(buf: SmartBuffer, v: number | string): void {
@@ -16,6 +17,11 @@ export const Float8Type: DataType = {
   },
 
   parseText: parseFloat,
+
+  // See float4-type.ts's parseTextBuffer comment - same rationale.
+  parseTextBuffer(buf: Buffer, offset: number, len: number): number {
+    return parseFloat(buf.toString('latin1', offset, offset + len));
+  },
 
   isType(v: any): boolean {
     return typeof v === 'number';

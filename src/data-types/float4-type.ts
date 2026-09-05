@@ -6,9 +6,10 @@ export const Float4Type: DataType = {
   name: 'float4',
   oid: DataTypeOIDs.float4,
   jsType: 'number',
+  fixedBinarySize: 4,
 
-  parseBinary(v: Buffer): number {
-    return v.readFloatBE(0);
+  parseBinary(v: Buffer, offset: number = 0): number {
+    return v.readFloatBE(offset);
   },
 
   encodeBinary(buf: SmartBuffer, v: number | string): void {
@@ -16,6 +17,16 @@ export const Float4Type: DataType = {
   },
 
   parseText: parseFloat,
+
+  // PostgreSQL's float4 text output (including "NaN"/"Infinity"/
+  // "-Infinity") is pure ASCII, so 'latin1' decodes identically to 'utf8'
+  // here but skips V8's multi-byte-sequence detection - same parseFloat,
+  // cheaper string decode only (not a hand-rolled float parser: float
+  // accumulation isn't exact the way integer accumulation is, so this
+  // deliberately reuses the proven-correct built-in instead).
+  parseTextBuffer(buf: Buffer, offset: number, len: number): number {
+    return parseFloat(buf.toString('latin1', offset, offset + len));
+  },
 
   isType(v: any): boolean {
     return typeof v === 'number';

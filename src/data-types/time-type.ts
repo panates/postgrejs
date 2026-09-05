@@ -10,13 +10,16 @@ export const TimeType: DataType = {
   name: 'time',
   oid: DataTypeOIDs.time,
   jsType: 'string',
+  fixedBinarySize: 8,
 
-  parseBinary(v: Buffer, options: DataMappingOptions): Date | number | string {
-    const fetchAsString =
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.time);
-    const hi = v.readInt32BE();
-    const lo = v.readUInt32BE(4);
+  parseBinary(
+    v: Buffer,
+    offset: number = 0,
+    options: DataMappingOptions,
+  ): Date | number | string {
+    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.time);
+    const hi = v.readInt32BE(offset);
+    const lo = v.readUInt32BE(offset + 4);
 
     let d = new Date((lo + hi * timeMul) / 1000);
     if (fetchAsString || !options.utcDates) {
@@ -52,12 +55,21 @@ export const TimeType: DataType = {
   },
 
   parseText(v: string, options: DataMappingOptions): Date | number | string {
-    if (
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.time)
-    )
-      return v;
+    if (options.fetchAsString?.includes(DataTypeOIDs.time)) return v;
     return parseTime(v, false, options.utcDates);
+  },
+
+  // See date-type.ts's parseTextBuffer comment - same rationale.
+  parseTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): Date | number | string {
+    return TimeType.parseText(
+      buf.toString('latin1', offset, offset + len),
+      options,
+    );
   },
 
   isType(v: any): boolean {

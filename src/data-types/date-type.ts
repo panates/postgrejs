@@ -2,7 +2,7 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
-import { parseDateTime } from '../util/parse-datetime.js';
+import { parseDate } from '../util/parse-datetime.js';
 
 const timeShift = 946684800000;
 
@@ -10,12 +10,15 @@ export const DateType: DataType = {
   name: 'date',
   oid: DataTypeOIDs.date,
   jsType: 'Date',
+  fixedBinarySize: 4,
 
-  parseBinary(v: Buffer, options: DataMappingOptions): Date | number | string {
-    const fetchAsString =
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.date);
-    const t = v.readInt32BE();
+  parseBinary(
+    v: Buffer,
+    offset: number = 0,
+    options: DataMappingOptions,
+  ): Date | number | string {
+    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.date);
+    const t = v.readInt32BE(offset);
     if (t === 0x7fffffff) return fetchAsString ? 'infinity' : Infinity;
     if (t === -0x80000000) return fetchAsString ? '-infinity' : -Infinity;
     // Shift from 2000 to 1970
@@ -30,8 +33,7 @@ export const DateType: DataType = {
     v: Date | number | string,
     options: DataMappingOptions,
   ): void {
-    if (typeof v === 'string')
-      v = parseDateTime(v, false, false, options.utcDates);
+    if (typeof v === 'string') v = parseDate(v, options.utcDates);
     if (v === Infinity) {
       buf.writeInt32BE(0x7fffffff);
       return;
@@ -50,11 +52,25 @@ export const DateType: DataType = {
   },
 
   parseText(v: string, options: DataMappingOptions): Date | number | string {
-    const fetchAsString =
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.date);
+    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.date);
     if (fetchAsString) return v;
-    return parseDateTime(v, false, false, options.utcDates);
+    return parseDate(v, options.utcDates);
+  },
+
+  // PostgreSQL's date text output is pure ASCII, so 'latin1' decodes
+  // identically to 'utf8' here but skips V8's multi-byte-sequence
+  // detection. Delegates to parseText by reference rather than
+  // duplicating its logic, so the two can never drift apart.
+  parseTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): Date | number | string {
+    return DateType.parseText(
+      buf.toString('latin1', offset, offset + len),
+      options,
+    );
   },
 
   isType(v: any): boolean {
