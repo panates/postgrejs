@@ -18,7 +18,7 @@ on:
       - support/**/*.*
       - .mocharc.cjs
       - .c8rc.json
-      - tsconfig*.json
+      - /tsconfig*.json
 
 # Only one run per branch at a time
 concurrency:
