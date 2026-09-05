@@ -1,0 +1,5 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="cli.ts" type="NodeJSConfigurationType" application-parameters="-s pool" nameIsGenerated="true" node-parameters="--import @swc-node/register/esm-register" path-to-js-file="cli.ts" working-dir="$PROJECT_DIR$/benchmark">
+    <method v="2" />
+  </configuration>
+</component>

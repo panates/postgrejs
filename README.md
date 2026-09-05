@@ -187,6 +187,14 @@ The table below lists builtin data type mappings.
 | _int2Vector     | number[][]  | text,binary | binary | 
 
 
+## Benchmarks
+postgrejs implements the full PostgreSQL wire protocol from scratch, with no dependency on `pg`/libpq.
+[`BENCHMARKS.md`](./BENCHMARKS.md) compares it against `pg` (node-postgres) and `postgres` (postgres.js)
+across connection setup, simple/prepared queries, mixed-type decoding, bulk fetches, cursor streaming
+and pool concurrency, each library run through its own idiomatic fast path.
+The numbers there are reproducible on your own machine via `npm run bench` against the repo's own
+`docker-compose.yaml` Postgres instance; see [`benchmark/README.md`](./benchmark/README.md) for details.
+
 ## Support
 You can report bugs and discuss features on the [GitHub issues](https://github.com/panates/postgrejs/issues) page
 When you open an issue please provide version of NodeJS and PostgreSQL server.
