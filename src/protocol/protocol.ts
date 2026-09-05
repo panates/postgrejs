@@ -11,7 +11,7 @@ export namespace Protocol {
     CommandComplete = 0x43, // C
     CopyData = 0x64, // d
     CopyDone = 0x63, // c
-    CopyInResponse = 0x67, // G
+    CopyInResponse = 0x47, // G
     CopyOutResponse = 0x48, // H
     CopyBothResponse = 0x57, // W
     DataRow = 0x44, // D
@@ -31,7 +31,7 @@ export namespace Protocol {
   }
 
   export enum FrontendMessageCode {
-    Bind = 0x42, // R
+    Bind = 0x42, // B
     Close = 0x43, // C
     CopyData = 0x64, // d
     CopyDone = 0x63, // c
