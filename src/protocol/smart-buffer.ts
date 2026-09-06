@@ -85,13 +85,6 @@ export class SmartBuffer extends BufferReader {
     return this;
   }
 
-  fill(value = 0, len = 1): this {
-    this.ensureSize(len);
-    this.buffer.fill(value, this.offset, this.offset + len);
-    this.offset += len;
-    return this;
-  }
-
   writeCString(str: string, encoding?: BufferEncoding): this {
     const len = str ? Buffer.byteLength(str, encoding) : 0;
     this.ensureSize(len + 1);
