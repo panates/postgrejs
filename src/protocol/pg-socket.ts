@@ -70,6 +70,13 @@ export class PgSocket extends SafeEventEmitter {
   // rather than written straight through.
   private _pendingWrites: { data: Buffer; cb?: Callback }[] = [];
   private _flushScheduled = false;
+  // Candidate servers, in order, and where we are in that list. A single
+  // configured host is just a list of one, so nothing below needs to know
+  // whether failover was asked for.
+  private _hosts: { host: string; port?: number }[] = [];
+  private _hostIndex = 0;
+  private _sessionAttrsChecked = false;
+  private _standbyState?: { standby: boolean; readOnly: boolean };
 
   constructor(public options: ConnectionConfiguration) {
     super();
@@ -97,8 +104,19 @@ export class PgSocket extends SafeEventEmitter {
 
   connect() {
     if (this._socket) return;
+    const options = this.options;
+    this._hosts = options.hosts?.length
+      ? options.hosts
+      : [{ host: options.host || 'localhost', port: options.port }];
+    this._hostIndex = 0;
+    this._connectToHost();
+  }
+
+  protected _connectToHost() {
+    this._sessionAttrsChecked = false;
     this._state = ConnectionState.CONNECTING;
     const options = this.options;
+    const target = this._hosts[this._hostIndex];
     const socket = (this._socket = new net.Socket());
 
     const errorHandler = (err: Error) => {
@@ -107,6 +125,13 @@ export class PgSocket extends SafeEventEmitter {
       this._reset();
       socket.destroy();
       this._socket = undefined;
+      // Another candidate left: this one is simply not the server we are
+      // looking for, and only the last failure is worth reporting.
+      if (this._hostIndex + 1 < this._hosts.length) {
+        this._hostIndex++;
+        this._connectToHost();
+        return;
+      }
       this.emit('error', err);
     };
 
@@ -120,8 +145,8 @@ export class PgSocket extends SafeEventEmitter {
         const command = x.toString();
         if (command === 'S') {
           const tslOptions = { ...options.ssl, socket };
-          if (options.host && net.isIP(options.host) === 0)
-            tslOptions.servername = options.host;
+          if (target.host && net.isIP(target.host) === 0)
+            tslOptions.servername = target.host;
           const tlsSocket = (this._socket = tls.connect(tslOptions));
           tlsSocket.once('error', errorHandler);
           tlsSocket.once('secureConnect', () => {
@@ -154,14 +179,10 @@ export class PgSocket extends SafeEventEmitter {
     socket.once('connect', connectHandler);
 
     this.emit('connecting');
-    const port = options.port || DEFAULT_PORT_NUMBER;
-    if (options.host && options.host.startsWith('/')) {
-      socket.connect(path.join(options.host, '/.s.PGSQL.' + port));
-    } else
-      socket.connect(
-        options.port || DEFAULT_PORT_NUMBER,
-        options.host || 'localhost',
-      );
+    const port = target.port || DEFAULT_PORT_NUMBER;
+    if (target.host && target.host.startsWith('/')) {
+      socket.connect(path.join(target.host, '/.s.PGSQL.' + port));
+    } else socket.connect(port, target.host || 'localhost');
   }
 
   /**
@@ -588,6 +609,96 @@ export class PgSocket extends SafeEventEmitter {
     );
   }
 
+  /**
+   * Called once the server is ready. With `targetSessionAttrs` set, the
+   * session has to be checked before it is handed over: a server that does
+   * not match is dropped and the next candidate tried, which is how
+   * `read-write` finds whichever node is currently the primary.
+   */
+  protected _finishConnect(): void {
+    const wanted = this.options.targetSessionAttrs;
+    if (!wanted || this._sessionAttrsChecked) {
+      this.emit('ready');
+      return;
+    }
+    this._sessionAttrsChecked = true;
+    // PostgreSQL reports these itself from v14 on; older servers have to be
+    // asked, which costs one round trip and only when this option is used.
+    const reported = this._sessionParameters;
+    if (
+      reported.in_hot_standby != null &&
+      reported.default_transaction_read_only != null
+    ) {
+      this._applySessionAttrs(
+        wanted,
+        reported.in_hot_standby === 'on',
+        reported.default_transaction_read_only === 'on',
+      );
+      return;
+    }
+    this.sendQueryMessage(
+      'select pg_catalog.pg_is_in_recovery()::text as a,' +
+        " current_setting('transaction_read_only') as b",
+      (code, msg, done) => {
+        if (code === Protocol.BackendMessageCode.DataRow) {
+          // Two text columns, each length-prefixed within the row buffer.
+          const data: Buffer = msg.data;
+          const aLen = data.readInt32BE(0);
+          const a = data.toString('utf8', 4, 4 + aLen);
+          const bOffset = 4 + aLen;
+          const bLen = data.readInt32BE(bOffset);
+          const b = data.toString('utf8', bOffset + 4, bOffset + 4 + bLen);
+          this._standbyState = { standby: a === 'true', readOnly: b === 'on' };
+        } else if (code === Protocol.BackendMessageCode.ReadyForQuery) {
+          done(undefined);
+          const st = this._standbyState;
+          this._applySessionAttrs(wanted, !!st?.standby, !!st?.readOnly);
+        }
+      },
+    ).catch(err => this.emit('error', err));
+  }
+
+  /** Accepts this server, or drops it and moves to the next candidate. */
+  protected _applySessionAttrs(
+    wanted: string,
+    standby: boolean,
+    readOnly: boolean,
+  ): void {
+    const rejected =
+      (wanted === 'read-write' && readOnly) ||
+      (wanted === 'read-only' && !readOnly) ||
+      (wanted === 'primary' && standby) ||
+      (wanted === 'standby' && !standby) ||
+      // prefer-standby settles for a primary, but only once nothing else
+      // is left to try.
+      (wanted === 'prefer-standby' &&
+        !standby &&
+        this._hostIndex + 1 < this._hosts.length);
+    if (!rejected) {
+      this.emit('ready');
+      return;
+    }
+    const target = this._hosts[this._hostIndex];
+    if (this._hostIndex + 1 >= this._hosts.length) {
+      this.close();
+      this.emit(
+        'error',
+        new Error(
+          `No server matched target_session_attrs "${wanted}" ` +
+            `(last tried ${target.host}:${target.port ?? this.options.port ?? DEFAULT_PORT_NUMBER})`,
+        ),
+      );
+      return;
+    }
+    this._hostIndex++;
+    const socket = this._socket;
+    this._removeListeners();
+    this._socket = undefined;
+    this._reset();
+    socket?.destroy();
+    this._connectToHost();
+  }
+
   protected _handleClose(): void {
     this._failPendingCaptures(new Error('Connection closed'));
     this._reset();
@@ -649,7 +760,7 @@ export class PgSocket extends SafeEventEmitter {
             case Protocol.BackendMessageCode.ReadyForQuery:
               if (this._state !== ConnectionState.READY) {
                 this._state = ConnectionState.READY;
-                this.emit('ready');
+                this._finishConnect();
               } else this._dispatch(code, payload);
               break;
             case Protocol.BackendMessageCode.CommandComplete: {

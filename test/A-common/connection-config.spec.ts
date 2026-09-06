@@ -74,4 +74,51 @@ describe('Parse connection string', () => {
     expect(cfg.connectTimeoutMs).toStrictEqual(32000);
     expect(cfg.buffer?.maxLength).toStrictEqual(4096);
   });
+
+  describe('multiple hosts', () => {
+    it('should parse a comma-separated host list from a connection string', () => {
+      const cfg = getConnectionConfig('postgres://a:5432,b:5433,c/db');
+      expect(cfg.hosts).toStrictEqual([
+        { host: 'a', port: 5432 },
+        { host: 'b', port: 5433 },
+        { host: 'c', port: 5432 },
+      ]);
+      // host/port keep pointing at the first candidate.
+      expect(cfg.host).toStrictEqual('a');
+      expect(cfg.port).toStrictEqual(5432);
+    });
+
+    it('should parse a comma-separated host given on its own', () => {
+      const cfg = getConnectionConfig({ host: 'h1:1234,h2' });
+      expect(cfg.hosts).toStrictEqual([
+        { host: 'h1', port: 1234 },
+        { host: 'h2', port: 1234 },
+      ]);
+    });
+
+    it('should leave a single host without a list', () => {
+      expect(getConnectionConfig('postgres://h1/db').hosts).toStrictEqual(
+        undefined,
+      );
+    });
+
+    it('should keep credentials out of the host list', () => {
+      const cfg = getConnectionConfig('postgres://user:pass@a,b/db');
+      expect(cfg.hosts?.map(x => x.host)).toStrictEqual(['a', 'b']);
+      expect(cfg.user).toStrictEqual('user');
+    });
+
+    it('should read target_session_attrs', () => {
+      expect(
+        getConnectionConfig('postgres://a,b/db?target_session_attrs=read-write')
+          .targetSessionAttrs,
+      ).toStrictEqual('read-write');
+    });
+
+    it('should refuse an unknown target_session_attrs', () => {
+      expect(() =>
+        getConnectionConfig('postgres://a/db?target_session_attrs=sideways'),
+      ).toThrow(/is not supported/);
+    });
+  });
 });

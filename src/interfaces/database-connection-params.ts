@@ -10,6 +10,25 @@ export interface DatabaseConnectionParams {
   password?: string | (() => string | Promise<string>);
   database?: string;
   applicationName?: string;
+  /**
+   * Additional servers to try, in order, when the first one cannot be used.
+   *
+   * Also accepted as a comma-separated `host`, or in a connection string:
+   * `postgres://a:5432,b:5433/db`. Each entry falls back to the top-level
+   * `port` when it does not carry one of its own.
+   *
+   * Selection happens when a connection is opened, so a cluster that has
+   * failed over to another node is found on the next connect - a query
+   * already in flight when a server goes down still fails.
+   */
+  hosts?: { host: string; port?: number }[];
+  /**
+   * Which server in `hosts` is acceptable, mirroring libpq's option of the
+   * same name: `read-write`, `read-only`, `primary`, `standby` or
+   * `prefer-standby`. A server that does not match is dropped and the next
+   * one tried, which is how `read-write` finds the current primary.
+   */
+  targetSessionAttrs?: TargetSessionAttrs;
   requireSSL?: boolean;
   ssl?: TlsConnectionOptions;
   timezone?: string;
@@ -29,6 +48,9 @@ export interface DatabaseConnectionParams {
   rollbackOnError?: boolean;
   debugLogger?: DebugLogger;
 }
+
+export type TargetSessionAttrs =
+  'read-write' | 'read-only' | 'primary' | 'standby' | 'prefer-standby';
 
 export interface SocketOptions {
   keepAlive?: boolean;
