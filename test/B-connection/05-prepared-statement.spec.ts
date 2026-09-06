@@ -120,8 +120,12 @@ describe('PreparedStatement', () => {
     const stmt = await connection.prepare('select 1 as v');
     try {
       await stmt.cancel();
-      // Nothing was running, so the cancel is a harmless no-op - the
-      // connection must stay usable afterward.
+      // Nothing was running, so the cancel is a harmless no-op. Give the
+      // out-of-band cancel connection a moment to fully land server-side
+      // before moving on - otherwise a slow-to-process cancel could still
+      // arrive after the *next* query below has started, and cancel that
+      // one instead.
+      await new Promise(resolve => setTimeout(resolve, 300));
       const r = await connection.query('select 2 as v');
       expect(r.rows?.[0]).toStrictEqual([2]);
     } finally {
