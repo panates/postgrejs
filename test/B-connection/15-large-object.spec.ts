@@ -55,6 +55,22 @@ describe('Large objects', () => {
     }
   });
 
+  it("should default writable()'s chunk size when none is given", async () => {
+    const data = crypto.randomBytes(1024);
+    const lo = await connection.createLargeObject();
+    created.push(lo.oid);
+    await pipeline(Readable.from([data]), lo.writable());
+    expect(await lo.size()).toStrictEqual(BigInt(data.length));
+    await lo.close();
+  });
+
+  it('should be safe to close() twice', async () => {
+    const lo = await connection.createLargeObject();
+    created.push(lo.oid);
+    await lo.close();
+    await lo.close();
+  });
+
   it('should read a slice without reading the whole object', async () => {
     // The reason large objects exist rather than a bytea column.
     const data = crypto.randomBytes(4096);
@@ -123,6 +139,25 @@ describe('Large objects', () => {
     created.push(lo.oid);
     await lo.close();
     await expect(lo.read(1)).rejects.toThrow(/already closed/);
+  });
+
+  it("should surface a readable() stream's underlying read() failure as a stream error", async () => {
+    const lo = await connection.createLargeObject();
+    created.push(lo.oid);
+    await lo.write(Buffer.from('data'));
+    const stream = lo.readable();
+    // Closed out from under the stream before it ever reads - the next
+    // internal read() call rejects with "already closed", which the
+    // stream must surface as its own 'error' rather than hanging or
+    // throwing unhandled.
+    await lo.close();
+    let error: any;
+    try {
+      await drain(stream);
+    } catch (e) {
+      error = e;
+    }
+    expect(error?.message).toMatch(/already closed/);
   });
 
   it('should open read-only when asked', async () => {

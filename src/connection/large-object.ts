@@ -66,6 +66,9 @@ export class LargeObject {
         new BindParam(DataTypeOIDs.int4, length),
       ],
     });
+    // loread() always returns a (possibly zero-length) bytea, never SQL
+    // NULL, so this fallback is a defensive backstop rather than a path
+    // real server behavior takes.
     return (r.rows?.[0][0] as Buffer) ?? Buffer.alloc(0);
   }
 
