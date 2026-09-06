@@ -1,6 +1,77 @@
 ## Changelog
 
-### [v2.23.1](https://github.com/panates/postgrejs/compare/v2.23.0...v2.23.1) - 
+### [v3.0.0](https://github.com/panates/postgrejs/compare/v2.23.1...v3.0.0) - 
+
+#### Breaking Changes :warning:
+
+- refactor: name data type methods decode* to pair with encode* @Eray Hanoğlu  
+
+#### 🚀 New Features
+
+- feat: bulk import and export with COPY TO STDOUT / COPY FROM STDIN @Eray Hanoğlu 
+- feat: stream row changes with LogicalReplication @Eray Hanoğlu 
+- feat: build statements with the sql tag @Eray Hanoğlu 
+- feat: opt-in query pipelining for Pool.query() and Pool.execute() @Eray Hanoğlu 
+- feat: cancel queries and time them out with an AbortSignal @Eray Hanoğlu 
+- feat: large object API @Eray Hanoğlu 
+- feat: try several hosts and pick one by role @Eray Hanoğlu 
+- feat: SCRAM channel binding, and report what the server says when auth fails @Eray Hanoğlu 
+- feat: direct TLS negotiation, and only negotiate TLS when asked @Eray Hanoğlu 
+- feat: two-phase commit with prepareTransaction and commitPrepared @Eray Hanoğlu 
+
+#### 🪲 Fixes
+
+- fix: jsonb text encoder wrote the binary version header, and add the last binary encoders @Eray Hanoğlu 
+- fix: oidvector was registered as a second array type of oid @Eray Hanoğlu 
+- fix: prototype pollution via a query result column named "__proto__" @Eray Hanoğlu 
+- fix: float4 precision loss and sslmode=prefer incorrectly requiring SSL @Eray Hanoğlu 
+- fix: numeric NaN/Infinity/-Infinity decode as 0 in binary format @Eray Hanoğlu 
+- fix: int4 OID auto-detection accepts values outside the 32-bit range @Eray Hanoğlu 
+- fix: preserve caller stack traces in async error handling @Eray Hanoğlu 
+- fix: PreparedStatement.close() not idempotent, re-sends CLOSE+SYNC @Eray Hanoğlu 
+- fix: midnight timestamps mis-detected as date instead of timestamp @Eray Hanoğlu 
+- fix: array literal parser treats apostrophe as a quote character @Eray Hanoğlu 
+- fix: TLS downgrade, credential decoding, and data-corruption bugs found in audit @Eray Hanoğlu 
+- fix: ParameterDescription parameter count read as Int32 instead of Int16 @Eray Hanoğlu 
+- fix: hang instead of an error when the server asks for GSSAPI or SSPI @Eray Hanoğlu 
+- fix: escapeLiteral silently passes through embedded NUL bytes @Eray Hanoğlu 
+- fix: char OID auto-detection matches multi-byte characters, crashing bind @Eray Hanoğlu 
+- fix: CopyInResponse message code is 'g' rather than 'G' @Eray Hanoğlu 
+
+#### 📖 Documentation Changes
+
+- docs: record multi-host connections in the comparison @Eray Hanoğlu 
+- docs: count encoder and decoder coverage per wire format @Eray Hanoğlu 
+- docs: add a feature comparison table and correct stale claims @Eray Hanoğlu 
+- docs: record direct TLS negotiation, and drop the example section @Eray Hanoğlu 
+- docs: record class member order and loop-hoisting conventions @Eray Hanoğlu 
+- docs: native bindings are partial, not a plain yes @Eray Hanoğlu 
+- docs: correct two names in the comparison table @Eray Hanoğlu 
+- docs: record two-phase commit and drop the callback API row @Eray Hanoğlu 
+
+#### 🌸 Tidying of Code eg Whitespace
+
+- style: sort imports and align a comment left over from the decode* rename @Eray Hanoğlu 
+
+#### ⚡️ Performance Improvments
+
+- perf: rewrite the request/response pipeline and decode rows without per-column slices @Eray Hanoğlu 
+- perf: reassemble backend messages in one allocation instead of concatenating every chunk @Eray Hanoğlu 
+
+#### 💬 General Changes
+
+- doc: Rebuild BENCHMARKS.md @Eray Hanoğlu 
+- doc: Updated README.md @Eray Hanoğlu 
+- dev: Removed unused `init-pg.ts`, adjusted imports, and updated path in tsconfig @Eray Hanoğlu 
+- doc: Remove outdated and unused badges from README.md @Eray Hanoğlu 
+- doc: correct grammar in connection.ts method comments @Eray Hanoğlu 
+- dev: Added CLAUDE.md with graphify usage rules @Eray Hanoğlu 
+- dev: Updated test matrix to include Node 26 and Postgres 18 @Eray Hanoğlu 
+- dev: Changed import extension for `env.js` in init-pg.ts @Eray Hanoğlu 
+- dev: Updated gitignore to include claude and graphify @Eray Hanoğlu 
+- dev: Broadened eslint disable rule in bigint-methods.ts @Eray Hanoğlu 
+
+### [v2.23.1](https://github.com/panates/postgrejs/compare/v2.23.0...v2.23.1) -  7 July 2026 
 
 #### 💬 General Changes
 
