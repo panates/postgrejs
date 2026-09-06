@@ -30,50 +30,6 @@ export class Portal {
     return this._name;
   }
 
-  async bind(params: Maybe<any[]>, queryOptions: QueryOptions): Promise<void> {
-    const intoCon = getIntlConnection(this.connection);
-    intoCon.ref();
-    try {
-      const socket = intoCon.socket;
-      const bindPromise = socket.sendBindMessage(
-        {
-          typeMap: queryOptions.typeMap || GlobalTypeMap,
-          statement: this._statement.name,
-          portal: this.name,
-          paramTypes: this._statement.paramTypes,
-          params,
-          queryOptions,
-        },
-        (
-          code: Protocol.BackendMessageCode,
-          msg: any,
-          done: (err?: Error) => void,
-        ) => {
-          switch (code) {
-            case Protocol.BackendMessageCode.BindComplete:
-              done();
-              break;
-            case Protocol.BackendMessageCode.NoticeResponse:
-              break;
-            case Protocol.BackendMessageCode.ErrorResponse:
-              done(msg);
-              break;
-            default:
-              done(
-                new Error(
-                  `Server returned unexpected response message (${String.fromCharCode(code)})`,
-                ),
-              );
-          }
-        },
-      );
-      socket.sendFlushMessage();
-      return await bindPromise;
-    } finally {
-      intoCon.unref();
-    }
-  }
-
   /**
    * Bind + Describe(portal) collapsed into one round trip instead of two
    * separately-awaited calls. Ends in Flush, not Sync - a Sync here would
@@ -129,46 +85,6 @@ export class Portal {
           }
         },
       );
-    } finally {
-      intoCon.unref();
-    }
-  }
-
-  async retrieveFields(): Promise<Protocol.RowDescription[]> {
-    const intoCon = getIntlConnection(this.connection);
-    intoCon.ref();
-    try {
-      const socket = intoCon.socket;
-      const describePromise = socket.sendDescribeMessage(
-        { type: 'P', name: this.name },
-        (
-          code: Protocol.BackendMessageCode,
-          msg: any,
-          done: (err?: Error, result?: any) => void,
-        ) => {
-          switch (code) {
-            case Protocol.BackendMessageCode.NoticeResponse:
-              break;
-            case Protocol.BackendMessageCode.NoData:
-              done();
-              break;
-            case Protocol.BackendMessageCode.RowDescription:
-              done(undefined, msg.fields);
-              break;
-            case Protocol.BackendMessageCode.ErrorResponse:
-              done(msg);
-              break;
-            default:
-              done(
-                new Error(
-                  `Server returned unexpected response message (${String.fromCharCode(code)})`,
-                ),
-              );
-          }
-        },
-      );
-      socket.sendFlushMessage();
-      return await describePromise;
     } finally {
       intoCon.unref();
     }

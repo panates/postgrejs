@@ -253,42 +253,6 @@ export class PgSocket extends SafeEventEmitter {
     socket.destroy();
   }
 
-  sendParseMessage(
-    args: Frontend.ParseMessageArgs,
-    cb: CaptureCallback,
-  ): Promise<any> {
-    return this._sendAndCapture(
-      this._frontend.getParseMessage(args),
-      cb,
-      'sendParseMessage',
-      args,
-    );
-  }
-
-  sendBindMessage(
-    args: Frontend.BindMessageArgs,
-    cb: CaptureCallback,
-  ): Promise<any> {
-    return this._sendAndCapture(
-      this._frontend.getBindMessage(args),
-      cb,
-      'sendBindMessage',
-      args,
-    );
-  }
-
-  sendDescribeMessage(
-    args: Frontend.DescribeMessageArgs,
-    cb: CaptureCallback,
-  ): Promise<any> {
-    return this._sendAndCapture(
-      this._frontend.getDescribeMessage(args),
-      cb,
-      'sendDescribeMessage',
-      args,
-    );
-  }
-
   sendExecuteMessage(
     args: Frontend.ExecuteMessageArgs,
     cb: CaptureCallback,

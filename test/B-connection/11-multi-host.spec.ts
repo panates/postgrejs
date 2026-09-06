@@ -95,4 +95,46 @@ describe('Multiple hosts', () => {
       await connection.close(0);
     }
   });
+
+  it('should retry prefer-standby past a primary candidate, but settle for one as a last resort', async () => {
+    // The same live server listed twice: on the first, prefer-standby
+    // rejects it (a candidate is still left to try), then on the second -
+    // now the last one - the exact same primary is accepted instead of
+    // failing outright.
+    const connection = new Connection({
+      hosts: [live(), live()],
+      targetSessionAttrs: 'prefer-standby',
+    });
+    try {
+      await connection.connect();
+      expect(connection.processID).toBeGreaterThan(0);
+    } finally {
+      await connection.close(0);
+    }
+  });
+
+  it('should fall back to asking the server directly when standby status was not reported natively', async () => {
+    // PostgreSQL 14+ reports in_hot_standby/default_transaction_read_only
+    // as ordinary ParameterStatus messages, which is the fast path
+    // targetSessionAttrs normally takes - this drives the older-server
+    // fallback (a manual pg_is_in_recovery()/transaction_read_only query)
+    // by removing those two entries after a real connect, then asking
+    // _finishConnect() to re-evaluate as if they had never arrived.
+    const connection = new Connection({ targetSessionAttrs: 'read-write' });
+    try {
+      await connection.connect();
+      const socket = (connection as any)._intlCon.socket;
+      delete socket._sessionParameters.in_hot_standby;
+      delete socket._sessionParameters.default_transaction_read_only;
+      socket._sessionAttrsChecked = false;
+      await new Promise<void>((resolve, reject) => {
+        socket.once('ready', resolve);
+        socket.once('error', reject);
+        socket._finishConnect();
+      });
+      expect(connection.processID).toBeGreaterThan(0);
+    } finally {
+      await connection.close(0);
+    }
+  });
 });
