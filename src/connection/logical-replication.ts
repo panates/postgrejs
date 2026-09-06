@@ -99,6 +99,7 @@ export class LogicalReplication extends SafeEventEmitter {
   protected _confirmedLsn = 0n;
   protected _pendingLsn = 0n;
   protected _commitTime?: Date;
+  protected _streamDone?: Promise<any>;
 
   constructor(options: LogicalReplicationOptions) {
     super();
@@ -150,8 +151,10 @@ export class LogicalReplication extends SafeEventEmitter {
       `START_REPLICATION SLOT ${this._slotName} LOGICAL 0/0 ` +
       `(proto_version '1', publication_names ${escapeLiteral(publications)})`;
 
-    // Deliberately not awaited: this resolves only when streaming ends.
-    intlCon.socket
+    // Deliberately not awaited here: this resolves only when streaming
+    // ends. Stored so close() can wait for it after asking the server to
+    // stop, rather than sending a new query while COPY BOTH is still active.
+    this._streamDone = intlCon.socket
       .sendQueryMessage(sql, this._capture)
       .catch(err => this._fail(err));
 
@@ -164,6 +167,7 @@ export class LogicalReplication extends SafeEventEmitter {
 
   /** Ends the subscription and closes its connection. */
   async close(): Promise<void> {
+    const wasStreaming = !this._finished;
     this._finished = true;
     this._wake();
     if (this._keepAliveTimer) clearInterval(this._keepAliveTimer);
@@ -171,6 +175,15 @@ export class LogicalReplication extends SafeEventEmitter {
     const intlCon = this._intlCon;
     this._intlCon = undefined;
     if (!intlCon) return;
+    if (wasStreaming && intlCon.state === ConnectionState.READY) {
+      // Still mid-COPY-BOTH: a new Query message (like the DROP below) is
+      // invalid until the server has acknowledged the end of streaming and
+      // returned to normal command processing. A paused socket (from
+      // backpressure) would never see that acknowledgment at all.
+      intlCon.socket.resume();
+      intlCon.socket.sendCopyDone();
+      await this._streamDone?.catch(() => undefined);
+    }
     if (
       this._slotCreated &&
       this.options.permanent &&

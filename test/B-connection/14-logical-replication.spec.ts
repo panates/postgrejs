@@ -151,6 +151,40 @@ describe('Logical replication', () => {
     }
   });
 
+  it('should accept multiple publications as an array', async function () {
+    if (!enabled) return this.skip();
+    const sub = new LogicalReplication({
+      publication: ['lr_pub'],
+    } as any);
+    try {
+      await sub.start();
+      expect(sub.slot).toBeDefined();
+    } finally {
+      await sub.close();
+    }
+  });
+
+  it('should drop a permanent slot it created itself when closed', async function () {
+    if (!enabled) return this.skip();
+    // No explicit slot name: start() then creates one (permanent: true only
+    // skips creation when a slot name is *also* given, on the assumption an
+    // existing permanent slot is being reused) - so this is the one
+    // combination where _slotCreated and permanent are both true, which is
+    // what makes close() DROP_REPLICATION_SLOT instead of leaving it.
+    const sub = new LogicalReplication({
+      publication: 'lr_pub',
+      permanent: true,
+    } as any);
+    await sub.start();
+    const slot = sub.slot;
+    await sub.close();
+    const r = await connection.query(
+      'select count(*)::int4 as c from pg_replication_slots where slot_name = $1',
+      { params: [slot] },
+    );
+    expect(r.rows?.[0][0]).toStrictEqual(0);
+  });
+
   it('should drop its temporary slot when closed', async function () {
     if (!enabled) return this.skip();
     // A slot left behind keeps WAL on the server until someone notices.
@@ -176,5 +210,60 @@ describe('Logical replication', () => {
 
   it('should require a publication', () => {
     expect(() => new LogicalReplication({} as any)).toThrow(/publication/);
+  });
+
+  it('should throw from the async iterator once an error has been recorded', async function () {
+    if (!enabled) return this.skip();
+    // An unknown publication name isn't actually rejected by
+    // START_REPLICATION - pgoutput just never matches anything through it,
+    // streaming forever with nothing to show - so this forces the state a
+    // real socket-level failure (_fail()) would leave instead of relying on
+    // a specific rejection this server version may or may not send.
+    const sub = new LogicalReplication({ publication: 'lr_pub' } as any);
+    await sub.start();
+    (sub as any)._error = new Error('boom');
+    let error: any;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const change of sub) break;
+    } catch (e) {
+      error = e;
+    } finally {
+      await sub.close();
+    }
+    expect(error).toBeDefined();
+  });
+
+  it('should stop right away once finished, with nothing queued', async function () {
+    if (!enabled) return this.skip();
+    const sub = new LogicalReplication({ publication: 'lr_pub' } as any);
+    try {
+      await sub.start();
+      // Simulates the state right after the server ends the stream (e.g.
+      // ReadyForQuery) with nothing left in the queue - the iterator has
+      // to return cleanly rather than wait forever.
+      (sub as any)._finished = true;
+      const changes: Change[] = [];
+      for await (const change of sub) changes.push(change);
+      expect(changes).toStrictEqual([]);
+    } finally {
+      await sub.close();
+    }
+  });
+
+  it('should accept an explicit permanent: false alongside a given slot name', async function () {
+    if (!enabled) return this.skip();
+    const slot = 'lr_explicit_' + Math.random().toString(36).substring(2, 8);
+    const sub = new LogicalReplication({
+      publication: 'lr_pub',
+      slot,
+      permanent: false,
+    } as any);
+    try {
+      await sub.start();
+      expect(sub.slot).toStrictEqual(slot);
+    } finally {
+      await sub.close();
+    }
   });
 });
