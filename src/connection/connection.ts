@@ -1,4 +1,4 @@
-import { ConnectionState } from '../constants.js';
+import { ConnectionState, DataTypeOIDs } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
 import type { QueryOptions } from '../interfaces/query-options.js';
@@ -15,6 +15,7 @@ import { QueryRequest } from '../util/sql-tag.js';
 import { BindParam } from './bind-param.js';
 import type { CopyFromStream, CopyToStream } from './copy-stream.js';
 import { IntlConnection } from './intl-connection.js';
+import { LargeObject, LargeObjectMode } from './large-object.js';
 import type { Pool } from './pool.js';
 import { PreparedStatement } from './prepared-statement.js';
 
@@ -316,6 +317,53 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   /**
+   * Creates a large object and opens it for reading and writing.
+   *
+   * A large object holds binary data outside any row, reachable a piece at
+   * a time instead of whole the way a `bytea` column is - which is what it
+   * is for, along with a 4TB ceiling rather than roughly 1GB.
+   *
+   * ```ts
+   * const lo = await connection.createLargeObject();
+   * await pipeline(fs.createReadStream('video.mp4'), lo.writable());
+   * await lo.close();
+   * await table.insert({ videoOid: lo.oid });
+   * ```
+   *
+   * Nothing links the object to the row that names it: dropping the row
+   * leaves the data behind, so unlinkLargeObject() has to be called when it
+   * is no longer wanted. PostgreSQL ships `vacuumlo` for finding the ones
+   * that were not.
+   */
+  async createLargeObject(
+    mode = LargeObjectMode.readWrite,
+  ): Promise<LargeObject> {
+    const ownsTransaction = await this._beginForLargeObject();
+    const created = await this.query('select lo_creat(-1) as oid');
+    const oid = Number(created.rows?.[0][0]);
+    return this._openLargeObject(oid, mode, ownsTransaction);
+  }
+
+  /**
+   * Opens an existing large object by its OID. See createLargeObject() for
+   * how the transaction is handled.
+   */
+  async openLargeObject(
+    oid: number,
+    mode = LargeObjectMode.read,
+  ): Promise<LargeObject> {
+    const ownsTransaction = await this._beginForLargeObject();
+    return this._openLargeObject(oid, mode, ownsTransaction);
+  }
+
+  /** Deletes a large object and its data. */
+  async unlinkLargeObject(oid: number): Promise<void> {
+    await this.query('select lo_unlink($1)', {
+      params: [new BindParam(DataTypeOIDs.oid, oid)],
+    });
+  }
+
+  /**
    * Asks the server to cancel whatever this connection is currently running.
    *
    * Travels on its own short-lived connection, since a backend busy with a
@@ -487,6 +535,37 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     } finally {
       await statement.close();
     }
+  }
+
+  /**
+   * A large object's descriptor is only valid inside the transaction that
+   * opened it. One is started here when there is none, and reported so that
+   * close() commits only what it started - a transaction the caller opened
+   * stays theirs. Mirrors what savepoint() already does.
+   */
+  protected async _beginForLargeObject(): Promise<boolean> {
+    if (this.inTransaction) return false;
+    await this.startTransaction();
+    return true;
+  }
+
+  protected async _openLargeObject(
+    oid: number,
+    mode: number,
+    ownsTransaction: boolean,
+  ): Promise<LargeObject> {
+    const opened = await this.query('select lo_open($1, $2) as fd', {
+      params: [
+        new BindParam(DataTypeOIDs.oid, oid),
+        new BindParam(DataTypeOIDs.int4, mode),
+      ],
+    });
+    return new LargeObject(
+      this,
+      oid,
+      Number(opened.rows?.[0][0]),
+      ownsTransaction,
+    );
   }
 
   protected _handleNotification(msg: NotificationMessage) {

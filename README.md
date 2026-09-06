@@ -59,6 +59,8 @@ and highly maintainable codebase. Key highlights include:
   and `sql.values()`/`sql.set()` write INSERT and UPDATE clauses from objects.
 - **Multiple Hosts:** A connection can list several servers and pick one by role
   (`target_session_attrs`), so a cluster that has failed over is found on the next connect.
+- **Large Objects:** File-like access to binary data stored outside the row - seek, partial reads, streams - for
+  values past what a `bytea` column can hold.
 - **Logical Replication:** `LogicalReplication` streams committed row changes as an async iterable, decoding
   `pgoutput` itself, with client-side filtering and positions confirmed as you consume.
 - **Channel Binding:** SCRAM authentication binds itself to the TLS channel when the server offers it, the way libpq
@@ -128,7 +130,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | GSSAPI / SSPI                      |       ❌       |          ❌          |        ❌        |
 | ***Beyond querying***              |                |                      |                  |
 | Logical replication                | ✅ `pgoutput`  |   🟡 <sup>15</sup>   |  ✅ `subscribe`  |
-| Large object API                   |       ❌       |          ❌          |        ✅        |
+| Large object API                   |       ✅       |          ❌          |        ✅        |
 | Native libpq bindings              |       ❌       |    ✅ `pg-native`    |        ❌        |
 
 - <sup>1</sup> What it takes to reach the feature set above. postgrejs and postgres.js ship everything in the one
