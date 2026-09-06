@@ -120,6 +120,15 @@ export function parseConnectionString(str: string): ConnectionConfiguration {
     parsed.searchParams.get('sslmode') || '',
   );
 
+  const cb = parsed.searchParams.get('channel_binding');
+  if (cb) {
+    if (cb !== 'prefer' && cb !== 'require' && cb !== 'disable')
+      throw new Error(
+        `channel_binding "${cb}" is not supported; use "prefer", "require" or "disable"`,
+      );
+    cfg.channelBinding = cb;
+  }
+
   const sslneg = parsed.searchParams.get('sslnegotiation');
   if (sslneg) {
     if (sslneg !== 'postgres' && sslneg !== 'direct')

@@ -59,6 +59,8 @@ and highly maintainable codebase. Key highlights include:
   and `sql.values()`/`sql.set()` write INSERT and UPDATE clauses from objects.
 - **Multiple Hosts:** A connection can list several servers and pick one by role
   (`target_session_attrs`), so a cluster that has failed over is found on the next connect.
+- **Channel Binding:** SCRAM authentication binds itself to the TLS channel when the server offers it, the way libpq
+  does by default, so a relayed login is detected even where the certificate is not verified.
 - **Two-phase commit:** `prepareTransaction()` leaves a transaction waiting under a name for `commitPrepared()`/
   `rollbackPrepared()`, from any connection.
 - **Cancellation:** Any call takes an `AbortSignal`, which also gives per-query timeouts via `AbortSignal.timeout()`.
@@ -120,7 +122,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | SSL/TLS                            |       ✅       |          ✅          |        ✅        |
 | Direct TLS negotiation (PG17)      |       ✅       |          ✅          |        ✅        |
 | Cleartext, MD5, SCRAM-SHA-256      |       ✅       |          ✅          |        ✅        |
-| SCRAM channel binding (`-PLUS`)    |       ❌       |      ✅ opt-in       |        ❌        |
+| SCRAM channel binding (`-PLUS`)    |   ✅ default   |      ✅ opt-in       |        ❌        |
 | GSSAPI / SSPI                      |       ❌       |          ❌          |        ❌        |
 | ***Beyond querying***              |                |                      |                  |
 | Logical replication                |       ❌       |   🟡 <sup>15</sup>   |  ✅ `subscribe`  |

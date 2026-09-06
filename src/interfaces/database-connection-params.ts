@@ -40,6 +40,19 @@ export interface DatabaseConnectionParams {
    * `ssl` set - an older server just closes the connection.
    */
   sslNegotiation?: 'postgres' | 'direct';
+  /**
+   * Whether SCRAM authentication binds itself to the TLS channel, mirroring
+   * libpq's option of the same name: `prefer` (the default there and here)
+   * uses it when the server offers it, `require` refuses to connect
+   * otherwise, `disable` never asks for it.
+   *
+   * Binding mixes a hash of the server's certificate into the SCRAM proof,
+   * so an attacker who terminates TLS in the middle - necessarily with a
+   * different certificate - cannot relay the exchange. It is what protects
+   * the login when the certificate itself is not verified, which is the
+   * usual case with `sslmode=require` or a self-signed certificate.
+   */
+  channelBinding?: 'prefer' | 'require' | 'disable';
   requireSSL?: boolean;
   ssl?: TlsConnectionOptions;
   timezone?: string;

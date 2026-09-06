@@ -9,6 +9,7 @@ import type { ConnectionConfiguration } from '../interfaces/database-connection-
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { Callback, Maybe } from '../types.js';
 import { Backend } from './backend.js';
+import { signatureHashOfCertificate } from './cert-signature.js';
 import { DatabaseError } from './database-error.js';
 import { Frontend } from './frontend.js';
 import { Protocol } from './protocol.js';
@@ -821,6 +822,15 @@ export class PgSocket extends SafeEventEmitter {
   private _dispatch(code: Protocol.BackendMessageCode, payload: any): void {
     const entry = this._captureQueue.head?.value;
     if (!entry) {
+      // Startup and authentication send nothing through the capture queue,
+      // so an error there arrives with nothing to deliver it to. Reporting
+      // the bookkeeping complaint below would bury what the server actually
+      // said, which for the commonest failure of all is "password
+      // authentication failed for user ...".
+      if (payload instanceof DatabaseError) {
+        this.emit('error', payload);
+        return;
+      }
       // No public capture() exists to register one out of band, so this
       // can only mean a bug in this class's own send/dispatch bookkeeping.
       this.emit(
@@ -892,14 +902,33 @@ export class PgSocket extends SafeEventEmitter {
         });
         break;
       case Protocol.AuthenticationMessageKind.SASL: {
-        if (!msg.mechanisms.includes('SCRAM-SHA-256')) {
+        const mode = this.options.channelBinding || 'prefer';
+        const tlsSocket =
+          mode !== 'disable' && this._socket instanceof tls.TLSSocket
+            ? this._socket
+            : undefined;
+        const offersBinding = !!msg.mechanisms?.includes('SCRAM-SHA-256-PLUS');
+        const useBinding = !!tlsSocket && offersBinding;
+        if (mode === 'require' && !useBinding) {
           throw new Error(
-            'SASL: Only mechanism SCRAM-SHA-256 is currently supported',
+            tlsSocket
+              ? 'SASL: channelBinding is "require" but the server does not offer SCRAM-SHA-256-PLUS'
+              : 'SASL: channelBinding is "require" but the connection is not using TLS',
+          );
+        }
+        if (!useBinding && !msg.mechanisms?.includes('SCRAM-SHA-256')) {
+          throw new Error(
+            'SASL: Only mechanisms SCRAM-SHA-256 and SCRAM-SHA-256-PLUS are supported',
           );
         }
         const saslSession = (this._saslSession = SASL.createSession(
           this.options.user || '',
-          'SCRAM-SHA-256',
+          useBinding ? 'SCRAM-SHA-256-PLUS' : 'SCRAM-SHA-256',
+          useBinding ? this._channelBindingData(tlsSocket!) : undefined,
+          // Announces that binding was possible even when unused, so the
+          // server can tell a stripped -PLUS offer from a client that never
+          // supported it.
+          !!tlsSocket,
         ));
         this._send(this._frontend.getSASLMessage(saslSession));
         break;
@@ -924,6 +953,24 @@ export class PgSocket extends SafeEventEmitter {
       default:
         break;
     }
+  }
+
+  /**
+   * tls-server-end-point: the server certificate hashed with the algorithm
+   * its own signature used (RFC 5929), which is why the DER has to be read
+   * rather than one of Node's fixed fingerprints taken.
+   */
+  protected _channelBindingData(socket: tls.TLSSocket): Buffer {
+    const cert = socket.getPeerX509Certificate?.();
+    if (!cert)
+      throw new Error(
+        'SASL: SCRAM-SHA-256-PLUS needs the server certificate, which this connection did not provide',
+      );
+    const der = cert.raw;
+    return crypto
+      .createHash(signatureHashOfCertificate(der))
+      .update(der)
+      .digest();
   }
 
   protected _handleParameterStatus(msg: Protocol.ParameterStatusMessage): void {
