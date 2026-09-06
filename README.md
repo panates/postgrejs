@@ -4,55 +4,15 @@
     <img src="https://postgrejs.panates.com/img/postgrejs-header-block.png" width="800" alt="PostgreJS Logo" />
   </a>
 </p>
-  
+
 [![NPM Version][npm-image]][npm-url]
 [![NPM Downloads][downloads-image]][downloads-url]
 [![CI Tests][ci-test-image]][ci-test-url]
 [![Test Coverage][coveralls-image]][coveralls-url]
 
-
-PostgreJS is an enterprise-level PostgreSQL client for Node.js.
-It is designed to provide a robust and efficient interface to PostgreSQL databases,
-ensuring high performance and reliability for enterprise applications.
-Written entirely in TypeScript, it leverages modern JavaScript features to deliver a seamless development experience.
-
-
-## Library Overview
-
-PostgreJS is a pure JavaScript library, meticulously crafted with TypeScript to offer a strictly typed, well-structured,
-and highly maintainable codebase.
-Key highlights include:
-
-- **Language:** Pure modern JavaScript library.
-- **Strictly Typed:** Completely written in TypeScript, offering strong typing and enhanced development experience.
-- **Modern module format:** Ships as ESM; Node 20.19+/22.12+ can `require()` it from CommonJS code as well.
-- **Comprehensive Testing:** Rigorously tested to ensure stability and reliability in production environments.
-- **Promise-Based API:** Asynchronous operations are handled with a Promise-based API, promoting clean and efficient asynchronous code.
-
-## Features
-
-- **Connection Management:** Supports both single connection and advanced pooling, providing scalability and efficient resource management.
-- **Binary Wire Protocol:** Implements the full binary wire protocol for all PostgreSQL data types, ensuring robust and efficient data handling.
-- **Prepared Statements:** Named prepared statements for optimized query execution.
-- **Cursors:** Features fast double-link cache cursors for efficient data retrieval.
-- **Notifications:**  High-level implementation for PostgreSQL notifications (LISTEN/NOTIFY), enabling real-time data updates.
-- **Extensibility:** Extensible data-types and type mapping to accommodate custom requirements.
-- **Parameter Binding:**  Bind parameters with OID mappings for precise and efficient query execution.
-- **Array Handling:** Supports multidimensional arrays with fast binary encoding/decoding.
-- **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
-- **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure authentication.
-- **Bulk Import/Export:** `COPY TO STDOUT` and `COPY FROM STDIN` as Node streams, with backpressure in both directions.
-- **Query Pipelining:** Pooled queries can share connections so a burst is not capped by pool size - opt-in per call.
-- **Dynamic SQL:** A `sql` tag builds statements from composable fragments - values become parameters, names are quoted, and `sql.values()`/`sql.set()` write INSERT and UPDATE clauses from objects.
-- **Two-phase commit:** `prepareTransaction()` leaves a transaction waiting under a name for `commitPrepared()`/`rollbackPrepared()`, from any connection.
-- **Cancellation:** Any call takes an `AbortSignal`, which also gives per-query timeouts via `AbortSignal.timeout()`.
-- **Flexible Data Retrieval:**  Can return both array and object rows to suit different data processing needs.
-- **Resource Management:** Auto disposal of resources with the "using" syntax ([TC30 Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management)), ensuring efficient resource cleanup.
-
-Whether you're building a simple application or a complex enterprise system,
-PostgreJS provides the features and performance you need to succeed.
-Explore the capabilities of the library and elevate your PostgreSQL integration to the next level.
-
+PostgreJS is an enterprise-level PostgreSQL client for Node.js. It is designed to provide a robust and efficient
+interface to PostgreSQL databases, ensuring high performance and reliability for enterprise applications. Written
+entirely in TypeScript, it leverages modern JavaScript features to deliver a seamless development experience.
 
 ## Installation
 
@@ -61,7 +21,55 @@ $ npm install postgrejs --save
 ```
 
 ## Documentation
-Please read :small_orange_diamond: [DOCUMENTATION](https://postgrejs.panates.com/) :small_orange_diamond: for detailed usage.
+
+Please read :small_orange_diamond: [DOCUMENTATION](https://postgrejs.panates.com/) :small_orange_diamond: for detailed
+usage.
+
+## Library Overview
+
+PostgreJS is a pure JavaScript library, meticulously crafted with TypeScript to offer a strictly typed, well-structured,
+and highly maintainable codebase. Key highlights include:
+
+- **Language:** Pure modern JavaScript library.
+- **Strictly Typed:** Completely written in TypeScript, offering strong typing and enhanced development experience.
+- **Modern module format:** Ships as ESM; Node 20.19+/22.12+ can `require()` it from CommonJS code as well.
+- **Comprehensive Testing:** Rigorously tested to ensure stability and reliability in production environments.
+- **Promise-Based API:** Asynchronous operations are handled with a Promise-based API, promoting clean and efficient
+  asynchronous code.
+
+## Features
+
+- **Connection Management:** Supports both single connection and advanced pooling, providing scalability and efficient
+  resource management.
+- **Binary Wire Protocol:** Implements the full binary wire protocol for all PostgreSQL data types, ensuring robust and
+  efficient data handling.
+- **Prepared Statements:** Named prepared statements for optimized query execution.
+- **Cursors:** Features fast double-link cache cursors for efficient data retrieval.
+- **Notifications:**  High-level implementation for PostgreSQL notifications (LISTEN/NOTIFY), enabling real-time data
+  updates.
+- **Extensibility:** Extensible data-types and type mapping to accommodate custom requirements.
+- **Parameter Binding:**  Bind parameters with OID mappings for precise and efficient query execution.
+- **Array Handling:** Supports multidimensional arrays with fast binary encoding/decoding.
+- **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
+- **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure
+  authentication.
+- **Bulk Import/Export:** `COPY TO STDOUT` and `COPY FROM STDIN` as Node streams, with backpressure in both directions.
+- **Query Pipelining:** Pooled queries can share connections so a burst is not capped by pool size - opt-in per call.
+- **Dynamic SQL:** A `sql` tag builds statements from composable fragments - values become parameters, names are quoted,
+  and `sql.values()`/`sql.set()` write INSERT and UPDATE clauses from objects.
+- **Multiple Hosts:** A connection can list several servers and pick one by role
+  (`target_session_attrs`), so a cluster that has failed over is found on the next connect.
+- **Two-phase commit:** `prepareTransaction()` leaves a transaction waiting under a name for `commitPrepared()`/
+  `rollbackPrepared()`, from any connection.
+- **Cancellation:** Any call takes an `AbortSignal`, which also gives per-query timeouts via `AbortSignal.timeout()`.
+- **Flexible Data Retrieval:**  Can return both array and object rows to suit different data processing needs.
+- **Resource Management:** Auto disposal of resources with the "using" syntax
+  ([TC30 Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management)), ensuring
+  efficient resource cleanup.
+
+Whether you're building a simple application or a complex enterprise system, PostgreJS provides the features and
+performance you need to succeed. Explore the capabilities of the library and elevate your PostgreSQL integration to the
+next level.
 
 ## Example usage
 
@@ -76,8 +84,8 @@ await connection.connect();
 
 // Execute query and fetch rows
 const result = await connection.query(
-    'select * from cities where name like $1',
-    {params: ['%york%']});
+  'select * from cities where name like $1',
+  { params: ['%york%'] });
 const rows: any[] = result.rows;
 // Do what ever you want with rows
 
@@ -86,21 +94,22 @@ await connection.close();
 ```
 
 ### Establish a pooled connection, create a cursor
+
 ```ts
 import { Pool } from 'postgrejs';
 
 // Create connection pool
 const db = new Pool({
-    host: 'postgres://localhost',
-    min: 1,
-    max: 10,
-    idleTimeoutMillis: 5000
+  host: 'postgres://localhost',
+  min: 1,
+  max: 10,
+  idleTimeoutMillis: 5000
 });
 
 // Execute query and fetch cursor
 const result = await db.query(
-    'select * from cities where name like $1',
-    {params: ['%york%'], cursor: true});
+  'select * from cities where name like $1',
+  { params: ['%york%'], cursor: true });
 
 // Walk through the cursor, and do whatever you want with fetched rows
 const cursor = result.cursor;
@@ -116,93 +125,36 @@ await db.close();
 ```
 
 ### Using prepared statements
+
 ```ts
-import { DataTypeOIDs } from 'postgrejs'; 
+import { DataTypeOIDs } from 'postgrejs';
 
 // .....
-const statement = await connection.prepare( 
-    'insert into my_table(id, name) values ($1, $2)', {
-        paramTypes: [DataTypeOIDs.Int4, DataTypeOIDs.Varchar]
-    });
+const statement = await connection.prepare(
+  'insert into my_table(id, name) values ($1, $2)', {
+    paramTypes: [DataTypeOIDs.Int4, DataTypeOIDs.Varchar]
+  });
 
 for (let i = 0; i < 100; i++) {
-    await statement.execute({params: [i, ('name' + i)]});
+  await statement.execute({ params: [i, ('name' + i)] });
 }
 await statement.close(); // When you done, close the statement to relase resources
 ```
 
-#### Check [DOCUMENTATION](https://postgrejs.panates.com/) for other examples.
-
-
-## Type mappings
-The table below lists builtin data type mappings.
-
-| PosgtreSQL type | JS type     | Receive     | Send   | 
-|-----------------|:------------|-------------|--------|
-| bool            | boolean     | text,binary | binary | 
-| int2            | number      | text,binary | binary | 
-| int4            | number      | text,binary | binary | 
-| int8            | BigInt      | text,binary | binary | 
-| float4          | number      | text,binary | binary | 
-| float8          | number      | text,binary | binary | 
-| char            | string      | text,binary | binary | 
-| bpchar          | string      | text,binary | binary | 
-| varchar         | string      | text,binary | binary | 
-| date            | Date        | text,binary | binary | 
-| time            | Date        | text,binary | binary | 
-| timestamp       | Date        | text,binary | binary | 
-| timestamptz     | Date        | text,binary | binary | 
-| oid             | number      | text,binary | binary | 
-| bytea           | Buffer      | text,binary | binary | 
-| uuid            | string      | text,binary | binary | 
-| json            | object      | text,binary | binary | 
-| jsonb           | object      | text,binary | binary | 
-| xml             | string      | text,binary | binary | 
-| point           | Point       | text,binary | binary | 
-| circle          | Circle      | text,binary | binary | 
-| lseg            | Rectangle   | text,binary | binary | 
-| box             | Rectangle   | text,binary | binary | 
-| int2Vector      | number[]    | text,binary | binary | 
-| _bool           | boolean[]   | text,binary | binary | 
-| _int2           | number[]    | text,binary | binary | 
-| _int4           | number[]    | text,binary | binary | 
-| _int8           | BigInt[]    | text,binary | binary | 
-| _float4         | number[]    | text,binary | binary | 
-| _float8         | number[]    | text,binary | binary | 
-| _char           | string[]    | text,binary | binary | 
-| _bpchar         | string[]    | text,binary | binary | 
-| _varchar        | string[]    | text,binary | binary | 
-| _date           | Date[]      | text,binary | binary | 
-| _time           | Date[]      | text,binary | binary | 
-| _timestamp      | Date[]      | text,binary | binary | 
-| _timestamptz    | Date[]      | text,binary | binary | 
-| _uuid           | string[]    | text,binary | binary | 
-| _oid            | number[]    | text,binary | binary | 
-| _bytea          | Buffer[]    | text,binary | binary | 
-| _json           | object[]    | text,binary | binary | 
-| _jsonb          | object[]    | text,binary | binary | 
-| _xml            | string[]    | text,binary | binary | 
-| _point          | Point[]     | text,binary | binary | 
-| _circle         | Circle[]    | text,binary | binary | 
-| _lseg           | Rectangle[] | text,binary | binary | 
-| _box            | Rectangle[] | text,binary | binary | 
-| _int2Vector     | number[][]  | text,binary | binary | 
-
-
-## Feature comparison
+## Feature Comparison
 
 How PostgreJS compares to [`pg`](https://github.com/brianc/node-postgres) (node-postgres) and
-[`postgres`](https://github.com/porsager/postgres) (postgres.js). Every row was checked against the
-libraries' own source rather than their documentation — versions compared: **postgrejs 2.23.1,
-pg 8.23.0, postgres.js 3.4.9**. ✅ built in · 🟡 partial or needs a separate package · ❌ not supported.
+[`postgres`](https://github.com/porsager/postgres) (postgres.js). Every row was checked against the libraries' own
+source rather than their documentation — versions compared: **postgrejs 2.23.1, pg 8.23.0, postgres.js 3.4.9**. ✅ built
+in · 🟡 partial or needs a separate package · ❌ not supported.
 
 | Feature                            |   PostgreJS    |          pg          |   postgres.js    |
-| :--------------------------------- | :------------: | :------------------: | :--------------: |
+|:-----------------------------------|:--------------:|:--------------------:|:----------------:|
 | ***Packaging***                    |                |                      |                  |
 | Packages to install                |       1        |    4 <sup>1</sup>    |        1         |
 | Module system                      |      ESM       |       ESM/CJS        |     ESM/CJS      |
 | Language                           |       TS       |   JS <sup>2</sup>    | JS <sup>3</sup>  |
-| `using` resource disposal          |       ✅       |          ❌          |        ❌        |
+| TC30 Explicit Resource Management  |       ✅       |          ❌          |        ❌        |
 | ***Wire protocol***                |                |                      |                  |
 | Simple Query protocol              |       ✅       |          ✅          |        ✅        |
 | Extended Query protocol            |       ✅       |          ✅          |        ✅        |
@@ -229,7 +181,7 @@ pg 8.23.0, postgres.js 3.4.9**. ✅ built in · 🟡 partial or needs a separate
 | Transaction API                    |       ✅       |          ❌          |        ✅        |
 | Two-phase commit API               |       ✅       |          ❌          |        ✅        |
 | LISTEN/NOTIFY                      |       ✅       |   🟡 <sup>12</sup>   |        ✅        |
-| Multi-host failover                |       ❌       |          ❌          |        ✅        |
+| Multi-host failover                |       ✅       |          ❌          |        ✅        |
 | ***Security***                     |                |                      |                  |
 | SSL/TLS                            |       ✅       |          ✅          |        ✅        |
 | Direct TLS negotiation (PG17)      |       ❌       |          ✅          |        ✅        |
@@ -241,22 +193,21 @@ pg 8.23.0, postgres.js 3.4.9**. ✅ built in · 🟡 partial or needs a separate
 | Large object API                   |       ❌       |          ❌          |        ✅        |
 | Native libpq bindings              |       ❌       |    ✅ `pg-native`    |        ❌        |
 
-- <sup>1</sup> What it takes to reach the feature set above. postgrejs and postgres.js ship
-  everything in the one package you import; `pg` needs `pg-cursor` for cursors, `pg-query-stream`
+- <sup>1</sup> What it takes to reach the feature set above. postgrejs and postgres.js ship everything in the one
+  package you import; `pg` needs `pg-cursor` for cursors, `pg-query-stream`
   for row streams and `pg-copy-streams` for COPY, each installed and versioned separately.
 - <sup>2</sup> Types come from the separate `@types/pg`; only the `pg-protocol` and
   `pg-connection-string` sub-packages are written in TypeScript.
 - <sup>3</sup> Ships a hand-maintained `.d.ts`.
-- <sup>4</sup> Results only - parameters are always stringified. Opt-in per query or per client,
-  and all columns at once. No binary parser is registered for `bytea`, and binary arrays decode
-  only `int4`, `int8` and `text` elements.
-- <sup>5</sup> Both format-code counts are hardcoded to zero and parameters are stringified, so
-  everything on the wire is text.
-- <sup>6</sup> Its binary array decoder covers only `int4`, `int8` and `text` elements, so
-  everything else falls back to text anyway.
-- <sup>7</sup> A `types` array on the query config does reach the Parse message, but the same
-  field doubles as the result parser override, so any row-returning query throws inside pg's
-  own handler. Verified usable only for statements that return no rows (pg 8.23.0).
+- <sup>4</sup> Results only - parameters are always stringified. Opt-in per query or per client, and all columns at
+  once. No binary parser is registered for `bytea`, and binary arrays decode only `int4`, `int8` and `text` elements.
+- <sup>5</sup> Both format-code counts are hardcoded to zero and parameters are stringified, so everything on the wire
+  is text.
+- <sup>6</sup> Its binary array decoder covers only `int4`, `int8` and `text` elements, so everything else falls back to
+  text anyway.
+- <sup>7</sup> A `types` array on the query config does reach the Parse message, but the same field doubles as the
+  result parser override, so any row-returning query throws inside pg's own handler. Verified usable only for statements
+  that return no rows (pg 8.23.0).
 - <sup>8</sup> Core has the row-limit primitive; the cursor and stream APIs are separate packages.
 - <sup>9</sup> The core `Query` refuses COPY IN; `pg-copy-streams` is required.
 - <sup>10</sup> Connection-level timeouts only.
@@ -273,22 +224,25 @@ For how these three perform rather than what they support, see [`BENCHMARKS.md`]
 For how these three perform rather than what they support, see [`BENCHMARKS.md`](./BENCHMARKS.md).
 
 ## Benchmarks
+
 postgrejs implements the full PostgreSQL wire protocol from scratch, with no dependency on `pg`/libpq.
 [`BENCHMARKS.md`](./BENCHMARKS.md) compares it against `pg` (node-postgres) and `postgres` (postgres.js)
-across connection setup, simple/prepared queries, mixed-type decoding, bulk fetches, cursor streaming
-and pool concurrency, each library run through its own idiomatic fast path.
-The numbers there are reproducible on your own machine via `npm run bench` against the repo's own
+across connection setup, simple/prepared queries, mixed-type decoding, bulk fetches, cursor streaming and pool
+concurrency, each library run through its own idiomatic fast path. The numbers there are reproducible on your own
+machine via `npm run bench` against the repo's own
 `docker-compose.yaml` Postgres instance; see [`benchmark/README.md`](./benchmark/README.md) for details.
 
 ## Support
-You can report bugs and discuss features on the [GitHub issues](https://github.com/panates/postgrejs/issues) page
-When you open an issue please provide version of NodeJS and PostgreSQL server.
+
+You can report bugs and discuss features on the [GitHub issues](https://github.com/panates/postgrejs/issues) page When
+you open an issue please provide version of NodeJS and PostgreSQL server.
 
 ## Node Compatibility
+
 - node >= 20.x
- 
-  
+
 ## License
+
 PostgreJS is available under [MIT](LICENSE) license.
 
 [npm-image]: https://img.shields.io/npm/v/postgrejs
