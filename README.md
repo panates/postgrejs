@@ -59,6 +59,8 @@ and highly maintainable codebase. Key highlights include:
   and `sql.values()`/`sql.set()` write INSERT and UPDATE clauses from objects.
 - **Multiple Hosts:** A connection can list several servers and pick one by role
   (`target_session_attrs`), so a cluster that has failed over is found on the next connect.
+- **Logical Replication:** `LogicalReplication` streams committed row changes as an async iterable, decoding
+  `pgoutput` itself, with client-side filtering and positions confirmed as you consume.
 - **Channel Binding:** SCRAM authentication binds itself to the TLS channel when the server offers it, the way libpq
   does by default, so a relayed login is detected even where the certificate is not verified.
 - **Two-phase commit:** `prepareTransaction()` leaves a transaction waiting under a name for `commitPrepared()`/
@@ -125,7 +127,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | SCRAM channel binding (`-PLUS`)    |   ✅ default   |      ✅ opt-in       |        ❌        |
 | GSSAPI / SSPI                      |       ❌       |          ❌          |        ❌        |
 | ***Beyond querying***              |                |                      |                  |
-| Logical replication                |       ❌       |   🟡 <sup>15</sup>   |  ✅ `subscribe`  |
+| Logical replication                | ✅ `pgoutput`  |   🟡 <sup>15</sup>   |  ✅ `subscribe`  |
 | Large object API                   |       ❌       |          ❌          |        ✅        |
 | Native libpq bindings              |       ❌       |    ✅ `pg-native`    |        ❌        |
 

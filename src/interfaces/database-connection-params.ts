@@ -11,6 +11,12 @@ export interface DatabaseConnectionParams {
   database?: string;
   applicationName?: string;
   /**
+   * Opens the connection in replication mode, which is what lets it run
+   * START_REPLICATION. Set by LogicalReplication; a connection in this mode
+   * cannot serve ordinary queries once streaming has begun.
+   */
+  replication?: 'database' | 'true';
+  /**
    * Additional servers to try, in order, when the first one cannot be used.
    *
    * Also accepted as a comma-separated `host`, or in a connection string:

@@ -636,6 +636,9 @@ export class PgSocket extends SafeEventEmitter {
         user: this.options.user || 'postgres',
         database: this.options.database || '',
         application_name: this.options.applicationName || '',
+        ...(this.options.replication
+          ? { replication: this.options.replication }
+          : undefined),
       }),
     );
   }
