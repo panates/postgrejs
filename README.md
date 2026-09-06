@@ -183,7 +183,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 ## Benchmarks
 
 postgrejs implements the full PostgreSQL wire protocol from scratch, with no dependency on `pg`/libpq.
-[`BENCHMARKS.md`](./BENCHMARKS.md) compares it against `pg` (node-postgres) and `postgres` (postgres.js)
+[`doc/BENCHMARKS.md`](doc/BENCHMARKS.md) compares it against `pg` (node-postgres) and `postgres` (postgres.js)
 across connection setup, simple/prepared queries, mixed-type decoding, bulk fetches, cursor streaming and pool
 concurrency, each library run through its own idiomatic fast path. The numbers there are reproducible on your own
 machine via `npm run bench` against the repo's own
