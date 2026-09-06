@@ -1,3 +1,4 @@
+import { coerceToBoolean } from 'putil-varhelpers';
 import { ConnectionState, DataTypeOIDs } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
@@ -183,6 +184,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         this._captureErrorStack(
           this._intlCon.execute(sql, options),
           this.execute,
+          options?.asyncErrorHandling,
         ).catch((e: DatabaseError) => {
           throw this._handleError(e, sql);
         }),
@@ -515,6 +517,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       return await this._captureErrorStack(
         this._intlCon.queryOnce(sql, paramTypes, params, options || {}),
         this.query,
+        options?.asyncErrorHandling,
       ).catch((e: DatabaseError) => {
         throw this._handleError(e, sql);
       });
@@ -532,6 +535,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       return await this._captureErrorStack(
         statement.execute({ ...options, params }),
         this.query,
+        options?.asyncErrorHandling,
       );
     } finally {
       await statement.close();
@@ -609,11 +613,27 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * because the captured depth is deliberately small - spending four of five
    * frames on our own call chain would leave one for the caller, and any
    * helper of theirs would push the real call site off the end.
+   *
+   * Skippable via `asyncErrorHandling: false` - capturing costs a real,
+   * measurable slice of CPU time once many calls are in flight at once
+   * (a pipelined burst on one connection), where it has to compete with
+   * every other call for the same core instead of hiding behind network
+   * wait the way it does for a single sequential call.
+   *
+   * `asyncErrorHandling` is the per-call override (execute()/query()'s own
+   * option of the same name); when omitted, the connection's own
+   * `DatabaseConnectionParams.asyncErrorHandling` decides.
    */
   protected async _captureErrorStack<T>(
     promise: Promise<T>,
     entry?: (...args: any[]) => any,
+    asyncErrorHandling?: boolean,
   ): Promise<T> {
+    const enabled =
+      asyncErrorHandling != null
+        ? asyncErrorHandling
+        : coerceToBoolean(this._intlCon.config.asyncErrorHandling, true);
+    if (!enabled) return promise;
     const stackHolder: { stack?: string } = {};
     const originalStackTraceLimit = Error.stackTraceLimit;
     Error.stackTraceLimit = CAPTURE_STACK_TRACE_LIMIT;

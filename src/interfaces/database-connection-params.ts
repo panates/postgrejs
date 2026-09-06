@@ -76,6 +76,19 @@ export interface DatabaseConnectionParams {
    * @default true
    */
   rollbackOnError?: boolean;
+  /**
+   * Whether a thrown error's stack trace points at the application code
+   * that called query()/execute() (etc.) across the `await`, instead of an
+   * internal async frame inside this library.
+   *
+   * Getting this right costs a real, measurable amount of CPU when many
+   * calls are in flight at once (e.g. a burst of pipelined queries on one
+   * connection) - set to `false` to skip it, which is also what makes an
+   * apples-to-apples benchmark against a client that does not offer this
+   * fair.
+   * @default true
+   */
+  asyncErrorHandling?: boolean;
   debugLogger?: DebugLogger;
 }
 

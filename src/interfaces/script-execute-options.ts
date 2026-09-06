@@ -36,4 +36,10 @@ export interface ScriptExecuteOptions extends DataMappingOptions {
    * called. `AbortSignal.timeout(ms)` gives a per-call timeout.
    */
   signal?: AbortSignal;
+  /**
+   * Overrides the connection's own `asyncErrorHandling` for this call only -
+   * see `DatabaseConnectionParams.asyncErrorHandling`.
+   * @default the connection's own setting
+   */
+  asyncErrorHandling?: boolean;
 }

@@ -31,6 +31,11 @@ function connectionConfig(config: BenchDbConfig) {
     user: config.user,
     password: config.password,
     database: config.database,
+    // pg and postgres.js don't offer a caller-preserving async stack trace
+    // at all, so leaving this on would charge PostgreJS for a feature
+    // neither of them pays for - off here for a fair, apples-to-apples
+    // measurement (see DatabaseConnectionParams.asyncErrorHandling).
+    asyncErrorHandling: false,
   };
 }
 
