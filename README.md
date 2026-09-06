@@ -200,7 +200,7 @@ you open an issue please provide version of NodeJS and PostgreSQL server.
 
 ## License
 
-PostgreJS is available under [MIT](LICENSE) license.
+PostgreJS is available under the [BSD 3-Clause](LICENSE) license.
 
 [npm-image]: https://img.shields.io/npm/v/postgrejs
 [npm-url]: https://npmjs.org/package/postgrejs

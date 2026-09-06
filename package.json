@@ -3,7 +3,7 @@
   "description": "Professional PostgreSQL client NodeJS",
   "version": "3.0.0",
   "author": "Panates",
-  "license": "MIT",
+  "license": "BSD-3-Clause",
   "private": true,
   "dependencies": {
     "@jsopen/objects": "^2.2.3",
