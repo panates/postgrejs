@@ -8,6 +8,7 @@ import type { StatementPrepareOptions } from '../interfaces/statement-prepare-op
 import { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { AnyParseFunction, Maybe, OID } from '../types.js';
+import { withAbortSignal } from '../util/abort-signal.js';
 import { getParsers } from '../util/get-parsers.js';
 import { wrapRowDescription } from '../util/wrap-row-description.js';
 import type { Connection } from './connection.js';
@@ -80,6 +81,19 @@ export class PreparedStatement
 
   async execute(options: QueryOptions = {}): Promise<QueryResult> {
     const intlCon = getIntlConnection(this.connection);
+    if (options.signal)
+      return withAbortSignal(
+        options.signal,
+        () => intlCon.cancel(),
+        () => this._executeWithTransaction(options),
+      );
+    return this._executeWithTransaction(options);
+  }
+
+  protected async _executeWithTransaction(
+    options: QueryOptions = {},
+  ): Promise<QueryResult> {
+    const intlCon = getIntlConnection(this.connection);
 
     const transactionCommand = this.sql.match(
       /^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i,
@@ -130,8 +144,13 @@ export class PreparedStatement
     await this._close();
   }
 
+  /**
+   * Asks the server to cancel whatever this statement's connection is
+   * currently running. See Connection.cancel(); prefer the per-call `signal`
+   * option, which reports the abort to the caller that asked for it.
+   */
   async cancel(): Promise<void> {
-    throw new Error('Not implemented yet');
+    return getIntlConnection(this.connection).cancel();
   }
 
   protected async _execute(options: QueryOptions = {}): Promise<QueryResult> {

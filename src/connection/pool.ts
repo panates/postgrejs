@@ -212,7 +212,12 @@ export class Pool extends SafeEventEmitter {
     sql: string,
     options?: PoolScriptExecuteOptions,
   ): Promise<ScriptResult> {
-    const slot = this._canPipeline(options?.pipeline, sql, options?.autoCommit)
+    const slot = this._canPipeline(
+        options?.pipeline,
+        sql,
+        options?.autoCommit,
+        options?.signal,
+      )
       ? this._acquireShared()
       : undefined;
     if (!slot) {
@@ -241,7 +246,12 @@ export class Pool extends SafeEventEmitter {
     // keep its own portal on its own connection, so it can never share.
     const slot =
       !options?.cursor &&
-      this._canPipeline(options?.pipeline, sql, options?.autoCommit)
+      this._canPipeline(
+        options?.pipeline,
+        sql,
+        options?.autoCommit,
+        options?.signal,
+      )
         ? this._acquireShared()
         : undefined;
     if (!slot) {
@@ -308,9 +318,14 @@ export class Pool extends SafeEventEmitter {
     pipeline: boolean | undefined,
     sql: string,
     autoCommit: boolean | undefined,
+    signal: AbortSignal | undefined,
   ): boolean {
     return (
       pipeline === true &&
+      // Cancelling targets a backend, not a statement: on a shared
+      // connection it would kill whichever query happens to be running,
+      // which is rarely the one the caller aborted.
+      !signal &&
       this._pipelineMaxQueries > 1 &&
       this._pipelineMaxConnections > 0 &&
       // autoCommit:false sends Connection.query() down the prepare /

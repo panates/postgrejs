@@ -114,6 +114,23 @@ export class Frontend {
     return setLengthAndFlush(io, 0);
   }
 
+  /**
+   * Asks the server to cancel whatever the given session is currently
+   * running. Sent on its own fresh connection - a backend busy with a query
+   * is not reading its own socket, which is the whole reason this cannot go
+   * down the normal one.
+   */
+  getCancelRequestMessage(processID: number, secretKey: number): Buffer {
+    return this._io
+      .start()
+      .writeUInt32BE(16) // Length of message contents in bytes, including self.
+      .writeUInt16BE(1234)
+      .writeUInt16BE(5678)
+      .writeUInt32BE(processID)
+      .writeUInt32BE(secretKey)
+      .flush();
+  }
+
   getPasswordMessage(password: string): Buffer {
     const io = this._io
       .start()

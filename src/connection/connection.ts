@@ -10,6 +10,7 @@ import type { DatabaseError } from '../protocol/database-error.js';
 import type { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { Maybe, OID } from '../types.js';
+import { withAbortSignal } from '../util/abort-signal.js';
 import { BindParam } from './bind-param.js';
 import type { CopyFromStream, CopyToStream } from './copy-stream.js';
 import { IntlConnection } from './intl-connection.js';
@@ -171,10 +172,15 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     options?: ScriptExecuteOptions,
   ): Promise<ScriptResult> {
     this.emit('execute', sql, options);
-    return this._captureErrorStack(this._intlCon.execute(sql, options)).catch(
-      (e: DatabaseError) => {
-        throw this._handleError(e, sql);
-      },
+    return withAbortSignal(
+      options?.signal,
+      () => this._intlCon.cancel(),
+      () =>
+        this._captureErrorStack(this._intlCon.execute(sql, options)).catch(
+          (e: DatabaseError) => {
+            throw this._handleError(e, sql);
+          },
+        ),
     );
   }
 
@@ -190,45 +196,9 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       });
     }
     this.emit('query', sql, options);
-    const typeMap = options?.typeMap || GlobalTypeMap;
-    const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
-      prm instanceof BindParam ? prm.oid : typeMap.determine(prm),
+    return withAbortSignal(options?.signal, () => this._intlCon.cancel(), () =>
+      this._query(sql, options),
     );
-
-    const effectiveAutoCommit =
-      options?.autoCommit != null
-        ? options.autoCommit
-        : this._intlCon.config.autoCommit;
-    if (
-      !options?.cursor &&
-      !this._intlCon.inTransaction &&
-      effectiveAutoCommit !== false
-    ) {
-      const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm =>
-        prm instanceof BindParam ? prm.value : prm,
-      );
-      return await this._captureErrorStack(
-        this._intlCon.queryOnce(sql, paramTypes, params, options || {}),
-      ).catch((e: DatabaseError) => {
-        throw this._handleError(e, sql);
-      });
-    }
-
-    const statement = await this.prepare(sql, { paramTypes, typeMap }).catch(
-      (e: DatabaseError) => {
-        throw this._handleError(e, sql);
-      },
-    );
-    try {
-      const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm =>
-        prm instanceof BindParam ? prm.value : prm,
-      );
-      return await this._captureErrorStack(
-        statement.execute({ ...options, params }),
-      );
-    } finally {
-      await statement.close();
-    }
   }
 
   /**
@@ -328,6 +298,20 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   /**
+   * Asks the server to cancel whatever this connection is currently running.
+   *
+   * Travels on its own short-lived connection, since a backend busy with a
+   * query is not reading its own socket. It is a request, not a guarantee -
+   * the statement may finish first - and the cancelled call reports the
+   * outcome itself, rejecting with SQLSTATE 57014 if the server acted on it.
+   * Prefer the per-call `signal` option, which does this and reports the
+   * abort to the right caller.
+   */
+  cancel(): Promise<void> {
+    return this._intlCon.cancel();
+  }
+
+  /**
    * Starts a transaction
    */
   startTransaction(): Promise<void> {
@@ -401,6 +385,51 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     if (this._notificationListeners?.eventNames().length) {
       this._notificationListeners.removeAllListeners();
       await this._captureErrorStack(this.query('UNLISTEN *'));
+    }
+  }
+
+  protected async _query(
+    sql: string,
+    options?: QueryOptions,
+  ): Promise<QueryResult> {
+    const typeMap = options?.typeMap || GlobalTypeMap;
+    const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
+      prm instanceof BindParam ? prm.oid : typeMap.determine(prm),
+    );
+
+    const effectiveAutoCommit =
+      options?.autoCommit != null
+        ? options.autoCommit
+        : this._intlCon.config.autoCommit;
+    if (
+      !options?.cursor &&
+      !this._intlCon.inTransaction &&
+      effectiveAutoCommit !== false
+    ) {
+      const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm =>
+        prm instanceof BindParam ? prm.value : prm,
+      );
+      return await this._captureErrorStack(
+        this._intlCon.queryOnce(sql, paramTypes, params, options || {}),
+      ).catch((e: DatabaseError) => {
+        throw this._handleError(e, sql);
+      });
+    }
+
+    const statement = await this.prepare(sql, { paramTypes, typeMap }).catch(
+      (e: DatabaseError) => {
+        throw this._handleError(e, sql);
+      },
+    );
+    try {
+      const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm =>
+        prm instanceof BindParam ? prm.value : prm,
+      );
+      return await this._captureErrorStack(
+        statement.execute({ ...options, params }),
+      );
+    } finally {
+      await statement.close();
     }
   }
 

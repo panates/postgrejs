@@ -208,6 +208,11 @@ export class IntlConnection extends SafeEventEmitter {
     await this.execute('RELEASE SAVEPOINT ' + name, { autoCommit: false });
   }
 
+  /** Asks the server to cancel whatever this session is running. */
+  cancel(): Promise<void> {
+    return this.socket.cancel();
+  }
+
   ref(): void {
     this._refCount++;
   }

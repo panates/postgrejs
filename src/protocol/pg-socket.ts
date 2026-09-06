@@ -164,6 +164,69 @@ export class PgSocket extends SafeEventEmitter {
       );
   }
 
+  /**
+   * Asks the server to cancel whatever this session is currently running.
+   *
+   * Opens its own short-lived connection and closes it again: a backend busy
+   * with a query is not reading its own socket, so the request cannot travel
+   * down the connection it is meant to interrupt. The server answers nothing
+   * - it either finds a matching session and signals it or does not - so
+   * this resolves once the bytes are out, and the cancelled query reports
+   * the outcome itself, as an ordinary error on its own connection.
+   */
+  cancel(): Promise<void> {
+    const processID = this._processID;
+    const secretKey = this._secretKey;
+    // Nothing to cancel before the session is established.
+    if (processID == null || secretKey == null) return Promise.resolve();
+    const options = this.options;
+    const data = this._frontend.getCancelRequestMessage(processID, secretKey);
+    const sslRequest = options.ssl
+      ? this._frontend.getSSLRequestMessage()
+      : undefined;
+
+    return new Promise<void>((resolve, reject) => {
+      const socket = new net.Socket();
+      const fail = (err: Error) => {
+        socket.destroy();
+        reject(err);
+      };
+      const send = (target: net.Socket | tls.TLSSocket) => {
+        target.end(data, () => {
+          target.destroy();
+          resolve();
+        });
+      };
+      socket.setNoDelay(true);
+      socket.once('error', fail);
+      socket.once('connect', () => {
+        if (!sslRequest) return send(socket);
+        socket.write(sslRequest);
+        socket.once('data', x => {
+          if (x.toString() === 'S') {
+            const tlsOptions: tls.ConnectionOptions = {
+              ...options.ssl,
+              socket,
+            };
+            if (options.host && net.isIP(options.host) === 0)
+              tlsOptions.servername = options.host;
+            const tlsSocket = tls.connect(tlsOptions);
+            tlsSocket.once('error', fail);
+            tlsSocket.once('secureConnect', () => send(tlsSocket));
+            return;
+          }
+          if (options.requireSSL)
+            return fail(new Error('Server does not support SSL connections'));
+          send(socket);
+        });
+      });
+      const port = options.port || DEFAULT_PORT_NUMBER;
+      if (options.host && options.host.startsWith('/'))
+        socket.connect(path.join(options.host, '/.s.PGSQL.' + port));
+      else socket.connect(port, options.host || 'localhost');
+    });
+  }
+
   close(): void {
     if (!this._socket || this._socket.destroyed) {
       this._state = ConnectionState.CLOSED;
