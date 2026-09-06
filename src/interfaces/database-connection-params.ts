@@ -29,6 +29,17 @@ export interface DatabaseConnectionParams {
    * one tried, which is how `read-write` finds the current primary.
    */
   targetSessionAttrs?: TargetSessionAttrs;
+  /**
+   * How TLS is started: `postgres` (the default) asks first with an
+   * SSLRequest and waits for the server's yes or no; `direct` begins the
+   * TLS handshake straight away, announcing the `postgresql` protocol over
+   * ALPN so the server can tell what it is talking to.
+   *
+   * Direct saves a round trip and leaves no plaintext preamble for a
+   * middlebox to read or strip, but it needs PostgreSQL 17 or later and
+   * `ssl` set - an older server just closes the connection.
+   */
+  sslNegotiation?: 'postgres' | 'direct';
   requireSSL?: boolean;
   ssl?: TlsConnectionOptions;
   timezone?: string;

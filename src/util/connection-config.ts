@@ -120,6 +120,15 @@ export function parseConnectionString(str: string): ConnectionConfiguration {
     parsed.searchParams.get('sslmode') || '',
   );
 
+  const sslneg = parsed.searchParams.get('sslnegotiation');
+  if (sslneg) {
+    if (sslneg !== 'postgres' && sslneg !== 'direct')
+      throw new Error(
+        `sslnegotiation "${sslneg}" is not supported; use "postgres" or "direct"`,
+      );
+    cfg.sslNegotiation = sslneg;
+  }
+
   const tsa = parsed.searchParams.get('target_session_attrs');
   if (tsa) {
     if (!TARGET_SESSION_ATTRS.includes(tsa as TargetSessionAttrs))

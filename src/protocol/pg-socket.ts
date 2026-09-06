@@ -135,24 +135,54 @@ export class PgSocket extends SafeEventEmitter {
       this.emit('error', err);
     };
 
+    const startTls = () => {
+      const tslOptions: tls.ConnectionOptions = { ...options.ssl, socket };
+      if (target.host && net.isIP(target.host) === 0)
+        tslOptions.servername = target.host;
+      // Direct negotiation has no SSLRequest to identify the protocol, so
+      // ALPN is how the server learns this is PostgreSQL - it is required
+      // rather than an optimisation.
+      if (options.sslNegotiation === 'direct')
+        tslOptions.ALPNProtocols = ['postgresql'];
+      const tlsSocket = (this._socket = tls.connect(tslOptions));
+      tlsSocket.once('error', errorHandler);
+      tlsSocket.once('secureConnect', () => {
+        this._removeListeners();
+        this._handleConnect();
+      });
+    };
+
     const connectHandler = () => {
       socket.setTimeout(0);
       if (this.options.keepAlive || this.options.keepAlive == null)
         socket.setKeepAlive(true);
+      // TLS only when it was asked for. Offering SSLRequest to every server
+      // and upgrading whenever one says yes sounds harmless, but it means a
+      // caller who never mentioned TLS is suddenly held to certificate
+      // verification and cannot reach a server with a self-signed one - and
+      // the error says nothing about why TLS was involved at all. libpq, pg
+      // and postgres.js all ask only when told to.
+      const wantsSSL =
+        !!options.ssl ||
+        !!options.requireSSL ||
+        options.sslNegotiation === 'direct';
+      if (!wantsSSL) {
+        this._removeListeners();
+        this._handleConnect();
+        return;
+      }
+      if (options.sslNegotiation === 'direct') {
+        // Straight into the handshake: no SSLRequest, nothing in the clear.
+        this._removeListeners();
+        startTls();
+        return;
+      }
       socket.write(this._frontend.getSSLRequestMessage());
       socket.once('data', x => {
         this._removeListeners();
         const command = x.toString();
         if (command === 'S') {
-          const tslOptions = { ...options.ssl, socket };
-          if (target.host && net.isIP(target.host) === 0)
-            tslOptions.servername = target.host;
-          const tlsSocket = (this._socket = tls.connect(tslOptions));
-          tlsSocket.once('error', errorHandler);
-          tlsSocket.once('secureConnect', () => {
-            this._removeListeners();
-            this._handleConnect();
-          });
+          startTls();
           return;
         }
         if (command === 'N') {
