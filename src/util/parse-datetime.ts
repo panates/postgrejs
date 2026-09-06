@@ -30,7 +30,11 @@ export function parseDate(str: string, utc?: boolean): Date | number {
   const args: DateArgs = [1970, 0, 1, 0, 0, 0, 0];
   args[0] = fastParseInt(m[1]) || 0;
   args[1] = fastParseInt(m[2]) || 0;
-  args[2] = fastParseInt(m[3]) || 0;
+  // Regression test: day defaults to 1 when omitted (a bare year or
+  // year-month string, both valid per TIMESTAMP_PATTERN) - `|| 0` used to
+  // leave it at 0, and Date.UTC()'s day is 1-indexed, so "day 0" silently
+  // rolled back to the last day of the *previous* month.
+  args[2] = fastParseInt(m[3]) || 1;
   // Months start from 0
   if (args[1] > 0) args[1]--;
 
@@ -52,7 +56,11 @@ export function parseDateTime(str: string, utc?: boolean): Date | number {
   const args: DateArgs = [1970, 0, 1, 0, 0, 0, 0];
   args[0] = fastParseInt(m[1]) || 0;
   args[1] = fastParseInt(m[2]) || 0;
-  args[2] = fastParseInt(m[3]) || 0;
+  // Regression test: day defaults to 1 when omitted (a bare year or
+  // year-month string, both valid per TIMESTAMP_PATTERN) - `|| 0` used to
+  // leave it at 0, and Date.UTC()'s day is 1-indexed, so "day 0" silently
+  // rolled back to the last day of the *previous* month.
+  args[2] = fastParseInt(m[3]) || 1;
   // Months start from 0
   if (args[1] > 0) args[1]--;
   fillTimeArgs(m, args);
@@ -73,7 +81,11 @@ export function parseDateTimeTz(str: string, utc?: boolean): Date | number {
   const args: DateArgs = [1970, 0, 1, 0, 0, 0, 0];
   args[0] = fastParseInt(m[1]) || 0;
   args[1] = fastParseInt(m[2]) || 0;
-  args[2] = fastParseInt(m[3]) || 0;
+  // Regression test: day defaults to 1 when omitted (a bare year or
+  // year-month string, both valid per TIMESTAMP_PATTERN) - `|| 0` used to
+  // leave it at 0, and Date.UTC()'s day is 1-indexed, so "day 0" silently
+  // rolled back to the last day of the *previous* month.
+  args[2] = fastParseInt(m[3]) || 1;
   // Months start from 0
   if (args[1] > 0) args[1]--;
   fillTimeArgs(m, args);
