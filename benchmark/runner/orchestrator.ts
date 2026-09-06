@@ -102,6 +102,13 @@ export async function runMatrix(options: OrchestratorOptions): Promise<void> {
     }
   }
 
-  const summaries = summarize(readResults(RESULTS_DIR));
-  console.log('\n' + renderConsoleSummary(summaries));
+  // results/ accumulates one file per (scenario, lib, run) forever - a
+  // rerun overwrites its own matching files but never removes anyone
+  // else's, so an unfiltered read here would resurface every scenario/lib
+  // ever benchmarked instead of just the ones -s/-l selected this time.
+  const ran = new Set(pairs.map(p => `${p.scenario}__${p.lib}`));
+  const results = readResults(RESULTS_DIR).filter(r =>
+    ran.has(`${r.scenario}__${r.lib}`),
+  );
+  renderConsoleSummary(summarize(results));
 }

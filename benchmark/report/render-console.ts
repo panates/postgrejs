@@ -1,32 +1,94 @@
 import { groupByScenario, type ScenarioLibSummary } from './aggregate.js';
 
-export function renderConsoleSummary(summaries: ScenarioLibSummary[]): string {
-  const lines: string[] = [];
+function round(n: number, decimals: number): number {
+  const f = 10 ** decimals;
+  return Math.round(n * f) / f;
+}
+
+type Cell = string | number | null;
+type Row = Record<string, Cell>;
+
+/**
+ * Renders `rows` as a box-drawn table, numbers right-aligned and text
+ * left-aligned - console.table() has no alignment option of its own (it
+ * left-aligns everything, `lib` included), so this reimplements just enough
+ * of its look to right-align the numeric columns the summary is mostly
+ * made of.
+ */
+function printTable(rows: Row[], leftAlign: Set<string> = new Set()): void {
+  if (!rows.length) return;
+  const columns = Object.keys(rows[0]);
+  const cellText = (v: Cell): string => (v == null ? '-' : String(v));
+  // Right-aligns every column except `lib` and whatever else the caller
+  // names in `leftAlign` (e.g. "vs slowest (x)" reads more like a label -
+  // 1.00x, 1.02x, 1.04x - than a value to compare down a column).
+  const isNumeric = new Map<string, boolean>(
+    columns.map(c => [c, !leftAlign.has(c)]),
+  );
+  const widths = new Map<string, number>(
+    columns.map(c => [
+      c,
+      Math.max(c.length, ...rows.map(r => cellText(r[c]).length)),
+    ]),
+  );
+  const pad = (text: string, width: number, alignRight: boolean): string =>
+    alignRight ? text.padStart(width) : text.padEnd(width);
+  const rule = (l: string, m: string, r: string): string =>
+    l + columns.map(c => '─'.repeat(widths.get(c)! + 2)).join(m) + r;
+  const renderRow = (cells: string[], aligned: boolean[]): string =>
+    '│ ' +
+    columns
+      .map((c, i) => pad(cells[i], widths.get(c)!, aligned[i]))
+      .join(' │ ') +
+    ' │';
+
+  console.log(rule('┌', '┬', '┐'));
+  console.log(
+    renderRow(
+      columns,
+      columns.map(c => isNumeric.get(c)!),
+    ),
+  );
+  console.log(rule('├', '┼', '┤'));
+  for (const r of rows) {
+    console.log(
+      renderRow(
+        columns.map(c => cellText(r[c])),
+        columns.map(c => isNumeric.get(c)!),
+      ),
+    );
+  }
+  console.log(rule('└', '┴', '┘'));
+}
+
+/**
+ * Prints one table per scenario instead of hand-aligned `key=value` text -
+ * see printTable() for why this isn't console.table() itself.
+ */
+export function renderConsoleSummary(summaries: ScenarioLibSummary[]): void {
   const byScenario = groupByScenario(summaries);
   for (const [scenario, libs] of byScenario) {
-    lines.push(`\n${scenario}`);
+    console.log(`\n${scenario}`);
     const sorted = [...libs].sort((a, b) => a.medianMean - b.medianMean);
     const slowest = sorted[sorted.length - 1];
-    for (const s of sorted) {
-      const mult =
+    const rows: Row[] = sorted.map(s => ({
+      lib: s.lib,
+      'mean (ms)': round(s.medianMean, 3),
+      'p75 (ms)': round(s.medianP75, 3),
+      'p99 (ms)': round(s.medianP99, 3),
+      'ops/sec': round(s.medianOpsPerSec, 1),
+      'vs slowest':
         slowest && slowest.medianMean > 0
-          ? (slowest.medianMean / s.medianMean).toFixed(2)
-          : '-';
-      const gcText =
-        s.medianGcCount != null
-          ? ` gc=${s.medianGcCount}/${s.medianGcDurationMs?.toFixed(1)}ms`
-          : '';
-      const peakHeapText =
+          ? round(slowest.medianMean / s.medianMean, 2) + 'x'
+          : null,
+      'gc count': s.medianGcCount ?? null,
+      'gc (ms)':
+        s.medianGcDurationMs != null ? round(s.medianGcDurationMs, 1) : null,
+      'peak heap (KB)':
         s.medianPeakHeapGrowthBytes != null
-          ? ` peakHeap=${(s.medianPeakHeapGrowthBytes / 1024).toFixed(1)}KB`
-          : '';
-      lines.push(
-        `  ${s.lib.padEnd(10)} mean=${s.medianMean.toFixed(3)}ms ` +
-          `p75=${s.medianP75.toFixed(3)}ms p99=${s.medianP99.toFixed(3)}ms ` +
-          `ops/sec=${s.medianOpsPerSec.toFixed(1)} (${mult}x vs slowest)` +
-          `${gcText}${peakHeapText}`,
-      );
-    }
+          ? round(s.medianPeakHeapGrowthBytes / 1024, 1)
+          : null,
+    }));
+    printTable(rows, new Set(['lib', 'vs slowest']));
   }
-  return lines.join('\n');
 }
