@@ -49,8 +49,10 @@ export const NumericType: DataType = {
     if (str === 'Infinity') return writeHeader(0, 0, NUMERIC_PINF, 0);
     if (str === '-Infinity') return writeHeader(0, 0, NUMERIC_NINF, 0);
     // Exponent form has no place in the wire format; go through Number to
-    // get it back into plain notation.
-    if (/e/i.test(str)) str = Number(str).toFixed(20).replace(/0+$/, '');
+    // get it back into plain notation. toFixed() cannot do this itself -
+    // per spec it falls back to exponential notation once the magnitude
+    // reaches 1e21, so this shifts the decimal point manually instead.
+    if (/e/i.test(str)) str = expandExponential(Number(str).toString());
 
     let sign = 0;
     if (str.startsWith('-')) {
@@ -134,6 +136,25 @@ export const ArrayNumericType: DataType = {
   oid: DataTypeOIDs._numeric,
   elementsOID: DataTypeOIDs.numeric,
 };
+
+/**
+ * Turns a JS exponential-notation number string (e.g. "1e+21", "-1.5e-7")
+ * into plain decimal notation by shifting the decimal point across the
+ * mantissa's own digits - no floating-point math involved, so it stays
+ * exact for magnitudes past what toFixed() can express (it reverts to
+ * exponential notation itself once |x| reaches 1e21).
+ */
+export function expandExponential(str: string): string {
+  const m = str.match(/^(-)?(\d+)(?:\.(\d+))?e([+-]?\d+)$/i);
+  if (!m) return str;
+  const sign = m[1] || '';
+  const digits = m[2] + (m[3] || '');
+  const pointPos = m[2].length + parseInt(m[4], 10);
+  if (pointPos <= 0) return sign + '0.' + '0'.repeat(-pointPos) + digits;
+  if (pointPos >= digits.length)
+    return sign + digits + '0'.repeat(pointPos - digits.length);
+  return sign + digits.slice(0, pointPos) + '.' + digits.slice(pointPos);
+}
 
 /* https://github.com/pgjdbc/pgjdbc/blob/3eca3a76aa4a04cb28cb960ed674cb67db30b5e3/pgjdbc/src/main/java/org/postgresql/util/ByteConverter.java */
 /**
