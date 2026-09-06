@@ -22,17 +22,17 @@ export function preparedStatementSql(schema: string): string {
 export const PREPARED_STATEMENT_REUSE_SCENARIO: ScenarioMeta = {
   name: 'prepared-statement-reuse',
   title: 'Prepared Statement Reuse (Sequential)',
-  description:
-    `Prepare once and execute ${PREPARED_STATEMENT_ITERATIONS} times, one ` +
-    'at a time, each awaited before the next starts, using each ' +
-    "library's own prepared-statement mechanism (postgres.js auto-" +
-    'prepares, pg uses a named statement, PostgreJS uses explicit ' +
-    'prepare()/execute()/close()) - compare against the Concurrent ' +
-    'variant below to see what overlapping executions of the same ' +
-    'reused statement buys each library. Excludes int8: pg/postgres.js/' +
-    'PostgreJS return it as genuinely different JS types by default ' +
-    '(string/BigInt/number-or-BigInt), so timing it would measure type-' +
-    'conversion choice, not reuse cost',
+  description: `Prepare once and execute ${PREPARED_STATEMENT_ITERATIONS} times,
+one at a time, each awaited before the next starts. Each library uses its
+own prepared-statement mechanism: postgres.js auto-prepares, pg uses a
+named statement, PostgreJS uses explicit prepare()/execute()/close().
+
+Compare it against the Concurrent variant below to see what overlapping
+executions of the same reused statement buys each library.
+
+Excludes int8: pg, postgres.js and PostgreJS return it as genuinely
+different JS types by default (string, BigInt, number-or-BigInt), so
+timing it would measure type-conversion choice, not reuse cost.`,
   // One iteration here is PREPARED_STATEMENT_ITERATIONS sequential round
   // trips (~25ms), so the defaults used elsewhere would leave the reported
   // mean resting on ~20 samples of a quantity that varies with whatever

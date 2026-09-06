@@ -56,7 +56,7 @@ Some scenarios necessarily exercise each library differently. These are delibera
 
 ## Environment
 
-- Run date: 2026-09-06T15:46:42.775Z
+- Run date: 2026-09-06T17:36:44.688Z
 - Node.js: v24.15.0
 - OS: Darwin 25.5.0 (darwin/arm64)
 - CPU: Apple M1 Pro (10 logical cores)
@@ -133,13 +133,23 @@ PostgreSQL's Simple Query sub-protocol: the client sends the SQL text as a singl
 
 ### Sequential Execution
 
-Run `select 1` on an already-open connection one call at a time - each call is fully awaited before the next one starts, using each library's genuine Simple Query path (postgrejs's execute(), pg's query(text) with no params, postgres.js's unsafe() with no args, which sends a real Simple Query message regardless of any prepare option). The baseline for this group: one round trip's plain cost with no concurrency, no pooling, no bind parameters - compare against Concurrent Execution below to see what overlapping calls on the same connection buys each library
+Run `select 1` one call at a time on an already-open connection.
+Each call is fully awaited before the next one starts.
+
+Every library uses its genuine Simple Query path: PostgreJS's execute(),
+pg's query(text) with no params, postgres.js's unsafe() with no args -
+always a real Simple Query message, regardless of any prepare option.
+
+This is the baseline for the group: one round trip's plain cost, with no
+concurrency, no pooling, and no bind parameters. Compare it against
+Concurrent Execution below to see what overlapping calls on the same
+connection buys each library.
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| pg (node-postgres) (8.23.0) | ***0.243*** | ***0.257*** | ***0.581*** | ***4459.6*** | ***1.04x*** | 0.0018 | 10870.41 |
-| postgres (postgres.js) (3.4.9) | 0.248 | 0.263 | 0.627 | 4394.1 | 1.02x | 0.0019 | 10827.84 |
-| PostgreJS (3.0.0) | 0.252 | 0.267 | 0.616 | 4347.8 | 1.00x | ***0.0011*** | ***5651.05*** |
+| PostgreJS (3.0.0) | ***0.260*** | ***0.276*** | ***0.658*** | ***4266.0*** | ***1.28x*** | ***0.0011*** | ***5570.63*** |
+| pg (node-postgres) (8.23.0) | 0.278 | 0.302 | 0.819 | 4088.0 | 1.19x | 0.0017 | 9898.94 |
+| postgres (postgres.js) (3.4.9) | 0.332 | 0.343 | 1.210 | 3754.8 | 1.00x | 0.0023 | 9117.09 |
 
 <table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
 <tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
@@ -149,8 +159,8 @@ Run `select 1` on an already-open connection one call at a time - each call is f
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 0.2777
-    bar [0.2525, 0.2434, 0.2481]
+    y-axis "ms" 0.0000 --> 0.3653
+    bar [0.2599, 0.2784, 0.3321]
 ```
 
 </td><td style="border:none;margin:0;padding:4px;">
@@ -160,8 +170,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 4905.5573
-    bar [4347.7627, 4459.5976, 4394.0725]
+    y-axis "ops/sec" 0.0000 --> 4692.6068
+    bar [4266.0062, 4088.0249, 3754.8289]
 ```
 
 </td></tr>
@@ -172,8 +182,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.0020
-    bar [0.0011, 0.0018, 0.0019]
+    y-axis "ms/op" 0.0000 --> 0.0025
+    bar [0.0011, 0.0017, 0.0023]
 ```
 
 </td><td style="border:none;margin:0;padding:4px;">
@@ -183,8 +193,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 11957.4469
-    bar [5651.0547, 10870.4063, 10827.8359]
+    y-axis "KB" 0.0000 --> 10888.8313
+    bar [5570.6328, 9898.9375, 9117.0938]
 ```
 
 </td></tr>
@@ -192,13 +202,25 @@ xychart-beta
 
 ### Concurrent Execution
 
-The concurrent counterpart to Sequential Execution above: fire 50 Simple Query calls on the SAME already-open connection without awaiting each one individually, then await them all via Promise.all() - PostgreJS pipelines these at the wire level (writes each message without waiting for the previous one's response, matches responses back in FIFO order) so results never cross-talk even though the caller never awaited between calls. Each call selects a distinct literal and the result is checked against it, so this scenario verifies correctness (do the other libraries' single connections queue/pipeline correctly too?), not just timing (concurrency=50)
+The concurrent counterpart to Sequential Execution above. Fire
+50 Simple Query calls on the SAME
+already-open connection without awaiting each one individually, then await
+them all via Promise.all().
+
+PostgreJS pipelines these at the wire level: it writes each message without
+waiting for the previous one's response, then matches responses back in
+FIFO order, so results never cross-talk even though the caller never
+awaited between calls.
+
+Each call selects a distinct literal and checks the result against it, so
+this scenario verifies correctness too - do the other libraries' single
+connections queue/pipeline correctly? - not just timing. (concurrency=50)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| pg (node-postgres) (8.23.0) | ***2.382*** | 2.493 | ***3.801*** | ***426.6*** | ***1.08x*** | 0.0259 | 19441.75 |
-| postgres (postgres.js) (3.4.9) | 2.440 | ***2.483*** | 5.637 | 424.7 | 1.05x | 0.0441 | 29679.61 |
-| PostgreJS (3.0.0) | 2.567 | 2.669 | 5.005 | 397.6 | 1.00x | ***0.0212*** | ***9254.80*** |
+| pg (node-postgres) (8.23.0) | ***2.416*** | ***2.519*** | ***3.844*** | ***421.6*** | ***1.42x*** | 0.0292 | 19673.70 |
+| PostgreJS (3.0.0) | 3.061 | 3.475 | 4.946 | 343.1 | 1.12x | ***0.0246*** | ***9251.61*** |
+| postgres (postgres.js) (3.4.9) | 3.428 | 3.593 | 5.371 | 318.4 | 1.00x | 0.0703 | 28344.79 |
 
 <table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
 <tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
@@ -208,8 +230,8 @@ The concurrent counterpart to Sequential Execution above: fire 50 Simple Query c
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 2.8240
-    bar [2.5672, 2.3825, 2.4401]
+    y-axis "ms" 0.0000 --> 3.7706
+    bar [3.0614, 2.4163, 3.4278]
 ```
 
 </td><td style="border:none;margin:0;padding:4px;">
@@ -219,8 +241,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 469.2255
-    bar [397.6471, 426.5687, 424.6535]
+    y-axis "ops/sec" 0.0000 --> 463.7169
+    bar [343.0711, 421.5608, 318.3929]
 ```
 
 </td></tr>
@@ -231,8 +253,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.0486
-    bar [0.0212, 0.0259, 0.0441]
+    y-axis "ms/op" 0.0000 --> 0.0773
+    bar [0.0246, 0.0292, 0.0703]
 ```
 
 </td><td style="border:none;margin:0;padding:4px;">
@@ -242,8 +264,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 32647.5703
-    bar [9254.7969, 19441.7500, 29679.6094]
+    y-axis "KB" 0.0000 --> 31179.2680
+    bar [9251.6094, 19673.6953, 28344.7891]
 ```
 
 </td></tr>
@@ -251,7 +273,15 @@ xychart-beta
 
 ### Simple Query Fetch
 
-Fetch 1000 mixed-type rows via each library's Simple Query path (the same protocol as Sequential Execution and Concurrent Execution above) on a single already-open connection, no pool - row-fetch throughput without the parse/bind/describe overhead of the Extended Query protocol. Excludes int8: pg/postgres.js/PostgreJS return it as genuinely different JS types by default (string/BigInt/number-or-BigInt), so timing it would measure type-conversion choice, not decode speed (rowTarget=1000)
+Fetch 1000 mixed-type rows via each
+library's Simple Query path - the same protocol as Sequential Execution and
+Concurrent Execution above - on a single already-open connection, no pool.
+This measures row-fetch throughput without the parse/bind/describe
+overhead of the Extended Query protocol.
+
+Excludes int8: pg, postgres.js and PostgreJS return it as genuinely
+different JS types by default (string, BigInt, number-or-BigInt). Timing
+that column would measure type-conversion choice, not decode speed. (rowTarget=1000)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -314,7 +344,19 @@ PostgreSQL's Extended Query sub-protocol: the client splits a query into separat
 
 ### Sequential Execution
 
-The Extended Query counterpart to the Simple Query group's Sequential Execution above: one already-open connection, one call at a time, each awaited before the next starts - but selecting an int2 value bound as a real query parameter (`select $1::int2`) instead of a literal, so every library genuinely goes through Parse/Bind/Describe/Execute/Sync rather than a single Query message. Unlike Prepared Statement Reuse below, without a reused/cached server-side statement, so this isolates the one-shot per-call cost Extended Query pays on top of the Simple Query baseline - compare against Concurrent Execution below to see what overlapping calls buys each library here too
+The Extended Query counterpart to the Simple Query group's
+Sequential Execution above: one already-open connection, one call at a
+time, each awaited before the next starts.
+
+Instead of a literal, it selects an int2 value bound as a real query
+parameter (`select $1::int2`), so every library genuinely goes through
+Parse/Bind/Describe/Execute/Sync rather than a single Query message.
+
+Unlike Prepared Statement Reuse below, there is no reused or cached
+server-side statement here, so this isolates the one-shot per-call cost
+Extended Query pays on top of the Simple Query baseline. Compare it
+against Concurrent Execution below to see what overlapping calls buys
+each library here too.
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -373,7 +415,20 @@ xychart-beta
 
 ### Concurrent Execution
 
-The concurrent counterpart to Sequential Execution above, same shape as the Simple Query group's Concurrent Execution: fire 50 genuine Extended Query calls (`select $1::int2`, a real bind parameter, not a reused/cached statement) on the SAME already-open connection without awaiting each one individually, then await them all via Promise.all() - PostgreJS pipelines these at the wire level so results never cross-talk even though the caller never awaited between calls. Each call binds a distinct value and the result is checked against it, so this scenario verifies correctness (do the other libraries' single connections queue/pipeline Extended Query calls correctly too?), not just timing (concurrency=50)
+The concurrent counterpart to Sequential Execution above, same
+shape as the Simple Query group's Concurrent Execution.
+
+Fire 50 genuine Extended Query
+calls (`select $1::int2`, a real bind parameter, not a reused/cached
+statement) on the SAME already-open connection without awaiting each one
+individually, then await them all via Promise.all(). PostgreJS pipelines
+these at the wire level, so results never cross-talk even though the
+caller never awaited between calls.
+
+Each call binds a distinct value and checks the result against it, so this
+scenario verifies correctness too - do the other libraries' single
+connections queue/pipeline Extended Query calls correctly? - not just
+timing. (concurrency=50)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -432,7 +487,28 @@ xychart-beta
 
 ### Mixed-Type Decode (Text Protocol)
 
-Fetch 1000 mixed-type rows (int2/int4/float4/float8/varchar/json/jsonb/timestamp/timestamptz/bytea) via each library's Extended Query path (PostgreJS's query(), a one-shot parameterized call, not a reused prepared statement) and decode them to JS values - the row count is itself a real bind parameter ($1), not a literal, and large enough that column-decode work dominates the measurement rather than per-call round-trip overhead. The Extended Query counterpart to Simple Query Fetch above, and the raw decode cost this protocol carries per call, before Prepared Statement Reuse below measures what reusing the parsed plan saves. Excludes int8: pg/postgres.js/PostgreJS return it as genuinely different JS types by default (string/BigInt/number-or-BigInt), so timing it would measure type-conversion choice, not decode speed. Forces PostgreJS onto the text protocol explicitly (its Extended Query default is binary, per-column, unlike pg and postgres.js, which are always text here - pg's binary mode is opt-in and never requested, postgres.js has no binary protocol support at all) - without that, this would compare binary decode against text decode, not decode speed (rowTarget=1000)
+Fetch 1000 mixed-type rows (int2/int4/
+float4/float8/varchar/json/jsonb/timestamp/timestamptz/bytea) via each
+library's Extended Query path - PostgreJS's query(), a one-shot
+parameterized call, not a reused prepared statement - and decode them to
+JS values. The row count is itself a real bind parameter ($1), not a
+literal, and large enough that column-decode work dominates the
+measurement rather than per-call round-trip overhead.
+
+This is the Extended Query counterpart to Simple Query Fetch above: the
+raw decode cost this protocol carries per call, before Prepared Statement
+Reuse below measures what reusing the parsed plan saves.
+
+Excludes int8: pg, postgres.js and PostgreJS return it as genuinely
+different JS types by default (string, BigInt, number-or-BigInt). Timing
+that column would measure type-conversion choice, not decode speed.
+
+Forces PostgreJS onto the text protocol explicitly. Its Extended Query
+default is binary, per-column, unlike pg and postgres.js, which are always
+text here - pg's binary mode is opt-in and never requested, and
+postgres.js has no binary protocol support at all. Without that, this
+scenario would compare binary decode against text decode, not decode
+speed. (rowTarget=1000)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -491,7 +567,25 @@ xychart-beta
 
 ### Mixed-Type Decode (Binary Protocol)
 
-The same fetch as Mixed-Type Decode (Text Protocol) above - same 1000 rows, same columns, same bind-parameter row count - but requesting binary result format instead of text: PostgreJS's own Extended Query default (`DEFAULT_COLUMN_FORMAT`), so this measures its binary decode path on its own terms rather than forcing it onto text. postgres.js has no binary protocol support at all - its `Bind` message hardcodes text format codes for every column, with no option to request binary (verified in its own source) - so it isn't benchmarked here. pg's binary parser table (`pg-types`) is missing exactly the column types this scenario decodes - `varchar`/`json`/`jsonb`/`bytea` are unregistered for binary, only a handful of numeric/date/bool types are - so requesting binary from pg would return those columns unparsed or corrupted rather than a comparable value; it's excluded rather than reported as a misleading number. Only PostgreJS's own result is shown (rowTarget=1000)
+The same fetch as Mixed-Type Decode (Text Protocol) above - same
+1000 rows, same columns, same bind-parameter
+row count - but requesting binary result format instead of text. That is
+PostgreJS's own Extended Query default (`DEFAULT_COLUMN_FORMAT`), so this
+measures its binary decode path on its own terms rather than forcing it
+onto text.
+
+postgres.js has no binary protocol support at all: its `Bind` message
+hardcodes text format codes for every column, with no option to request
+binary (verified in its own source). It isn't benchmarked here.
+
+pg's binary parser table (`pg-types`) is missing exactly the column types
+this scenario decodes - `varchar`/`json`/`jsonb`/`bytea` are unregistered
+for binary, only a handful of numeric/date/bool types are. Requesting
+binary from pg would return those columns unparsed or corrupted rather
+than a comparable value, so it's excluded rather than reported as a
+misleading number.
+
+Only PostgreJS's own result is shown. (rowTarget=1000)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -550,7 +644,32 @@ xychart-beta
 
 ### Large Blob Fetch
 
-Fetch 10 rows of a 1MB bytea value each (10MB total) via each library's Extended Query path (the row count itself a real bind parameter, not a literal), so the measurement is dominated by wire-transfer + decode time for a few large values instead of per-row/per-column overhead across many small ones (the counterpart to Mixed-Type Decode above, which is many small values). Unlike that scenario, no protocol format is forced onto anyone here: PostgreJS is left on its own Extended Query default (binary); pg and postgres.js get whatever their own default is. postgres.js has no binary protocol support at all (verified elsewhere in this report), so it always fetches as text (hex-encoded on the wire, decoded client-side). pg's binary parser table (`pg-types`) has no entry for `bytea` (verified live: requesting binary format for a bytea column returns a corrupted value, not a Buffer) - undocumented and unsafe to rely on, so pg is left on its own text default here too, same as postgres.js. Only PostgreJS ends up genuinely exercising a binary fetch; the other two show their real, best-available path rather than a forced or broken one - and pay for it: bytea's text format is `\x`-prefixed hex, literally 2x the wire bytes of binary's raw bytes, so pg/postgres.js transfer twice what PostgreJS does here (sizeBytes=1048576, rowCount=10)
+Fetch 10 rows of a
+1MB bytea value each
+(10MB total)
+via each library's Extended Query path, with the row count itself a real
+bind parameter, not a literal. The measurement is dominated by
+wire-transfer and decode time for a few large values, instead of
+per-row/per-column overhead across many small ones - the counterpart to
+Mixed-Type Decode above, which is many small values.
+
+Unlike that scenario, no protocol format is forced onto anyone here:
+PostgreJS is left on its own Extended Query default (binary), and
+pg/postgres.js get whatever their own default is.
+
+postgres.js has no binary protocol support at all (verified elsewhere in
+this report), so it always fetches as text - hex-encoded on the wire,
+decoded client-side. pg's binary parser table (`pg-types`) has no entry
+for `bytea` either (verified live: requesting binary format for a bytea
+column returns a corrupted value, not a Buffer) - undocumented and unsafe
+to rely on, so pg is left on its own text default too, same as
+postgres.js.
+
+Only PostgreJS ends up genuinely exercising a binary fetch; the other two
+show their real, best-available path rather than a forced or broken one -
+and pay for it. bytea's text format is `\x`-prefixed hex, literally 2x the
+wire bytes of binary's raw bytes, so pg and postgres.js transfer twice
+what PostgreJS does here. (sizeBytes=1048576, rowCount=10)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) | Network (KB/op) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -621,7 +740,39 @@ xychart-beta
 
 ### Large Array Fetch
 
-Fetch 10 rows of an int4[] with 50000 elements each (alternating just below int4's ceiling and just above its floor, so every value is full-width and roughly half are negative - full-width values are what show the binary format's real wire advantage, since binary spends a fixed 8 bytes per int4 element while text spends one byte per digit) via each library's Extended Query path (the row count itself a real bind parameter, not a literal) - the array counterpart to Large Blob Fetch above (one large scalar value) and Mixed-Type Decode (many small values): here it is many elements within a single column value, repeated across rows. Element count, not byte size, is what drives cost for an array (unlike a blob - see this file's own comments for the measurement that showed why), so this is sized for a clear decode-time gap without ballooning each iteration to whole seconds. As with Large Blob Fetch, no protocol format is forced onto anyone: PostgreJS is left on its own Extended Query default (binary). pg's binary array decode (`pg-types`) is registered-but-buggy rather than simply unsupported: it DOES have a registered binary parser for `_int4` (unlike `bytea`), but that parser reads every element as an unsigned bit pattern with no two's-complement handling for negative values - verified live: requesting binary format for an int4[] containing negative numbers returns wrong values from the first negative element onward, and desyncs the element count entirely on a larger array (a 1500-element array came back as 1519 elements, values wrong). So pg is left on its own text default here too, same as postgres.js (no binary protocol support at all, verified elsewhere in this report) - a case where a library merely having a registered binary parser is not the same as that parser being safe to use (elementCount=50000, rowCount=10)
+Fetch 10 rows of an int4[] with
+50000 elements each, via each library's Extended
+Query path, with the row count itself a real bind parameter, not a
+literal. Elements alternate between just below int4's ceiling and just
+above its floor, so every value is full-width and roughly half are
+negative. Full-width values are what show binary format's real wire
+advantage: binary spends a fixed 8 bytes per int4 element, while text
+spends one byte per digit.
+
+This is the array counterpart to Large Blob Fetch above (one large scalar
+value) and Mixed-Type Decode (many small values): here it is many elements
+within a single column value, repeated across rows. Element count, not
+byte size, is what drives cost for an array, unlike a blob - see this
+file's own comments for the measurement that showed why - so this is
+sized for a clear decode-time gap without ballooning each iteration to
+whole seconds.
+
+As with Large Blob Fetch, no protocol format is forced onto anyone:
+PostgreJS is left on its own Extended Query default (binary).
+
+pg's binary array decode (`pg-types`) is registered-but-buggy rather than
+simply unsupported. It does have a registered binary parser for `_int4`
+(unlike `bytea`), but that parser reads every element as an unsigned bit
+pattern, with no two's-complement handling for negative values. Verified
+live: requesting binary format for an int4[] containing negative numbers
+returns wrong values from the first negative element onward, and desyncs
+the element count entirely on a larger array - a 1500-element array came
+back as 1519 elements, values wrong.
+
+So pg is left on its own text default here too, same as postgres.js (no
+binary protocol support at all, verified elsewhere in this report). A case
+where a library merely having a registered binary parser is not the same
+as that parser being safe to use. (elementCount=50000, rowCount=10)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) | Network (KB/op) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -692,7 +843,17 @@ xychart-beta
 
 ### Prepared Statement Reuse (Sequential)
 
-Prepare once and execute 50 times, one at a time, each awaited before the next starts, using each library's own prepared-statement mechanism (postgres.js auto-prepares, pg uses a named statement, PostgreJS uses explicit prepare()/execute()/close()) - compare against the Concurrent variant below to see what overlapping executions of the same reused statement buys each library. Excludes int8: pg/postgres.js/PostgreJS return it as genuinely different JS types by default (string/BigInt/number-or-BigInt), so timing it would measure type-conversion choice, not reuse cost (iterations=50)
+Prepare once and execute 50 times,
+one at a time, each awaited before the next starts. Each library uses its
+own prepared-statement mechanism: postgres.js auto-prepares, pg uses a
+named statement, PostgreJS uses explicit prepare()/execute()/close().
+
+Compare it against the Concurrent variant below to see what overlapping
+executions of the same reused statement buys each library.
+
+Excludes int8: pg, postgres.js and PostgreJS return it as genuinely
+different JS types by default (string, BigInt, number-or-BigInt), so
+timing it would measure type-conversion choice, not reuse cost. (iterations=50)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -751,7 +912,18 @@ xychart-beta
 
 ### Prepared Statement Reuse (Concurrent)
 
-The concurrent counterpart to Sequential above: prepare once, then fire 50 executions of that same reused statement on the SAME already-open connection without awaiting each one individually, then await them all via Promise.all() - using each library's own prepared-statement mechanism (postgres.js auto-prepares, pg uses a named statement, PostgreJS uses explicit prepare()/execute()/close()). Excludes int8: pg/postgres.js/PostgreJS return it as genuinely different JS types by default (string/BigInt/number-or-BigInt), so timing it would measure type-conversion choice, not reuse cost (concurrency=50)
+The concurrent counterpart to Sequential above: prepare once,
+then fire 50 executions of
+that same reused statement on the SAME already-open connection without
+awaiting each one individually, then await them all via Promise.all().
+
+Each library uses its own prepared-statement mechanism: postgres.js
+auto-prepares, pg uses a named statement, PostgreJS uses explicit
+prepare()/execute()/close().
+
+Excludes int8: pg, postgres.js and PostgreJS return it as genuinely
+different JS types by default (string, BigInt, number-or-BigInt), so
+timing it would measure type-conversion choice, not reuse cost. (concurrency=50)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -814,7 +986,9 @@ A server-side cursor (postgrejs's `Connection.query(sql, { cursor: true })`) fet
 
 ### Cursor Streaming
 
-Stream 50000 rows via a server-side cursor in batches of 500. Excludes int8: pg/postgres.js/PostgreJS return it as genuinely different JS types by default (string/BigInt/number-or-BigInt), so timing it would measure type-conversion choice, not streaming throughput (rowTarget=50000, batchSize=500)
+Stream 50000 rows via a server-side cursor in batches of 500. 
+Excludes int8: pg/postgres.js/PostgreJS return it as genuinely different JS types by default (string/BigInt/number-or-BigInt), 
+so timing it would measure type-conversion choice, not streaming throughput (rowTarget=50000, batchSize=500)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -877,13 +1051,17 @@ The overhead each library's connection pool adds on top of the raw per-query cos
 
 ### Pooled Simple Query
 
-Same query as Sequential Execution/Concurrent Execution above, run through a pool instead of a single open connection: 1000 concurrent `select 1 as one` queries against a pool of max size 10, using each library's own top-level pooled entry point (concurrency=1000, poolSize=10)
+Same query as Sequential Execution/Concurrent Execution above,
+run through a pool instead of a single open connection:
+1000 concurrent `select 1 as one`
+queries against a pool of max size 10,
+using each library's own top-level pooled entry point. (concurrency=1000, poolSize=10)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.0) | ***19.137*** | ***19.600*** | ***30.078*** | ***53.6*** | ***4.07x*** | 2.4313 | 69089.69 |
-| postgres (postgres.js) (3.4.9) | 33.348 | 33.821 | 109.798 | 37.4 | 2.34x | 3.7006 | 34552.27 |
-| pg (node-postgres) (8.23.0) | 77.914 | 89.899 | 102.703 | 13.3 | 1.00x | ***1.2524*** | ***15512.68*** |
+| PostgreJS (3.0.0) | ***23.644*** | ***24.961*** | ***43.205*** | 43.4 | ***3.20x*** | 2.5136 | 61965.56 |
+| postgres (postgres.js) (3.4.9) | 35.977 | 31.441 | 141.728 | ***43.5*** | 2.10x | 2.6808 | 41313.73 |
+| pg (node-postgres) (8.23.0) | 75.561 | 76.082 | 98.012 | 13.4 | 1.00x | ***1.2929*** | ***15485.18*** |
 
 <table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
 <tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
@@ -893,8 +1071,8 @@ Same query as Sequential Execution/Concurrent Execution above, run through a poo
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 85.7056
-    bar [19.1368, 77.9142, 33.3479]
+    y-axis "ms" 0.0000 --> 83.1173
+    bar [23.6435, 75.5612, 35.9769]
 ```
 
 </td><td style="border:none;margin:0;padding:4px;">
@@ -904,8 +1082,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 58.9935
-    bar [53.6305, 13.2638, 37.3902]
+    y-axis "ops/sec" 0.0000 --> 47.8548
+    bar [43.4265, 13.3631, 43.5044]
 ```
 
 </td></tr>
@@ -916,8 +1094,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 4.0707
-    bar [2.4313, 1.2524, 3.7006]
+    y-axis "ms/op" 0.0000 --> 2.9489
+    bar [2.5136, 1.2929, 2.6808]
 ```
 
 </td><td style="border:none;margin:0;padding:4px;">
@@ -927,8 +1105,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 75998.6563
-    bar [69089.6875, 15512.6797, 34552.2656]
+    y-axis "KB" 0.0000 --> 68162.1188
+    bar [61965.5625, 15485.1797, 41313.7344]
 ```
 
 </td></tr>
@@ -936,7 +1114,24 @@ xychart-beta
 
 ### Pooled Extended Query
 
-The Extended Query counterpart to Pooled Simple Query above: the same 1000 concurrent calls against a pool of max size 10, but binding a real query parameter (`select $1::int2 as one`) so every library goes through Parse/Bind/Describe/Execute/Sync instead of a single Query message. Each call is a one-shot statement, not a reused prepared one, so this shows what a pool costs on top of the per-call Extended Query overhead - compare it against this group's Pooled Simple Query to see what the extra protocol round of messages adds once connections are being shared. Read the margin here with that one-shot constraint in mind: postgres.js's unprepared path (`sql.unsafe(query, args)`, the same call the single-connection Sequential Execution scenario uses, where it comes out ahead) does not pipeline a burst the way its prepared path does - letting it cache the statement instead turns this into a different measurement entirely, which is what Prepared Statement Reuse below covers (concurrency=1000, poolSize=10)
+The Extended Query counterpart to Pooled Simple Query above: the
+same 1000 concurrent calls against a
+pool of max size 10, but binding a
+real query parameter (`select $1::int2 as one`) so every library goes
+through Parse/Bind/Describe/Execute/Sync instead of a single Query
+message.
+
+Each call is a one-shot statement, not a reused prepared one, so this
+shows what a pool costs on top of the per-call Extended Query overhead.
+Compare it against this group's Pooled Simple Query to see what the extra
+protocol round of messages adds once connections are being shared.
+
+Read the margin here with that one-shot constraint in mind. postgres.js's
+unprepared path (`sql.unsafe(query, args)`, the same call the
+single-connection Sequential Execution scenario uses, where it comes out
+ahead) does not pipeline a burst the way its prepared path does. Letting
+it cache the statement instead turns this into a different measurement
+entirely, which is what Prepared Statement Reuse below covers. (concurrency=1000, poolSize=10)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
