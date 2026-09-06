@@ -30,10 +30,15 @@ export function stringifyArrayLiteral(
         out.push('NULL');
         continue;
       }
+      /* c8 ignore start - dim is (re)computed above from a DFS that visits
+         every array node in `value` and deepens dim to match, so a value
+         can never actually be an array once `level` reaches the leaf -
+         if it were, dim would already have gone one level deeper there. */
       if (Array.isArray(x)) {
         out.push(stringifyArrayLiteral(x, options, encode));
         continue;
       }
+      /* c8 ignore stop */
       if (encode) x = encode(x, options || {});
       out.push(escapeArrayItem('' + x));
     }
