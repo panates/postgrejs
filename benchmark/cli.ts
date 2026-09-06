@@ -15,7 +15,15 @@ function resolveList<T extends string>(value: string, all: readonly T[]): T[] {
     .filter(Boolean);
   const seen = new Set<T>();
   for (const item of items) {
-    const matches = all.filter(v => v.includes(item));
+    const matches = all.filter(v =>
+      item.startsWith('*') && item.endsWith('*')
+        ? v.includes(item.replaceAll('*', ''))
+        : item.startsWith('*')
+          ? v.endsWith(item.replaceAll('*', ''))
+          : item.endsWith('*')
+            ? v.startsWith(item.replaceAll('*', ''))
+            : v === item,
+    );
     matches.forEach((v: T) => seen.add(v));
   }
   return Array.from(seen);
