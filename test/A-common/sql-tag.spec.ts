@@ -1,4 +1,6 @@
 import { expect } from 'expect';
+import { BindParam } from '../../src/connection/bind-param.js';
+import { DataTypeOIDs } from '../../src/constants.js';
 import { QueryRequest, sql } from '../../src/util/sql-tag.js';
 
 describe('sql`` tag', () => {
@@ -65,6 +67,11 @@ describe('sql`` tag', () => {
       expect(sql`select 1`.stringify()).toStrictEqual('select 1');
     });
 
+    it('should leave a $N placeholder untouched when N is out of range', () => {
+      const req = new QueryRequest('select $99', [1, 2]);
+      expect(req.stringify()).toStrictEqual('select $99');
+    });
+
     it('should refuse a value it cannot encode rather than guess', () => {
       // Silently producing something plausible is how wrong data gets
       // written. A symbol resolves to the `unknown` type, which has no text
@@ -80,6 +87,41 @@ describe('sql`` tag', () => {
       // object maps to json in both.
       expect(sql`select ${{ a: 1 }}`.stringify()).toStrictEqual(
         `select '{"a":1}'::json`,
+      );
+    });
+
+    it("should use a BindParam value's own oid instead of inferring one", () => {
+      // A plain `true` would infer bool - wrapping it in a BindParam with
+      // int4's oid forces the int4 encoding instead.
+      const req = sql`select ${new BindParam(DataTypeOIDs.int4, 42)}`;
+      expect(req.stringify()).toStrictEqual("select '42'::int4");
+    });
+
+    it('should write a null element inside an array literal as null, unescaped', () => {
+      expect(sql`select ${[1, null, 3]}`.stringify()).toStrictEqual(
+        "select ARRAY['1',null,'3']::_int4",
+      );
+    });
+
+    it('should wrap a scalar in a single-element array when the oid names an array type', () => {
+      const req = sql`select ${new BindParam(DataTypeOIDs._int4, 5)}`;
+      expect(req.stringify()).toStrictEqual("select ARRAY['5']::_int4");
+    });
+
+    it('should fall back to the oid and describe()\'s own "object" default when nothing else is available', () => {
+      // An unregistered oid leaves `dataType` undefined (so its name can't
+      // be used in the message - the oid itself is reported instead), and
+      // a null-prototype object has no constructor to name either.
+      const req = sql`select ${new BindParam(999999, Object.create(null))}`;
+      expect(() => req.stringify()).toThrow(
+        /Cannot write object into a statement as a literal: data type "999999" has no text encoding/,
+      );
+    });
+
+    it("should describe() a plain object by its constructor's own name", () => {
+      const req = sql`select ${new BindParam(999999, {})}`;
+      expect(() => req.stringify()).toThrow(
+        /Cannot write Object into a statement as a literal/,
       );
     });
   });

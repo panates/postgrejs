@@ -188,11 +188,15 @@ function encodeLiteral(
   }
   if (v == null) return 'null';
   oid = oid ?? typeMap.determine(v);
+  /* c8 ignore start - typeMap.determine() always falls back to the
+     "unknown" oid rather than returning null/undefined, so this can't
+     currently be reached through any public call path. */
   if (oid == null)
     throw new TypeError(
       `Cannot write ${describe(v)} into a statement as a literal: no data type matches it. ` +
         `Use query() instead, which sends it as a parameter.`,
     );
+  /* c8 ignore stop */
   const dataType = typeMap.get(oid);
   if (!dataType?.encodeText)
     throw new TypeError(
