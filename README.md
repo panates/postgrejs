@@ -64,7 +64,7 @@ and highly maintainable codebase. Key highlights include:
 - **Cancellation:** Any call takes an `AbortSignal`, which also gives per-query timeouts via `AbortSignal.timeout()`.
 - **Flexible Data Retrieval:**  Can return both array and object rows to suit different data processing needs.
 - **Resource Management:** Auto disposal of resources with the "using" syntax
-  ([TC30 Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management)), ensuring
+  ([TC39 Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management)), ensuring
   efficient resource cleanup.
 
 Whether you're building a simple application or a complex enterprise system, PostgreJS provides the features and
@@ -154,7 +154,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Packages to install                |       1        |    4 <sup>1</sup>    |        1         |
 | Module system                      |      ESM       |       ESM/CJS        |     ESM/CJS      |
 | Language                           |       TS       |   JS <sup>2</sup>    | JS <sup>3</sup>  |
-| TC30 Explicit Resource Management  |       ✅       |          ❌          |        ❌        |
+| TC39 Explicit Resource Management  |       ✅       |          ❌          |        ❌        |
 | ***Wire protocol***                |                |                      |                  |
 | Simple Query protocol              |       ✅       |          ✅          |        ✅        |
 | Extended Query protocol            |       ✅       |          ✅          |        ✅        |
@@ -181,7 +181,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Transaction API                    |       ✅       |          ❌          |        ✅        |
 | Two-phase commit API               |       ✅       |          ❌          |        ✅        |
 | LISTEN/NOTIFY                      |       ✅       |   🟡 <sup>12</sup>   |        ✅        |
-| Multi-host failover                |       ✅       |          ❌          |        ✅        |
+| Multiple hosts                     |       ✅       |          ❌          |        ✅        |
 | ***Security***                     |                |                      |                  |
 | SSL/TLS                            |       ✅       |          ✅          |        ✅        |
 | Direct TLS negotiation (PG17)      |       ❌       |          ✅          |        ✅        |
