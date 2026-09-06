@@ -80,6 +80,8 @@ export const TimestamptzType: DataType = {
       if (d instanceof Date) return dateToTimestamptzString(d);
       if (d === Infinity) return 'infinity';
       if (d === -Infinity) return '-infinity';
+      // parseDateTimeTz() only ever returns a Date, Infinity or -Infinity,
+      // never anything else, so this is unreachable.
       return '';
     }
     return d;
