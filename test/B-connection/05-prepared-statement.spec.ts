@@ -43,7 +43,7 @@ describe('PreparedStatement', () => {
     // reports format 0 (text) for a statement-level Describe regardless
     // of what a later Bind requests, so the cached fields' .format must
     // be patched to each call's actual columnFormat before parser
-    // selection (get-parsers.ts picks parseBinary/parseText by reading
+    // selection (get-parsers.ts picks decodeBinary/decodeText by reading
     // it) or a binary-format call on a reused statement would silently
     // decode with the wrong parser.
     const stmt = await connection.prepare(

@@ -8,7 +8,7 @@ export const ByteaType: DataType = {
   oid: DataTypeOIDs.bytea,
   jsType: 'Buffer',
 
-  parseBinary(v: Buffer, offset: number = 0): Buffer {
+  decodeBinary(v: Buffer, offset: number = 0): Buffer {
     return offset ? v.subarray(offset) : v;
   },
 
@@ -16,8 +16,8 @@ export const ByteaType: DataType = {
     buf.writeBuffer(v);
   },
 
-  parseText: parseBytea,
-  parseTextBuffer: parseByteaBuffer,
+  decodeText: parseBytea,
+  decodeTextBuffer: parseByteaBuffer,
 
   isType(v: any): boolean {
     return v instanceof Buffer;

@@ -611,8 +611,8 @@ export class IntlConnection extends SafeEventEmitter {
       if (cachedFields) {
         // A statement-level Describe (done once in prepareOnce()) always
         // reports format 0 (text) for every column, regardless of what a
-        // later Bind actually requests - get-parsers.ts picks parseBinary
-        // vs parseText by reading each field's own .format, so the cached
+        // later Bind actually requests - get-parsers.ts picks decodeBinary
+        // vs decodeText by reading each field's own .format, so the cached
         // fields must be patched to the format THIS call is actually
         // requesting before parser selection, or a binary-format execute()
         // on a reused statement would silently pick the text parser (or

@@ -15,7 +15,7 @@ export function fastParseInt(str: string | number): number {
 
 // Parses straight from the raw wire bytes, skipping the buffer->string
 // conversion every text-format column otherwise pays for before its
-// parseText runs (measured as the single largest CPU cost in a text-heavy
+// decodeText runs (measured as the single largest CPU cost in a text-heavy
 // fetch). Safe for int2/int4 specifically because PostgreSQL's text output
 // for them is always a clean decimal integer - optional leading "-", ASCII
 // digits only, no whitespace/"+"/leading "0x" - verified byte-identical to

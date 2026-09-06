@@ -7,7 +7,7 @@ export const VarcharType: DataType = {
   oid: DataTypeOIDs.varchar,
   jsType: 'string',
 
-  parseBinary(v: Buffer, offset: number = 0): string {
+  decodeBinary(v: Buffer, offset: number = 0): string {
     return v.toString('utf8', offset);
   },
 
@@ -15,7 +15,7 @@ export const VarcharType: DataType = {
     buf.writeString('' + v, 'utf8');
   },
 
-  parseText(v): string {
+  decodeText(v): string {
     // The wire decoder always hands this a string (see intl-connection.ts's
     // DataRow handling) - no coercion needed.
     return v;
@@ -23,9 +23,9 @@ export const VarcharType: DataType = {
 
   // varchar can hold arbitrary Unicode text, so this must stay 'utf8' -
   // same allocation as the default (v.toString('utf8')) path, this only
-  // skips the extra parseText wrapper-closure call get-parsers.ts would
+  // skips the extra decodeText wrapper-closure call get-parsers.ts would
   // otherwise add.
-  parseTextBuffer(buf: Buffer, offset: number, len: number): string {
+  decodeTextBuffer(buf: Buffer, offset: number, len: number): string {
     return buf.toString('utf8', offset, offset + len);
   },
 

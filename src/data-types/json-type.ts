@@ -7,7 +7,7 @@ export const JsonType: DataType = {
   oid: DataTypeOIDs.json,
   jsType: 'string',
 
-  parseBinary(
+  decodeBinary(
     v: Buffer,
     offset: number = 0,
     options: DataMappingOptions,
@@ -25,23 +25,23 @@ export const JsonType: DataType = {
     return '' + v;
   },
 
-  parseText(v: string, options: DataMappingOptions): object | string | null {
+  decodeText(v: string, options: DataMappingOptions): object | string | null {
     const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.json);
     if (fetchAsString) return v;
     return v ? JSON.parse(v) : null;
   },
 
   // JSON content is arbitrary Unicode, so this must stay 'utf8' - same
-  // allocation as the default path, this only skips the extra parseText
+  // allocation as the default path, this only skips the extra decodeText
   // wrapper-closure call get-parsers.ts would otherwise add (not a real
   // performance win, just consistency with the dispatch mechanism).
-  parseTextBuffer(
+  decodeTextBuffer(
     buf: Buffer,
     offset: number,
     len: number,
     options: DataMappingOptions,
   ): object | string | null {
-    return JsonType.parseText(
+    return JsonType.decodeText(
       buf.toString('utf8', offset, offset + len),
       options,
     );

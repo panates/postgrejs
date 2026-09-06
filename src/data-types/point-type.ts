@@ -13,7 +13,7 @@ export const PointType: DataType = {
   jsType: 'object',
   fixedBinarySize: 16,
 
-  parseBinary(v: Buffer, offset: number = 0): Point {
+  decodeBinary(v: Buffer, offset: number = 0): Point {
     return {
       x: v.readDoubleBE(offset),
       y: v.readDoubleBE(offset + 8),
@@ -25,7 +25,7 @@ export const PointType: DataType = {
     buf.writeDoubleBE(v.y);
   },
 
-  parseText(v: string): Maybe<Point> {
+  decodeText(v: string): Maybe<Point> {
     const m = v.match(POINT_PATTERN1) || v.match(POINT_PATTERN2);
     if (!m) return undefined;
     return {
@@ -34,14 +34,14 @@ export const PointType: DataType = {
     };
   },
 
-  // See box-type.ts's parseTextBuffer comment - same rationale.
-  parseTextBuffer(
+  // See box-type.ts's decodeTextBuffer comment - same rationale.
+  decodeTextBuffer(
     buf: Buffer,
     offset: number,
     len: number,
     options: DataMappingOptions,
   ): Maybe<Point> {
-    return PointType.parseText(
+    return PointType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,
     );

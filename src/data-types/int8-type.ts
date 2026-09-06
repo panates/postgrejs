@@ -12,7 +12,7 @@ export const Int8Type: DataType = {
   jsType: 'BigInt',
   fixedBinarySize: 8,
 
-  parseBinary(buf: Buffer, offset: number = 0): bigint | number {
+  decodeBinary(buf: Buffer, offset: number = 0): bigint | number {
     const v =
       typeof buf.readBigInt64BE === 'function'
         ? buf.readBigInt64BE(offset)
@@ -24,7 +24,7 @@ export const Int8Type: DataType = {
     buf.writeBigInt64BE(v);
   },
 
-  parseText(s: string): bigint | number {
+  decodeText(s: string): bigint | number {
     // Any decimal integer of 15 digits or fewer (sign aside) is guaranteed
     // <= Number.MAX_SAFE_INTEGER (2^53-1, 16 digits), so it converts to a
     // number exactly - skip BigInt() entirely for it. Most int8 columns in
@@ -37,15 +37,15 @@ export const Int8Type: DataType = {
     return v >= -maxSafeInteger && v <= maxSafeInteger ? Number(v) : v;
   },
 
-  // Reuses fastParseIntBuffer for the same ≤15-digit fast case parseText
+  // Reuses fastParseIntBuffer for the same ≤15-digit fast case decodeText
   // handles with Number(s) - a 15-digit magnitude tops out at
   // 999,999,999,999,999, under Number.MAX_SAFE_INTEGER (16 digits), so the
   // accumulation is exactly representable in a double throughout, matching
   // Number(s) bit-for-bit. Falls back to a real string + BigInt() only for
-  // the rare >15-digit case, same as parseText. Reads directly from the
+  // the rare >15-digit case, same as decodeText. Reads directly from the
   // shared row buffer at offset/len (get-parsers.ts's text fast path) -
   // no Buffer.subarray() needed for either branch.
-  parseTextBuffer(buf: Buffer, offset: number, len: number): bigint | number {
+  decodeTextBuffer(buf: Buffer, offset: number, len: number): bigint | number {
     const digits = buf[offset] === 45 /* '-' */ ? len - 1 : len;
     if (digits <= 15) return fastParseIntBuffer(buf, offset, len);
     const v = BigInt(buf.toString('utf8', offset, offset + len));

@@ -13,7 +13,7 @@ export const TimestamptzType: DataType = {
   jsType: 'Date',
   fixedBinarySize: 8,
 
-  parseBinary(
+  decodeBinary(
     v: Buffer,
     offset: number = 0,
     options: DataMappingOptions,
@@ -69,7 +69,7 @@ export const TimestamptzType: DataType = {
     buf.writeUInt32BE(lo);
   },
 
-  parseText(v: string, options: DataMappingOptions): Date | number | string {
+  decodeText(v: string, options: DataMappingOptions): Date | number | string {
     const d = parseDateTimeTz(v, options.utcDates);
     if (options.fetchAsString?.includes(DataTypeOIDs.timestamptz)) {
       if (d instanceof Date) return dateToTimestamptzString(d);
@@ -80,17 +80,17 @@ export const TimestamptzType: DataType = {
     return d;
   },
 
-  // See date-type.ts's parseTextBuffer comment - same rationale. Note this
-  // type's parseText always parses first and only branches on
+  // See date-type.ts's decodeTextBuffer comment - same rationale. Note this
+  // type's decodeText always parses first and only branches on
   // fetchAsString afterward (unlike date/time/timestamp, which early-return
   // the raw string) - delegating by reference preserves that as-is.
-  parseTextBuffer(
+  decodeTextBuffer(
     buf: Buffer,
     offset: number,
     len: number,
     options: DataMappingOptions,
   ): Date | number | string {
-    return TimestamptzType.parseText(
+    return TimestamptzType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,
     );

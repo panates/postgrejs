@@ -5,8 +5,8 @@ import type {
   EncodeCalculateDimFunction,
   EncodeTextFunction,
   OID,
-  ParseTextBufferFunction,
-  ParseTextFunction,
+  DecodeTextBufferFunction,
+  DecodeTextFunction,
 } from '../types.js';
 
 export interface DataType {
@@ -17,12 +17,12 @@ export interface DataType {
   jsType: string;
   arraySeparator?: string;
   isType: (v: any) => boolean;
-  parseBinary: DecodeBinaryFunction;
-  parseText: ParseTextFunction;
+  decodeBinary: DecodeBinaryFunction;
+  decodeText: DecodeTextFunction;
   // Optional fast path: parses straight from the raw wire Buffer instead
-  // of the pre-converted UTF-8 string parseText receives. Only meaningful
+  // of the pre-converted UTF-8 string decodeText receives. Only meaningful
   // for text-format scalar columns; see get-parsers.ts for how it's used.
-  parseTextBuffer?: ParseTextBufferFunction;
+  decodeTextBuffer?: DecodeTextBufferFunction;
   // Declares this type's binary wire representation as always exactly N
   // bytes (independent of value - e.g. int4 is always 4, timestamp always
   // 8), letting decodeBinaryArray() read array elements directly out of
@@ -30,7 +30,7 @@ export interface DataType {
   // a throwaway Buffer view per element first. Leave unset for anything
   // whose binary length varies by value (bytea, varchar, json, jsonb,
   // numeric) - those still need decodeBinaryArray() to hand them a
-  // properly-bounded slice, since parseBinary has no way to know where
+  // properly-bounded slice, since decodeBinary has no way to know where
   // its own value ends otherwise.
   fixedBinarySize?: number;
   encodeAsNull?: EncodeAsNullFunction;

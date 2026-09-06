@@ -12,7 +12,7 @@ export const TimeType: DataType = {
   jsType: 'string',
   fixedBinarySize: 8,
 
-  parseBinary(
+  decodeBinary(
     v: Buffer,
     offset: number = 0,
     options: DataMappingOptions,
@@ -54,19 +54,19 @@ export const TimeType: DataType = {
     buf.writeUInt32BE(lo);
   },
 
-  parseText(v: string, options: DataMappingOptions): Date | number | string {
+  decodeText(v: string, options: DataMappingOptions): Date | number | string {
     if (options.fetchAsString?.includes(DataTypeOIDs.time)) return v;
     return parseTime(v, false, options.utcDates);
   },
 
-  // See date-type.ts's parseTextBuffer comment - same rationale.
-  parseTextBuffer(
+  // See date-type.ts's decodeTextBuffer comment - same rationale.
+  decodeTextBuffer(
     buf: Buffer,
     offset: number,
     len: number,
     options: DataMappingOptions,
   ): Date | number | string {
-    return TimeType.parseText(
+    return TimeType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,
     );

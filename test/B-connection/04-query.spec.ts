@@ -37,7 +37,7 @@ describe('query() (Extended Query)', () => {
 
   it('should correctly decode a fixed-width column following a variable-width one (binary)', async () => {
     // Regression test for the row-level buffer decode change: bytea/json
-    // have no fixedBinarySize (their parseBinary has no way to know
+    // have no fixedBinarySize (their decodeBinary has no way to know
     // where its own value ends other than the buffer it's handed), so
     // get-parsers.ts MUST give them a bounded slice - if that gate were
     // ever wrong, a following column would silently decode using the

@@ -13,7 +13,7 @@ export const TimestampType: DataType = {
   jsType: 'Date',
   fixedBinarySize: 8,
 
-  parseBinary(
+  decodeBinary(
     v: Buffer,
     offset: number = 0,
     options: DataMappingOptions,
@@ -72,19 +72,19 @@ export const TimestampType: DataType = {
     buf.writeUInt32BE(lo);
   },
 
-  parseText(v: string, options: DataMappingOptions): Date | number | string {
+  decodeText(v: string, options: DataMappingOptions): Date | number | string {
     if (options.fetchAsString?.includes(DataTypeOIDs.timestamp)) return v;
     return parseDateTime(v, options.utcDates);
   },
 
-  // See date-type.ts's parseTextBuffer comment - same rationale.
-  parseTextBuffer(
+  // See date-type.ts's decodeTextBuffer comment - same rationale.
+  decodeTextBuffer(
     buf: Buffer,
     offset: number,
     len: number,
     options: DataMappingOptions,
   ): Date | number | string {
-    return TimestampType.parseText(
+    return TimestampType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,
     );

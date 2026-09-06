@@ -14,7 +14,7 @@ export function decodeBinaryArray<T = any>(
   // offset - instead of slicing a throwaway view first just to hand the
   // decoder a buffer it immediately reads from and discards. Left unset
   // for variable-width types (bytea, varchar, json, jsonb, numeric),
-  // which still get a real bounded slice since their parseBinary has no
+  // which still get a real bounded slice since their decodeBinary has no
   // other way to know where its own value ends.
   fixedBinarySize?: number,
 ): Nullable<T[]> {

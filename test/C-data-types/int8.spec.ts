@@ -19,7 +19,7 @@ describe('DataType: int8', () => {
   it('should parse "int8" field (text) at the 15/16-digit boundary', async () => {
     // Every other (text) test above uses 16-digit values above
     // Number.MAX_SAFE_INTEGER, so they stay bigint - this exercises the
-    // <=15-digit fast path (parseTextBuffer's fastParseIntBuffer branch)
+    // <=15-digit fast path (decodeTextBuffer's fastParseIntBuffer branch)
     // and the adjacent 16-digit-but-still-safe case, both of which should
     // decode to a plain number instead.
     await testParse(

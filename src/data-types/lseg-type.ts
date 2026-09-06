@@ -19,7 +19,7 @@ export const LsegType: DataType = {
   jsType: 'object',
   fixedBinarySize: 32,
 
-  parseBinary(v: Buffer, offset: number = 0): Rectangle {
+  decodeBinary(v: Buffer, offset: number = 0): Rectangle {
     return {
       x1: v.readDoubleBE(offset),
       y1: v.readDoubleBE(offset + 8),
@@ -35,7 +35,7 @@ export const LsegType: DataType = {
     buf.writeDoubleBE(v.y2);
   },
 
-  parseText(v: string): Maybe<Rectangle> {
+  decodeText(v: string): Maybe<Rectangle> {
     const m =
       v.match(LSEG_PATTERN1) ||
       v.match(LSEG_PATTERN2) ||
@@ -50,14 +50,14 @@ export const LsegType: DataType = {
     };
   },
 
-  // See box-type.ts's parseTextBuffer comment - same rationale.
-  parseTextBuffer(
+  // See box-type.ts's decodeTextBuffer comment - same rationale.
+  decodeTextBuffer(
     buf: Buffer,
     offset: number,
     len: number,
     options: DataMappingOptions,
   ): Maybe<Rectangle> {
-    return LsegType.parseText(
+    return LsegType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,
     );

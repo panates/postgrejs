@@ -11,7 +11,7 @@ export const Int2VectorType: DataType = {
   oid: DataTypeOIDs.int2vector,
   jsType: 'array',
 
-  parseBinary(v: Buffer): number[] | undefined {
+  decodeBinary(v: Buffer): number[] | undefined {
     return decodeBinaryArray<number>(v, 0, b => b.readInt16BE()) || undefined;
   },
 
@@ -31,19 +31,19 @@ export const Int2VectorType: DataType = {
     return [v.length];
   },
 
-  parseText(str: string) {
+  decodeText(str: string) {
     return str.split(' ').map(fastParseInt);
   },
 
-  // See box-type.ts's parseTextBuffer comment - same rationale (this text
+  // See box-type.ts's decodeTextBuffer comment - same rationale (this text
   // grammar is pure ASCII digits/minus/space).
-  parseTextBuffer(
+  decodeTextBuffer(
     buf: Buffer,
     offset: number,
     len: number,
     options: DataMappingOptions,
   ) {
-    return Int2VectorType.parseText(
+    return Int2VectorType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,
     );

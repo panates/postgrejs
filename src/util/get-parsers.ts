@@ -12,7 +12,7 @@ const DefaultColumnParser: AnyParseFunction = (data, offset, len) =>
   data.subarray(offset, offset + len);
 // Text-format columns need the UTF-8 conversion binary-format columns
 // don't, to preserve returning a string for a column with no registered
-// parseText, same as before this row-buffer change - just bounded via
+// decodeText, same as before this row-buffer change - just bounded via
 // toString's own start/end args now instead of a pre-sliced buffer.
 const DefaultTextColumnParser: AnyParseFunction = (data, offset, len) =>
   data.toString('utf8', offset, offset + len);
@@ -31,7 +31,7 @@ export function getParsers(
     if (dataTypeReg) {
       const isArray = !!dataTypeReg.elementsOID;
       if (f.format === DataFormat.binary) {
-        const decode = dataTypeReg.parseBinary;
+        const decode = dataTypeReg.decodeBinary;
         if (decode) {
           if (isArray) {
             // Arrays are always self-terminating from their own ndims/
@@ -71,7 +71,7 @@ export function getParsers(
             // CRITICAL: genuinely variable-width binary types (bytea,
             // json, jsonb, numeric, char, varchar, int2vector, and any
             // custom type without fixedBinarySize) have no way to find
-            // their own value's end - bytea's parseBinary reads to the
+            // their own value's end - bytea's decodeBinary reads to the
             // end of whatever buffer it's given, json/jsonb/varchar/char
             // use buf.toString('utf8', offset) with no end argument. They
             // MUST get a bounded slice here, or they will silently read
@@ -81,11 +81,11 @@ export function getParsers(
           }
         }
       } else if (f.format === DataFormat.text) {
-        const parse = dataTypeReg.parseText;
+        const parse = dataTypeReg.decodeText;
         if (parse) {
-          const parseBuffer = dataTypeReg.parseTextBuffer;
+          const parseBuffer = dataTypeReg.decodeTextBuffer;
           if (!isArray && parseBuffer) {
-            // Fast path (int2/int4/oid/int8 today): parseTextBuffer
+            // Fast path (int2/int4/oid/int8 today): decodeTextBuffer
             // implementations take an explicit offset/len (unlike
             // DecodeBinaryFunction, a text value has no constant byte
             // width) and read straight out of the shared row buffer - no

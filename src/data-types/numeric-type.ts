@@ -13,7 +13,7 @@ export const NumericType: DataType = {
   oid: DataTypeOIDs.numeric,
   jsType: 'number',
 
-  parseBinary(v: Buffer, offset: number = 0): number {
+  decodeBinary(v: Buffer, offset: number = 0): number {
     const len = v.readInt16BE(offset);
     const weight = v.readInt16BE(offset + 2);
     // sign is a bitmask (0x0000/0x4000/0xC000/0xD000/0xF000), not a two's
@@ -40,10 +40,10 @@ export const NumericType: DataType = {
     return '' + n;
   },
 
-  parseText: parseFloat,
+  decodeText: parseFloat,
 
-  // See float4-type.ts's parseTextBuffer comment - same rationale.
-  parseTextBuffer(buf: Buffer, offset: number, len: number): number {
+  // See float4-type.ts's decodeTextBuffer comment - same rationale.
+  decodeTextBuffer(buf: Buffer, offset: number, len: number): number {
     return parseFloat(buf.toString('latin1', offset, offset + len));
   },
 

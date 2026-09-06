@@ -18,7 +18,7 @@ export const CircleType: DataType = {
   jsType: 'object',
   fixedBinarySize: 24,
 
-  parseBinary(v: Buffer, offset: number = 0): Circle {
+  decodeBinary(v: Buffer, offset: number = 0): Circle {
     return {
       x: v.readDoubleBE(offset),
       y: v.readDoubleBE(offset + 8),
@@ -32,7 +32,7 @@ export const CircleType: DataType = {
     buf.writeDoubleBE(v.r);
   },
 
-  parseText(v: string): Maybe<Circle> {
+  decodeText(v: string): Maybe<Circle> {
     const m =
       v.match(CIRCLE_PATTERN1) ||
       v.match(CIRCLE_PATTERN2) ||
@@ -46,14 +46,14 @@ export const CircleType: DataType = {
     } as Circle;
   },
 
-  // See box-type.ts's parseTextBuffer comment - same rationale.
-  parseTextBuffer(
+  // See box-type.ts's decodeTextBuffer comment - same rationale.
+  decodeTextBuffer(
     buf: Buffer,
     offset: number,
     len: number,
     options: DataMappingOptions,
   ): Maybe<Circle> {
-    return CircleType.parseText(
+    return CircleType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,
     );

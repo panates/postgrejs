@@ -11,7 +11,7 @@ export const UuidType: DataType = {
   jsType: 'String',
   fixedBinarySize: 16,
 
-  parseBinary(v: Buffer, offset: number = 0): string {
+  decodeBinary(v: Buffer, offset: number = 0): string {
     return (
       v.toString('hex', offset, offset + 4) +
       '-' +
@@ -32,14 +32,14 @@ export const UuidType: DataType = {
     buf.writeBuffer(b);
   },
 
-  parseText(v: string): string {
+  decodeText(v: string): string {
     return v;
   },
 
   // Canonical UUID text is fixed-format hex+dashes, pure ASCII - 'latin1'
   // decodes identically to 'utf8' here but skips V8's multi-byte-sequence
   // detection.
-  parseTextBuffer(buf: Buffer, offset: number, len: number): string {
+  decodeTextBuffer(buf: Buffer, offset: number, len: number): string {
     return buf.toString('latin1', offset, offset + len);
   },
 

@@ -9,7 +9,7 @@ export const Int4Type: DataType = {
   jsType: 'number',
   fixedBinarySize: 4,
 
-  parseBinary(v: Buffer, offset: number = 0): number {
+  decodeBinary(v: Buffer, offset: number = 0): number {
     return v.readInt32BE(offset);
   },
 
@@ -17,8 +17,8 @@ export const Int4Type: DataType = {
     buf.writeInt32BE(fastParseInt(v));
   },
 
-  parseText: fastParseInt,
-  parseTextBuffer: fastParseIntBuffer,
+  decodeText: fastParseInt,
+  decodeTextBuffer: fastParseIntBuffer,
 
   isType(v: any): boolean {
     return (

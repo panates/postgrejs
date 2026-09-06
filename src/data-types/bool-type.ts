@@ -8,7 +8,7 @@ export const BoolType: DataType = {
   jsType: 'boolean',
   fixedBinarySize: 1,
 
-  parseBinary(v: Buffer, offset: number = 0): boolean {
+  decodeBinary(v: Buffer, offset: number = 0): boolean {
     return !!v.readUInt8(offset);
   },
 
@@ -22,11 +22,11 @@ export const BoolType: DataType = {
   // real bool column returns "t"/"f", never "true"/"y"/"on"/etc) - the
   // other literal forms are only valid as *input* to a bool cast, never as
   // output, so they can never match here.
-  parseText(v: string): boolean {
+  decodeText(v: string): boolean {
     return v === 't';
   },
 
-  parseTextBuffer(buf: Buffer, offset: number): boolean {
+  decodeTextBuffer(buf: Buffer, offset: number): boolean {
     return buf[offset] === 0x74; /* 't' */
   },
 

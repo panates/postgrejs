@@ -12,7 +12,7 @@ export const DateType: DataType = {
   jsType: 'Date',
   fixedBinarySize: 4,
 
-  parseBinary(
+  decodeBinary(
     v: Buffer,
     offset: number = 0,
     options: DataMappingOptions,
@@ -51,7 +51,7 @@ export const DateType: DataType = {
     buf.writeInt32BE(t);
   },
 
-  parseText(v: string, options: DataMappingOptions): Date | number | string {
+  decodeText(v: string, options: DataMappingOptions): Date | number | string {
     const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.date);
     if (fetchAsString) return v;
     return parseDate(v, options.utcDates);
@@ -59,15 +59,15 @@ export const DateType: DataType = {
 
   // PostgreSQL's date text output is pure ASCII, so 'latin1' decodes
   // identically to 'utf8' here but skips V8's multi-byte-sequence
-  // detection. Delegates to parseText by reference rather than
+  // detection. Delegates to decodeText by reference rather than
   // duplicating its logic, so the two can never drift apart.
-  parseTextBuffer(
+  decodeTextBuffer(
     buf: Buffer,
     offset: number,
     len: number,
     options: DataMappingOptions,
   ): Date | number | string {
-    return DateType.parseText(
+    return DateType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,
     );

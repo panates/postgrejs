@@ -8,7 +8,7 @@ export const JsonbType: DataType = {
   oid: DataTypeOIDs.jsonb,
   jsType: 'string',
 
-  parseBinary(
+  decodeBinary(
     v: Buffer,
     offset: number = 0,
     options: DataMappingOptions,
@@ -29,20 +29,20 @@ export const JsonbType: DataType = {
     return '\x0001' + v;
   },
 
-  parseText(v: string, options: DataMappingOptions): object | string | null {
+  decodeText(v: string, options: DataMappingOptions): object | string | null {
     const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.jsonb);
     if (fetchAsString) return v;
     return v ? JSON.parse(v) : null;
   },
 
-  // See json-type.ts's parseTextBuffer comment - same rationale.
-  parseTextBuffer(
+  // See json-type.ts's decodeTextBuffer comment - same rationale.
+  decodeTextBuffer(
     buf: Buffer,
     offset: number,
     len: number,
     options: DataMappingOptions,
   ): object | string | null {
-    return JsonbType.parseText(
+    return JsonbType.decodeText(
       buf.toString('utf8', offset, offset + len),
       options,
     );
