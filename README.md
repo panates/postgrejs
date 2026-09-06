@@ -44,6 +44,7 @@ Key highlights include:
 - **Bulk Import/Export:** `COPY TO STDOUT` and `COPY FROM STDIN` as Node streams, with backpressure in both directions.
 - **Query Pipelining:** Pooled queries can share connections so a burst is not capped by pool size - opt-in per call.
 - **Dynamic SQL:** A `sql` tag builds statements from composable fragments - values become parameters, names are quoted, and `sql.values()`/`sql.set()` write INSERT and UPDATE clauses from objects.
+- **Two-phase commit:** `prepareTransaction()` leaves a transaction waiting under a name for `commitPrepared()`/`rollbackPrepared()`, from any connection.
 - **Cancellation:** Any call takes an `AbortSignal`, which also gives per-query timeouts via `AbortSignal.timeout()`.
 - **Flexible Data Retrieval:**  Can return both array and object rows to suit different data processing needs.
 - **Resource Management:** Auto disposal of resources with the "using" syntax ([TC30 Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management)), ensuring efficient resource cleanup.
@@ -222,12 +223,11 @@ pg 8.23.0, postgres.js 3.4.9**. ✅ built in · 🟡 partial or needs a separate
 | Per-query timeout                  | ✅ AbortSignal |          ✅          | ❌ <sup>10</sup> |
 | Per-query type mapping             |       ✅       |   ❌ <sup>11</sup>   | ❌ <sup>11</sup> |
 | Dynamic SQL helpers                |  ✅ `sql` tag  |          ❌          |        ✅        |
-| Callback API besides promises      |       ❌       |          ✅          |        ❌        |
 | ***Connections and transactions*** |                |                      |                  |
 | Built-in connection pool           |       ✅       |          ✅          |   ✅ implicit    |
 | Pipelining on one connection       | ✅ opt-in/call |   ✅ opt-in/client   |   ✅ automatic   |
 | Transaction API                    |       ✅       |          ❌          |        ✅        |
-| Two-phase commit helper            |       ❌       |          ❌          |        ✅        |
+| Two-phase commit API               |       ✅       |          ❌          |        ✅        |
 | LISTEN/NOTIFY                      |       ✅       |   🟡 <sup>12</sup>   |        ✅        |
 | Multi-host failover                |       ❌       |          ❌          |        ✅        |
 | ***Security***                     |                |                      |                  |
