@@ -954,7 +954,16 @@ export class PgSocket extends SafeEventEmitter {
         break;
       }
       default:
-        break;
+        // A method this client cannot answer - GSSAPI and SSPI need the
+        // operating system's Kerberos libraries, which a pure JavaScript
+        // driver has no way to reach. Saying so beats the alternative:
+        // ignoring the request and leaving the connection to hang until it
+        // times out, with nothing said about why.
+        throw new Error(
+          `Authentication method "${msg.kind}" is not supported. ` +
+            'Supported methods are cleartext password, MD5 and SCRAM-SHA-256 ' +
+            '(with or without channel binding).',
+        );
     }
   }
 

@@ -127,7 +127,6 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Direct TLS negotiation (PG17)      |       ✅       |          ✅          |        ✅        |
 | Cleartext, MD5, SCRAM-SHA-256      |       ✅       |          ✅          |        ✅        |
 | SCRAM channel binding (`-PLUS`)    |   ✅ default   |      ✅ opt-in       |        ❌        |
-| GSSAPI / SSPI                      |       ❌       |          ❌          |        ❌        |
 | ***Beyond querying***              |                |                      |                  |
 | Logical replication                | ✅ `pgoutput`  |   🟡 <sup>15</sup>   |  ✅ `subscribe`  |
 | Large object API                   |       ✅       |          ❌          |        ✅        |
