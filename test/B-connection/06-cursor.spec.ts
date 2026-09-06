@@ -55,6 +55,34 @@ describe('Cursor support', () => {
     await cursor?.close();
   });
 
+  it('should fetch() return fewer rows than asked for once the result runs out', async () => {
+    const result = await connection.query(
+      `select * from customers order by id limit 3`,
+      { objectRows: false, cursor: true, fetchCount: 2 },
+    );
+    const cursor = result.cursor;
+    expect(cursor).toBeDefined();
+    const rows = await cursor?.fetch(10);
+    expect(rows?.length).toStrictEqual(3);
+    await cursor?.close();
+  });
+
+  it('should report rowType from the query options', async () => {
+    const arrayResult = await connection.query(
+      `select * from customers limit 1`,
+      { objectRows: false, cursor: true },
+    );
+    expect(arrayResult.cursor?.rowType).toStrictEqual('array');
+    await arrayResult.cursor?.close();
+
+    const objectResult = await connection.query(
+      `select * from customers limit 1`,
+      { objectRows: true, cursor: true },
+    );
+    expect(objectResult.cursor?.rowType).toStrictEqual('object');
+    await objectResult.cursor?.close();
+  });
+
   it('should automatically close cursor after fetching all rows', async () => {
     const result = await connection.query(`select * from customers limit 10`, {
       objectRows: true,
@@ -255,5 +283,16 @@ describe('Cursor support', () => {
     } finally {
       await statement.close().catch(() => undefined);
     }
+  });
+
+  it('should return undefined from next() and [] from fetch() once already closed', async () => {
+    const result = await connection.query(`select * from customers limit 1`, {
+      objectRows: true,
+      cursor: true,
+    });
+    const cursor = result.cursor!;
+    await cursor.close();
+    expect(await cursor.next()).toStrictEqual(undefined);
+    expect(await cursor.fetch(5)).toStrictEqual([]);
   });
 });

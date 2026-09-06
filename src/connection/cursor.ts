@@ -72,6 +72,9 @@ export class Cursor extends SafeEventEmitter implements AsyncDisposable {
   }
 
   private async _fetchRows(): Promise<void> {
+    // Both callers (next()/fetch()) already gate on _closed with no await
+    // in between, so this can't currently observe a change - kept as a
+    // defensive backstop for this private method's own contract.
     if (this._closed) return;
     const portal = this._portal;
     await this._taskQueue
