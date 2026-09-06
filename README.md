@@ -25,7 +25,7 @@ Key highlights include:
 
 - **Language:** Pure modern JavaScript library.
 - **Strictly Typed:** Completely written in TypeScript, offering strong typing and enhanced development experience.
-- **Compatibility:** Works seamlessly with both CommonJS and ESM module systems, ensuring flexibility in various project setups.
+- **Modern module format:** Ships as ESM; Node 20.19+/22.12+ can `require()` it from CommonJS code as well.
 - **Comprehensive Testing:** Rigorously tested to ensure stability and reliability in production environments.
 - **Promise-Based API:** Asynchronous operations are handled with a Promise-based API, promoting clean and efficient asynchronous code.
 
@@ -40,7 +40,11 @@ Key highlights include:
 - **Parameter Binding:**  Bind parameters with OID mappings for precise and efficient query execution.
 - **Array Handling:** Supports multidimensional arrays with fast binary encoding/decoding.
 - **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
-- **Authorization:** SSupports various password algorithms including Clear text, MD5, and SASL, ensuring secure authentication.
+- **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure authentication.
+- **Bulk Import/Export:** `COPY TO STDOUT` and `COPY FROM STDIN` as Node streams, with backpressure in both directions.
+- **Query Pipelining:** Pooled queries can share connections so a burst is not capped by pool size - opt-in per call.
+- **Dynamic SQL:** A `sql` tag builds statements from composable fragments - values become parameters, names are quoted, and `sql.values()`/`sql.set()` write INSERT and UPDATE clauses from objects.
+- **Cancellation:** Any call takes an `AbortSignal`, which also gives per-query timeouts via `AbortSignal.timeout()`.
 - **Flexible Data Retrieval:**  Can return both array and object rows to suit different data processing needs.
 - **Resource Management:** Auto disposal of resources with the "using" syntax ([TC30 Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management)), ensuring efficient resource cleanup.
 
@@ -87,11 +91,9 @@ import { Pool } from 'postgrejs';
 // Create connection pool
 const db = new Pool({
     host: 'postgres://localhost',
-    pool: {
-       min: 1,
-       max: 10,
-       idleTimeoutMillis: 5000
-    }
+    min: 1,
+    max: 10,
+    idleTimeoutMillis: 5000
 });
 
 // Execute query and fetch cursor
@@ -129,7 +131,6 @@ await statement.close(); // When you done, close the statement to relase resourc
 ```
 
 #### Check [DOCUMENTATION](https://postgrejs.panates.com/) for other examples.
-
 
 
 ## Type mappings
@@ -187,6 +188,90 @@ The table below lists builtin data type mappings.
 | _int2Vector     | number[][]  | text,binary | binary | 
 
 
+## Feature comparison
+
+How PostgreJS compares to [`pg`](https://github.com/brianc/node-postgres) (node-postgres) and
+[`postgres`](https://github.com/porsager/postgres) (postgres.js). Every row was checked against the
+libraries' own source rather than their documentation — versions compared: **postgrejs 2.23.1,
+pg 8.23.0, postgres.js 3.4.9**. ✅ built in · 🟡 partial or needs a separate package · ❌ not supported.
+
+| Feature                            |   PostgreJS    |          pg          |   postgres.js    |
+| :--------------------------------- | :------------: | :------------------: | :--------------: |
+| ***Packaging***                    |                |                      |                  |
+| Packages to install                |       1        |    4 <sup>1</sup>    |        1         |
+| Module system                      |      ESM       |       ESM/CJS        |     ESM/CJS      |
+| Language                           |       TS       |   JS <sup>2</sup>    | JS <sup>3</sup>  |
+| `using` resource disposal          |       ✅       |          ❌          |        ❌        |
+| ***Wire protocol***                |                |                      |                  |
+| Simple Query protocol              |       ✅       |          ✅          |        ✅        |
+| Extended Query protocol            |       ✅       |          ✅          |        ✅        |
+| Text wire format                   |       ✅       |          ✅          |        ✅        |
+| Binary wire format                 |       ✅       |   🟡 <sup>4</sup>    | ❌ <sup>5</sup>  |
+| Per-column format selection        |       ✅       |          ❌          |        ❌        |
+| Multidimensional arrays            |   ✅ binary    | 🟡 text <sup>6</sup> |     🟡 text      |
+| Multi-statement scripts            |       ✅       |          ✅          |        ✅        |
+| ***Queries***                      |                |                      |                  |
+| Query parameters                   |       ✅       |          ✅          |        ✅        |
+| Parameter type casting             |       ✅       |   🟡 <sup>7</sup>    |        ✅        |
+| Prepared statements                |  ✅ explicit   |          ✅          |   ✅ automatic   |
+| Server-side cursors                |       ✅       |   🟡 <sup>8</sup>    |        ✅        |
+| `COPY TO` / `COPY FROM`            |       ✅       |   🟡 <sup>9</sup>    |        ✅        |
+| Row count after a COPY             |       ✅       |          ✅          |        ❌        |
+| Object and array row modes         |       ✅       |          ✅          |        ✅        |
+| Query cancellation                 | ✅ AbortSignal |          ✅          |        ✅        |
+| Per-query timeout                  | ✅ AbortSignal |          ✅          | ❌ <sup>10</sup> |
+| Per-query type mapping             |       ✅       |   ❌ <sup>11</sup>   | ❌ <sup>11</sup> |
+| Dynamic SQL helpers                |  ✅ `sql` tag  |          ❌          |        ✅        |
+| Callback API besides promises      |       ❌       |          ✅          |        ❌        |
+| ***Connections and transactions*** |                |                      |                  |
+| Built-in connection pool           |       ✅       |          ✅          |   ✅ implicit    |
+| Pipelining on one connection       | ✅ opt-in/call |   ✅ opt-in/client   |   ✅ automatic   |
+| Transaction API                    |       ✅       |          ❌          |        ✅        |
+| Two-phase commit helper            |       ❌       |          ❌          |        ✅        |
+| LISTEN/NOTIFY                      |       ✅       |   🟡 <sup>12</sup>   |        ✅        |
+| Multi-host failover                |       ❌       |          ❌          |        ✅        |
+| ***Security***                     |                |                      |                  |
+| SSL/TLS                            |       ✅       |          ✅          |        ✅        |
+| Direct TLS negotiation (PG17)      |       ❌       |          ✅          |        ✅        |
+| Cleartext, MD5, SCRAM-SHA-256      |       ✅       |          ✅          |        ✅        |
+| SCRAM channel binding (`-PLUS`)    |       ❌       |      ✅ opt-in       |        ❌        |
+| GSSAPI / SSPI                      |       ❌       |          ❌          |        ❌        |
+| ***Beyond querying***              |                |                      |                  |
+| Logical replication                |       ❌       |   🟡 <sup>13</sup>   |  ✅ `subscribe`  |
+| Large object API                   |       ❌       |          ❌          |        ✅        |
+| Native libpq bindings              |       ❌       |    ✅ `pg-native`    |        ❌        |
+
+- <sup>1</sup> What it takes to reach the feature set above. postgrejs and postgres.js ship
+  everything in the one package you import; `pg` needs `pg-cursor` for cursors, `pg-query-stream`
+  for row streams and `pg-copy-streams` for COPY, each installed and versioned separately.
+- <sup>2</sup> Types come from the separate `@types/pg`; only the `pg-protocol` and
+  `pg-connection-string` sub-packages are written in TypeScript.
+- <sup>3</sup> Ships a hand-maintained `.d.ts`.
+- <sup>4</sup> Results only - parameters are always stringified. Opt-in per query or per client,
+  and all columns at once. No binary parser is registered for `bytea`, and binary arrays decode
+  only `int4`, `int8` and `text` elements.
+- <sup>5</sup> Both format-code counts are hardcoded to zero and parameters are stringified, so
+  everything on the wire is text.
+- <sup>6</sup> Its binary array decoder covers only `int4`, `int8` and `text` elements, so
+  everything else falls back to text anyway.
+- <sup>7</sup> A `types` array on the query config does reach the Parse message, but the same
+  field doubles as the result parser override, so any row-returning query throws inside pg's
+  own handler. Verified usable only for statements that return no rows (pg 8.23.0).
+- <sup>8</sup> Core has the row-limit primitive; the cursor and stream APIs are separate packages.
+- <sup>9</sup> The core `Query` refuses COPY IN; `pg-copy-streams` is required.
+- <sup>10</sup> Connection-level timeouts only.
+- <sup>11</sup> Global or per-client (pg) and per-instance (postgres.js), but not per query.
+- <sup>12</sup> On the client only - the pool does not forward notifications.
+- <sup>13</sup> A connection flag exists, but nothing decodes the stream.
+
+For how these three perform rather than what they support, see [`BENCHMARKS.md`](./BENCHMARKS.md).
+
+For how these three perform rather than what they support, see [`BENCHMARKS.md`](./BENCHMARKS.md).
+
+For how these three perform rather than what they support, see [`BENCHMARKS.md`](./BENCHMARKS.md).
+
+For how these three perform rather than what they support, see [`BENCHMARKS.md`](./BENCHMARKS.md).
+
 ## Benchmarks
 postgrejs implements the full PostgreSQL wire protocol from scratch, with no dependency on `pg`/libpq.
 [`BENCHMARKS.md`](./BENCHMARKS.md) compares it against `pg` (node-postgres) and `postgres` (postgres.js)
@@ -200,7 +285,7 @@ You can report bugs and discuss features on the [GitHub issues](https://github.c
 When you open an issue please provide version of NodeJS and PostgreSQL server.
 
 ## Node Compatibility
-- node >= 16.x
+- node >= 20.x
  
   
 ## License
