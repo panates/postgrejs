@@ -131,7 +131,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | ***Beyond querying***              |                |                      |                  |
 | Logical replication                | ✅ `pgoutput`  |   🟡 <sup>15</sup>   |  ✅ `subscribe`  |
 | Large object API                   |       ✅       |          ❌          |        ✅        |
-| Native libpq bindings              |       ❌       |    ✅ `pg-native`    |        ❌        |
+| Native libpq bindings              |       ❌       |   🟡 <sup>16</sup>   |        ❌        |
 
 - <sup>1</sup> What it takes to reach the feature set above. postgrejs and postgres.js ship everything in the one
   package you import; `pg` needs `pg-cursor` for cursors, `pg-query-stream`
@@ -159,6 +159,10 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 - <sup>13</sup> Global or per-client (pg) and per-instance (postgres.js), but not per query.
 - <sup>14</sup> On the client only - the pool does not forward notifications.
 - <sup>15</sup> A connection flag exists, but nothing decodes the stream.
+- <sup>16</sup> `pg-native` swaps the pure JavaScript protocol for libpq, and its own
+  documentation lists what stops working with it: `pg-cursor`, `pg-query-stream` and
+  `pg-copy-streams` all "operate directly on the binary stream and therefore are
+  incompatible" - so server-side cursors, row streaming and COPY are what it costs.
 
 
 ## Benchmarks
