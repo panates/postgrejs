@@ -91,6 +91,44 @@ describe('PreparedStatement', () => {
     }
   });
 
+  it('should auto-commit after execute() when already inside a manually-started transaction', async () => {
+    await connection.startTransaction();
+    const stmt = await connection.prepare('select 1 as v');
+    try {
+      const r = await stmt.execute({ autoCommit: true });
+      expect(r.rows?.[0]).toStrictEqual([1]);
+      expect(connection.inTransaction).toStrictEqual(false);
+    } finally {
+      await stmt.close();
+    }
+  });
+
+  it('should accept an explicit rollbackOnError override', async () => {
+    const stmt = await connection.prepare('select 1 / $1::int4 as v');
+    try {
+      await expect(
+        stmt.execute({ params: [0], rollbackOnError: false }),
+      ).rejects.toThrow('division by zero');
+      const r = await connection.query('select 2 as v');
+      expect(r.rows?.[0]).toStrictEqual([2]);
+    } finally {
+      await stmt.close();
+    }
+  });
+
+  it('should cancel() delegate to the connection it belongs to', async () => {
+    const stmt = await connection.prepare('select 1 as v');
+    try {
+      await stmt.cancel();
+      // Nothing was running, so the cancel is a harmless no-op - the
+      // connection must stay usable afterward.
+      const r = await connection.query('select 2 as v');
+      expect(r.rows?.[0]).toStrictEqual([2]);
+    } finally {
+      await stmt.close();
+    }
+  });
+
   it('should execute() a prepared statement with no result columns', async () => {
     await connection.execute(
       'create temp table t_prepared_noresult (id int4, v int4)',
