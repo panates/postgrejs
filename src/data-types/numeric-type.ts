@@ -1,5 +1,6 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
+import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
 const NUMERIC_NEG = 0x4000;
 const NUMERIC_NAN = 0xc000;
@@ -33,6 +34,81 @@ export const NumericType: DataType = {
 
     const numString = numberBytesToString(digits, scale, weight, sign);
     return parseFloat(numString);
+  },
+
+  /**
+   * numeric on the wire is a base-10000 number: a digit count, the weight
+   * of the first group (in groups of four decimal digits, not digits), a
+   * sign mask, the display scale, then the groups themselves.
+   *
+   * Encoded from the decimal text rather than from the float, so a value
+   * that JavaScript cannot hold exactly - which is most of what numeric
+   * exists for - survives when it was given as a string.
+   */
+  encodeBinary(buf: SmartBuffer, v: any): void {
+    const writeHeader = (
+      ndigits: number,
+      weight: number,
+      sign: number,
+      dscale: number,
+    ) => {
+      buf.writeInt16BE(ndigits);
+      buf.writeInt16BE(weight);
+      buf.writeUInt16BE(sign);
+      buf.writeInt16BE(dscale);
+    };
+    if (typeof v === 'number' && !Number.isFinite(v)) {
+      writeHeader(
+        0,
+        0,
+        Number.isNaN(v) ? NUMERIC_NAN : v > 0 ? NUMERIC_PINF : NUMERIC_NINF,
+        0,
+      );
+      return;
+    }
+    let str = typeof v === 'string' ? v.trim() : String(v);
+    if (str === 'NaN') return writeHeader(0, 0, NUMERIC_NAN, 0);
+    if (str === 'Infinity') return writeHeader(0, 0, NUMERIC_PINF, 0);
+    if (str === '-Infinity') return writeHeader(0, 0, NUMERIC_NINF, 0);
+    // Exponent form has no place in the wire format; go through Number to
+    // get it back into plain notation.
+    if (/e/i.test(str)) str = Number(str).toFixed(20).replace(/0+$/, '');
+
+    let sign = 0;
+    if (str.startsWith('-')) {
+      sign = NUMERIC_NEG;
+      str = str.substring(1);
+    } else if (str.startsWith('+')) str = str.substring(1);
+
+    const dot = str.indexOf('.');
+    let intPart = dot < 0 ? str : str.substring(0, dot);
+    let fracPart = dot < 0 ? '' : str.substring(dot + 1);
+    const dscale = fracPart.length;
+
+    // Group into fours, aligned on the decimal point from both sides.
+    const intPad = (DEC_DIGITS - (intPart.length % DEC_DIGITS)) % DEC_DIGITS;
+    intPart = '0'.repeat(intPad) + intPart;
+    const fracPad = (DEC_DIGITS - (fracPart.length % DEC_DIGITS)) % DEC_DIGITS;
+    fracPart = fracPart + '0'.repeat(fracPad);
+
+    const digits: number[] = [];
+    for (let i = 0; i < intPart.length; i += DEC_DIGITS)
+      digits.push(+intPart.substring(i, i + DEC_DIGITS));
+    for (let i = 0; i < fracPart.length; i += DEC_DIGITS)
+      digits.push(+fracPart.substring(i, i + DEC_DIGITS));
+
+    // weight counts groups before the point, less one; leading zero groups
+    // are dropped and lower it, trailing ones are simply dropped.
+    let weight = intPart.length / DEC_DIGITS - 1;
+    while (digits.length && digits[0] === 0) {
+      digits.shift();
+      weight--;
+    }
+    while (digits.length && digits[digits.length - 1] === 0) digits.pop();
+    if (!digits.length) weight = 0;
+
+    writeHeader(digits.length, weight, sign, dscale);
+    for (const d of digits) buf.writeInt16BE(d);
   },
 
   encodeText(v: any): string {

@@ -2,6 +2,7 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
 import { BufferReader } from '../protocol/buffer-reader.js';
+import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
 export const JsonbType: DataType = {
   name: 'jsonb',
@@ -26,7 +27,18 @@ export const JsonbType: DataType = {
     if (typeof v === 'object' || typeof v === 'bigint')
       return JSON.stringify(v);
     if (typeof v === 'boolean') return v ? 'true' : 'false';
-    return '\x0001' + v;
+    // A string or number is taken as JSON text already, same as json-type.
+    // This used to prepend "\x0001" - the binary format's version header,
+    // in the text encoder - which sent a NUL byte the server rejected
+    // outright ("invalid byte sequence for encoding UTF8: 0x00").
+    return '' + v;
+  },
+
+  // jsonb's binary form is a one-byte version header followed by the same
+  // JSON text.
+  encodeBinary(buf: SmartBuffer, v: any): void {
+    buf.writeUInt8(1);
+    buf.writeString(JsonbType.encodeText!(v, {}), 'utf8');
   },
 
   decodeText(v: string, options: DataMappingOptions): object | string | null {

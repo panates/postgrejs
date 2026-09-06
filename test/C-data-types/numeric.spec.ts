@@ -1,4 +1,5 @@
-import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
+import { expect } from 'expect';
+import { BindParam, Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
 describe('DataType: numeric', () => {
@@ -116,5 +117,31 @@ describe('DataType: numeric', () => {
       ],
     ];
     await testEncode(conn, DataTypeOIDs._numeric, input, output);
+  });
+
+  it('should encode "numeric" in binary, keeping precision a float cannot', async () => {
+    // The whole point of numeric: given as text, it has to survive the
+    // trip without going through a double on the way.
+    for (const v of [
+      '12345678901234567890.123456789',
+      '-98765432109876543210',
+      '0.0001',
+      '10000',
+      '0',
+    ]) {
+      const r = await conn.query('select $1::numeric::text as t', {
+        params: [new BindParam(DataTypeOIDs.numeric, v)],
+      });
+      expect(r.rows?.[0][0]).toStrictEqual(v);
+    }
+  });
+
+  it('should encode "numeric" NaN and infinities in binary', async () => {
+    for (const v of [NaN, Infinity, -Infinity]) {
+      const r = await conn.query('select $1::numeric::text as t', {
+        params: [new BindParam(DataTypeOIDs.numeric, v)],
+      });
+      expect(r.rows?.[0][0]).toStrictEqual(String(v));
+    }
   });
 });

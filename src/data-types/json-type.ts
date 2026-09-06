@@ -1,6 +1,7 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
+import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
 export const JsonType: DataType = {
   name: 'json',
@@ -16,6 +17,11 @@ export const JsonType: DataType = {
     const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.json);
     if (fetchAsString) return content;
     return content ? JSON.parse(content) : undefined;
+  },
+
+  // json is stored as the text itself, so its binary form is those bytes.
+  encodeBinary(buf: SmartBuffer, v: any): void {
+    buf.writeString(JsonType.encodeText!(v, {}), 'utf8');
   },
 
   encodeText(v): string {

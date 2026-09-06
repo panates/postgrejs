@@ -78,54 +78,54 @@ How PostgreJS compares to [`pg`](https://github.com/brianc/node-postgres) (node-
 source rather than their documentation — versions compared: **postgrejs 2.23.1, pg 8.23.0, postgres.js 3.4.9**. ✅ built
 in · 🟡 partial or needs a separate package · ❌ not supported.
 
-| Feature                            |    PostgreJS    |          pg          |   postgres.js    |
-|:-----------------------------------|:---------------:|:--------------------:|:----------------:|
-| ***Packaging***                    |                 |                      |                  |
-| Packages to install                |        1        |    4 <sup>1</sup>    |        1         |
-| Module system                      |       ESM       |       ESM/CJS        |     ESM/CJS      |
-| Language                           |       TS        |   JS <sup>2</sup>    | JS <sup>3</sup>  |
-| TC39 Explicit Resource Management  |       ✅        |          ❌          |        ❌        |
-| ***Wire protocol***                |                 |                      |                  |
-| Simple Query protocol              |       ✅        |          ✅          |        ✅        |
-| Extended Query protocol            |       ✅        |          ✅          |        ✅        |
-| Text wire format                   |       ✅        |          ✅          |        ✅        |
-| Binary wire format                 |       ✅        |   🟡 <sup>4</sup>    | ❌ <sup>5</sup>  |
-| Text encoders                      |       55        | generic <sup>6</sup> |        14        |
-| Text decoders                      |       55        |          44          | 12 <sup>7</sup>  |
-| Binary encoders                    | 49 <sup>8</sup> |          ❌          |        ❌        |
-| Binary decoders                    |       55        |          16          |        ❌        |
-| Per-column format selection        |       ✅        |          ❌          |        ❌        |
-| Multidimensional arrays            |    ✅ binary    | 🟡 text <sup>9</sup> |     🟡 text      |
-| Multi-statement scripts            |       ✅        |          ✅          |        ✅        |
-| ***Queries***                      |                 |                      |                  |
-| Query parameters                   |       ✅        |          ✅          |        ✅        |
-| Parameter type casting             |       ✅        |   🟡 <sup>10</sup>   |        ✅        |
-| Prepared statements                |   ✅ explicit   |          ✅          |   ✅ automatic   |
-| Server-side cursors                |       ✅        |   🟡 <sup>11</sup>   |        ✅        |
-| `COPY TO` / `COPY FROM`            |       ✅        |   🟡 <sup>12</sup>   |        ✅        |
-| Row count after a COPY             |       ✅        |          ✅          |        ❌        |
-| Object and array row modes         |       ✅        |          ✅          |        ✅        |
-| Query cancellation                 | ✅ AbortSignal  |          ✅          |        ✅        |
-| Per-query timeout                  | ✅ AbortSignal  |          ✅          | ❌ <sup>13</sup> |
-| Per-query type mapping             |       ✅        |   ❌ <sup>14</sup>   | ❌ <sup>14</sup> |
-| Dynamic SQL helpers                |  ✅ `sql` tag   |          ❌          |        ✅        |
-| ***Connections and transactions*** |                 |                      |                  |
-| Built-in connection pool           |       ✅        |          ✅          |   ✅ implicit    |
-| Pipelining on one connection       | ✅ opt-in/call  |   ✅ opt-in/client   |   ✅ automatic   |
-| Transaction API                    |       ✅        |          ❌          |        ✅        |
-| Two-phase commit API               |       ✅        |          ❌          |        ✅        |
-| LISTEN/NOTIFY                      |       ✅        |   🟡 <sup>15</sup>   |        ✅        |
-| Multiple hosts                     |       ✅        |          ❌          |        ✅        |
-| ***Security***                     |                 |                      |                  |
-| SSL/TLS                            |       ✅        |          ✅          |        ✅        |
-| Direct TLS negotiation (PG17)      |       ✅        |          ✅          |        ✅        |
-| Cleartext, MD5, SCRAM-SHA-256      |       ✅        |          ✅          |        ✅        |
-| SCRAM channel binding (`-PLUS`)    |       ❌        |      ✅ opt-in       |        ❌        |
-| GSSAPI / SSPI                      |       ❌        |          ❌          |        ❌        |
-| ***Beyond querying***              |                 |                      |                  |
-| Logical replication                |       ❌        |   🟡 <sup>16</sup>   |  ✅ `subscribe`  |
-| Large object API                   |       ❌        |          ❌          |        ✅        |
-| Native libpq bindings              |       ❌        |    ✅ `pg-native`    |        ❌        |
+| Feature                            |   PostgreJS    |          pg          |   postgres.js    |
+|:-----------------------------------|:--------------:|:--------------------:|:----------------:|
+| ***Packaging***                    |                |                      |                  |
+| Packages to install                |       1        |    4 <sup>1</sup>    |        1         |
+| Module system                      |      ESM       |       ESM/CJS        |     ESM/CJS      |
+| Language                           |       TS       |   JS <sup>2</sup>    | JS <sup>3</sup>  |
+| TC39 Explicit Resource Management  |       ✅       |          ❌          |        ❌        |
+| ***Wire protocol***                |                |                      |                  |
+| Simple Query protocol              |       ✅       |          ✅          |        ✅        |
+| Extended Query protocol            |       ✅       |          ✅          |        ✅        |
+| Text wire format                   |       ✅       |          ✅          |        ✅        |
+| Binary wire format                 |       ✅       |   🟡 <sup>4</sup>    | ❌ <sup>5</sup>  |
+| Text encoders                      |       55       | generic <sup>6</sup> |        14        |
+| Text decoders                      |       55       |          44          | 12 <sup>7</sup>  |
+| Binary encoders                    |       55       |          ❌          |        ❌        |
+| Binary decoders                    |       55       |          16          |        ❌        |
+| Per-column format selection        |       ✅       |          ❌          |        ❌        |
+| Multidimensional arrays            |   ✅ binary    | 🟡 text <sup>8</sup> |     🟡 text      |
+| Multi-statement scripts            |       ✅       |          ✅          |        ✅        |
+| ***Queries***                      |                |                      |                  |
+| Query parameters                   |       ✅       |          ✅          |        ✅        |
+| Parameter type casting             |       ✅       |   🟡 <sup>9</sup>    |        ✅        |
+| Prepared statements                |  ✅ explicit   |          ✅          |   ✅ automatic   |
+| Server-side cursors                |       ✅       |   🟡 <sup>10</sup>   |        ✅        |
+| `COPY TO` / `COPY FROM`            |       ✅       |   🟡 <sup>11</sup>   |        ✅        |
+| Row count after a COPY             |       ✅       |          ✅          |        ❌        |
+| Object and array row modes         |       ✅       |          ✅          |        ✅        |
+| Query cancellation                 | ✅ AbortSignal |          ✅          |        ✅        |
+| Per-query timeout                  | ✅ AbortSignal |          ✅          | ❌ <sup>12</sup> |
+| Per-query type mapping             |       ✅       |   ❌ <sup>13</sup>   | ❌ <sup>13</sup> |
+| Dynamic SQL helpers                |  ✅ `sql` tag  |          ❌          |        ✅        |
+| ***Connections and transactions*** |                |                      |                  |
+| Built-in connection pool           |       ✅       |          ✅          |   ✅ implicit    |
+| Pipelining on one connection       | ✅ opt-in/call |   ✅ opt-in/client   |   ✅ automatic   |
+| Transaction API                    |       ✅       |          ❌          |        ✅        |
+| Two-phase commit API               |       ✅       |          ❌          |        ✅        |
+| LISTEN/NOTIFY                      |       ✅       |   🟡 <sup>14</sup>   |        ✅        |
+| Multiple hosts                     |       ✅       |          ❌          |        ✅        |
+| ***Security***                     |                |                      |                  |
+| SSL/TLS                            |       ✅       |          ✅          |        ✅        |
+| Direct TLS negotiation (PG17)      |       ✅       |          ✅          |        ✅        |
+| Cleartext, MD5, SCRAM-SHA-256      |       ✅       |          ✅          |        ✅        |
+| SCRAM channel binding (`-PLUS`)    |       ❌       |      ✅ opt-in       |        ❌        |
+| GSSAPI / SSPI                      |       ❌       |          ❌          |        ❌        |
+| ***Beyond querying***              |                |                      |                  |
+| Logical replication                |       ❌       |   🟡 <sup>15</sup>   |  ✅ `subscribe`  |
+| Large object API                   |       ❌       |          ❌          |        ✅        |
+| Native libpq bindings              |       ❌       |    ✅ `pg-native`    |        ❌        |
 
 - <sup>1</sup> What it takes to reach the feature set above. postgrejs and postgres.js ship everything in the one
   package you import; `pg` needs `pg-cursor` for cursors, `pg-query-stream`
@@ -142,19 +142,17 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   count to give.
 - <sup>7</sup> Plus every array type, whose OIDs are read from the catalog when a
   connection opens rather than registered ahead of time.
-- <sup>8</sup> `json`, `jsonb` and `numeric` - and their array forms - have no
-  binary encoder and are sent as text.
-- <sup>9</sup> Its binary array decoder covers only `int4`, `int8` and `text` elements, so everything else falls back to
+- <sup>8</sup> Its binary array decoder covers only `int4`, `int8` and `text` elements, so everything else falls back to
   text anyway.
-- <sup>10</sup> A `types` array on the query config does reach the Parse message, but the same field doubles as the
+- <sup>9</sup> A `types` array on the query config does reach the Parse message, but the same field doubles as the
   result parser override, so any row-returning query throws inside pg's own handler. Verified usable only for statements
   that return no rows (pg 8.23.0).
-- <sup>11</sup> Core has the row-limit primitive; the cursor and stream APIs are separate packages.
-- <sup>12</sup> The core `Query` refuses COPY IN; `pg-copy-streams` is required.
-- <sup>13</sup> Connection-level timeouts only.
-- <sup>14</sup> Global or per-client (pg) and per-instance (postgres.js), but not per query.
-- <sup>15</sup> On the client only - the pool does not forward notifications.
-- <sup>16</sup> A connection flag exists, but nothing decodes the stream.
+- <sup>10</sup> Core has the row-limit primitive; the cursor and stream APIs are separate packages.
+- <sup>11</sup> The core `Query` refuses COPY IN; `pg-copy-streams` is required.
+- <sup>12</sup> Connection-level timeouts only.
+- <sup>13</sup> Global or per-client (pg) and per-instance (postgres.js), but not per query.
+- <sup>14</sup> On the client only - the pool does not forward notifications.
+- <sup>15</sup> A connection flag exists, but nothing decodes the stream.
 
 For how these three perform rather than what they support, see [`BENCHMARKS.md`](./BENCHMARKS.md).
 
