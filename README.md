@@ -71,76 +71,6 @@ Whether you're building a simple application or a complex enterprise system, Pos
 performance you need to succeed. Explore the capabilities of the library and elevate your PostgreSQL integration to the
 next level.
 
-## Example usage
-
-### Establish a single connection, execute a simple query
-
-```ts
-import { Connection } from 'postgrejs';
-// Create connection
-const connection = new Connection('postgres://localhost');
-// Connect to database server
-await connection.connect();
-
-// Execute query and fetch rows
-const result = await connection.query(
-  'select * from cities where name like $1',
-  { params: ['%york%'] });
-const rows: any[] = result.rows;
-// Do what ever you want with rows
-
-// Disconnect from server
-await connection.close(); 
-```
-
-### Establish a pooled connection, create a cursor
-
-```ts
-import { Pool } from 'postgrejs';
-
-// Create connection pool
-const db = new Pool({
-  host: 'postgres://localhost',
-  min: 1,
-  max: 10,
-  idleTimeoutMillis: 5000
-});
-
-// Execute query and fetch cursor
-const result = await db.query(
-  'select * from cities where name like $1',
-  { params: ['%york%'], cursor: true });
-
-// Walk through the cursor, and do whatever you want with fetched rows
-const cursor = result.cursor;
-let row;
-while ((row = await cursor.next())) {
-  console.log(row);
-}
-// Close cursor, (Send connection back to the pool)
-await cursor.close();
-
-// Disconnect all connections and shutdown pool
-await db.close(); 
-```
-
-### Using prepared statements
-
-```ts
-import { DataTypeOIDs } from 'postgrejs';
-
-// .....
-const statement = await connection.prepare(
-  'insert into my_table(id, name) values ($1, $2)', {
-    paramTypes: [DataTypeOIDs.Int4, DataTypeOIDs.Varchar]
-  });
-
-for (let i = 0; i < 100; i++) {
-  await statement.execute({ params: [i, ('name' + i)] });
-}
-await statement.close(); // When you done, close the statement to relase resources
-```
-
 ## Feature Comparison
 
 How PostgreJS compares to [`pg`](https://github.com/brianc/node-postgres) (node-postgres) and
@@ -184,7 +114,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Multiple hosts                     |       ✅       |          ❌          |        ✅        |
 | ***Security***                     |                |                      |                  |
 | SSL/TLS                            |       ✅       |          ✅          |        ✅        |
-| Direct TLS negotiation (PG17)      |       ❌       |          ✅          |        ✅        |
+| Direct TLS negotiation (PG17)      |       ✅       |          ✅          |        ✅        |
 | Cleartext, MD5, SCRAM-SHA-256      |       ✅       |          ✅          |        ✅        |
 | SCRAM channel binding (`-PLUS`)    |       ❌       |      ✅ opt-in       |        ❌        |
 | GSSAPI / SSPI                      |       ❌       |          ❌          |        ❌        |
