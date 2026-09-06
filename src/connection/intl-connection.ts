@@ -196,6 +196,34 @@ export class IntlConnection extends SafeEventEmitter {
     if (this.inTransaction) await this.execute('ROLLBACK');
   }
 
+  /**
+   * Ends the current transaction as a prepared one: it stops being tied to
+   * this session and waits under `name` until some connection - not
+   * necessarily this one, and not necessarily this process - finishes it
+   * with commitPrepared() or rollbackPrepared().
+   *
+   * Goes through _execute() rather than execute(): PREPARE TRANSACTION is
+   * not in the latter's list of transaction commands, so it would be
+   * wrapped in a savepoint whose RELEASE then fails, the session no longer
+   * being in a transaction by that point.
+   *
+   * Requires `max_prepared_transactions` above zero on the server, which is
+   * not the default; the server's own error says so if it is not.
+   */
+  async prepareTransaction(name: string): Promise<void> {
+    await this._execute('PREPARE TRANSACTION ' + escapeLiteral(name));
+  }
+
+  /** Commits a transaction left waiting by prepareTransaction(). */
+  async commitPrepared(name: string): Promise<void> {
+    await this._execute('COMMIT PREPARED ' + escapeLiteral(name));
+  }
+
+  /** Discards a transaction left waiting by prepareTransaction(). */
+  async rollbackPrepared(name: string): Promise<void> {
+    await this._execute('ROLLBACK PREPARED ' + escapeLiteral(name));
+  }
+
   async rollbackToSavepoint(name: string): Promise<void> {
     if (!(name && name.match(/^[a-zA-Z]\w+$/)))
       throw new Error(`Invalid savepoint "${name}`);

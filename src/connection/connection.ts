@@ -351,6 +351,44 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   /**
+   * Ends the current transaction as a prepared one, for two-phase commit.
+   *
+   * The transaction stops belonging to this session and waits under `name`
+   * until it is finished by commitPrepared() or rollbackPrepared() - which
+   * may run on another connection, in another process, after this one is
+   * gone. That is the point: it lets several databases agree to commit
+   * before any of them actually does.
+   *
+   * ```ts
+   * await connection.startTransaction();
+   * await connection.query(sql`insert into t values (${1})`);
+   * await connection.prepareTransaction('tx1');
+   * // ...later, anywhere:
+   * await other.commitPrepared('tx1');
+   * ```
+   *
+   * PostgreSQL ships with `max_prepared_transactions` at zero, so this
+   * fails until the server is configured for it.
+   */
+  prepareTransaction(name: string): Promise<void> {
+    return this._captureErrorStack(this._intlCon.prepareTransaction(name));
+  }
+
+  /**
+   * Commits a transaction left waiting by prepareTransaction(), by name.
+   * Runs outside any transaction and needs no connection to the session
+   * that prepared it.
+   */
+  commitPrepared(name: string): Promise<void> {
+    return this._captureErrorStack(this._intlCon.commitPrepared(name));
+  }
+
+  /** Discards a transaction left waiting by prepareTransaction(), by name. */
+  rollbackPrepared(name: string): Promise<void> {
+    return this._captureErrorStack(this._intlCon.rollbackPrepared(name));
+  }
+
+  /**
    * Starts transaction and creates a savepoint
    * @param name {string} - Name of the savepoint
    */
