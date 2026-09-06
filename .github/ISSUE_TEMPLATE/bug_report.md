@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Report unexpected or incorrect behavior
 title: ''
 labels: ''
 assignees: ''
@@ -11,28 +11,30 @@ assignees: ''
 A clear and concise description of what the bug is.
 
 **To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+A minimal, self-contained code snippet that reproduces the issue - the
+connection options used (redact any password/host you don't want public)
+and the query or API calls involved.
+
+```ts
+// e.g.
+const connection = new Connection({ host: 'localhost', database: 'test' });
+await connection.connect();
+const result = await connection.query('select 1');
+```
 
 **Expected behavior**
-A clear and concise description of what you expected to happen.
+What you expected to happen.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Actual behavior**
+What actually happened - include the full error message and stack trace,
+or the incorrect value returned, if applicable.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
-
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+**Environment**
+ - PostgreJS version: [e.g. 3.0.0]
+ - Node.js version: [e.g. 22.1.0]
+ - PostgreSQL version and provider: [e.g. PostgreSQL 16, self-hosted / RDS / Supabase / ...]
+ - OS: [e.g. Ubuntu 22.04]
 
 **Additional context**
-Add any other context about the problem here.
+Anything else relevant - connection pooling, SSL/TLS settings, whether it
+reproduces consistently or intermittently, etc.
