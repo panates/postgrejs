@@ -175,7 +175,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   ): Promise<ScriptResult> {
     // The Simple Query protocol carries no parameters, so a built statement
     // has its values written in as literals here rather than sent alongside.
-    if (sql instanceof QueryRequest)
+    if (typeof sql === 'object' && sql instanceof QueryRequest)
       sql = sql.stringify({ ...options, typeMap: options?.typeMap });
     this.emit('execute', sql, options);
     return withAbortSignal(
