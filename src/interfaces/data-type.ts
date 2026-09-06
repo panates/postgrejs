@@ -1,12 +1,12 @@
 import type {
   DecodeBinaryFunction,
+  DecodeTextBufferFunction,
+  DecodeTextFunction,
   EncodeAsNullFunction,
   EncodeBinaryFunction,
   EncodeCalculateDimFunction,
   EncodeTextFunction,
   OID,
-  DecodeTextBufferFunction,
-  DecodeTextFunction,
 } from '../types.js';
 
 export interface DataType {
@@ -19,7 +19,7 @@ export interface DataType {
   isType: (v: any) => boolean;
   decodeBinary: DecodeBinaryFunction;
   decodeText: DecodeTextFunction;
-  // Optional fast path: parses straight from the raw wire Buffer instead
+  // Optional fast path: decodes straight from the raw wire Buffer instead
   // of the pre-converted UTF-8 string decodeText receives. Only meaningful
   // for text-format scalar columns; see get-parsers.ts for how it's used.
   decodeTextBuffer?: DecodeTextBufferFunction;
