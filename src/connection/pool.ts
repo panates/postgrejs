@@ -79,7 +79,7 @@ export class Pool extends SafeEventEmitter {
     );
     const poolFactory: PoolFactory<IntlConnection> = {
       create: async () => {
-        /* istanbul ignore next */
+        /* c8 ignore start */
         if (this.listenerCount('debug')) {
           this.emit('debug', {
             location: 'Pool.factory.create',
@@ -87,10 +87,11 @@ export class Pool extends SafeEventEmitter {
             message: `new connection creating`,
           });
         }
+        /* c8 ignore stop */
         const intlCon = new IntlConnection(cfg);
         await intlCon.connect();
         intlCon.on('close', () => this._pool.destroy(intlCon));
-        /* istanbul ignore next */
+        /* c8 ignore start */
         if (this.listenerCount('debug')) {
           this.emit('debug', {
             location: 'Pool.factory.create',
@@ -98,10 +99,11 @@ export class Pool extends SafeEventEmitter {
             message: `[${intlCon.processID}] connection created`,
           });
         }
+        /* c8 ignore stop */
         return intlCon;
       },
       destroy: intlCon => {
-        /* istanbul ignore next */
+        /* c8 ignore start */
         if (this.listenerCount('debug')) {
           this.emit('debug', {
             location: 'Pool.factory.destroy',
@@ -109,10 +111,11 @@ export class Pool extends SafeEventEmitter {
             message: `[${intlCon.processID}] connection destroy`,
           });
         }
+        /* c8 ignore stop */
         return intlCon.close();
       },
       reset: (intlCon: IntlConnection) => {
-        /* istanbul ignore next */
+        /* c8 ignore start */
         if (this.listenerCount('debug')) {
           this.emit('debug', {
             location: 'Pool.factory.reset',
@@ -120,13 +123,14 @@ export class Pool extends SafeEventEmitter {
             message: `[${intlCon.processID}] connection reset`,
           });
         }
+        /* c8 ignore stop */
         intlCon.owner = undefined;
         intlCon.removeAllListeners();
         intlCon.once('close', () => this._pool.destroy(intlCon));
         (intlCon as any)._refCount = 0;
       },
       validate: async (intlCon: IntlConnection) => {
-        /* istanbul ignore next */
+        /* c8 ignore start */
         if (this.listenerCount('debug')) {
           this.emit('debug', {
             location: 'Pool.factory.validate',
@@ -134,6 +138,7 @@ export class Pool extends SafeEventEmitter {
             message: `[${intlCon.processID}] connection validate`,
           });
         }
+        /* c8 ignore stop */
         if (intlCon.state !== ConnectionState.READY)
           throw new Error('Connection is not active');
         await intlCon.execute('select 1;');
@@ -177,7 +182,7 @@ export class Pool extends SafeEventEmitter {
    */
   async acquire(): Promise<Connection> {
     const intlCon = await this._pool.acquire();
-    /* istanbul ignore next */
+    /* c8 ignore start */
     if (this.listenerCount('debug')) {
       this.emit('debug', {
         location: 'Pool.acquire',
@@ -185,8 +190,9 @@ export class Pool extends SafeEventEmitter {
         message: `[${intlCon.processID}] acquired`,
       });
     }
+    /* c8 ignore stop */
     const connection = new Connection(this, intlCon);
-    /* istanbul ignore next */
+    /* c8 ignore next */
     if (this.listenerCount('debug'))
       connection.on('debug', (...args) => this.emit('debug', ...args));
     if (this.listenerCount('execute'))
@@ -305,8 +311,20 @@ export class Pool extends SafeEventEmitter {
   async listen(channel: string, callback: NotificationCallback) {
     if (!/^[A-Z]\w+$/i.test(channel))
       throw new TypeError(`Invalid channel name`);
+    // Bug: _initNotificationConnection() only ever bootstraps the shared
+    // connection and registers every channel known at that moment - it
+    // returns immediately once that connection already exists, so a second,
+    // different channel added afterwards was recorded here but never
+    // reached the server at all (same root cause fixed in
+    // Connection.listen(), one layer up).
+    const alreadyListening =
+      !!this._notificationListeners.listenerCount(channel);
     this._notificationListeners.on(channel, callback);
-    await this._initNotificationConnection();
+    if (!this._notificationConnection) {
+      await this._initNotificationConnection();
+    } else if (!alreadyListening) {
+      await this._notificationConnection.listen(channel, callback);
+    }
   }
 
   async unListen(channel: string) {
@@ -364,7 +382,7 @@ export class Pool extends SafeEventEmitter {
     let i: number;
     for (i = 0; i < l; i++) {
       slot = slots[i];
-      /* istanbul ignore next - dropped on sight, so rarely observable */
+      /* c8 ignore next */
       if (slot.connection?.inTransaction) continue;
       if (!best || slot.load < best.load) best = slot;
     }
@@ -441,7 +459,15 @@ export class Pool extends SafeEventEmitter {
     const reConnect = async () => {
       setTimeout(() => {
         if (!this._notificationListeners.eventNames().length) return;
-        conn.connect().catch(() => reConnect());
+        // Bug: a successful reconnect never re-issued LISTEN for anything -
+        // Connection.close() clears `conn`'s own _notificationListeners,
+        // and registerEvents() (which reads the Pool's, a separate
+        // instance) was only ever called once, right after the first
+        // connect(). A connection drop silently ended every subscription.
+        conn
+          .connect()
+          .then(registerEvents)
+          .catch(() => reConnect());
       }, 500).unref();
     };
 

@@ -49,6 +49,16 @@ describe('Connection', () => {
       await connection.connect();
       expect(connection.state).toStrictEqual(ConnectionState.READY);
     });
+
+    it('should accept password as an (async) function', async () => {
+      const user = process.env.LOGIN_SCRAM;
+      connection = new Connection({
+        user,
+        password: async () => user as string,
+      });
+      await connection.connect();
+      expect(connection.state).toStrictEqual(ConnectionState.READY);
+    });
   }
 
   it('should get process id', async () => {
@@ -323,5 +333,24 @@ describe('Connection', () => {
       expect(conn.state).toStrictEqual(ConnectionState.READY);
     }
     expect(closed).toStrictEqual(true);
+  });
+
+  it('should reject a call whose own capture callback throws synchronously, and stay usable afterwards', async () => {
+    connection = new Connection();
+    await connection.connect();
+    const socket = (connection as any)._intlCon.socket;
+    let error: any;
+    try {
+      await socket.sendQueryMessage('select 1', () => {
+        throw new Error('boom-from-callback');
+      });
+    } catch (e) {
+      error = e;
+    }
+    expect(error?.message).toStrictEqual('boom-from-callback');
+    // The synchronous throw inside PgSocket's dispatch loop must not leave
+    // the connection stuck - the next, ordinary query still has to work.
+    const r = await connection.query('select 2 as v');
+    expect(r.rows?.[0][0]).toStrictEqual(2);
   });
 });

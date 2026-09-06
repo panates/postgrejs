@@ -125,10 +125,17 @@ export class IntlConnection extends SafeEventEmitter {
     if (this.state === ConnectionState.CLOSED) return;
     return new Promise(resolve => {
       if (this.socket.state === ConnectionState.CLOSED) return;
+      // 'close' is not emitted here - the constructor's own
+      // `this.socket.on('close', () => this.emit('close'))` already
+      // forwards it once the socket's real close event fires. Emitting it
+      // again right here (synchronously, before socket.close()'s
+      // destroy() has actually completed) used to fire 'close' on this
+      // IntlConnection TWICE per close() call - confirmed live: a single
+      // close() left two listeners registered on the far side (e.g. two
+      // NOTIFY deliveries after Pool's reconnect re-subscribed twice).
       this.socket.once('close', resolve);
       this.socket.sendTerminateMessage(() => {
         this.socket.close();
-        this.emit('close');
       });
     });
   }

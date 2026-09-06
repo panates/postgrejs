@@ -112,7 +112,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   async close(terminateWait?: number): Promise<void> {
     this._notificationListeners?.removeAllListeners();
     if (this.state === ConnectionState.CLOSED || this._closing) return;
-    /* istanbul ignore next */
+    /* c8 ignore start */
     if (this.listenerCount('debug')) {
       this.emit('debug', {
         location: 'Connection.close',
@@ -120,6 +120,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         message: `[${this.processID}] closing`,
       });
     }
+    /* c8 ignore stop */
 
     this._closing = true;
     if (
@@ -130,7 +131,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       const startTime = Date.now();
       return this._captureErrorStack(
         new Promise((resolve, reject) => {
-          /* istanbul ignore next */
+          /* c8 ignore start */
           if (this.listenerCount('debug')) {
             this.emit('debug', {
               location: 'Connection.close',
@@ -138,6 +139,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
               message: `[${this.processID}] waiting active queries`,
             });
           }
+          /* c8 ignore stop */
           const timer = setInterval(() => {
             if (
               this._intlCon.refCount <= 0 ||
@@ -145,7 +147,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
             ) {
               clearInterval(timer);
               if (this._intlCon.refCount > 0) {
-                /* istanbul ignore next */
+                /* c8 ignore start */
                 if (this.listenerCount('debug')) {
                   this.emit('debug', {
                     location: 'Connection.close',
@@ -153,6 +155,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
                     message: `[${this.processID}] terminate`,
                   });
                 }
+                /* c8 ignore stop */
                 this.emit('terminate');
               }
               this._close().then(resolve).catch(reject);
@@ -204,7 +207,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       sql = sql.sql;
     }
     this._intlCon.assertConnected();
-    /* istanbul ignore next */
+    /* c8 ignore start */
     if (this.listenerCount('debug')) {
       this.emit('debug', {
         location: 'Connection.query',
@@ -213,6 +216,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         sql,
       });
     }
+    /* c8 ignore stop */
     this.emit('query', sql, options);
     return withAbortSignal(
       options?.signal,
@@ -242,7 +246,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * @param sql {string} - A COPY ... TO STDOUT statement
    */
   async copyTo(sql: string): Promise<CopyToStream> {
-    /* istanbul ignore next */
+    /* c8 ignore start */
     if (this.listenerCount('debug')) {
       this.emit('debug', {
         location: 'Connection.copyTo',
@@ -251,6 +255,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         sql,
       });
     }
+    /* c8 ignore stop */
     this.emit('execute', sql);
     return await this._captureErrorStack(this._intlCon.copyTo(sql)).catch(
       (e: DatabaseError) => {
@@ -277,7 +282,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * @param sql {string} - A COPY ... FROM STDIN statement
    */
   async copyFrom(sql: string): Promise<CopyFromStream> {
-    /* istanbul ignore next */
+    /* c8 ignore start */
     if (this.listenerCount('debug')) {
       this.emit('debug', {
         location: 'Connection.copyFrom',
@@ -286,6 +291,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         sql,
       });
     }
+    /* c8 ignore stop */
     this.emit('execute', sql);
     return await this._captureErrorStack(this._intlCon.copyFrom(sql)).catch(
       (e: DatabaseError) => {
@@ -303,7 +309,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     sql: string,
     options?: StatementPrepareOptions,
   ): Promise<PreparedStatement> {
-    /* istanbul ignore next */
+    /* c8 ignore start */
     if (this.listenerCount('debug')) {
       this.emit('debug', {
         location: 'Connection.prepare',
@@ -312,6 +318,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         sql,
       });
     }
+    /* c8 ignore stop */
     return await this._captureErrorStack(
       PreparedStatement.prepare(this, sql, options),
     );
@@ -471,9 +478,15 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         this._handleNotification(msg),
       );
     }
-    const registered = !!this._notificationListeners?.eventNames().length;
+    // Bug: this used to check whether ANY channel already had a listener,
+    // not this one specifically - so a second, different channel added
+    // after the first never got its own LISTEN sent at all, and never
+    // received a notification for it (verified live: only the first
+    // channel ever showed up in pg_stat_activity's query text).
+    const alreadyListening =
+      !!this._notificationListeners.listenerCount(channel);
     this._notificationListeners.on(channel, callback);
-    if (!registered)
+    if (!alreadyListening)
       await this._captureErrorStack(this.query('LISTEN ' + channel));
   }
 

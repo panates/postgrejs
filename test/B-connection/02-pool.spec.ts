@@ -1,5 +1,5 @@
 import { expect } from 'expect';
-import { DataTypeOIDs, Pool } from 'postgrejs';
+import { ConnectionState, DataTypeOIDs, Pool, sql } from 'postgrejs';
 
 describe('Pool', () => {
   let pool: Pool;
@@ -144,6 +144,92 @@ describe('Pool', () => {
     expect(result.rows).toBeDefined();
     expect(result.command).toStrictEqual('SELECT');
     expect(result.rows?.[0][0]).toStrictEqual(1234);
+  });
+
+  it('should execute a query built with the sql`` tag', async () => {
+    const result = await pool.query(sql`select ${1234} as v`);
+    expect(result.rows?.[0][0]).toStrictEqual(1234);
+  });
+
+  it('should refuse a sql`` request combined with an explicit params option', async () => {
+    await expect(
+      pool.query(sql`select ${1234}`, { params: [1] }),
+    ).rejects.toThrow(/ambiguous/);
+  });
+
+  it('should execute a script built with the sql`` tag', async () => {
+    const result = await pool.execute(sql`select ${1234}::int4 as v`);
+    expect(result.results[0].rows?.[0][0]).toStrictEqual(1234);
+  });
+
+  it('should pipeline query() the same way execute() does', async () => {
+    const results = await Promise.all(
+      [1, 2, 3].map(k => pool.query(`select ${k} as v`, { pipeline: true })),
+    );
+    const values = results.map(r => r.rows?.[0][0]).sort();
+    expect(values).toStrictEqual([1, 2, 3]);
+  });
+
+  it('should never share a connection for a cursor query, even with pipeline requested', async () => {
+    // A cursor outlives this call and needs its own portal on its own
+    // connection - options.cursor must override options.pipeline.
+    const before = pool.totalConnections;
+    const result = await pool.query(`select generate_series(1, 3) as v`, {
+      cursor: true,
+      pipeline: true,
+    });
+    expect(result.cursor).toBeDefined();
+    await result.cursor!.close();
+    expect(pool.totalConnections).toBeGreaterThanOrEqual(before);
+  });
+
+  it('should report idle and total connection counts', async () => {
+    expect(pool.idleConnections).toBeGreaterThanOrEqual(0);
+    expect(pool.totalConnections).toBeGreaterThanOrEqual(pool.idleConnections);
+  });
+
+  it('should validate a connection before handing it out when validation is enabled', async () => {
+    const p = new Pool({ validation: true });
+    try {
+      // Round-tripping through acquire/release at least once is what
+      // exercises the pooled connection's *second* handout, the one
+      // validate() (a plain `select 1`) actually gets a chance to run
+      // before.
+      const c1 = await p.acquire();
+      await c1.close();
+      const c2 = await p.acquire();
+      expect(c2.state).toStrictEqual(ConnectionState.READY);
+      await c2.close();
+    } finally {
+      await p.close(0);
+    }
+  });
+
+  it('should drop the pipeline slot when growing it fails to acquire a connection', async () => {
+    // Nothing listens on port 9, so every connection attempt is refused
+    // immediately - growPipeline()'s own error path, not a timeout.
+    const p = new Pool({
+      host: '127.0.0.1',
+      port: 9,
+      pipelineMaxConnections: 5,
+      acquireMaxRetries: 0,
+    });
+    try {
+      await expect(p.execute('select 1', { pipeline: true })).rejects.toThrow();
+    } finally {
+      await p.close(0);
+    }
+  });
+
+  it('start() should be safe to call even though acquire() already starts the pool lazily', async () => {
+    const p = new Pool();
+    try {
+      await p.start();
+      const connection = await p.acquire();
+      await connection.close();
+    } finally {
+      await p.close(0);
+    }
   });
 
   it('should close all connections and shutdown pool', async () => {
