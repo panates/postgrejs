@@ -90,10 +90,10 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Extended Query protocol            |       ✅       |          ✅          |        ✅        |
 | Text wire format                   |       ✅       |          ✅          |        ✅        |
 | Binary wire format                 |       ✅       |   🟡 <sup>4</sup>    | ❌ <sup>5</sup>  |
-| Text encoders                      |       55       | generic <sup>6</sup> |        14        |
-| Text decoders                      |       55       |          44          | 12 <sup>7</sup>  |
-| Binary encoders                    |       55       |          ❌          |        ❌        |
-| Binary decoders                    |       55       |          16          |        ❌        |
+| Text encoders                      |       56       | generic <sup>6</sup> |        14        |
+| Text decoders                      |       56       |          44          | 12 <sup>7</sup>  |
+| Binary encoders                    |       56       |          ❌          |        ❌        |
+| Binary decoders                    |       56       |          16          |        ❌        |
 | Per-column format selection        |       ✅       |          ❌          |        ❌        |
 | Multidimensional arrays            |   ✅ binary    | 🟡 text <sup>8</sup> |     🟡 text      |
 | Multi-statement scripts            |       ✅       |          ✅          |        ✅        |
@@ -154,13 +154,6 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 - <sup>14</sup> On the client only - the pool does not forward notifications.
 - <sup>15</sup> A connection flag exists, but nothing decodes the stream.
 
-For how these three perform rather than what they support, see [`BENCHMARKS.md`](./BENCHMARKS.md).
-
-For how these three perform rather than what they support, see [`BENCHMARKS.md`](./BENCHMARKS.md).
-
-For how these three perform rather than what they support, see [`BENCHMARKS.md`](./BENCHMARKS.md).
-
-For how these three perform rather than what they support, see [`BENCHMARKS.md`](./BENCHMARKS.md).
 
 ## Benchmarks
 
