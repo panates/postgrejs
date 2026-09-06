@@ -16,7 +16,6 @@ export function abortError(signal: AbortSignal, cause?: unknown): Error {
           name: 'AbortError',
         });
   if (cause !== undefined && (err as { cause?: unknown }).cause === undefined) {
-    /* istanbul ignore next - a frozen reason is possible but not typical */
     try {
       (err as { cause?: unknown }).cause = cause;
     } catch {

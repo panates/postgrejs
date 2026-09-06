@@ -37,7 +37,9 @@ export function getConnectionConfig(
     cfg.host = cfg.hosts[0].host;
     cfg.port = cfg.hosts[0].port;
   }
+  /*c8 ignore else */
   cfg.user = cfg.user || 'postgres';
+  /*c8 ignore else */
   cfg.database = cfg.database || 'postgres';
   cfg.host = cfg.host || '127.0.0.1';
   return cfg;

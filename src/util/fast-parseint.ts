@@ -1,5 +1,5 @@
 export function fastParseInt(str: string | number): number {
-  /* istanbul ignore next */
+  /* c8 ignore next */
   if (typeof str === 'number') return Math.floor(str);
   // noinspection SuspiciousTypeOfGuard
   if (typeof str !== 'string') return NaN;
