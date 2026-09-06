@@ -26,6 +26,10 @@ export const CircleType: DataType = {
     } as Circle;
   },
 
+  encodeText(v: Circle): string {
+    return `<(${v.x},${v.y}),${v.r}>`;
+  },
+
   encodeBinary(buf: SmartBuffer, v: Circle): void {
     buf.writeDoubleBE(v.x);
     buf.writeDoubleBE(v.y);

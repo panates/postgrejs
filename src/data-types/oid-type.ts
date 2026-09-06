@@ -13,6 +13,10 @@ export const OidType: DataType = {
     return v.readUInt32BE(offset);
   },
 
+  encodeText(v: any): string {
+    return '' + v;
+  },
+
   encodeBinary(buf: SmartBuffer, v: number): void {
     buf.writeUInt32BE(fastParseInt(v));
   },

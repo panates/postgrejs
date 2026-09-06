@@ -13,6 +13,10 @@ export const Int2Type: DataType = {
     return v.readInt16BE(offset);
   },
 
+  encodeText(v: any): string {
+    return '' + v;
+  },
+
   encodeBinary(buf: SmartBuffer, v: number): void {
     buf.writeInt16BE(fastParseInt(v));
   },

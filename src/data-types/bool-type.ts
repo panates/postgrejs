@@ -12,6 +12,13 @@ export const BoolType: DataType = {
     return !!v.readUInt8(offset);
   },
 
+  // 't'/'f', the form decodeText above reads and the server itself
+  // emits - encodeText and decodeText are a public pair and have to stay
+  // each other's inverse.
+  encodeText(v: any): string {
+    return v ? 't' : 'f';
+  },
+
   encodeBinary(buf: SmartBuffer, v: boolean): void {
     buf.writeInt8(v ? 1 : 0);
   },

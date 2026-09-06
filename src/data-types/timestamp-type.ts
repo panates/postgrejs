@@ -2,6 +2,7 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
+import { formatTimestamp } from '../util/format-datetime.js';
 import { parseDateTime } from '../util/parse-datetime.js';
 
 const timeShift = 946684800000;
@@ -42,6 +43,10 @@ export const TimestampType: DataType = {
       );
     }
     return fetchAsString ? dateToTimestampString(d) : d;
+  },
+
+  encodeText(v: any, options: DataMappingOptions): string {
+    return formatTimestamp(v, options);
   },
 
   encodeBinary(

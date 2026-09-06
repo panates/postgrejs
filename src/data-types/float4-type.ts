@@ -12,6 +12,11 @@ export const Float4Type: DataType = {
     return v.readFloatBE(offset);
   },
 
+  // Infinity/NaN stringify to the words PostgreSQL itself uses.
+  encodeText(v: any): string {
+    return '' + v;
+  },
+
   encodeBinary(buf: SmartBuffer, v: number | string): void {
     buf.writeFloatBE(typeof v === 'number' ? v : parseFloat(v));
   },

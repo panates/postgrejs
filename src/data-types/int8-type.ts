@@ -20,6 +20,10 @@ export const Int8Type: DataType = {
     return v >= -maxSafeInteger && v <= maxSafeInteger ? Number(v) : v;
   },
 
+  encodeText(v: any): string {
+    return '' + v;
+  },
+
   encodeBinary(buf: SmartBuffer, v: bigint | number): void {
     buf.writeBigInt64BE(v);
   },

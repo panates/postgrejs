@@ -25,6 +25,10 @@ export const UuidType: DataType = {
     );
   },
 
+  encodeText(v: any): string {
+    return '' + v;
+  },
+
   encodeBinary(buf: SmartBuffer, v: string): void {
     if (!GUID_PATTERN.test(v))
       throw new Error(`"${v}" is not a valid guid value`);

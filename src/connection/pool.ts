@@ -13,6 +13,7 @@ import type { ScriptResult } from '../interfaces/script-result.js';
 import type { StatementPrepareOptions } from '../interfaces/statement-prepare-options.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import { getConnectionConfig } from '../util/connection-config.js';
+import { QueryRequest } from '../util/sql-tag.js';
 import { startsCopy, startsTransaction } from '../util/starts-transaction.js';
 import { Connection, type NotificationCallback } from './connection.js';
 import { getIntlConnection, IntlConnection } from './intl-connection.js';
@@ -209,15 +210,17 @@ export class Pool extends SafeEventEmitter {
    * Executes a script
    */
   async execute(
-    sql: string,
+    sql: string | QueryRequest,
     options?: PoolScriptExecuteOptions,
   ): Promise<ScriptResult> {
+    if (sql instanceof QueryRequest)
+      sql = sql.stringify({ ...options, typeMap: options?.typeMap });
     const slot = this._canPipeline(
-        options?.pipeline,
-        sql,
-        options?.autoCommit,
-        options?.signal,
-      )
+      options?.pipeline,
+      sql,
+      options?.autoCommit,
+      options?.signal,
+    )
       ? this._acquireShared()
       : undefined;
     if (!slot) {
@@ -241,7 +244,18 @@ export class Pool extends SafeEventEmitter {
   /**
    * Executes a query
    */
-  async query(sql: string, options?: PoolQueryOptions): Promise<QueryResult> {
+  async query(
+    sql: string | QueryRequest,
+    options?: PoolQueryOptions,
+  ): Promise<QueryResult> {
+    if (sql instanceof QueryRequest) {
+      if (options?.params)
+        throw new TypeError(
+          'A statement built with sql`` carries its own parameters; passing `params` as well is ambiguous',
+        );
+      options = { ...options, params: sql.params };
+      sql = sql.sql;
+    }
     // A cursor hands the caller something that outlives this call and must
     // keep its own portal on its own connection, so it can never share.
     const slot =

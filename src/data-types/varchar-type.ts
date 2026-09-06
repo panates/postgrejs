@@ -11,6 +11,10 @@ export const VarcharType: DataType = {
     return v.toString('utf8', offset);
   },
 
+  encodeText(v: any): string {
+    return '' + v;
+  },
+
   encodeBinary(buf: SmartBuffer, v: string): void {
     buf.writeString('' + v, 'utf8');
   },

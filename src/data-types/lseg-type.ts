@@ -28,6 +28,10 @@ export const LsegType: DataType = {
     };
   },
 
+  encodeText(v: Rectangle): string {
+    return `[(${v.x1},${v.y1}),(${v.x2},${v.y2})]`;
+  },
+
   encodeBinary(buf: SmartBuffer, v: Rectangle): void {
     buf.writeDoubleBE(v.x1);
     buf.writeDoubleBE(v.y1);

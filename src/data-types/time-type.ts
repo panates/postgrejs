@@ -2,6 +2,7 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
+import { formatTime } from '../util/format-datetime.js';
 import { parseTime, STRICT_TIME_PATTERN } from '../util/parse-time.js';
 
 const timeMul = 4294967296;
@@ -34,6 +35,10 @@ export const TimeType: DataType = {
       );
     }
     return fetchAsString ? dateToTimeString(d) : d;
+  },
+
+  encodeText(v: any, options: DataMappingOptions): string {
+    return formatTime(v, options);
   },
 
   encodeBinary(

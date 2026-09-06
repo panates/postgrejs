@@ -11,6 +11,7 @@ import type { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { Maybe, OID } from '../types.js';
 import { withAbortSignal } from '../util/abort-signal.js';
+import { QueryRequest } from '../util/sql-tag.js';
 import { BindParam } from './bind-param.js';
 import type { CopyFromStream, CopyToStream } from './copy-stream.js';
 import { IntlConnection } from './intl-connection.js';
@@ -168,9 +169,13 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * @param options {ScriptExecuteOptions} - Execute options
    */
   async execute(
-    sql: string,
+    sql: string | QueryRequest,
     options?: ScriptExecuteOptions,
   ): Promise<ScriptResult> {
+    // The Simple Query protocol carries no parameters, so a built statement
+    // has its values written in as literals here rather than sent alongside.
+    if (sql instanceof QueryRequest)
+      sql = sql.stringify({ ...options, typeMap: options?.typeMap });
     this.emit('execute', sql, options);
     return withAbortSignal(
       options?.signal,
@@ -184,7 +189,18 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     );
   }
 
-  async query(sql: string, options?: QueryOptions): Promise<QueryResult> {
+  async query(
+    sql: string | QueryRequest,
+    options?: QueryOptions,
+  ): Promise<QueryResult> {
+    if (sql instanceof QueryRequest) {
+      if (options?.params)
+        throw new TypeError(
+          'A statement built with sql`` carries its own parameters; passing `params` as well is ambiguous',
+        );
+      options = { ...options, params: sql.params };
+      sql = sql.sql;
+    }
     this._intlCon.assertConnected();
     /* istanbul ignore next */
     if (this.listenerCount('debug')) {
@@ -196,8 +212,10 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       });
     }
     this.emit('query', sql, options);
-    return withAbortSignal(options?.signal, () => this._intlCon.cancel(), () =>
-      this._query(sql, options),
+    return withAbortSignal(
+      options?.signal,
+      () => this._intlCon.cancel(),
+      () => this._query(sql, options),
     );
   }
 

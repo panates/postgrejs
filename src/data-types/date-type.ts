@@ -2,6 +2,7 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
+import { formatDate } from '../util/format-datetime.js';
 import { parseDate } from '../util/parse-datetime.js';
 
 const timeShift = 946684800000;
@@ -26,6 +27,10 @@ export const DateType: DataType = {
     if (fetchAsString || !options.utcDates)
       d = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
     return fetchAsString ? dateToDateString(d) : d;
+  },
+
+  encodeText(v: any, options: DataMappingOptions): string {
+    return formatDate(v, options);
   },
 
   encodeBinary(

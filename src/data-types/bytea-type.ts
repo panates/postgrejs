@@ -12,6 +12,11 @@ export const ByteaType: DataType = {
     return offset ? v.subarray(offset) : v;
   },
 
+  // The hex form PostgreSQL has emitted by default since 9.0.
+  encodeText(v: Buffer): string {
+    return '\\x' + v.toString('hex');
+  },
+
   encodeBinary(buf: SmartBuffer, v: Buffer): void {
     buf.writeBuffer(v);
   },

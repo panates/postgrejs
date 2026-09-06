@@ -20,6 +20,10 @@ export const PointType: DataType = {
     };
   },
 
+  encodeText(v: Point): string {
+    return `(${v.x},${v.y})`;
+  },
+
   encodeBinary(buf: SmartBuffer, v: Point): void {
     buf.writeDoubleBE(v.x);
     buf.writeDoubleBE(v.y);
