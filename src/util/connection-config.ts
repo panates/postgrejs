@@ -85,6 +85,9 @@ export function parseConnectionString(str: string): ConnectionConfiguration {
   if (multiHost) str = str.replace(hostPart, hostPart.split(',')[0]);
 
   const parsed = new URL(str);
+  // URLSearchParams.get() only ever returns string | null, never an array,
+  // so the array branch below is unreachable in practice; kept defensively
+  // since the parameter type is technically wider.
   const getFirst = (v: string | string[] | null) =>
     typeof v === 'string' ? v : Array.isArray(v) ? v[0] : '';
 

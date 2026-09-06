@@ -53,6 +53,55 @@ describe('Parse connection string', () => {
       expect(cfg.password).toStrictEqual('1234');
       expect(cfg.user).toStrictEqual('me');
     });
+
+    it('should default to an empty host when the URL has none', () => {
+      const cfg = parseConnectionString('postgres:///mydb');
+      expect(cfg.host).toStrictEqual('');
+      expect(cfg.database).toStrictEqual('mydb');
+    });
+
+    it('should treat a pathless socket URL as the root path', () => {
+      const cfg = parseConnectionString('socket://somepath');
+      expect(cfg.host).toStrictEqual('/somepath');
+    });
+
+    it('should get schema from query', () => {
+      const cfg = parseConnectionString('postgres://h/db?schema=myschema');
+      expect(cfg.schema).toStrictEqual('myschema');
+    });
+
+    it('should get application_name from query', () => {
+      const cfg = parseConnectionString(
+        'postgres://h/db?application_name=myapp',
+      );
+      expect(cfg.applicationName).toStrictEqual('myapp');
+    });
+
+    it('should read a supported channel_binding value', () => {
+      const cfg = parseConnectionString(
+        'postgres://h/db?channel_binding=require',
+      );
+      expect(cfg.channelBinding).toStrictEqual('require');
+    });
+
+    it('should refuse an unsupported channel_binding value', () => {
+      expect(() =>
+        parseConnectionString('postgres://h/db?channel_binding=sideways'),
+      ).toThrow(/channel_binding "sideways" is not supported/);
+    });
+
+    it('should read a supported sslnegotiation value', () => {
+      const cfg = parseConnectionString(
+        'postgres://h/db?sslnegotiation=direct',
+      );
+      expect(cfg.sslNegotiation).toStrictEqual('direct');
+    });
+
+    it('should refuse an unsupported sslnegotiation value', () => {
+      expect(() =>
+        parseConnectionString('postgres://h/db?sslnegotiation=sideways'),
+      ).toThrow(/sslnegotiation "sideways" is not supported/);
+    });
   });
 
   it('Get connection config from environment variables', () => {
@@ -119,6 +168,17 @@ describe('Parse connection string', () => {
       expect(() =>
         getConnectionConfig('postgres://a/db?target_session_attrs=sideways'),
       ).toThrow(/is not supported/);
+    });
+
+    it('should not treat an already-populated hosts list as a comma-separated host string', () => {
+      delete process.env.PGPORT;
+      const cfg = getConnectionConfig({
+        hosts: [{ host: 'a' }, { host: 'b' }],
+      });
+      expect(cfg.hosts).toStrictEqual([
+        { host: 'a', port: undefined },
+        { host: 'b', port: undefined },
+      ]);
     });
   });
 });
