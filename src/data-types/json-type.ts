@@ -25,8 +25,10 @@ export const JsonType: DataType = {
   },
 
   encodeText(v): string {
-    if (typeof v === 'object' || typeof v === 'bigint')
-      return JSON.stringify(v);
+    // JSON.stringify() cannot serialize a BigInt itself (it throws), so a
+    // bigint is written directly as a bare numeric literal instead.
+    if (typeof v === 'bigint') return v.toString();
+    if (typeof v === 'object') return JSON.stringify(v);
     if (typeof v === 'boolean') return v ? 'true' : 'false';
     return '' + v;
   },
