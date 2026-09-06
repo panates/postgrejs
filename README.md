@@ -1,5 +1,5 @@
 <!--suppress HtmlDeprecatedAttribute -->
-<p align="center">¨
+<p align="center">
   <a href="https://postgrejs.panates.com/" target="blank">
     <img src="https://postgrejs.panates.com/img/postgrejs-header-block.png" width="800" alt="PostgreJS Logo" />
   </a>
@@ -10,9 +10,40 @@
 [![CI Tests][ci-test-image]][ci-test-url]
 [![Test Coverage][coveralls-image]][coveralls-url]
 
-PostgreJS is an enterprise-level PostgreSQL client for Node.js. It is designed to provide a robust and efficient
-interface to PostgreSQL databases, ensuring high performance and reliability for enterprise applications. Written
-entirely in TypeScript, it leverages modern JavaScript features to deliver a seamless development experience.
+## Why PostgreJS?
+
+**PostgreJS** is a PostgreSQL driver for Node.js built from the wire protocol up - no `libpq`, no native bindings,
+just TypeScript talking directly to PostgreSQL. That from-scratch design is also what makes it fast and light: every
+byte on the wire is handled by code written for exactly that purpose, with a binary-first protocol, shared buffers,
+and row/column decoding pipelines built to avoid unnecessary allocation, instead of generic string plumbing bolted
+onto a client meant for text.
+
+### ⚡ Blazing Fast
+
+The numbers back it up. In PostgreJS's own benchmark suite - run head-to-head against
+[`pg`](https://github.com/brianc/node-postgres) (node-postgres) and [`postgres`](https://github.com/porsager/postgres)
+(postgres.js) on identical workloads - PostgreJS opens a connection up to **3x faster** than postgres.js and
+**2x faster** than pg, pushes pooled queries through up to **6.6x faster** than postgres.js, and fetches large
+result sets nearly **5x faster** than pg. It's also the only one of the three with a complete binary wire protocol
+across every data type, rather than falling back to text for most of them. See
+[`doc/BENCHMARKS.md`](doc/BENCHMARKS.md) for the full methodology and every scenario.
+
+### 🪶 Small Footprint
+
+The same benchmarks show it using a fraction of the memory: peak heap usage typically runs **3-7x lower** than both
+pg and postgres.js - as much as **7x lower** when streaming cursors or fetching large arrays - and it spends a
+fraction of the time either of them does in garbage collection. Shared buffers and decode paths that read values
+straight out of the wire buffer leave far less garbage behind per row, so there's less for the GC to clean up in
+the first place.
+
+### 🔋 Batteries Included
+
+Speed and memory aside, PostgreJS is also the most complete driver of the three: a dynamic `sql` tag for
+composable, parameterized SQL, per-query type mapping, and TC39 Explicit Resource Management (`using`) support are
+unique to it, alongside a feature set most drivers spread across several add-on packages - connection pooling,
+prepared statements, server-side cursors, LISTEN/NOTIFY, bulk `COPY` streams, logical replication, large objects,
+two-phase commit, multi-host failover, and SCRAM channel binding - all in the one package, written in
+strictly-typed TypeScript from the ground up.
 
 ## Installation
 
@@ -27,15 +58,12 @@ usage.
 
 ## Library Overview
 
-PostgreJS is a pure JavaScript library, meticulously crafted with TypeScript to offer a strictly typed, well-structured,
-and highly maintainable codebase. Key highlights include:
-
-- **Language:** Pure modern JavaScript library.
-- **Strictly Typed:** Completely written in TypeScript, offering strong typing and enhanced development experience.
+- **Language:** Pure JavaScript, with no native/binary dependencies to compile or ship.
+- **Strictly typed:** Written entirely in TypeScript, with types shipped alongside the package.
 - **Modern module format:** Ships as ESM; Node 20.19+/22.12+ can `require()` it from CommonJS code as well.
-- **Comprehensive Testing:** Rigorously tested to ensure stability and reliability in production environments.
-- **Promise-Based API:** Asynchronous operations are handled with a Promise-based API, promoting clean and efficient
-  asynchronous code.
+- **Promise-based API:** Every asynchronous operation returns a promise - no callbacks to wrangle.
+- **Rigorously tested:** A test suite covering the wire protocol, every data type, and connection-handling edge case,
+  run on every push against PostgreSQL 12 through 18.
 
 ## Features
 
@@ -73,15 +101,11 @@ and highly maintainable codebase. Key highlights include:
   ([TC39 Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management)), ensuring
   efficient resource cleanup.
 
-Whether you're building a simple application or a complex enterprise system, PostgreJS provides the features and
-performance you need to succeed. Explore the capabilities of the library and elevate your PostgreSQL integration to the
-next level.
-
 ## Feature Comparison
 
 How PostgreJS compares to [`pg`](https://github.com/brianc/node-postgres) (node-postgres) and
 [`postgres`](https://github.com/porsager/postgres) (postgres.js). Every row was checked against the libraries' own
-source rather than their documentation — versions compared: **postgrejs 2.23.1, pg 8.23.0, postgres.js 3.4.9**. ✅ built
+source rather than their documentation — versions compared: **PostgreJS 2.23.1, pg 8.23.0, postgres.js 3.4.9**. ✅ built
 in · 🟡 partial or needs a separate package · ❌ not supported.
 
 | Feature                           |       PostgreJS        |          pg           |   postgres.js    |
@@ -140,7 +164,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Large object API                  |           ✅           |          ❌           |        ✅        |
 | Native libpq bindings             |           ❌           |   🟡 <sup>20</sup>    |        ❌        |
 
-- <sup>1</sup> What it takes to reach the feature set above. postgrejs and postgres.js ship everything in the one
+- <sup>1</sup> What it takes to reach the feature set above. PostgreJS and postgres.js ship everything in the one
   package you import; `pg` needs `pg-cursor` for cursors, `pg-query-stream`
   for row streams and `pg-copy-streams` for COPY, each installed and versioned separately.
 - <sup>2</sup> Types come from the separate `@types/pg`; only the `pg-protocol` and
@@ -182,12 +206,12 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 
 ## Benchmarks
 
-postgrejs implements the full PostgreSQL wire protocol from scratch, with no dependency on `pg`/libpq.
+PostgreJS implements the full PostgreSQL wire protocol from scratch, with no dependency on `pg`/libpq.
 [`doc/BENCHMARKS.md`](doc/BENCHMARKS.md) compares it against `pg` (node-postgres) and `postgres` (postgres.js)
 across connection setup, simple/prepared queries, mixed-type decoding, bulk fetches, cursor streaming and pool
 concurrency, each library run through its own idiomatic fast path. The numbers there are reproducible on your own
 machine via `npm run bench` against the repo's own
-`docker-compose.yaml` Postgres instance; see [`benchmark/README.md`](./benchmark/README.md) for details.
+`docker/docker-compose.yml` Postgres instance; see [`benchmark/README.md`](./benchmark/README.md) for details.
 
 ## Support
 
