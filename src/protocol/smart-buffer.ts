@@ -9,12 +9,6 @@ export interface SmartBufferConfig {
 }
 
 export class SmartBuffer extends BufferReader {
-  // Most protocol messages (auth handshake, simple parameter binds, etc.)
-  // are well under a few hundred bytes - a smaller default page means a
-  // fresh SmartBuffer (one per connection) doesn't eagerly allocate 4KB it
-  // will likely never use. growSize() below grows geometrically past this
-  // when a message genuinely needs more, so this only shrinks the common
-  // case's baseline, not the ceiling for large messages.
   static DEFAULT_PAGE_SIZE = 512;
   static DEFAULT_MAX_SIZE = Math.min(
     Math.floor(os.totalmem() / 2),
@@ -63,26 +57,7 @@ export class SmartBuffer extends BufferReader {
 
     const pages = length ? Math.ceil(length / this.pageSize) : 1;
     this._stMaxPages = Math.max(this._stMaxPages, pages);
-
-    // _houseKeep() itself is cheap (a couple of comparisons and a field
-    // reset - it only allocates in the branch that actually shrinks the
-    // buffer, which can't happen on THIS call since _stMaxPages was just
-    // bumped above to include this very flush). Its job here is to reset
-    // that high-water mark back down to "nothing since this flush", so
-    // that IF no more writes arrive before the deferred pass below fires,
-    // that pass correctly sees a low mark and actually reclaims; if
-    // another flush happens first, its own bump above captures whatever
-    // this one needs.
     this._houseKeep();
-
-    // Only worth scheduling a DEFERRED shrink-back pass if the buffer is
-    // currently bigger than a single page - the common case (a message
-    // that fit in the initial page, especially now that the default page
-    // itself is small) has nothing to reclaim, so this skips creating a
-    // Timeout at all instead of creating (and almost always immediately
-    // cancelling, at the next start()) one on every single flush() call -
-    // measured live as a meaningful share of all allocation in a profiled
-    // connect/close cycle.
     if (this.buffer.length > this.pageSize) {
       this._houseKeepTimer = setTimeout(() => {
         this._houseKeepTimer = undefined;
@@ -97,13 +72,6 @@ export class SmartBuffer extends BufferReader {
     const endOffset = this.offset + len;
     if (this.capacity < endOffset) {
       if (endOffset > this.maxSize) throw new Error('Buffer limit exceeded.');
-      // Round up to the page grid, but never grow by less than doubling
-      // the current capacity - a message built up via many small
-      // incremental writes (writeCString/writeInt32BE/... field by field,
-      // e.g. Bind with several parameters) would otherwise pay one
-      // reallocation+copy per page boundary crossed; doubling makes that
-      // O(log(size)) reallocations instead of O(size/pageSize) for the
-      // same final size.
       const byPage = Math.ceil(endOffset / this.pageSize) * this.pageSize;
       const newSize = Math.min(
         Math.max(byPage, this.capacity * 2),

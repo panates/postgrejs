@@ -17,10 +17,6 @@ export const OidVectorType: DataType = {
   oid: DataTypeOIDs.oidvector,
   jsType: 'array',
 
-  decodeBinary(v: Buffer): number[] | undefined {
-    return decodeBinaryArray<number>(v, 0, b => b.readUInt32BE()) || undefined;
-  },
-
   encodeBinary(buf: SmartBuffer, v: number[]): void {
     encodeBinaryArray(
       buf,
@@ -35,6 +31,10 @@ export const OidVectorType: DataType = {
 
   encodeCalculateDim(v: number[]): number[] {
     return [v.length];
+  },
+
+  decodeBinary(v: Buffer): number[] | undefined {
+    return decodeBinaryArray<number>(v, 0, b => b.readUInt32BE()) || undefined;
   },
 
   decodeText(str: string) {

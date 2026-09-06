@@ -268,14 +268,8 @@ export class IntlConnection extends SafeEventEmitter {
     this.ref();
     this.runningQueryCount++;
     const stream = new CopyToStream(this.socket);
-    // Held open until ReadyForQuery, which the stream's own capture waits
-    // for before ending - so the connection is never handed back (nor
-    // reported idle to a pool) while the copy is still running.
     this.socket
       .sendQueryMessage(sql, stream.capture)
-      // The stream, not this promise, is where a copy reports itself - but
-      // a failure that never reaches the message flow at all (a dead
-      // socket) would otherwise leave waitStarted() hanging forever.
       .catch(err => stream.fail(err))
       .finally(() => {
         this.runningQueryCount--;
@@ -338,9 +332,6 @@ export class IntlConnection extends SafeEventEmitter {
               error = msg;
               break;
             case Protocol.BackendMessageCode.CopyInResponse:
-              // The server is now waiting for data this path has no way to
-              // send, so it would wait forever. CopyFail gets it out of
-              // copy-in mode; the caller gets told what to use instead.
               error =
                 error ||
                 new Error(
@@ -349,9 +340,6 @@ export class IntlConnection extends SafeEventEmitter {
               this.socket.sendCopyFail(error.message);
               break;
             case Protocol.BackendMessageCode.CopyOutResponse:
-              // Harmless to keep reading (the rows are simply dropped), but
-              // silently returning an empty result would be worse than
-              // saying so.
               error =
                 error ||
                 new Error(
@@ -489,13 +477,9 @@ export class IntlConnection extends SafeEventEmitter {
                 rows.push(msg);
                 break;
               case Protocol.BackendMessageCode.CommandComplete:
-                // Deferred, like ErrorResponse below - only ReadyForQuery is
-                // guaranteed to arrive exactly once, so done() waits for it.
                 commandTag = msg;
                 break;
               case Protocol.BackendMessageCode.ErrorResponse:
-                // See _execute()'s ErrorResponse case above for why done()
-                // must not be called here.
                 error = msg;
                 break;
               case Protocol.BackendMessageCode.ReadyForQuery:
@@ -642,23 +626,10 @@ export class IntlConnection extends SafeEventEmitter {
       let error: Error | undefined;
 
       if (cachedFields) {
-        // A statement-level Describe (done once in prepareOnce()) always
-        // reports format 0 (text) for every column, regardless of what a
-        // later Bind actually requests - get-parsers.ts picks decodeBinary
-        // vs decodeText by reading each field's own .format, so the cached
-        // fields must be patched to the format THIS call is actually
-        // requesting before parser selection, or a binary-format execute()
-        // on a reused statement would silently pick the text parser (or
-        // vice versa) and decode garbage instead of throwing.
         const columnFormat =
           options.columnFormat != null
             ? options.columnFormat
             : DEFAULT_COLUMN_FORMAT;
-        // Repeated execute()s of the same prepared statement overwhelmingly
-        // reuse the same (typeMap, columnFormat) pair - only rebuild the
-        // patched fields/parsers/resultFields when either actually changed
-        // from the last execute() of THIS statement, instead of on every
-        // single call regardless.
         const cached = this._executeReusedParserCache.get(cachedFields);
         if (
           cached &&
@@ -714,8 +685,6 @@ export class IntlConnection extends SafeEventEmitter {
                 rows.push(msg);
                 break;
               case Protocol.BackendMessageCode.CommandComplete:
-                // Deferred, like ErrorResponse below - only ReadyForQuery is
-                // guaranteed to arrive exactly once, so done() waits for it.
                 commandTag = msg;
                 break;
               case Protocol.BackendMessageCode.ErrorResponse:

@@ -11,6 +11,17 @@ export const UuidType: DataType = {
   jsType: 'String',
   fixedBinarySize: 16,
 
+  encodeText(v: any): string {
+    return '' + v;
+  },
+
+  encodeBinary(buf: SmartBuffer, v: string): void {
+    if (!GUID_PATTERN.test(v))
+      throw new Error(`"${v}" is not a valid guid value`);
+    const b = Buffer.from(v.replace(/-/g, ''), 'hex');
+    buf.writeBuffer(b);
+  },
+
   decodeBinary(v: Buffer, offset: number = 0): string {
     return (
       v.toString('hex', offset, offset + 4) +
@@ -23,17 +34,6 @@ export const UuidType: DataType = {
       '-' +
       v.toString('hex', offset + 10, offset + 16)
     );
-  },
-
-  encodeText(v: any): string {
-    return '' + v;
-  },
-
-  encodeBinary(buf: SmartBuffer, v: string): void {
-    if (!GUID_PATTERN.test(v))
-      throw new Error(`"${v}" is not a valid guid value`);
-    const b = Buffer.from(v.replace(/-/g, ''), 'hex');
-    buf.writeBuffer(b);
   },
 
   decodeText(v: string): string {

@@ -14,28 +14,6 @@ export const NumericType: DataType = {
   oid: DataTypeOIDs.numeric,
   jsType: 'number',
 
-  decodeBinary(v: Buffer, offset: number = 0): number {
-    const len = v.readInt16BE(offset);
-    const weight = v.readInt16BE(offset + 2);
-    // sign is a bitmask (0x0000/0x4000/0xC000/0xD000/0xF000), not a two's
-    // complement quantity - must be read unsigned or NaN/Infinity sign
-    // values (which set the top bit) never compare equal to the constants.
-    const sign = v.readUInt16BE(offset + 4);
-    const scale = v.readInt16BE(offset + 6);
-
-    if (sign === NUMERIC_NAN) return NaN;
-    if (sign === NUMERIC_PINF) return Infinity;
-    if (sign === NUMERIC_NINF) return -Infinity;
-
-    const digits: number[] = [];
-    for (let i = 0; i < len; i++) {
-      digits[i] = v.readInt16BE(offset + 8 + i * 2);
-    }
-
-    const numString = numberBytesToString(digits, scale, weight, sign);
-    return parseFloat(numString);
-  },
-
   /**
    * numeric on the wire is a base-10000 number: a digit count, the weight
    * of the first group (in groups of four decimal digits, not digits), a
@@ -109,6 +87,28 @@ export const NumericType: DataType = {
 
     writeHeader(digits.length, weight, sign, dscale);
     for (const d of digits) buf.writeInt16BE(d);
+  },
+
+  decodeBinary(v: Buffer, offset: number = 0): number {
+    const len = v.readInt16BE(offset);
+    const weight = v.readInt16BE(offset + 2);
+    // sign is a bitmask (0x0000/0x4000/0xC000/0xD000/0xF000), not a two's
+    // complement quantity - must be read unsigned or NaN/Infinity sign
+    // values (which set the top bit) never compare equal to the constants.
+    const sign = v.readUInt16BE(offset + 4);
+    const scale = v.readInt16BE(offset + 6);
+
+    if (sign === NUMERIC_NAN) return NaN;
+    if (sign === NUMERIC_PINF) return Infinity;
+    if (sign === NUMERIC_NINF) return -Infinity;
+
+    const digits: number[] = [];
+    for (let i = 0; i < len; i++) {
+      digits[i] = v.readInt16BE(offset + 8 + i * 2);
+    }
+
+    const numString = numberBytesToString(digits, scale, weight, sign);
+    return parseFloat(numString);
   },
 
   encodeText(v: any): string {

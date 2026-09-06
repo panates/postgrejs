@@ -148,8 +148,6 @@ export class LargeObject {
     return new Writable({
       highWaterMark: options?.chunkSize || 65536,
       write(chunk: Buffer, _encoding, callback) {
-        // Each write is its own round trip, so awaiting it before asking
-        // for more is what keeps a fast source from running ahead.
         self
           .write(chunk)
           .then(() => callback())

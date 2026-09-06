@@ -31,25 +31,10 @@ declare type ParseCallback = (
 ) => void;
 
 export class Backend {
-  // Header (1-byte code + 4-byte length) reassembly state. A message's
-  // header can itself arrive split across socket reads (rare - only 5
-  // bytes), so it gets a small fixed reusable scratch buffer rather than
-  // going through the same body-reassembly path below.
   private readonly _headerBuf = Buffer.allocUnsafe(HEADER_LENGTH);
   private _headerFilled = 0;
   private _code?: Protocol.BackendMessageCode;
   private _len = 0;
-
-  // Body reassembly state. Once the header is complete, the wire's own
-  // length prefix already tells us the exact body size, so this allocates
-  // ONE buffer sized to fit it and copies each incoming chunk directly into
-  // place at the right offset - unlike the previous approach (Buffer.concat
-  // of the whole accumulated-so-far buffer on every incoming chunk), which
-  // reallocated and fully re-copied everything received for a message so
-  // far on every single socket 'data' event: for a message split across N
-  // chunks that's O(N^2) bytes copied, not O(size) - measured live for a
-  // 1MB bytea value arriving across ~16 chunks as ~10x the actual payload
-  // copied, and a proportional amount of short-lived Buffer garbage.
   private _bodyBuf?: Buffer;
   private _bodyFilled = 0;
 
@@ -64,18 +49,6 @@ export class Backend {
     const dataLen = data.length;
     let pos = 0;
     while (pos < dataLen) {
-      // Fast path: nothing carried over from a previous call, and this
-      // chunk alone already holds a complete header + body - view directly
-      // into `data` with zero allocation/copy, instead of the reassembly
-      // path below (which always allocates, since it has to - a message
-      // split across calls has no single contiguous buffer to view into).
-      // This is the common case for small messages that arrive whole in
-      // one socket read (e.g. the handshake's Authentication/
-      // ParameterStatus/BackendKeyData/ReadyForQuery messages) - without
-      // it, every one of those would pay for an allocation it doesn't need
-      // (measured live: 18 small allocations per connect/close cycle,
-      // ~1-34 bytes each, none of which were needed before this class
-      // stopped taking zero-copy subarray views for the single-chunk case).
       if (
         this._headerFilled === 0 &&
         !this._bodyBuf &&
@@ -93,9 +66,6 @@ export class Backend {
           pos = bodyEnd;
           continue;
         }
-        // Body doesn't fully fit in this chunk - fall through to the
-        // reassembly path below, which re-reads the same header bytes (no
-        // state was mutated above) and carries the partial body forward.
       }
 
       if (!this._bodyBuf) {
@@ -281,12 +251,6 @@ function parseDataRow(
   len: number,
 ): Protocol.DataRowMessage {
   const columnCount = io.readUInt16BE();
-  // len is the wire length field (includes itself, excludes the 1-byte
-  // code): body after code+len is `len - 4` bytes; columnCount (2 bytes)
-  // is already consumed above, leaving `len - 6` bytes of column data -
-  // one Buffer.subarray() for the WHOLE row instead of one per column
-  // (each column's own length-prefix framing is walked lazily by
-  // parseRow/get-parsers.ts during decode instead of eagerly here).
   const data = io.readBuffer(len - 6);
   return { columnCount, data };
 }
@@ -337,16 +301,6 @@ function parseParameterDescription(
   io: BufferReader,
 ): Protocol.ParameterDescriptionMessage {
   const out = {
-    // Int16 per the PostgreSQL wire protocol (ParameterDescription's
-    // parameter count field, unlike RowDescription's Int16 field count or
-    // this same message's own per-parameter Int32 OIDs below) - reading
-    // this as UInt32BE shifted every subsequent read 2 bytes into the
-    // wrong place, eventually running past the buffer ("Eof in buffer
-    // detected"). Apparently never exercised before: postgrejs only ever
-    // Describe()'d already-bound portals (type 'P'), whose response never
-    // includes a ParameterDescription - this path (Describe(type:'S'),
-    // used by the new PreparedStatement.prepare() fast path) is its first
-    // real caller.
     parameterCount: io.readUInt16BE(),
     parameterIds: [],
   } as Protocol.ParameterDescriptionMessage;

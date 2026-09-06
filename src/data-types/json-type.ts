@@ -37,10 +37,6 @@ export const JsonType: DataType = {
     return v ? JSON.parse(v) : null;
   },
 
-  // JSON content is arbitrary Unicode, so this must stay 'utf8' - same
-  // allocation as the default path, this only skips the extra decodeText
-  // wrapper-closure call get-parsers.ts would otherwise add (not a real
-  // performance win, just consistency with the dispatch mechanism).
   decodeTextBuffer(
     buf: Buffer,
     offset: number,

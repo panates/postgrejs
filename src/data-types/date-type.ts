@@ -13,22 +13,6 @@ export const DateType: DataType = {
   jsType: 'Date',
   fixedBinarySize: 4,
 
-  decodeBinary(
-    v: Buffer,
-    offset: number = 0,
-    options: DataMappingOptions,
-  ): Date | number | string {
-    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.date);
-    const t = v.readInt32BE(offset);
-    if (t === 0x7fffffff) return fetchAsString ? 'infinity' : Infinity;
-    if (t === -0x80000000) return fetchAsString ? '-infinity' : -Infinity;
-    // Shift from 2000 to 1970
-    let d = new Date(t * 1000 * 86400 + timeShift);
-    if (fetchAsString || !options.utcDates)
-      d = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-    return fetchAsString ? dateToDateString(d) : d;
-  },
-
   encodeText(v: any, options: DataMappingOptions): string {
     return formatDate(v, options);
   },
@@ -56,16 +40,28 @@ export const DateType: DataType = {
     buf.writeInt32BE(t);
   },
 
+  decodeBinary(
+    v: Buffer,
+    offset: number = 0,
+    options: DataMappingOptions,
+  ): Date | number | string {
+    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.date);
+    const t = v.readInt32BE(offset);
+    if (t === 0x7fffffff) return fetchAsString ? 'infinity' : Infinity;
+    if (t === -0x80000000) return fetchAsString ? '-infinity' : -Infinity;
+    // Shift from 2000 to 1970
+    let d = new Date(t * 1000 * 86400 + timeShift);
+    if (fetchAsString || !options.utcDates)
+      d = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    return fetchAsString ? dateToDateString(d) : d;
+  },
+
   decodeText(v: string, options: DataMappingOptions): Date | number | string {
     const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.date);
     if (fetchAsString) return v;
     return parseDate(v, options.utcDates);
   },
 
-  // PostgreSQL's date text output is pure ASCII, so 'latin1' decodes
-  // identically to 'utf8' here but skips V8's multi-byte-sequence
-  // detection. Delegates to decodeText by reference rather than
-  // duplicating its logic, so the two can never drift apart.
   decodeTextBuffer(
     buf: Buffer,
     offset: number,

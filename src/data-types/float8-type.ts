@@ -8,10 +8,6 @@ export const Float8Type: DataType = {
   jsType: 'number',
   fixedBinarySize: 8,
 
-  decodeBinary(v: Buffer, offset: number = 0): number {
-    return v.readDoubleBE(offset);
-  },
-
   // Infinity/NaN stringify to the words PostgreSQL itself uses.
   encodeText(v: any): string {
     return '' + v;
@@ -19,6 +15,10 @@ export const Float8Type: DataType = {
 
   encodeBinary(buf: SmartBuffer, v: number | string): void {
     buf.writeDoubleBE(typeof v === 'number' ? v : parseFloat(v));
+  },
+
+  decodeBinary(v: Buffer, offset: number = 0): number {
+    return v.readDoubleBE(offset);
   },
 
   decodeText: parseFloat,

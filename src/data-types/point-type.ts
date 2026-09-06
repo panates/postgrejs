@@ -13,13 +13,6 @@ export const PointType: DataType = {
   jsType: 'object',
   fixedBinarySize: 16,
 
-  decodeBinary(v: Buffer, offset: number = 0): Point {
-    return {
-      x: v.readDoubleBE(offset),
-      y: v.readDoubleBE(offset + 8),
-    };
-  },
-
   encodeText(v: Point): string {
     return `(${v.x},${v.y})`;
   },
@@ -27,6 +20,13 @@ export const PointType: DataType = {
   encodeBinary(buf: SmartBuffer, v: Point): void {
     buf.writeDoubleBE(v.x);
     buf.writeDoubleBE(v.y);
+  },
+
+  decodeBinary(v: Buffer, offset: number = 0): Point {
+    return {
+      x: v.readDoubleBE(offset),
+      y: v.readDoubleBE(offset + 8),
+    };
   },
 
   decodeText(v: string): Maybe<Point> {

@@ -336,22 +336,12 @@ export class Pool extends SafeEventEmitter {
   ): boolean {
     return (
       pipeline === true &&
-      // Cancelling targets a backend, not a statement: on a shared
-      // connection it would kill whichever query happens to be running,
-      // which is rarely the one the caller aborted.
       !signal &&
       this._pipelineMaxQueries > 1 &&
       this._pipelineMaxConnections > 0 &&
-      // autoCommit:false sends Connection.query() down the prepare /
-      // execute / close path, and the connection's refCount falls back to
-      // zero between those steps - the 'idle' that fires there would hand
-      // the connection back to the pool with the query only half done.
       autoCommit !== false &&
       this.config.autoCommit !== false &&
       !startsTransaction(sql) &&
-      // A COPY puts the connection into a mode where the next pipelined
-      // query's Query message is a protocol error, which would take down
-      // every caller sharing it, not just this one.
       !startsCopy(sql)
     );
   }
@@ -378,15 +368,8 @@ export class Pool extends SafeEventEmitter {
       if (slot.connection?.inTransaction) continue;
       if (!best || slot.load < best.load) best = slot;
     }
-    // Another connection is only worth opening once the least loaded one
-    // already has something queued behind it: the server runs a single
-    // connection's statements serially, so spreading is what buys the
-    // parallelism, and this way an idle burst still reuses what is open.
     if ((!best || best.load > 0) && l < this._pipelineMaxConnections)
       return this._growPipeline();
-    // Every slot is at its query cap and the pool has nothing left to
-    // borrow: fall back to an exclusive connection, whose acquire queues
-    // in the pool and gives the caller real backpressure.
     if (!best || best.load >= this._pipelineMaxQueries) return undefined;
     best.load++;
     return best;
@@ -401,10 +384,6 @@ export class Pool extends SafeEventEmitter {
     slot.promise = this.acquire().then(
       connection => {
         slot.connection = connection;
-        // 'idle' fires when nothing is in flight on the connection any
-        // more (IntlConnection forwards its events to the owning
-        // Connection), so it needs no further check - whoever finishes
-        // goes straight back to the pool.
         connection.once('idle', () => {
           this._dropPipelineSlot(slot);
           this.release(connection).catch(e => this.emit('error', e));

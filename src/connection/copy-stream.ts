@@ -29,10 +29,6 @@ export class CopyToStream extends Readable {
   protected readonly _socket: PgSocket;
   protected _error?: Error;
   protected _started?: (err?: Error) => void;
-  // Set when the consumer destroys the stream early. The copy itself cannot
-  // be cancelled mid-flight, so the remaining rows are read and thrown away
-  // instead - dropping them on the floor would leave the connection sitting
-  // in copy-out with a response nobody is reading.
   protected _discarding = false;
   protected _settled = false;
   protected _paused = false;
@@ -56,20 +52,12 @@ export class CopyToStream extends Readable {
         break;
       case BackendMessageCode.CopyData:
         if (this._discarding) break;
-        // push() returning false means the consumer is behind; stop
-        // reading from the socket until _read() asks for more. One socket
-        // chunk usually carries many CopyData messages and every one of
-        // them reports the buffer as full, so the flag keeps this to one
-        // pause per stall instead of one per row.
         if (!this.push(msg.data) && !this._paused) {
           this._paused = true;
           this._socket.pause();
         }
         break;
       case BackendMessageCode.CopyDone:
-        // Deliberately not ending the stream here: CommandComplete carries
-        // the row count and arrives right after, and ending now would race
-        // 'end' against it.
         break;
       case BackendMessageCode.CommandComplete:
         this.rowCount = msg.rowCount;
@@ -78,12 +66,9 @@ export class CopyToStream extends Readable {
         this._error = msg as DatabaseError;
         break;
       case BackendMessageCode.ReadyForQuery:
-        // Only here, once the connection is idle again, so a consumer that
-        // awaits the stream can safely issue its next query.
         this._finish(done);
         break;
       default:
-        // Anything else means the statement was not a COPY ... TO STDOUT.
         if (!this._error && !this.overallFormat)
           this._error = new Error(
             'Statement did not start a COPY TO STDOUT - use query() or execute() instead',
@@ -129,8 +114,6 @@ export class CopyToStream extends Readable {
     err: Error | null,
     callback: (err?: Error | null) => void,
   ): void {
-    // Keep reading so the connection reaches ReadyForQuery; the rows are
-    // dropped by the CopyData branch above.
     this._discarding = true;
     this._paused = false;
     this._socket.resume();
@@ -140,9 +123,6 @@ export class CopyToStream extends Readable {
   protected _finish(done: (err?: Error) => void): void {
     this._settled = true;
     const err = this._error;
-    // A copy that never started has no stream for anyone to listen on, so
-    // the failure has to go to waitStarted() and nowhere else - destroying
-    // the stream here would raise an 'error' event with no listener.
     const started = this._started;
     this._started = undefined;
     done(err);
@@ -197,9 +177,6 @@ export class CopyFromStream extends Writable {
         break;
       case BackendMessageCode.ErrorResponse:
         this._error = msg as DatabaseError;
-        // The server has stopped accepting rows and will ignore everything
-        // up to CopyDone/CopyFail, so stop feeding it. destroy() sends the
-        // CopyFail that gets the connection out of copy-in mode.
         if (!this._copyEnded && !this.destroyed) this.destroy(this._error);
         break;
       case BackendMessageCode.ReadyForQuery:
@@ -245,8 +222,6 @@ export class CopyFromStream extends Writable {
     callback: (err?: Error | null) => void,
   ): void {
     if (this._error) return callback(this._error);
-    // The callback is the socket's own write callback, so a full socket
-    // buffer pauses the source rather than growing in memory.
     this._socket.sendCopyData(
       Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding),
       callback,
@@ -257,8 +232,6 @@ export class CopyFromStream extends Writable {
     if (this._error) return callback(this._error);
     this._copyEnded = true;
     this._socket.sendCopyDone();
-    // Not done yet: 'finish' should mean the server accepted the copy, so
-    // wait for its CommandComplete/ReadyForQuery.
     this._completed = callback;
   }
 
@@ -268,7 +241,6 @@ export class CopyFromStream extends Writable {
   ): void {
     if (this._copyEnded) return callback(err);
     this._copyEnded = true;
-    // Without this the server would wait for data that is never coming.
     this._socket.sendCopyFail(err ? err.message : 'aborted by client');
     callback(err);
   }
@@ -281,8 +253,6 @@ export class CopyFromStream extends Writable {
     const completed = this._completed;
     this._completed = undefined;
     done(err);
-    // Same reasoning as CopyToStream._finish(): before waitStarted()
-    // resolves there is no stream anyone could be listening to.
     if (started)
       return started(err || new Error('Copy ended before it started'));
     if (completed) return completed(err);

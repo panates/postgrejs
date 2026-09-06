@@ -18,14 +18,6 @@ export const CircleType: DataType = {
   jsType: 'object',
   fixedBinarySize: 24,
 
-  decodeBinary(v: Buffer, offset: number = 0): Circle {
-    return {
-      x: v.readDoubleBE(offset),
-      y: v.readDoubleBE(offset + 8),
-      r: v.readDoubleBE(offset + 16),
-    } as Circle;
-  },
-
   encodeText(v: Circle): string {
     return `<(${v.x},${v.y}),${v.r}>`;
   },
@@ -34,6 +26,14 @@ export const CircleType: DataType = {
     buf.writeDoubleBE(v.x);
     buf.writeDoubleBE(v.y);
     buf.writeDoubleBE(v.r);
+  },
+
+  decodeBinary(v: Buffer, offset: number = 0): Circle {
+    return {
+      x: v.readDoubleBE(offset),
+      y: v.readDoubleBE(offset + 8),
+      r: v.readDoubleBE(offset + 16),
+    } as Circle;
   },
 
   decodeText(v: string): Maybe<Circle> {

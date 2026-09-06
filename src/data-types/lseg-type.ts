@@ -19,15 +19,6 @@ export const LsegType: DataType = {
   jsType: 'object',
   fixedBinarySize: 32,
 
-  decodeBinary(v: Buffer, offset: number = 0): Rectangle {
-    return {
-      x1: v.readDoubleBE(offset),
-      y1: v.readDoubleBE(offset + 8),
-      x2: v.readDoubleBE(offset + 16),
-      y2: v.readDoubleBE(offset + 24),
-    };
-  },
-
   encodeText(v: Rectangle): string {
     return `[(${v.x1},${v.y1}),(${v.x2},${v.y2})]`;
   },
@@ -37,6 +28,15 @@ export const LsegType: DataType = {
     buf.writeDoubleBE(v.y1);
     buf.writeDoubleBE(v.x2);
     buf.writeDoubleBE(v.y2);
+  },
+
+  decodeBinary(v: Buffer, offset: number = 0): Rectangle {
+    return {
+      x1: v.readDoubleBE(offset),
+      y1: v.readDoubleBE(offset + 8),
+      x2: v.readDoubleBE(offset + 16),
+      y2: v.readDoubleBE(offset + 24),
+    };
   },
 
   decodeText(v: string): Maybe<Rectangle> {

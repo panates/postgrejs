@@ -14,6 +14,35 @@ export const TimestamptzType: DataType = {
   jsType: 'Date',
   fixedBinarySize: 8,
 
+  encodeText(v: any): string {
+    return formatTimestamptz(v);
+  },
+
+  encodeBinary(
+    buf: SmartBuffer,
+    v: Date | number | string,
+    options: DataMappingOptions,
+  ): void {
+    if (typeof v === 'string') v = parseDateTimeTz(v, options.utcDates);
+    if (v === Infinity) {
+      buf.writeInt32BE(0x7fffffff); // hi
+      buf.writeUInt32BE(0xffffffff); // lo
+      return;
+    }
+    if (v === -Infinity) {
+      buf.writeInt32BE(-0x80000000); // hi
+      buf.writeUInt32BE(0x00000000); // lo
+      return;
+    }
+    if (!(v instanceof Date)) v = new Date(v);
+    let n = v.getTime();
+    n = (n - timeShift) * 1000;
+    const hi = Math.floor(n / timeMul);
+    const lo = n - hi * timeMul;
+    buf.writeInt32BE(hi);
+    buf.writeUInt32BE(lo);
+  },
+
   decodeBinary(
     v: Buffer,
     offset: number = 0,
@@ -43,35 +72,6 @@ export const TimestamptzType: DataType = {
       );
     }
     return fetchAsString ? dateToTimestamptzString(d) : d;
-  },
-
-  encodeText(v: any): string {
-    return formatTimestamptz(v);
-  },
-
-  encodeBinary(
-    buf: SmartBuffer,
-    v: Date | number | string,
-    options: DataMappingOptions,
-  ): void {
-    if (typeof v === 'string') v = parseDateTimeTz(v, options.utcDates);
-    if (v === Infinity) {
-      buf.writeInt32BE(0x7fffffff); // hi
-      buf.writeUInt32BE(0xffffffff); // lo
-      return;
-    }
-    if (v === -Infinity) {
-      buf.writeInt32BE(-0x80000000); // hi
-      buf.writeUInt32BE(0x00000000); // lo
-      return;
-    }
-    if (!(v instanceof Date)) v = new Date(v);
-    let n = v.getTime();
-    n = (n - timeShift) * 1000;
-    const hi = Math.floor(n / timeMul);
-    const lo = n - hi * timeMul;
-    buf.writeInt32BE(hi);
-    buf.writeUInt32BE(lo);
   },
 
   decodeText(v: string, options: DataMappingOptions): Date | number | string {

@@ -18,15 +18,6 @@ export const BoxType: DataType = {
   arraySeparator: ';',
   fixedBinarySize: 32,
 
-  decodeBinary(v: Buffer, offset: number = 0): Rectangle {
-    return {
-      x1: v.readDoubleBE(offset),
-      y1: v.readDoubleBE(offset + 8),
-      x2: v.readDoubleBE(offset + 16),
-      y2: v.readDoubleBE(offset + 24),
-    };
-  },
-
   encodeText(v: Rectangle): string {
     return `(${v.x1},${v.y1}),(${v.x2},${v.y2})`;
   },
@@ -36,6 +27,15 @@ export const BoxType: DataType = {
     buf.writeDoubleBE(v.y1);
     buf.writeDoubleBE(v.x2);
     buf.writeDoubleBE(v.y2);
+  },
+
+  decodeBinary(v: Buffer, offset: number = 0): Rectangle {
+    return {
+      x1: v.readDoubleBE(offset),
+      y1: v.readDoubleBE(offset + 8),
+      x2: v.readDoubleBE(offset + 16),
+      y2: v.readDoubleBE(offset + 24),
+    };
   },
 
   decodeText(v: string): Maybe<Rectangle> {
@@ -50,10 +50,6 @@ export const BoxType: DataType = {
     };
   },
 
-  // PostgreSQL's box text output is pure ASCII, so 'latin1' decodes
-  // identically to 'utf8' here but skips V8's multi-byte-sequence
-  // detection. Delegates to decodeText by reference rather than duplicating
-  // its logic, so the two can never drift apart.
   decodeTextBuffer(
     buf: Buffer,
     offset: number,

@@ -11,10 +11,6 @@ export const Int2VectorType: DataType = {
   oid: DataTypeOIDs.int2vector,
   jsType: 'array',
 
-  decodeBinary(v: Buffer): number[] | undefined {
-    return decodeBinaryArray<number>(v, 0, b => b.readInt16BE()) || undefined;
-  },
-
   encodeBinary(buf: SmartBuffer, v: number[]): void {
     encodeBinaryArray(
       buf,
@@ -29,6 +25,10 @@ export const Int2VectorType: DataType = {
 
   encodeCalculateDim(v: number[]): number[] {
     return [v.length];
+  },
+
+  decodeBinary(v: Buffer): number[] | undefined {
+    return decodeBinaryArray<number>(v, 0, b => b.readInt16BE()) || undefined;
   },
 
   decodeText(str: string) {

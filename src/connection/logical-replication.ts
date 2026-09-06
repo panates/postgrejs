@@ -95,9 +95,6 @@ export class LogicalReplication extends SafeEventEmitter {
   protected _slotName: string;
   protected _slotCreated = false;
   protected _keepAliveTimer?: NodeJS.Timeout;
-  // Where the consumer has got to, and where the stream has got to. The
-  // first is what gets confirmed; the gap between them is what would be
-  // replayed after a crash.
   protected _receivedLsn = 0n;
   protected _confirmedLsn = 0n;
   protected _pendingLsn = 0n;
@@ -131,8 +128,6 @@ export class LogicalReplication extends SafeEventEmitter {
     if (this._intlCon) return;
     const intlCon = (this._intlCon = new IntlConnection({
       ...this.options,
-      // Ordinary queries would be pointless here, and this is what lets the
-      // server accept the replication commands below.
       replication: 'database',
     }));
     await intlCon.connect();
@@ -176,8 +171,6 @@ export class LogicalReplication extends SafeEventEmitter {
     const intlCon = this._intlCon;
     this._intlCon = undefined;
     if (!intlCon) return;
-    // A permanent slot is the caller's to keep; a temporary one goes with
-    // the connection anyway.
     if (
       this._slotCreated &&
       this.options.permanent &&
@@ -206,8 +199,6 @@ export class LogicalReplication extends SafeEventEmitter {
         if (this._error) throw this._error;
         const change = this._queue.shift();
         if (change) {
-          // Confirming here rather than after yielding is what makes a crash
-          // during processing replay instead of lose the change.
           this._confirmedLsn = this._pendingLsn;
           this._pendingLsn = change.lsn;
           yield change;
@@ -245,7 +236,6 @@ export class LogicalReplication extends SafeEventEmitter {
   protected _handleCopyData(data: Buffer): void {
     const kind = String.fromCharCode(data[0]);
     if (kind === 'k') {
-      // Primary keepalive: walEnd, timestamp, then whether a reply is due.
       this._receivedLsn = data.readBigUInt64BE(1);
       if (data[17] === 1) this._sendStatus(false);
       return;
@@ -257,8 +247,6 @@ export class LogicalReplication extends SafeEventEmitter {
     const changes = this._toChanges(message, walStart);
     if (!changes.length) return;
     this._queue.push(...changes);
-    // Stop reading while the consumer is behind; _resume() lifts it when the
-    // iterator asks for more.
     if (this._queue.length > 1) this._intlCon?.socket.pause();
     this._wake();
   }
@@ -343,8 +331,6 @@ export class LogicalReplication extends SafeEventEmitter {
     if (!socket) return;
     const buf = Buffer.allocUnsafe(34);
     buf[0] = 0x72; // 'r'
-    // The server keeps WAL until the flush position confirms it, so this is
-    // the value that actually releases disk on the server.
     buf.writeBigUInt64BE(this._receivedLsn, 1);
     buf.writeBigUInt64BE(this._confirmedLsn, 9);
     buf.writeBigUInt64BE(this._confirmedLsn, 17);

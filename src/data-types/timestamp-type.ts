@@ -14,37 +14,6 @@ export const TimestampType: DataType = {
   jsType: 'Date',
   fixedBinarySize: 8,
 
-  decodeBinary(
-    v: Buffer,
-    offset: number = 0,
-    options: DataMappingOptions,
-  ): Date | number | string {
-    const fetchAsString = options.fetchAsString?.includes(
-      DataTypeOIDs.timestamp,
-    );
-    const hi = v.readInt32BE(offset);
-    const lo = v.readUInt32BE(offset + 4);
-    if (lo === 0xffffffff && hi === 0x7fffffff)
-      return fetchAsString ? 'infinity' : Infinity;
-    if (lo === 0x00000000 && hi === -0x80000000)
-      return fetchAsString ? '-infinity' : -Infinity;
-
-    // Shift from 2000 to 1970
-    let d = new Date((lo + hi * timeMul) / 1000 + timeShift);
-    if (fetchAsString || !options.utcDates) {
-      d = new Date(
-        d.getUTCFullYear(),
-        d.getUTCMonth(),
-        d.getUTCDate(),
-        d.getUTCHours(),
-        d.getUTCMinutes(),
-        d.getUTCSeconds(),
-        d.getUTCMilliseconds(),
-      );
-    }
-    return fetchAsString ? dateToTimestampString(d) : d;
-  },
-
   encodeText(v: any, options: DataMappingOptions): string {
     return formatTimestamp(v, options);
   },
@@ -77,6 +46,36 @@ export const TimestampType: DataType = {
     buf.writeUInt32BE(lo);
   },
 
+  decodeBinary(
+    v: Buffer,
+    offset: number = 0,
+    options: DataMappingOptions,
+  ): Date | number | string {
+    const fetchAsString = options.fetchAsString?.includes(
+      DataTypeOIDs.timestamp,
+    );
+    const hi = v.readInt32BE(offset);
+    const lo = v.readUInt32BE(offset + 4);
+    if (lo === 0xffffffff && hi === 0x7fffffff)
+      return fetchAsString ? 'infinity' : Infinity;
+    if (lo === 0x00000000 && hi === -0x80000000)
+      return fetchAsString ? '-infinity' : -Infinity;
+
+    // Shift from 2000 to 1970
+    let d = new Date((lo + hi * timeMul) / 1000 + timeShift);
+    if (fetchAsString || !options.utcDates) {
+      d = new Date(
+        d.getUTCFullYear(),
+        d.getUTCMonth(),
+        d.getUTCDate(),
+        d.getUTCHours(),
+        d.getUTCMinutes(),
+        d.getUTCSeconds(),
+        d.getUTCMilliseconds(),
+      );
+    }
+    return fetchAsString ? dateToTimestampString(d) : d;
+  },
   decodeText(v: string, options: DataMappingOptions): Date | number | string {
     if (options.fetchAsString?.includes(DataTypeOIDs.timestamp)) return v;
     return parseDateTime(v, options.utcDates);

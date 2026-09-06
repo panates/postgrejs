@@ -33,9 +33,6 @@ export function encodeBinaryArray(
 
   let hasNull = false;
   let pos: number;
-  // dim.length is already captured as `ndims` above and never changes, so
-  // the innermost-dimension test is invariant for the whole recursion (see
-  // decode-binaryarray.ts's own note - same pattern on the encode side).
   const lastDim = ndims - 1;
   const writeDim = (arr: any[], level: number) => {
     const elemCount = dim[level];

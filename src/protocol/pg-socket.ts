@@ -28,34 +28,12 @@ export interface SocketError extends Error {
   code: string;
 }
 
-/**
- * One outstanding request awaiting its (possibly multi-message) response.
- * The PostgreSQL wire protocol carries no request/response id - responses
- * arrive strictly in the order requests were sent - so this FIFO queue IS
- * the correlation mechanism: the head is always the oldest still-open
- * request, i.e. the one the next incoming message belongs to. Backed by a
- * doubly-linked list rather than an Array or Set: `head` is a plain O(1)
- * property read (Set.values().next() allocates a fresh iterator on every
- * call - measured ~4.7x slower here, since this is read once per incoming
- * message, not once per request), and shift()/push() are O(1) too (an
- * Array.shift() is O(n), only cheap for this at low queue depth).
- */
 interface CaptureEntry {
   callback: CaptureCallback;
   resolve: (result: any) => void;
   reject: (err: Error) => void;
 }
 
-/**
- * There is no public `capture()` method - a caller could otherwise call it
- * independently of sending anything, attach to every message the socket
- * ever emits, and decide for itself when to stop, with nothing stopping two
- * callers from doing this concurrently and both receiving the same
- * messages. Here, capturing a response is only possible by sending a
- * message for it: send*Message() takes a mandatory CaptureCallback, pushes
- * it onto `_captureQueue` in the same call, and the socket dispatches each
- * incoming message to whichever capture is at the front of that queue.
- */
 export class PgSocket extends SafeEventEmitter {
   private _state = ConnectionState.CLOSED;
   private _socket?: net.Socket;
@@ -66,14 +44,8 @@ export class PgSocket extends SafeEventEmitter {
   private _processID?: number;
   private _secretKey?: number;
   private _captureQueue = new DoublyLinked<CaptureEntry>();
-  // Outgoing messages queued by _send() but not yet handed to the socket -
-  // see _send()/_flushPendingWrites() for why they're batched per tick
-  // rather than written straight through.
   private _pendingWrites: { data: Buffer; cb?: Callback }[] = [];
   private _flushScheduled = false;
-  // Candidate servers, in order, and where we are in that list. A single
-  // configured host is just a list of one, so nothing below needs to know
-  // whether failover was asked for.
   private _hosts: { host: string; port?: number }[] = [];
   private _hostIndex = 0;
   private _sessionAttrsChecked = false;
@@ -125,8 +97,6 @@ export class PgSocket extends SafeEventEmitter {
       this._reset();
       socket.destroy();
       this._socket = undefined;
-      // Another candidate left: this one is simply not the server we are
-      // looking for, and only the last failure is worth reporting.
       if (this._hostIndex + 1 < this._hosts.length) {
         this._hostIndex++;
         this._connectToHost();
@@ -184,21 +154,12 @@ export class PgSocket extends SafeEventEmitter {
       const tlsOptions: tls.ConnectionOptions = { ...options.ssl, socket };
       if (target.host && net.isIP(target.host) === 0)
         tlsOptions.servername = target.host;
-      // Direct negotiation has no SSLRequest to identify the protocol, so
-      // ALPN is how the server learns this is PostgreSQL - it is required
-      // rather than an optimisation.
       if (options.sslNegotiation === 'direct')
         tlsOptions.ALPNProtocols = ['postgresql'];
       const tlsSocket = tls.connect(tlsOptions);
       tlsSocket.once('error', onError);
       tlsSocket.once('secureConnect', () => onReady(tlsSocket));
     };
-    // TLS only when it was asked for. Offering SSLRequest to every server
-    // and upgrading whenever one says yes sounds harmless, but it means a
-    // caller who never mentioned TLS is suddenly held to certificate
-    // verification and cannot reach a server with a self-signed one - and
-    // the error says nothing about why TLS was involved at all. libpq, pg
-    // and postgres.js all ask only when told to.
     const wantsSSL =
       !!options.ssl ||
       !!options.requireSSL ||
@@ -654,8 +615,6 @@ export class PgSocket extends SafeEventEmitter {
       return;
     }
     this._sessionAttrsChecked = true;
-    // PostgreSQL reports these itself from v14 on; older servers have to be
-    // asked, which costs one round trip and only when this option is used.
     const reported = this._sessionParameters;
     if (
       reported.in_hot_standby != null &&
@@ -766,11 +725,6 @@ export class PgSocket extends SafeEventEmitter {
               this._handleAuthenticationMessage(payload);
               break;
             case Protocol.BackendMessageCode.ErrorResponse:
-              // Routed to whichever request is at the front of the FIFO
-              // rather than treated as a connection-wide fatal error - only
-              // the request that actually failed should reject, matching
-              // how PostgreSQL itself scopes an ErrorResponse to the
-              // message that produced it, not to the whole connection.
               this._dispatch(code, new DatabaseError(payload));
               break;
             case Protocol.BackendMessageCode.NoticeResponse:
@@ -823,17 +777,10 @@ export class PgSocket extends SafeEventEmitter {
   private _dispatch(code: Protocol.BackendMessageCode, payload: any): void {
     const entry = this._captureQueue.head?.value;
     if (!entry) {
-      // Startup and authentication send nothing through the capture queue,
-      // so an error there arrives with nothing to deliver it to. Reporting
-      // the bookkeeping complaint below would bury what the server actually
-      // said, which for the commonest failure of all is "password
-      // authentication failed for user ...".
       if (payload instanceof DatabaseError) {
         this.emit('error', payload);
         return;
       }
-      // No public capture() exists to register one out of band, so this
-      // can only mean a bug in this class's own send/dispatch bookkeeping.
       this.emit(
         'error',
         new Error(
@@ -843,25 +790,11 @@ export class PgSocket extends SafeEventEmitter {
       return;
     }
     const done = (err: Maybe<Error>, result?: any) => {
-      // Guards a stale done() firing after _failPendingCaptures already
-      // rejected and cleared this entry - that swap makes `head` a fresh,
-      // empty list, so this entry can no longer be its head.
       if (this._captureQueue.head?.value !== entry) return;
       this._captureQueue.shift();
       if (err) entry.reject(err);
       else entry.resolve(result);
     };
-    // A synchronous throw here must be converted to done(err) immediately,
-    // before returning to Backend.parse()'s loop - if the callback were an
-    // async function that threw instead, the throw would become a
-    // *rejected promise* rather than propagating synchronously, and if
-    // later messages for the same request (e.g. CommandComplete,
-    // ReadyForQuery) arrive in the same data chunk, that synchronous loop
-    // would resolve and dequeue this entry via done() before the deferred
-    // .catch() microtask ever ran - silently swallowing the error instead
-    // of rejecting the request. Callbacks passed in are plain functions
-    // for exactly this reason; the isPromise branch below only exists to
-    // not lose a rejection if a caller ever hands in a genuinely async one.
     try {
       const x = entry.callback(code, payload, done);
       if (promisify.isPromise(x)) (x as Promise<void>).catch(err => done(err));
@@ -926,9 +859,6 @@ export class PgSocket extends SafeEventEmitter {
           this.options.user || '',
           useBinding ? 'SCRAM-SHA-256-PLUS' : 'SCRAM-SHA-256',
           useBinding ? this._channelBindingData(tlsSocket!) : undefined,
-          // Announces that binding was possible even when unused, so the
-          // server can tell a stripped -PLUS offer from a client that never
-          // supported it.
           !!tlsSocket,
         ));
         this._send(this._frontend.getSASLMessage(saslSession));
@@ -952,11 +882,6 @@ export class PgSocket extends SafeEventEmitter {
         break;
       }
       default:
-        // A method this client cannot answer - GSSAPI and SSPI need the
-        // operating system's Kerberos libraries, which a pure JavaScript
-        // driver has no way to reach. Saying so beats the alternative:
-        // ignoring the request and leaving the connection to hang until it
-        // times out, with nothing said about why.
         throw new Error(
           `Authentication method "${msg.kind}" is not supported. ` +
             'Supported methods are cleartext password, MD5 and SCRAM-SHA-256 ' +
@@ -1037,17 +962,6 @@ export class PgSocket extends SafeEventEmitter {
           cb: i === l - 1 ? cb : undefined,
         });
     } else this._pendingWrites.push({ data, cb });
-
-    // Batch only when there is actually something to batch with. A request
-    // is pushed onto _captureQueue before its bytes reach here, so a depth
-    // of 1 means this is the only one in flight - a strictly sequential
-    // caller, awaiting each query before sending the next. Deferring that
-    // write buys nothing (there is no second message coming this tick) and
-    // measurably costs: it pushes the write past the current event-loop
-    // turn, which on a sequential prepared-statement loop showed up as a
-    // ~18% median regression and occasional ~2x runs. A depth above 1 means
-    // other requests are already outstanding - a concurrent burst, where
-    // the rest of this tick's messages are worth waiting for.
     if (this._captureQueue.length > 1) {
       if (!this._flushScheduled) {
         this._flushScheduled = true;
@@ -1069,12 +983,8 @@ export class PgSocket extends SafeEventEmitter {
   protected _sendCopy(data: Buffer | Buffer[], cb?: Callback): boolean {
     const socket = this._socket;
     if (!socket || !socket.writable) return false;
-    // Whatever _send() queued for this tick belongs to the request that
-    // opened the copy, so it has to reach the wire ahead of these bytes.
     this._flushPendingWrites();
     if (!Array.isArray(data)) return socket.write(data, cb);
-    // Corked so a message split across buffers (CopyData's header and the
-    // caller's payload) still leaves as one write.
     socket.cork();
     try {
       const l = data.length;
@@ -1095,9 +1005,6 @@ export class PgSocket extends SafeEventEmitter {
     if (!pending.length) return;
     this._pendingWrites = [];
     const socket = this._socket;
-    // A socket that went away between queueing and here takes the pending
-    // captures with it (_handleClose/_handleError -> _failPendingCaptures),
-    // so dropping these bytes doesn't strand a caller.
     if (!socket || !socket.writable) return;
     socket.cork();
     try {

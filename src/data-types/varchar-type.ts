@@ -7,16 +7,16 @@ export const VarcharType: DataType = {
   oid: DataTypeOIDs.varchar,
   jsType: 'string',
 
-  decodeBinary(v: Buffer, offset: number = 0): string {
-    return v.toString('utf8', offset);
-  },
-
   encodeText(v: any): string {
     return '' + v;
   },
 
   encodeBinary(buf: SmartBuffer, v: string): void {
     buf.writeString('' + v, 'utf8');
+  },
+
+  decodeBinary(v: Buffer, offset: number = 0): string {
+    return v.toString('utf8', offset);
   },
 
   decodeText(v): string {

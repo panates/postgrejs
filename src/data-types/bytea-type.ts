@@ -8,10 +8,6 @@ export const ByteaType: DataType = {
   oid: DataTypeOIDs.bytea,
   jsType: 'Buffer',
 
-  decodeBinary(v: Buffer, offset: number = 0): Buffer {
-    return offset ? v.subarray(offset) : v;
-  },
-
   // The hex form PostgreSQL has emitted by default since 9.0.
   encodeText(v: Buffer): string {
     return '\\x' + v.toString('hex');
@@ -19,6 +15,10 @@ export const ByteaType: DataType = {
 
   encodeBinary(buf: SmartBuffer, v: Buffer): void {
     buf.writeBuffer(v);
+  },
+
+  decodeBinary(v: Buffer, offset: number = 0): Buffer {
+    return offset ? v.subarray(offset) : v;
   },
 
   decodeText: parseBytea,

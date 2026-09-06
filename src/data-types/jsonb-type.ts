@@ -9,6 +9,18 @@ export const JsonbType: DataType = {
   oid: DataTypeOIDs.jsonb,
   jsType: 'string',
 
+  encodeText(v): string {
+    if (typeof v === 'object' || typeof v === 'bigint')
+      return JSON.stringify(v);
+    if (typeof v === 'boolean') return v ? 'true' : 'false';
+    return '' + v;
+  },
+
+  encodeBinary(buf: SmartBuffer, v: any): void {
+    buf.writeUInt8(1);
+    buf.writeString(JsonbType.encodeText!(v, {}), 'utf8');
+  },
+
   decodeBinary(
     v: Buffer,
     offset: number = 0,
@@ -21,24 +33,6 @@ export const JsonbType: DataType = {
     const content = buf.readLString(buf.length - buf.offset);
     if (fetchAsString) return content;
     return content ? JSON.parse(content) : undefined;
-  },
-
-  encodeText(v): string {
-    if (typeof v === 'object' || typeof v === 'bigint')
-      return JSON.stringify(v);
-    if (typeof v === 'boolean') return v ? 'true' : 'false';
-    // A string or number is taken as JSON text already, same as json-type.
-    // This used to prepend "\x0001" - the binary format's version header,
-    // in the text encoder - which sent a NUL byte the server rejected
-    // outright ("invalid byte sequence for encoding UTF8: 0x00").
-    return '' + v;
-  },
-
-  // jsonb's binary form is a one-byte version header followed by the same
-  // JSON text.
-  encodeBinary(buf: SmartBuffer, v: any): void {
-    buf.writeUInt8(1);
-    buf.writeString(JsonbType.encodeText!(v, {}), 'utf8');
   },
 
   decodeText(v: string, options: DataMappingOptions): object | string | null {

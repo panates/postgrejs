@@ -8,10 +8,6 @@ export const BoolType: DataType = {
   jsType: 'boolean',
   fixedBinarySize: 1,
 
-  decodeBinary(v: Buffer, offset: number = 0): boolean {
-    return !!v.readUInt8(offset);
-  },
-
   // 't'/'f', the form decodeText above reads and the server itself
   // emits - encodeText and decodeText are a public pair and have to stay
   // each other's inverse.
@@ -23,12 +19,10 @@ export const BoolType: DataType = {
     buf.writeInt8(v ? 1 : 0);
   },
 
-  // PostgreSQL's boolout() always emits exactly 't' or 'f' for a bool
-  // column's text-format wire output, regardless of how the value was
-  // originally inserted (confirmed live: `select b from t` where t is a
-  // real bool column returns "t"/"f", never "true"/"y"/"on"/etc) - the
-  // other literal forms are only valid as *input* to a bool cast, never as
-  // output, so they can never match here.
+  decodeBinary(v: Buffer, offset: number = 0): boolean {
+    return !!v.readUInt8(offset);
+  },
+
   decodeText(v: string): boolean {
     return v === 't';
   },

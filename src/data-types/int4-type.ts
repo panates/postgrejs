@@ -9,16 +9,16 @@ export const Int4Type: DataType = {
   jsType: 'number',
   fixedBinarySize: 4,
 
-  decodeBinary(v: Buffer, offset: number = 0): number {
-    return v.readInt32BE(offset);
-  },
-
   encodeText(v: any): string {
     return '' + v;
   },
 
   encodeBinary(buf: SmartBuffer, v: number): void {
     buf.writeInt32BE(fastParseInt(v));
+  },
+
+  decodeBinary(v: Buffer, offset: number = 0): number {
+    return v.readInt32BE(offset);
   },
 
   decodeText: fastParseInt,

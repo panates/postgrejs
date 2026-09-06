@@ -13,6 +13,28 @@ export const TimeType: DataType = {
   jsType: 'string',
   fixedBinarySize: 8,
 
+  encodeText(v: any, options: DataMappingOptions): string {
+    return formatTime(v, options);
+  },
+
+  encodeBinary(
+    buf: SmartBuffer,
+    v: Date | number | string,
+    options: DataMappingOptions,
+  ): void {
+    if (typeof v === 'string') v = parseTime(v, false, options.utcDates);
+    if (!(v instanceof Date)) v = new Date(v);
+    // Postgresql ignores timezone data so we are
+    let n = options.utcDates
+      ? v.getTime()
+      : v.getTime() - v.getTimezoneOffset() * 60 * 1000;
+    n = n * 1000;
+    const hi = Math.floor(n / timeMul);
+    const lo = n - hi * timeMul;
+    buf.writeInt32BE(hi);
+    buf.writeUInt32BE(lo);
+  },
+
   decodeBinary(
     v: Buffer,
     offset: number = 0,
@@ -35,28 +57,6 @@ export const TimeType: DataType = {
       );
     }
     return fetchAsString ? dateToTimeString(d) : d;
-  },
-
-  encodeText(v: any, options: DataMappingOptions): string {
-    return formatTime(v, options);
-  },
-
-  encodeBinary(
-    buf: SmartBuffer,
-    v: Date | number | string,
-    options: DataMappingOptions,
-  ): void {
-    if (typeof v === 'string') v = parseTime(v, false, options.utcDates);
-    if (!(v instanceof Date)) v = new Date(v);
-    // Postgresql ignores timezone data so we are
-    let n = options.utcDates
-      ? v.getTime()
-      : v.getTime() - v.getTimezoneOffset() * 60 * 1000;
-    n = n * 1000;
-    const hi = Math.floor(n / timeMul);
-    const lo = n - hi * timeMul;
-    buf.writeInt32BE(hi);
-    buf.writeUInt32BE(lo);
   },
 
   decodeText(v: string, options: DataMappingOptions): Date | number | string {
