@@ -1,3 +1,4 @@
+import { performance } from 'node:perf_hooks';
 import { coerceToBoolean } from 'putil-varhelpers';
 import { ConnectionState, DEFAULT_COLUMN_FORMAT } from '../constants.js';
 import type { DataTypeMap } from '../data-type-map.js';
@@ -306,14 +307,14 @@ export class IntlConnection extends SafeEventEmitter {
   ): Promise<ScriptResult> {
     this.ref();
     try {
-      const startTime = Date.now();
+      const startTime = performance.now();
       const result: ScriptResult = {
         totalCommands: 0,
         totalTime: 0,
         results: [],
       };
       const opts = options || {};
-      let currentStart = Date.now();
+      let currentStart = startTime;
       let parsers: AnyParseFunction[] | undefined;
       let current: CommandResult = { command: undefined };
       let fields: Protocol.RowDescription[];
@@ -386,14 +387,14 @@ export class IntlConnection extends SafeEventEmitter {
               ) {
                 current.rowsAffected = msg.rowCount;
               }
-              current.executeTime = Date.now() - currentStart;
+              current.executeTime = performance.now() - currentStart;
               if (current.rows)
                 current.rowType =
                   opts.objectRows && current.fields ? 'object' : 'array';
               result.results.push(current);
               if (cb) cb('command-complete', current);
               current = { command: undefined };
-              currentStart = Date.now();
+              currentStart = performance.now();
               break;
             case Protocol.BackendMessageCode.ReadyForQuery:
               this.transactionStatus = msg.status;
@@ -401,7 +402,7 @@ export class IntlConnection extends SafeEventEmitter {
                 done(error);
                 break;
               }
-              result.totalTime = Date.now() - startTime;
+              result.totalTime = performance.now() - startTime;
               // Ignore COMMIT command that we added to sql
               result.totalCommands = result.results.length;
               done(undefined, result);
@@ -434,7 +435,7 @@ export class IntlConnection extends SafeEventEmitter {
     this.ref();
     try {
       const typeMap = options.typeMap || GlobalTypeMap;
-      const startTime = Date.now();
+      const startTime = performance.now();
       const result: QueryResult = { command: undefined };
       const rows: any[] = [];
       let parsers: AnyParseFunction[] | undefined;
@@ -524,7 +525,7 @@ export class IntlConnection extends SafeEventEmitter {
       ) {
         result.rowsAffected = commandTag?.rowCount;
       }
-      result.executeTime = Date.now() - startTime;
+      result.executeTime = performance.now() - startTime;
       return result;
     } finally {
       this.unref();
@@ -617,7 +618,7 @@ export class IntlConnection extends SafeEventEmitter {
     this.ref();
     try {
       const typeMap = options.typeMap || GlobalTypeMap;
-      const startTime = Date.now();
+      const startTime = performance.now();
       const result: QueryResult = { command: undefined };
       const rows: any[] = [];
       let parsers: AnyParseFunction[] | undefined;
@@ -732,7 +733,7 @@ export class IntlConnection extends SafeEventEmitter {
       ) {
         result.rowsAffected = commandTag?.rowCount;
       }
-      result.executeTime = Date.now() - startTime;
+      result.executeTime = performance.now() - startTime;
       return result;
     } finally {
       this.unref();
