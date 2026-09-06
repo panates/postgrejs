@@ -116,7 +116,6 @@ export class PgSocket extends SafeEventEmitter {
   protected _connectToHost() {
     this._sessionAttrsChecked = false;
     this._state = ConnectionState.CONNECTING;
-    const options = this.options;
     const target = this._hosts[this._hostIndex];
     const socket = (this._socket = new net.Socket());
 
@@ -136,74 +135,24 @@ export class PgSocket extends SafeEventEmitter {
       this.emit('error', err);
     };
 
-    const startTls = () => {
-      const tslOptions: tls.ConnectionOptions = { ...options.ssl, socket };
-      if (target.host && net.isIP(target.host) === 0)
-        tslOptions.servername = target.host;
-      // Direct negotiation has no SSLRequest to identify the protocol, so
-      // ALPN is how the server learns this is PostgreSQL - it is required
-      // rather than an optimisation.
-      if (options.sslNegotiation === 'direct')
-        tslOptions.ALPNProtocols = ['postgresql'];
-      const tlsSocket = (this._socket = tls.connect(tslOptions));
-      tlsSocket.once('error', errorHandler);
-      tlsSocket.once('secureConnect', () => {
-        this._removeListeners();
-        this._handleConnect();
-      });
-    };
-
     const connectHandler = () => {
       socket.setTimeout(0);
       if (this.options.keepAlive || this.options.keepAlive == null)
         socket.setKeepAlive(true);
-      // TLS only when it was asked for. Offering SSLRequest to every server
-      // and upgrading whenever one says yes sounds harmless, but it means a
-      // caller who never mentioned TLS is suddenly held to certificate
-      // verification and cannot reach a server with a self-signed one - and
-      // the error says nothing about why TLS was involved at all. libpq, pg
-      // and postgres.js all ask only when told to.
-      const wantsSSL =
-        !!options.ssl ||
-        !!options.requireSSL ||
-        options.sslNegotiation === 'direct';
-      if (!wantsSSL) {
-        this._removeListeners();
-        this._handleConnect();
-        return;
-      }
-      if (options.sslNegotiation === 'direct') {
-        // Straight into the handshake: no SSLRequest, nothing in the clear.
-        this._removeListeners();
-        startTls();
-        return;
-      }
-      socket.write(this._frontend.getSSLRequestMessage());
-      socket.once('data', x => {
-        this._removeListeners();
-        const command = x.toString();
-        if (command === 'S') {
-          startTls();
-          return;
-        }
-        if (command === 'N') {
-          if (options.requireSSL) {
-            return errorHandler(
-              new Error('Server does not support SSL connections'),
-            );
-          }
+      this._negotiateTls(
+        socket,
+        target,
+        readySocket => {
+          this._socket = readySocket;
           this._removeListeners();
           this._handleConnect();
-          return;
-        }
-        return errorHandler(
-          new Error('There was an error establishing an SSL connection'),
-        );
-      });
+        },
+        errorHandler,
+      );
     };
 
     socket.setNoDelay(true);
-    socket.setTimeout(options.connectTimeoutMs || 30000, () =>
+    socket.setTimeout(this.options.connectTimeoutMs || 30000, () =>
       errorHandler(new Error('Connection timed out')),
     );
     socket.once('error', errorHandler);
@@ -217,6 +166,65 @@ export class PgSocket extends SafeEventEmitter {
   }
 
   /**
+   * Negotiates TLS on an already TCP-connected `socket`, if configured -
+   * shared between the long-lived connection above (_connectToHost) and
+   * cancel() below, which needs the exact same host/TLS handling for its
+   * own short-lived socket, just without ever sending a StartupMessage
+   * afterwards. Resolves `onReady` with whichever socket ends up ready to
+   * speak the PostgreSQL protocol: the plain one, or its TLS upgrade.
+   */
+  protected _negotiateTls(
+    socket: net.Socket,
+    target: { host: string; port?: number },
+    onReady: (socket: net.Socket | tls.TLSSocket) => void,
+    onError: (err: Error) => void,
+  ): void {
+    const options = this.options;
+    const startTls = () => {
+      const tlsOptions: tls.ConnectionOptions = { ...options.ssl, socket };
+      if (target.host && net.isIP(target.host) === 0)
+        tlsOptions.servername = target.host;
+      // Direct negotiation has no SSLRequest to identify the protocol, so
+      // ALPN is how the server learns this is PostgreSQL - it is required
+      // rather than an optimisation.
+      if (options.sslNegotiation === 'direct')
+        tlsOptions.ALPNProtocols = ['postgresql'];
+      const tlsSocket = tls.connect(tlsOptions);
+      tlsSocket.once('error', onError);
+      tlsSocket.once('secureConnect', () => onReady(tlsSocket));
+    };
+    // TLS only when it was asked for. Offering SSLRequest to every server
+    // and upgrading whenever one says yes sounds harmless, but it means a
+    // caller who never mentioned TLS is suddenly held to certificate
+    // verification and cannot reach a server with a self-signed one - and
+    // the error says nothing about why TLS was involved at all. libpq, pg
+    // and postgres.js all ask only when told to.
+    const wantsSSL =
+      !!options.ssl ||
+      !!options.requireSSL ||
+      options.sslNegotiation === 'direct';
+    if (!wantsSSL) return onReady(socket);
+    if (options.sslNegotiation === 'direct') {
+      // Straight into the handshake: no SSLRequest, nothing in the clear.
+      return startTls();
+    }
+    socket.write(this._frontend.getSSLRequestMessage());
+    socket.once('data', x => {
+      const command = x.toString();
+      if (command === 'S') return startTls();
+      if (command === 'N') {
+        if (options.requireSSL) {
+          return onError(new Error('Server does not support SSL connections'));
+        }
+        return onReady(socket);
+      }
+      return onError(
+        new Error('There was an error establishing an SSL connection'),
+      );
+    });
+  }
+
+  /**
    * Asks the server to cancel whatever this session is currently running.
    *
    * Opens its own short-lived connection and closes it again: a backend busy
@@ -225,17 +233,25 @@ export class PgSocket extends SafeEventEmitter {
    * - it either finds a matching session and signals it or does not - so
    * this resolves once the bytes are out, and the cancelled query reports
    * the outcome itself, as an ordinary error on its own connection.
+   *
+   * No StartupMessage or authentication is ever sent here - the
+   * CancelRequest is the only message this socket carries, and it is
+   * self-authorized by the processID/secretKey pair BackendKeyData handed
+   * out to the session being cancelled, not by a separate login. TLS is
+   * still negotiated via _negotiateTls() when configured, because a
+   * `hostssl` pg_hba.conf rule can reject a plaintext connection outright
+   * before the server ever reads what request it carries - and the target
+   * is `_hosts[_hostIndex]`, the host this session actually ended up
+   * connected to, not `options.host`, which after a multi-host failover may
+   * name a candidate this session never used.
    */
   cancel(): Promise<void> {
     const processID = this._processID;
     const secretKey = this._secretKey;
     // Nothing to cancel before the session is established.
     if (processID == null || secretKey == null) return Promise.resolve();
-    const options = this.options;
     const data = this._frontend.getCancelRequestMessage(processID, secretKey);
-    const sslRequest = options.ssl
-      ? this._frontend.getSSLRequestMessage()
-      : undefined;
+    const target = this._hosts[this._hostIndex];
 
     return new Promise<void>((resolve, reject) => {
       const socket = new net.Socket();
@@ -243,39 +259,21 @@ export class PgSocket extends SafeEventEmitter {
         socket.destroy();
         reject(err);
       };
-      const send = (target: net.Socket | tls.TLSSocket) => {
-        target.end(data, () => {
-          target.destroy();
+      const send = (readySocket: net.Socket | tls.TLSSocket) => {
+        readySocket.end(data, () => {
+          readySocket.destroy();
           resolve();
         });
       };
       socket.setNoDelay(true);
       socket.once('error', fail);
-      socket.once('connect', () => {
-        if (!sslRequest) return send(socket);
-        socket.write(sslRequest);
-        socket.once('data', x => {
-          if (x.toString() === 'S') {
-            const tlsOptions: tls.ConnectionOptions = {
-              ...options.ssl,
-              socket,
-            };
-            if (options.host && net.isIP(options.host) === 0)
-              tlsOptions.servername = options.host;
-            const tlsSocket = tls.connect(tlsOptions);
-            tlsSocket.once('error', fail);
-            tlsSocket.once('secureConnect', () => send(tlsSocket));
-            return;
-          }
-          if (options.requireSSL)
-            return fail(new Error('Server does not support SSL connections'));
-          send(socket);
-        });
-      });
-      const port = options.port || DEFAULT_PORT_NUMBER;
-      if (options.host && options.host.startsWith('/'))
-        socket.connect(path.join(options.host, '/.s.PGSQL.' + port));
-      else socket.connect(port, options.host || 'localhost');
+      socket.once('connect', () =>
+        this._negotiateTls(socket, target, send, fail),
+      );
+      const port = target.port || DEFAULT_PORT_NUMBER;
+      if (target.host && target.host.startsWith('/'))
+        socket.connect(path.join(target.host, '/.s.PGSQL.' + port));
+      else socket.connect(port, target.host || 'localhost');
     });
   }
 

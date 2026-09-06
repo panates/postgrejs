@@ -67,4 +67,32 @@ describe('Multiple hosts', () => {
       await connection.close(0);
     }
   });
+
+  it('should cancel on the host actually connected to, not the first configured one', async () => {
+    // getConnectionConfig() normalises options.host/options.port to
+    // hosts[0] (DEAD here) regardless of which candidate actually ends up
+    // connected - so a cancel() that read those instead of _hosts[_hostIndex]
+    // would silently dial the dead first host instead of the live second one.
+    const connection = new Connection({ hosts: [DEAD, live()] });
+    try {
+      await connection.connect();
+      const ac = new AbortController();
+      setTimeout(() => ac.abort(), 200);
+      const started = Date.now();
+      let error: any;
+      try {
+        await connection.query('select pg_sleep(10)', { signal: ac.signal });
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeDefined();
+      expect(error.name).toStrictEqual('AbortError');
+      // A cancel that reached the wrong (dead) host would leave the query
+      // running its full ten seconds instead of stopping early.
+      expect(Date.now() - started).toBeLessThan(5000);
+      expect(error.cause?.code).toStrictEqual('57014');
+    } finally {
+      await connection.close(0);
+    }
+  });
 });
