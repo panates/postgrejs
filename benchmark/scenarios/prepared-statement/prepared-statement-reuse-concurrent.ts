@@ -12,8 +12,8 @@ export const PREPARED_STATEMENT_REUSE_CONCURRENT_SCENARIO: ScenarioMeta = {
     'without awaiting each one individually, then await them all via ' +
     "Promise.all() - using each library's own prepared-statement " +
     'mechanism (postgres.js auto-prepares, pg uses a named statement, ' +
-    'postgrejs uses explicit prepare()/execute()/close()). Excludes ' +
-    'int8: pg/postgres.js/postgrejs return it as genuinely different JS ' +
+    'PostgreJS uses explicit prepare()/execute()/close()). Excludes ' +
+    'int8: pg/postgres.js/PostgreJS return it as genuinely different JS ' +
     'types by default (string/BigInt/number-or-BigInt), so timing it ' +
     'would measure type-conversion choice, not reuse cost',
   // Raised for the same reason as the Sequential variant's (see its own

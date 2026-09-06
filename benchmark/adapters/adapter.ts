@@ -7,7 +7,7 @@ import type { LibId } from '../types.js';
  * fastest calling convention (rather than a shared SQL-call-level
  * `query(sql, params)` shape, which would flatten postgres.js's
  * tagged-template/auto-pipelining model, pg's callback/promise + named
- * statement model, and postgrejs's Connection/Pool/Cursor/PreparedStatement
+ * statement model, and PostgreJS's Connection/Pool/Cursor/PreparedStatement
  * split into a shape none of them actually use idiomatically). All three
  * adapters read the same shared constants from benchmark/scenarios/*.ts, so
  * only the mechanism varies per library, not the workload.
@@ -54,7 +54,7 @@ export interface Adapter {
     mixedTypesDecode(handle: unknown, bench: Bench, rowTarget: number): void;
     /**
      * Same fetch as mixedTypesDecode, but requesting binary result format.
-     * Optional: only postgrejs implements this (see mixed-types-decode-
+     * Optional: only PostgreJS implements this (see mixed-types-decode-
      * binary.ts's ScenarioMeta.unsupportedLibs for why pg/postgres.js are
      * excluded rather than given a misleading number) - the orchestrator
      * never calls this for a lib not implementing it.
@@ -67,7 +67,7 @@ export interface Adapter {
     /**
      * Fetches `rowCount` large (multi-MB) bytea values via a real bind
      * parameter (the row count itself). No protocol format is forced:
-     * postgrejs is left on its own Extended Query default (binary), pg and
+     * PostgreJS is left on its own Extended Query default (binary), pg and
      * postgres.js are left on their own defaults too (text - see
      * large-blob-fetch.ts's ScenarioMeta description for why binary isn't
      * viable for either of them here). Each library shows its own real,
@@ -82,7 +82,7 @@ export interface Adapter {
     /**
      * Fetches `rowCount` rows of an int4[] with `elementCount` elements
      * each via a real bind parameter (the row count itself). No protocol
-     * format is forced onto anyone: postgrejs is left on its own Extended
+     * format is forced onto anyone: PostgreJS is left on its own Extended
      * Query default (binary), pg and postgres.js are left on their own
      * defaults too (text - see large-array-fetch.ts's ScenarioMeta
      * description for why pg's binary array decode isn't safe to use

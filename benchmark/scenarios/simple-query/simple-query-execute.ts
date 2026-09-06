@@ -1,4 +1,4 @@
-import type { ScenarioMeta } from '../types.js';
+import type { ScenarioMeta } from '../../types.js';
 
 export const SIMPLE_QUERY_SQL = 'select 1 as one';
 

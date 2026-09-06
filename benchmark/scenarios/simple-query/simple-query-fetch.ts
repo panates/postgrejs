@@ -1,4 +1,4 @@
-import type { ScenarioMeta } from '../types.js';
+import type { ScenarioMeta } from '../../types.js';
 
 export const SIMPLE_QUERY_FETCH_ROW_TARGET = 1000;
 
@@ -28,7 +28,7 @@ export const SIMPLE_QUERY_FETCH_SCENARIO: ScenarioMeta = {
     'Execution and Concurrent Execution above) on a single already-open ' +
     'connection, no pool - row-fetch throughput without the parse/bind/' +
     'describe overhead of the Extended Query protocol. Excludes int8: ' +
-    'pg/postgres.js/postgrejs return it as genuinely different JS types ' +
+    'pg/postgres.js/PostgreJS return it as genuinely different JS types ' +
     'by default (string/BigInt/number-or-BigInt), so timing it would ' +
     'measure type-conversion choice, not decode speed',
   bench: {

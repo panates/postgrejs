@@ -41,7 +41,7 @@ export const postgresAdapter: Adapter = {
   async setup(config: BenchDbConfig) {
     // max: 1 keeps a single underlying connection, matching the
     // "already-open single connection" semantics used by the pg and
-    // postgrejs adapters for these scenarios (pool-simple-query-execute
+    // PostgreJS adapters for these scenarios (pool-simple-query-execute
     // measures postgres.js's own implicit pool separately, see below).
     const sql = postgres(sqlConfig(config, 1));
     await sql`select 1`;
@@ -73,7 +73,7 @@ export const postgresAdapter: Adapter = {
       });
     },
 
-    // Same concurrent-without-await pattern as postgrejs's
+    // Same concurrent-without-await pattern as PostgreJS's
     // simpleQueryExecuteConcurrent - postgres.js is inherently designed for
     // this (automatic pipelining), so it should serialize/pipeline results
     // correctly without cross-talk between callers. No args, so unsafe()

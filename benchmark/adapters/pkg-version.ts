@@ -29,7 +29,7 @@ export function readInstalledVersion(packageName: string): string {
   throw new Error(`Could not resolve installed version of "${packageName}"`);
 }
 
-/** postgrejs is this repo itself, so its "installed version" is its own package.json */
+/** PostgreJS is this repo itself, so its "installed version" is its own package.json */
 export function readOwnPackageVersion(): string {
   const pkgPath = path.resolve(
     path.dirname(new URL(import.meta.url).pathname),

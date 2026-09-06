@@ -82,7 +82,7 @@ export const LARGE_ARRAY_FETCH_SCENARIO: ScenarioMeta = {
     "see this file's own comments for the measurement that showed why), " +
     'so this is sized for a clear decode-time gap without ballooning ' +
     'each iteration to whole seconds. As with Large Blob Fetch, no ' +
-    'protocol format is forced onto anyone: postgrejs is left on its ' +
+    'protocol format is forced onto anyone: PostgreJS is left on its ' +
     "own Extended Query default (binary). pg's binary array decode " +
     '(`pg-types`) is registered-but-buggy rather than simply ' +
     'unsupported: it DOES have a registered binary parser for `_int4` ' +

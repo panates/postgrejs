@@ -1,4 +1,4 @@
-import type { ScenarioMeta } from '../types.js';
+import type { ScenarioMeta } from '../../types.js';
 
 export const SIMPLE_QUERY_EXECUTE_CONCURRENT_CONCURRENCY = 50;
 
@@ -13,7 +13,7 @@ export const SIMPLE_QUERY_EXECUTE_CONCURRENT_SCENARIO: ScenarioMeta = {
     'The concurrent counterpart to Sequential Execution above: fire ' +
     `${SIMPLE_QUERY_EXECUTE_CONCURRENT_CONCURRENCY} Simple Query calls on ` +
     'the SAME already-open connection without awaiting each one ' +
-    'individually, then await them all via Promise.all() - postgrejs ' +
+    'individually, then await them all via Promise.all() - PostgreJS ' +
     'pipelines these at the wire level (writes each message without ' +
     "waiting for the previous one's response, matches responses back in " +
     'FIFO order) so results never cross-talk even though the caller never ' +

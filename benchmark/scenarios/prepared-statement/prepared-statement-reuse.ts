@@ -26,11 +26,11 @@ export const PREPARED_STATEMENT_REUSE_SCENARIO: ScenarioMeta = {
     `Prepare once and execute ${PREPARED_STATEMENT_ITERATIONS} times, one ` +
     'at a time, each awaited before the next starts, using each ' +
     "library's own prepared-statement mechanism (postgres.js auto-" +
-    'prepares, pg uses a named statement, postgrejs uses explicit ' +
+    'prepares, pg uses a named statement, PostgreJS uses explicit ' +
     'prepare()/execute()/close()) - compare against the Concurrent ' +
     'variant below to see what overlapping executions of the same ' +
     'reused statement buys each library. Excludes int8: pg/postgres.js/' +
-    'postgrejs return it as genuinely different JS types by default ' +
+    'PostgreJS return it as genuinely different JS types by default ' +
     '(string/BigInt/number-or-BigInt), so timing it would measure type-' +
     'conversion choice, not reuse cost',
   // One iteration here is PREPARED_STATEMENT_ITERATIONS sequential round

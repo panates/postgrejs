@@ -1,4 +1,4 @@
-import type { ScenarioMeta } from '../types.js';
+import type { ScenarioMeta } from '../../types.js';
 
 export const EXTENDED_QUERY_EXECUTE_CONCURRENT_CONCURRENCY = 50;
 export const EXTENDED_QUERY_EXECUTE_CONCURRENT_SQL = 'select $1::int2 as val';
@@ -13,7 +13,7 @@ export const EXTENDED_QUERY_EXECUTE_CONCURRENT_SCENARIO: ScenarioMeta = {
     'Query calls (`select $1::int2`, a real bind parameter, not a ' +
     'reused/cached statement) on the SAME already-open connection ' +
     'without awaiting each one individually, then await them all via ' +
-    'Promise.all() - postgrejs pipelines these at the wire level so ' +
+    'Promise.all() - PostgreJS pipelines these at the wire level so ' +
     'results never cross-talk even though the caller never awaited ' +
     'between calls. Each call binds a distinct value and the result is ' +
     'checked against it, so this scenario verifies correctness (do the ' +

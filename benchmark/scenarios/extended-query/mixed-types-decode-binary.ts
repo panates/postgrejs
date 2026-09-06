@@ -11,7 +11,7 @@ export const MIXED_TYPES_DECODE_BINARY_SCENARIO: ScenarioMeta = {
     'The same fetch as Mixed-Type Decode (Text Protocol) above - same ' +
     `${MIXED_TYPES_DECODE_ROW_TARGET} rows, same columns, same ` +
     'bind-parameter row count - but requesting binary result format instead ' +
-    "of text: postgrejs's own Extended Query default " +
+    "of text: PostgreJS's own Extended Query default " +
     '(`DEFAULT_COLUMN_FORMAT`), so this measures its binary decode path ' +
     'on its own terms rather than forcing it onto text. postgres.js has ' +
     'no binary protocol support at all - its `Bind` message hardcodes ' +
@@ -23,7 +23,7 @@ export const MIXED_TYPES_DECODE_BINARY_SCENARIO: ScenarioMeta = {
     'date/bool types are - so requesting binary from pg would return ' +
     'those columns unparsed or corrupted rather than a comparable ' +
     "value; it's excluded rather than reported as a misleading number. " +
-    "Only postgrejs's own result is shown",
+    "Only PostgreJS's own result is shown",
   unsupportedLibs: {
     pg: 'Not Fully Supported',
     postgres: 'Not Supported',

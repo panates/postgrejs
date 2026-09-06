@@ -1,4 +1,4 @@
-import type { ScenarioMeta } from '../types.js';
+import type { ScenarioMeta } from '../../types.js';
 
 export const CURSOR_STREAM_ROW_TARGET = 50_000;
 export const CURSOR_STREAM_BATCH_SIZE = 500;
@@ -26,7 +26,7 @@ export const CURSOR_STREAM_SCENARIO: ScenarioMeta = {
   description:
     `Stream ${CURSOR_STREAM_ROW_TARGET} rows via a server-side cursor in ` +
     `batches of ${CURSOR_STREAM_BATCH_SIZE}. Excludes int8: pg/postgres.js/` +
-    'postgrejs return it as genuinely different JS types by default ' +
+    'PostgreJS return it as genuinely different JS types by default ' +
     '(string/BigInt/number-or-BigInt), so timing it would measure type-' +
     'conversion choice, not streaming throughput',
   bench: {

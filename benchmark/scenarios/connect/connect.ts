@@ -1,4 +1,4 @@
-import type { ScenarioMeta } from '../types.js';
+import type { ScenarioMeta } from '../../types.js';
 
 export const CONNECT_SCENARIO: ScenarioMeta = {
   name: 'connect',

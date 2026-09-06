@@ -11,7 +11,7 @@ import type { Adapter } from './adapter.js';
 // order, and whichever library runs first in a given process/scenario
 // tends to look slower/noisier (process/CPU warm-up, not a real code
 // difference - confirmed by reversing the order and seeing the "slower"
-// library flip). postgrejs is kept out of the first slot so it isn't the
+// library flip). PostgreJS is kept out of the first slot so it isn't the
 // one absorbing that bias by default.
 const ADAPTER_LOADERS: Record<LibId, () => Promise<Adapter>> = {
   pg: async () => (await import('./pg.adapter.js')).pgAdapter,

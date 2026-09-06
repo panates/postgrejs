@@ -66,7 +66,7 @@ export const postgrejsAdapter: Adapter = {
         // as pg's query(text) with no params and postgres.js's cached
         // prepared path — matching each library's own fast path for a
         // parameterless query, per disclosed asymmetry #1's principle.
-        // objectRows: true so postgrejs's output shape matches pg's and
+        // objectRows: true so PostgreJS's output shape matches pg's and
         // postgres.js's defaults (see disclosed asymmetry #5) — the one
         // deliberate normalization across adapters.
         await connection.execute(SIMPLE_QUERY_SQL, { objectRows: true });
@@ -74,7 +74,7 @@ export const postgrejsAdapter: Adapter = {
     },
 
     // Fires `concurrency` execute() calls on the SAME connection without
-    // awaiting each individually, then Promise.all()s them. postgrejs
+    // awaiting each individually, then Promise.all()s them. PostgreJS
     // serializes these internally via a statement queue so results never
     // cross-talk between callers even though the caller never awaited
     // between calls; each call selects a distinct literal and the result is
@@ -105,11 +105,11 @@ export const postgrejsAdapter: Adapter = {
         // Bind/Describe/Execute/Sync); passing a real parameter here (as
         // opposed to a literal) makes that unambiguous and matches how
         // pg/postgres.js are driven for this scenario too.
-        // columnFormat: text - postgrejs defaults to requesting binary
+        // columnFormat: text - PostgreJS defaults to requesting binary
         // result columns (DEFAULT_COLUMN_FORMAT), but neither pg (unless
         // binary:true, which we never set) nor postgres.js (no binary
         // protocol support at all - verified in its source) ever use
-        // binary here, so leaving postgrejs on its default would compare
+        // binary here, so leaving PostgreJS on its default would compare
         // binary decode against text decode, not decode speed.
         const result = await connection.query(EXTENDED_QUERY_SQL, {
           params: [EXTENDED_QUERY_PARAM],
@@ -170,7 +170,7 @@ export const postgrejsAdapter: Adapter = {
 
     // Same fetch as mixedTypesDecode, but leaving columnFormat unset so
     // query() uses its actual default (DEFAULT_COLUMN_FORMAT = binary) -
-    // postgrejs's own binary decode path, on its own terms. Only postgrejs
+    // PostgreJS's own binary decode path, on its own terms. Only PostgreJS
     // implements this (see the scenario's unsupportedLibs).
     mixedTypesDecodeBinary(handle, bench, rowTarget) {
       const { connection, schema } = handle as PostgrejsHandle;

@@ -5,12 +5,10 @@ import {
   LARGE_ARRAY_FIRST_ELEMENT,
   LARGE_ARRAY_ROW_COUNT,
   LARGE_ARRAY_SECOND_ELEMENT,
-  largeArrayElementSql,
-} from './scenarios/extended-query/large-array-fetch.js';
-import {
   LARGE_BLOB_ROW_COUNT,
   LARGE_BLOB_SIZE_BYTES,
-} from './scenarios/extended-query/large-blob-fetch.js';
+  largeArrayElementSql,
+} from './scenarios/index.js';
 
 const MIXED_TYPES_COLUMNS = `
     id SERIAL NOT NULL,

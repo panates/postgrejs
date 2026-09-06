@@ -37,7 +37,7 @@ function clientConfig(config: BenchDbConfig) {
     // individually, which is exactly the pattern this flag is for; leaving
     // it off would benchmark pg's serialized-fallback path instead of its
     // real concurrent capability, understating it the same way testing
-    // postgrejs/postgres.js without their own pipelining would. Safe for
+    // PostgreJS/postgres.js without their own pipelining would. Safe for
     // every sequential (always-awaited-one-at-a-time) scenario too, since
     // pipelining only changes behavior when more than one query is queued
     // at once - never the case there.
@@ -77,7 +77,7 @@ export const pgAdapter: Adapter = {
       });
     },
 
-    // Same concurrent-without-await pattern as postgrejs's
+    // Same concurrent-without-await pattern as PostgreJS's
     // simpleQueryExecuteConcurrent - checks whether pg's Client (which has
     // its own internal query queue) also serializes correctly on one
     // connection instead of cross-talking results between callers.
@@ -295,7 +295,7 @@ export const pgAdapter: Adapter = {
     // pg uses named statements: the server parses the statement once for a
     // given name on a given connection; subsequent queries reusing that name
     // skip re-parsing. There is no public API to explicitly close a named
-    // statement, unlike postgrejs's explicit close().
+    // statement, unlike PostgreJS's explicit close().
     preparedStatementReuse(handle, bench, iterations) {
       const { client, schema } = handle as PgHandle;
       const sql = preparedStatementSql(schema);

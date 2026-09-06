@@ -33,7 +33,7 @@ export const MIXED_TYPES_DECODE_SCENARIO: ScenarioMeta = {
   description:
     `Fetch ${MIXED_TYPES_DECODE_ROW_TARGET} mixed-type rows (int2/int4/` +
     'float4/float8/varchar/json/jsonb/timestamp/timestamptz/bytea) via ' +
-    "each library's Extended Query path (postgrejs's query(), a one-shot " +
+    "each library's Extended Query path (PostgreJS's query(), a one-shot " +
     'parameterized call, not a reused prepared statement) and decode them ' +
     'to JS values - the row count is itself a real bind parameter ($1), ' +
     'not a literal, and large enough that column-decode work dominates ' +
@@ -41,10 +41,10 @@ export const MIXED_TYPES_DECODE_SCENARIO: ScenarioMeta = {
     'Extended Query counterpart to Simple Query Fetch above, and the raw ' +
     'decode cost this protocol carries per call, before Prepared ' +
     'Statement Reuse below measures what reusing the parsed plan saves. ' +
-    'Excludes int8: pg/postgres.js/postgrejs return it as genuinely ' +
+    'Excludes int8: pg/postgres.js/PostgreJS return it as genuinely ' +
     'different JS types by default (string/BigInt/number-or-BigInt), so ' +
     'timing it would measure type-conversion choice, not decode speed. ' +
-    'Forces postgrejs onto the text protocol explicitly (its Extended ' +
+    'Forces PostgreJS onto the text protocol explicitly (its Extended ' +
     'Query default is binary, per-column, unlike pg and postgres.js, ' +
     "which are always text here - pg's binary mode is opt-in and never " +
     'requested, postgres.js has no binary protocol support at all) - ' +

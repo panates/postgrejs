@@ -31,7 +31,7 @@ export const LARGE_BLOB_FETCH_SCENARIO: ScenarioMeta = {
     'instead of per-row/per-column overhead across many small ones (the ' +
     'counterpart to Mixed-Type Decode above, which is many small values). ' +
     'Unlike that scenario, no protocol format is forced onto anyone here: ' +
-    'postgrejs is left on its own Extended Query default (binary); pg ' +
+    'PostgreJS is left on its own Extended Query default (binary); pg ' +
     'and postgres.js get whatever their own default is. postgres.js has ' +
     'no binary protocol support at all (verified elsewhere in this ' +
     'report), so it always fetches as text (hex-encoded on the wire, ' +
@@ -39,12 +39,12 @@ export const LARGE_BLOB_FETCH_SCENARIO: ScenarioMeta = {
     'entry for `bytea` (verified live: requesting binary format for a ' +
     'bytea column returns a corrupted value, not a Buffer) - undocumented ' +
     'and unsafe to rely on, so pg is left on its own text default here ' +
-    'too, same as postgres.js. Only postgrejs ends up genuinely ' +
+    'too, same as postgres.js. Only PostgreJS ends up genuinely ' +
     'exercising a binary fetch; the other two show their real, best-' +
     'available path rather than a forced or broken one - and pay for it: ' +
     "bytea's text format is `\\x`-prefixed hex, literally 2x the wire " +
     "bytes of binary's raw bytes, so pg/postgres.js transfer twice what " +
-    'postgrejs does here',
+    'PostgreJS does here',
   reportWireBytes: true,
   bench: {
     time: 1000,

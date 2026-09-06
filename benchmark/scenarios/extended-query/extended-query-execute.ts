@@ -1,4 +1,4 @@
-import type { ScenarioMeta } from '../types.js';
+import type { ScenarioMeta } from '../../types.js';
 
 export const EXTENDED_QUERY_SQL = 'select $1::int2 as one';
 export const EXTENDED_QUERY_PARAM = 1;
