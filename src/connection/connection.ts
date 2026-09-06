@@ -182,11 +182,12 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       options?.signal,
       () => this._intlCon.cancel(),
       () =>
-        this._captureErrorStack(this._intlCon.execute(sql, options)).catch(
-          (e: DatabaseError) => {
-            throw this._handleError(e, sql);
-          },
-        ),
+        this._captureErrorStack(
+          this._intlCon.execute(sql, options),
+          this.execute,
+        ).catch((e: DatabaseError) => {
+          throw this._handleError(e, sql);
+        }),
     );
   }
 
@@ -515,6 +516,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       );
       return await this._captureErrorStack(
         this._intlCon.queryOnce(sql, paramTypes, params, options || {}),
+        this.query,
       ).catch((e: DatabaseError) => {
         throw this._handleError(e, sql);
       });
@@ -531,6 +533,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       );
       return await this._captureErrorStack(
         statement.execute({ ...options, params }),
+        this.query,
       );
     } finally {
       await statement.close();
@@ -599,11 +602,24 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     return err;
   }
 
-  protected async _captureErrorStack<T>(promise: Promise<T>): Promise<T> {
+  /**
+   * Remembers where a call came from, so the error it may reject with points
+   * at the caller instead of at an internal async frame.
+   *
+   * `entry` is the public method to cut the trace at: everything from it
+   * inwards is this library's own plumbing and is dropped, which matters
+   * because the captured depth is deliberately small - spending four of five
+   * frames on our own call chain would leave one for the caller, and any
+   * helper of theirs would push the real call site off the end.
+   */
+  protected async _captureErrorStack<T>(
+    promise: Promise<T>,
+    entry?: (...args: any[]) => any,
+  ): Promise<T> {
     const stackHolder: { stack?: string } = {};
     const originalStackTraceLimit = Error.stackTraceLimit;
     Error.stackTraceLimit = CAPTURE_STACK_TRACE_LIMIT;
-    Error.captureStackTrace(stackHolder, this._captureErrorStack);
+    Error.captureStackTrace(stackHolder, entry || this._captureErrorStack);
     Error.stackTraceLimit = originalStackTraceLimit;
 
     return promise.catch(e => {
