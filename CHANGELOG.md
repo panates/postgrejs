@@ -1,6 +1,25 @@
 ## Changelog
 
-### [v3.0.1](https://github.com/panates/postgrejs/compare/v3.0.0...v3.0.1) - 
+### [v3.0.2](https://github.com/panates/postgrejs/compare/v3.0.1...v3.0.2) - 
+
+#### 🚀 New Features
+
+- feat: add Docker setup for PostgreSQL with SSL support @Eray Hanoğlu 
+- feat: support nested startTransaction()/commit() and savepoint()/releaseSavepoint() @Eray Hanoğlu 
+- feat: make execute()/query() timing an opt-in, default-off option @Eray Hanoğlu 
+
+#### 🪲 Fixes
+
+- fix: raise warmup for Simple Query benchmark, regenerate BENCHMARKS.md @Eray Hanoğlu 
+- fix: enlarge benchmark charts so GitHub's Mermaid overlay doesn't swallow them @Eray Hanoğlu 
+- fix: replace deprecated substr() with substring() @Eray Hanoğlu 
+
+#### ⚡️ Performance Improvments
+
+- perf: remove needless async wrapping and coercion from execute()/query() hot path @Eray Hanoğlu 
+- perf: hoist loop-invariant reads in Frontend/numeric encoders @Eray Hanoğlu 
+
+### [v3.0.1](https://github.com/panates/postgrejs/compare/v3.0.0...v3.0.1) -  7 September 2026 
 
 - Dev
 - Dev
