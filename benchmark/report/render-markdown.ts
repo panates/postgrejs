@@ -289,13 +289,13 @@ function renderBarChart(
   const xAxis = ordered.map(s => CHART_LIB_LABELS[s.lib] ?? s.lib);
   const values = ordered.map(opts.valueOf);
   const bars = values.map(v => v.toFixed(4));
-  // Without an explicit range, xychart-beta auto-scales the y-axis to fit
-  // the data tightly (roughly [min, max] of the bars, not anchored at 0) -
-  // for a scenario where every library lands within a few percent of each
-  // other (e.g. Sequential Execution), that tight window makes trivial
-  // differences look like one bar is a sliver next to another. Anchoring
-  // at 0 (extended to whichever side of 0 the data actually falls on) with
-  // ~10% headroom keeps bar height honestly proportional to the actual
+  // Without an explicit range, xychart-beta auto-scales the value axis to
+  // fit the data tightly (roughly [min, max] of the bars, not anchored at
+  // 0) - for a scenario where every library lands within a few percent of
+  // each other (e.g. Sequential Execution), that tight window makes
+  // trivial differences look like one bar is a sliver next to another.
+  // Anchoring at 0 (extended to whichever side of 0 the data actually
+  // falls on) keeps bar length honestly proportional to the actual
   // values. Heap Δ in particular is often *negative* (a run that nets out
   // shrinking the heap) - Math.min/max each include a literal 0 candidate
   // so an all-positive series still anchors its floor at 0 and an
@@ -304,26 +304,44 @@ function renderBarChart(
   // are. A flat all-zero series (e.g. no GC observed at all) would make
   // both ends 0 too - xychart-beta needs a non-degenerate range, so that
   // case floors the ceiling at a small positive number instead.
+  //
+  // The max headroom is 50%, not the ~10% you'd use for a plain chart:
+  // with chartOrientation set to horizontal below, this value axis runs
+  // left-to-right, so a bar reaching the real max value now stops at
+  // ~67% of the chart's width - deliberately leaving empty space on the
+  // right for GitHub's fixed-position pan/zoom overlay (see
+  // renderScenarioCharts) to sit over instead of over an actual bar.
   const minValue = Math.min(...values, 0);
   const maxValue = Math.max(...values, 0);
   const yAxisMin = (minValue < 0 ? minValue * 1.1 : 0).toFixed(4);
   const yAxisMax = (
-    maxValue > 0 ? maxValue * 1.1 : minValue < 0 ? 0 : 1
+    maxValue > 0 ? maxValue * 1.5 : minValue < 0 ? 0 : 1
   ).toFixed(4);
   // Mermaid's xychart-beta defaults to a large canvas; the 'xyChart' init
-  // config (must be the first line inside the fence) resizes it. Sized
-  // generously (not the tight ~440x260 this used to be) because GitHub
-  // overlays every rendered Mermaid diagram with its own fixed-size
-  // pan/zoom control cluster, independent of the diagram's own config -
-  // a small chart gets proportionally swallowed by it (title clipped,
-  // bars covered). More canvas means that fixed-size overlay eats a
-  // smaller fraction of it. (xychart-beta's bar/gap ratio itself isn't
-  // configurable - checked mermaid's own resolved xyChart config schema
-  // live, no such option exists - so bar width can't be tuned separately
-  // from chart width.) Bar color is a THEME variable, not a top-level
-  // xyChart config key, hence the separate object.
+  // config (must be the first line inside the fence) resizes it. This
+  // width/height is the diagram's own internal coordinate system, not its
+  // rendered pixel size on github.com - GitHub renders every Mermaid
+  // diagram inside its own iframe, sized by whatever HTML container holds
+  // it (see renderScenarioCharts), so this number mainly sets the
+  // diagram's internal aspect ratio/proportions, not how big it ends up
+  // on screen. (xychart-beta's bar/gap ratio itself isn't configurable -
+  // checked mermaid's own resolved xyChart config schema live, no such
+  // option exists - so bar width can't be tuned separately from chart
+  // width.) Bar color is a THEME variable, not a top-level xyChart config
+  // key, hence the separate object.
+  //
+  // chartOrientation: 'horizontal' - GitHub's pan/zoom overlay is
+  // positioned by GitHub itself and can't be hidden, resized, or
+  // repositioned from here (confirmed against GitHub's own community
+  // discussions - no config, CSS, or directive controls it). What we CAN
+  // control is where the diagram's own content falls relative to that
+  // fixed position: with bars running left-to-right instead of bottom-
+  // to-top, and yAxisMax's 50% headroom above pushing every bar's real
+  // value well short of the chart's right edge (see yAxisMax's own
+  // comment), the overlay - which sits over roughly the same region
+  // either way - now lands on that empty margin instead of on a bar.
   const initParts = [
-    `'xyChart': {'width': ${opts.width ?? 500}, 'height': ${opts.height ?? 260}}`,
+    `'xyChart': {'width': ${opts.width ?? 500}, 'height': ${opts.height ?? 260}, 'chartOrientation': 'horizontal'}`,
   ];
   if (opts.color) {
     initParts.push(
@@ -347,17 +365,29 @@ function renderBarChart(
 // data (older result files, or a run without --expose-gc for the heap
 // figure specifically, won't).
 //
-// Laid out 2-per-row: [mean latency, ops/sec] on top, [GC, peak heap]
-// below - grouping "cost" charts (lower is better) together on one row and
-// throughput (higher is better, and a different color - see
-// HIGHER_IS_BETTER_COLOR) with latency on the other, rather than all four
-// crammed into a single row.
+// Order is [mean latency, ops/sec, GC, peak heap] - grouping "cost"
+// charts (lower is better) next to throughput (higher is better, and a
+// different color - see HIGHER_IS_BETTER_COLOR) rather than, say, both
+// "cost" charts first; matters for the inline-block layout below since
+// it decides which two charts end up sharing a row on a wide viewport.
 //
-// Side-by-side via a plain HTML table - GitHub does render fenced code
-// blocks (mermaid included) inside table cells, but this depends on
-// GitHub's own HTML-in-Markdown handling rather than being guaranteed by
-// the CommonMark/mermaid tooling itself, unlike a single always-top-level
-// fence - worth a visual check on github.com after pushing.
+// Each chart is its own fixed-width `<div style="display:inline-block">`
+// (see cellStyle below), not a `<table>` row/cell grouping - measured
+// live on github.com that GitHub renders every Mermaid diagram inside
+// its own iframe (https://viewscreen.githubusercontent.com/markdown/
+// mermaid), sized by whatever CONTAINER holds it, not by the diagram's
+// own `xyChart` init width/height. A `<table>`'s 2-per-row grouping is
+// fixed regardless of viewport width, which either wastes space (a
+// narrow viewport squeezing 2 charts down small enough that GitHub's
+// fixed-size pan/zoom overlay swallows a real fraction of each) or, sized
+// for a narrow viewport instead, leaves a wide one with unused margin.
+// inline-block avoids the tradeoff entirely: the browser already wraps a
+// run of same-sized inline-block boxes onto a new line once the next one
+// no longer fits the remaining width, with no media query needed - 2 per
+// row wherever there's roughly 900px to work with, 1 per row on anything
+// narrower (a phone, a PR's diff-view sidebar), from the fixed width
+// alone.
+
 function renderScenarioCharts(
   summaries: ScenarioLibSummary[],
   reportWireBytes?: boolean,
@@ -366,11 +396,8 @@ function renderScenarioCharts(
   const hasPeakHeap = summaries.some(s => s.medianPeakHeapGrowthBytes != null);
   const hasWire =
     !!reportWireBytes && summaries.some(s => s.medianWireRxBytes != null);
-  // 2 charts per row (mean+ops/sec is always present). Wide enough that
-  // GitHub's own fixed-size Mermaid pan/zoom overlay (see renderBarChart's
-  // comment) doesn't swallow a meaningful fraction of the chart.
   const width = 600;
-  const height = 380;
+  const height = 300;
 
   const charts = [
     renderBarChart(summaries, {
@@ -432,27 +459,19 @@ function renderScenarioCharts(
     );
   }
 
-  // border="0" plus border:none/border-collapse on the table AND every row
-  // AND every cell - GitHub's own markdown CSS otherwise draws default
-  // table/cell/row borders here regardless of the border="0" attribute
-  // alone, which look out of place next to the borderless charts.
-  // border-spacing on the table (not margin - margin has no effect on
-  // table cells per the CSS spec) is what actually puts a small gap
-  // between adjacent chart cells.
-  const tableStyle =
-    'style="border:none;border-collapse:collapse;border-spacing:2px;"';
-  const rowStyle = 'style="border:none;"';
-  const cellStyle = 'style="border:none;margin:0;padding:4px;"';
-  const rows: string[] = [];
-  for (let i = 0; i < charts.length; i += 2) {
-    const pair = charts.slice(i, i + 2);
-    rows.push(
-      `<tr ${rowStyle}><td ${cellStyle}>\n\n` +
-        pair.join(`\n\n</td><td ${cellStyle}>\n\n`) +
-        '\n\n</td></tr>',
-    );
-  }
-  return `<table border="0" ${tableStyle}>\n${rows.join('\n')}\n</table>\n`;
+  // `<div style="display:inline-block; width:430px">` per chart, NOT a
+  // `<table>` - a table's row/cell grouping is a fixed 2-per-row commit
+  // regardless of viewport, which is fine on a desktop-width GitHub blob
+  // view but forces two ~215px-wide charts (each squeezed further by the
+  // pan/zoom overlay) on a narrow/mobile one. inline-block needs no media
+  // query for that: the browser already wraps a run of inline-block
+  // boxes onto a new line on its own once the next one no longer fits the
+  // remaining width, so a plain sequence of same-sized boxes gives 2 per
+  // row wherever ~900px is available and falls back to 1 per row on a
+  // narrower viewport, purely from each box's own fixed width.
+  const cellStyle =
+    'style="display:inline-block;width:430px;vertical-align:top;margin:4px;"';
+  return charts.map(c => `<div ${cellStyle}>\n\n${c}\n\n</div>`).join('\n');
 }
 
 function renderScenarioTable(
