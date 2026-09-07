@@ -314,13 +314,16 @@ export class IntlConnection extends SafeEventEmitter {
   ): Promise<ScriptResult> {
     this.ref();
     try {
-      const startTime = performance.now();
+      const opts = options || {};
+      const timingEnabled =
+        opts.timing != null
+          ? opts.timing
+          : coerceToBoolean(this.config.timing, false);
+      const startTime = timingEnabled ? performance.now() : 0;
       const result: ScriptResult = {
         totalCommands: 0,
-        totalTime: 0,
         results: [],
       };
-      const opts = options || {};
       let currentStart = startTime;
       let parsers: AnyParseFunction[] | undefined;
       let current: CommandResult = { command: undefined };
@@ -394,14 +397,15 @@ export class IntlConnection extends SafeEventEmitter {
               ) {
                 current.rowsAffected = msg.rowCount;
               }
-              current.executeTime = performance.now() - currentStart;
+              if (timingEnabled)
+                current.executeTime = performance.now() - currentStart;
               if (current.rows)
                 current.rowType =
                   opts.objectRows && current.fields ? 'object' : 'array';
               result.results.push(current);
               if (cb) cb('command-complete', current);
               current = { command: undefined };
-              currentStart = performance.now();
+              if (timingEnabled) currentStart = performance.now();
               break;
             case Protocol.BackendMessageCode.ReadyForQuery:
               this.transactionStatus = msg.status;
@@ -409,7 +413,8 @@ export class IntlConnection extends SafeEventEmitter {
                 done(error);
                 break;
               }
-              result.totalTime = performance.now() - startTime;
+              if (timingEnabled)
+                result.totalTime = performance.now() - startTime;
               // Ignore COMMIT command that we added to sql
               result.totalCommands = result.results.length;
               done(undefined, result);
@@ -442,7 +447,11 @@ export class IntlConnection extends SafeEventEmitter {
     this.ref();
     try {
       const typeMap = options.typeMap || GlobalTypeMap;
-      const startTime = performance.now();
+      const timingEnabled =
+        options.timing != null
+          ? options.timing
+          : coerceToBoolean(this.config.timing, false);
+      const startTime = timingEnabled ? performance.now() : 0;
       const result: QueryResult = { command: undefined };
       const rows: any[] = [];
       let parsers: AnyParseFunction[] | undefined;
@@ -532,7 +541,7 @@ export class IntlConnection extends SafeEventEmitter {
       ) {
         result.rowsAffected = commandTag?.rowCount;
       }
-      result.executeTime = performance.now() - startTime;
+      if (timingEnabled) result.executeTime = performance.now() - startTime;
       return result;
     } finally {
       this.unref();
@@ -625,7 +634,11 @@ export class IntlConnection extends SafeEventEmitter {
     this.ref();
     try {
       const typeMap = options.typeMap || GlobalTypeMap;
-      const startTime = performance.now();
+      const timingEnabled =
+        options.timing != null
+          ? options.timing
+          : coerceToBoolean(this.config.timing, false);
+      const startTime = timingEnabled ? performance.now() : 0;
       const result: QueryResult = { command: undefined };
       const rows: any[] = [];
       let parsers: AnyParseFunction[] | undefined;
@@ -740,7 +753,7 @@ export class IntlConnection extends SafeEventEmitter {
       ) {
         result.rowsAffected = commandTag?.rowCount;
       }
-      result.executeTime = performance.now() - startTime;
+      if (timingEnabled) result.executeTime = performance.now() - startTime;
       return result;
     } finally {
       this.unref();

@@ -21,6 +21,7 @@ describe('query() (Extended Query)', () => {
   it('should return QueryResult', async () => {
     const result = await connection.query(
       `select * from countries order by code`,
+      { timing: true },
     );
     expect(result).toBeDefined();
     expect(result.fields).toBeDefined();
@@ -33,6 +34,13 @@ describe('query() (Extended Query)', () => {
     assert(result.rows);
     expect(result.rows[0][0]).toStrictEqual('CA');
     expect(result.rows[0][1]).toStrictEqual('Canada');
+  });
+
+  it('should not measure execution time unless "timing" is enabled', async () => {
+    const result = await connection.query(
+      `select * from countries order by code`,
+    );
+    expect(result.executeTime).toBeUndefined();
   });
 
   it('should correctly decode a fixed-width column following a variable-width one (binary)', async () => {

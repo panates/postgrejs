@@ -21,6 +21,18 @@ describe('execute() (Simple Query)', () => {
     expect(result.results[0].command).toStrictEqual('SELECT');
   });
 
+  it('should not measure execution time unless "timing" is enabled', async () => {
+    const result = await connection.execute(`select 1;`);
+    expect(result.totalTime).toBeUndefined();
+    expect(result.results[0].executeTime).toBeUndefined();
+  });
+
+  it('should measure execution time when "timing" is enabled', async () => {
+    const result = await connection.execute(`select 1;`, { timing: true });
+    expect(result.totalTime).toBeDefined();
+    expect(result.results[0].executeTime).toBeDefined();
+  });
+
   it('should execute multiple sql script', async () => {
     const result = await connection.execute(`begin; select 1; select 2; end;`);
     expect(result).toBeDefined();
