@@ -192,7 +192,7 @@ export class IntlConnection extends SafeEventEmitter {
 
   async savepoint(name: string): Promise<void> {
     if (!(name && name.match(/^[a-zA-Z]\w+$/)))
-      throw new Error(`Invalid savepoint "${name}`);
+      throw new Error(`Invalid savepoint "${name}"`);
     await this.execute('BEGIN; SAVEPOINT ' + name);
   }
 
@@ -234,13 +234,13 @@ export class IntlConnection extends SafeEventEmitter {
 
   async rollbackToSavepoint(name: string): Promise<void> {
     if (!(name && name.match(/^[a-zA-Z]\w+$/)))
-      throw new Error(`Invalid savepoint "${name}`);
+      throw new Error(`Invalid savepoint "${name}"`);
     await this.execute('ROLLBACK TO SAVEPOINT ' + name, { autoCommit: false });
   }
 
   async releaseSavepoint(name: string): Promise<void> {
     if (!(name && name.match(/^[a-zA-Z]\w+$/)))
-      throw new Error(`Invalid savepoint "${name}`);
+      throw new Error(`Invalid savepoint "${name}"`);
     await this.execute('RELEASE SAVEPOINT ' + name, { autoCommit: false });
   }
 
