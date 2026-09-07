@@ -58,13 +58,13 @@ Some scenarios necessarily exercise each library differently. These are delibera
 
 ## Environment
 
-- Run date: 2026-09-07T11:33:19.419Z
+- Run date: 2026-09-07T21:49:59.163Z
 - Node.js: v24.15.0
 - OS: Darwin 25.6.0 (darwin/arm64)
 - CPU: Apple M1 Pro (10 logical cores)
 - RAM: 16.0 GB total
 - PostgreSQL: PostgreSQL 18.4 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
-- Library versions (installed, not this repo's semver range): PostgreJS 3.0.1, pg 8.23.0, postgres 3.4.9
+- Library versions (installed, not this repo's semver range): PostgreJS 3.0.3, pg 8.23.0, postgres 3.4.9
 
 ## Connection
 
@@ -76,58 +76,58 @@ Open a fresh connection/session and close it, repeated per sample
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.1) | ***3.709*** | ***3.812*** | ***5.384*** | ***271.4*** | ***3.64x*** | ***0.0266*** | 4167.30 |
-| pg (node-postgres) (8.23.0) | 5.659 | 5.707 | 8.812 | 180.1 | 2.39x | 0.0352 | ***2354.81*** |
-| postgres (postgres.js) (3.4.9) | 13.511 | 14.113 | 17.176 | 74.5 | 1.00x | 0.2614 | 8525.42 |
+| PostgreJS (3.0.3) | ***4.792*** | ***4.922*** | ***8.432*** | ***212.9*** | ***2.95x*** | ***0.0197*** | 4331.39 |
+| pg (node-postgres) (8.23.0) | 6.081 | 6.205 | 12.285 | 171.4 | 2.32x | 0.0513 | ***2330.84*** |
+| postgres (postgres.js) (3.4.9) | 14.130 | 14.600 | 17.153 | 71.1 | 1.00x | 0.1844 | 8151.02 |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 14.8624
-    bar [3.7094, 5.6586, 13.5113]
+    y-axis "ms" 0.0000 --> 21.1950
+    bar [4.7921, 6.0814, 14.1300]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 298.5488
-    bar [271.4080, 180.0945, 74.4887]
+    y-axis "ops/sec" 0.0000 --> 319.2927
+    bar [212.8618, 171.3811, 71.0807]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.2876
-    bar [0.0266, 0.0352, 0.2614]
+    y-axis "ms/op" 0.0000 --> 0.2766
+    bar [0.0197, 0.0513, 0.1844]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 9377.9641
-    bar [4167.3047, 2354.8125, 8525.4219]
+    y-axis "KB" 0.0000 --> 12226.5234
+    bar [4331.3906, 2330.8359, 8151.0156]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ## Simple Query
 
@@ -149,58 +149,58 @@ connection buys each library.
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.1) | ***0.392*** | ***0.404*** | ***0.713*** | ***2619.4*** | ***1.12x*** | ***0.0021*** | ***5342.23*** |
-| pg (node-postgres) (8.23.0) | 0.403 | 0.414 | 0.732 | 2581.8 | 1.09x | 0.0043 | 9748.70 |
-| postgres (postgres.js) (3.4.9) | 0.438 | 0.453 | 0.928 | 2403.0 | 1.00x | 0.0045 | 9081.62 |
+| PostgreJS (3.0.3) | ***0.393*** | ***0.405*** | ***0.698*** | ***2617.9*** | ***1.12x*** | ***0.0021*** | ***5336.63*** |
+| pg (node-postgres) (8.23.0) | 0.423 | 0.438 | 0.820 | 2489.5 | 1.04x | 0.0045 | 9745.25 |
+| postgres (postgres.js) (3.4.9) | 0.440 | 0.467 | 0.934 | 2375.3 | 1.00x | 0.0044 | 9069.66 |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 0.4814
-    bar [0.3921, 0.4033, 0.4376]
+    y-axis "ms" 0.0000 --> 0.6607
+    bar [0.3929, 0.4229, 0.4405]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 2881.3297
-    bar [2619.3907, 2581.8024, 2403.0404]
+    y-axis "ops/sec" 0.0000 --> 3926.7873
+    bar [2617.8582, 2489.5124, 2375.3436]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.0050
-    bar [0.0021, 0.0043, 0.0045]
+    y-axis "ms/op" 0.0000 --> 0.0068
+    bar [0.0021, 0.0045, 0.0044]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 10723.5734
-    bar [5342.2344, 9748.7031, 9081.6172]
+    y-axis "KB" 0.0000 --> 14617.8750
+    bar [5336.6250, 9745.2500, 9069.6563]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ### Concurrent Execution
 
@@ -220,58 +220,58 @@ connections queue/pipeline correctly? - not just timing. (concurrency=50)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.1) | ***1.992*** | ***2.085*** | ***2.432*** | ***506.2*** | ***1.15x*** | ***0.0161*** | ***9151.12*** |
-| pg (node-postgres) (8.23.0) | 2.220 | 2.330 | 2.720 | 453.2 | 1.03x | 0.0193 | 19789.27 |
-| postgres (postgres.js) (3.4.9) | 2.291 | 2.426 | 3.083 | 442.5 | 1.00x | 0.0417 | 29656.68 |
+| PostgreJS (3.0.3) | ***1.992*** | ***2.085*** | ***2.432*** | ***506.2*** | ***1.15x*** | ***0.0158*** | ***9152.52*** |
+| pg (node-postgres) (8.23.0) | 2.274 | 2.380 | 3.038 | 444.5 | 1.01x | 0.0197 | 19789.27 |
+| postgres (postgres.js) (3.4.9) | 2.291 | 2.426 | 3.628 | 442.5 | 1.00x | 0.0426 | 29656.68 |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 2.5200
-    bar [1.9916, 2.2195, 2.2909]
+    y-axis "ms" 0.0000 --> 3.4364
+    bar [1.9916, 2.2736, 2.2909]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 556.8141
-    bar [506.1946, 453.2459, 442.4751]
+    y-axis "ops/sec" 0.0000 --> 759.2919
+    bar [506.1946, 444.5185, 442.4751]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.0459
-    bar [0.0161, 0.0193, 0.0417]
+    y-axis "ms/op" 0.0000 --> 0.0638
+    bar [0.0158, 0.0197, 0.0426]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 32622.3477
-    bar [9151.1172, 19789.2734, 29656.6797]
+    y-axis "KB" 0.0000 --> 44485.0195
+    bar [9152.5234, 19789.2734, 29656.6797]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ### Simple Query Fetch
 
@@ -287,58 +287,58 @@ that column would measure type-conversion choice, not decode speed. (rowTarget=1
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.1) | ***2.443*** | ***2.452*** | ***3.709*** | ***418.4*** | ***1.45x*** | ***0.0505*** | ***8943.48*** |
-| postgres (postgres.js) (3.4.9) | 3.082 | 3.063 | 7.463 | 339.2 | 1.15x | 0.2177 | 53278.96 |
-| pg (node-postgres) (8.23.0) | 3.538 | 3.571 | 6.858 | 292.3 | 1.00x | 0.2772 | 62945.73 |
+| PostgreJS (3.0.3) | ***2.473*** | ***2.454*** | ***4.001*** | ***417.7*** | ***1.43x*** | ***0.0527*** | ***8963.38*** |
+| postgres (postgres.js) (3.4.9) | 3.188 | 3.209 | 7.262 | 328.2 | 1.11x | 0.2628 | 53515.19 |
+| pg (node-postgres) (8.23.0) | 3.531 | 3.585 | 7.097 | 293.5 | 1.00x | 0.2721 | 62620.48 |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 3.8914
-    bar [2.4430, 3.5376, 3.0823]
+    y-axis "ms" 0.0000 --> 5.2965
+    bar [2.4733, 3.5310, 3.1875]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 460.2178
-    bar [418.3798, 292.2590, 339.2188]
+    y-axis "ops/sec" 0.0000 --> 626.6069
+    bar [417.7379, 293.4999, 328.1567]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.3049
-    bar [0.0505, 0.2772, 0.2177]
+    y-axis "ms/op" 0.0000 --> 0.4082
+    bar [0.0527, 0.2721, 0.2628]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 69240.2992
-    bar [8943.4766, 62945.7266, 53278.9609]
+    y-axis "KB" 0.0000 --> 93930.7148
+    bar [8963.3750, 62620.4766, 53515.1875]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ## Extended Query
 
@@ -362,58 +362,58 @@ each library here too.
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| pg (node-postgres) (8.23.0) | ***0.395*** | ***0.406*** | ***0.704*** | ***2612.6*** | ***1.86x*** | 0.0023 | 8567.19 |
-| PostgreJS (3.0.1) | 0.399 | 0.412 | 0.732 | 2576.2 | 1.84x | ***0.0017*** | ***5242.90*** |
-| postgres (postgres.js) (3.4.9) | 0.735 | 0.764 | 1.141 | 1383.2 | 1.00x | 0.0034 | 7389.13 |
+| PostgreJS (3.0.3) | ***0.427*** | ***0.431*** | ***1.191*** | ***2523.3*** | ***1.97x*** | ***0.0016*** | ***5190.83*** |
+| pg (node-postgres) (8.23.0) | 0.436 | 0.441 | 1.351 | 2486.5 | 1.93x | 0.0033 | 8566.11 |
+| postgres (postgres.js) (3.4.9) | 0.842 | 0.833 | 2.119 | 1332.3 | 1.00x | 0.0035 | 6237.35 |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 0.8088
-    bar [0.3989, 0.3947, 0.7352]
+    y-axis "ms" 0.0000 --> 1.2636
+    bar [0.4273, 0.4359, 0.8424]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 2873.8179
-    bar [2576.2246, 2612.5618, 1383.2391]
+    y-axis "ops/sec" 0.0000 --> 3785.0015
+    bar [2523.3343, 2486.5334, 1332.2838]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.0037
-    bar [0.0017, 0.0023, 0.0034]
+    y-axis "ms/op" 0.0000 --> 0.0053
+    bar [0.0016, 0.0033, 0.0035]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 9423.9063
-    bar [5242.8984, 8567.1875, 7389.1328]
+    y-axis "KB" 0.0000 --> 12849.1641
+    bar [5190.8281, 8566.1094, 6237.3516]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ### Concurrent Execution
 
@@ -434,58 +434,58 @@ timing. (concurrency=50)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| pg (node-postgres) (8.23.0) | ***2.450*** | ***2.564*** | ***3.008*** | ***410.6*** | ***15.64x*** | 0.0245 | 20188.13 |
-| PostgreJS (3.0.1) | 2.525 | 2.636 | 3.052 | 398.2 | 15.18x | ***0.0236*** | ***9415.44*** |
-| postgres (postgres.js) (3.4.9) | 38.324 | 39.289 | 47.428 | 26.2 | 1.00x | 0.2081 | 14248.95 |
+| PostgreJS (3.0.3) | ***2.585*** | ***2.668*** | ***3.440*** | ***394.3*** | ***16.53x*** | ***0.0250*** | ***9534.55*** |
+| pg (node-postgres) (8.23.0) | 2.627 | 2.869 | 4.070 | 387.0 | 16.27x | 0.0269 | 20115.39 |
+| postgres (postgres.js) (3.4.9) | 42.737 | 45.826 | 59.101 | 24.3 | 1.00x | 0.1978 | 14264.13 |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 42.1565
-    bar [2.5252, 2.4500, 38.3241]
+    y-axis "ms" 0.0000 --> 64.1049
+    bar [2.5855, 2.6272, 42.7366]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 451.6390
-    bar [398.1729, 410.5809, 26.2406]
+    y-axis "ops/sec" 0.0000 --> 591.4430
+    bar [394.2954, 386.9874, 24.2936]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.2289
-    bar [0.0236, 0.0245, 0.2081]
+    y-axis "ms/op" 0.0000 --> 0.2968
+    bar [0.0250, 0.0269, 0.1978]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 22206.9375
-    bar [9415.4375, 20188.1250, 14248.9531]
+    y-axis "KB" 0.0000 --> 30173.0859
+    bar [9534.5469, 20115.3906, 14264.1250]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ### Mixed-Type Decode (Text Protocol)
 
@@ -514,58 +514,58 @@ speed. (rowTarget=1000)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.1) | ***3.041*** | ***3.184*** | ***4.352*** | ***332.4*** | ***1.16x*** | ***0.0621*** | ***9063.35*** |
-| postgres (postgres.js) (3.4.9) | 3.449 | 3.350 | 8.436 | 300.0 | 1.02x | 0.2470 | 53131.95 |
-| pg (node-postgres) (8.23.0) | 3.522 | 3.564 | 7.135 | 292.9 | 1.00x | 0.2826 | 60580.98 |
+| PostgreJS (3.0.3) | ***3.258*** | ***3.260*** | ***4.656*** | ***315.7*** | ***1.14x*** | ***0.0671*** | ***9043.60*** |
+| pg (node-postgres) (8.23.0) | 3.521 | 3.640 | 7.008 | 290.7 | 1.05x | 0.2731 | 60523.16 |
+| postgres (postgres.js) (3.4.9) | 3.715 | 3.647 | 8.628 | 292.1 | 1.00x | 0.2859 | 53134.91 |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 3.8739
-    bar [3.0406, 3.5218, 3.4487]
+    y-axis "ms" 0.0000 --> 5.5723
+    bar [3.2577, 3.5215, 3.7148]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 365.6555
-    bar [332.4141, 292.8927, 300.0024]
+    y-axis "ops/sec" 0.0000 --> 473.5150
+    bar [315.6767, 290.7367, 292.0852]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.3109
-    bar [0.0621, 0.2826, 0.2470]
+    y-axis "ms/op" 0.0000 --> 0.4288
+    bar [0.0671, 0.2731, 0.2859]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 66639.0828
-    bar [9063.3516, 60580.9844, 53131.9453]
+    y-axis "KB" 0.0000 --> 90784.7344
+    bar [9043.6016, 60523.1563, 53134.9063]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ### Mixed-Type Decode (Binary Protocol)
 
@@ -591,58 +591,58 @@ Only PostgreJS's own result is shown. (rowTarget=1000)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.1) | 2.590 | 2.680 | 3.638 | 391.6 | 1.00x | 0.0815 | 15444.27 |
+| PostgreJS (3.0.3) | 2.677 | 2.691 | 4.535 | 380.7 | 1.00x | 0.0911 | 10483.11 |
 | pg (node-postgres) | Not Fully Supported | — | — | — | — | — | — |
 | postgres (postgres.js) | Not Supported | — | — | — | — | — | — |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS"]
-    y-axis "ms" 0.0000 --> 2.8491
-    bar [2.5901]
+    y-axis "ms" 0.0000 --> 4.0154
+    bar [2.6769]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS"]
-    y-axis "ops/sec" 0.0000 --> 430.7448
-    bar [391.5862]
+    y-axis "ops/sec" 0.0000 --> 570.9812
+    bar [380.6541]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS"]
-    y-axis "ms/op" 0.0000 --> 0.0897
-    bar [0.0815]
+    y-axis "ms/op" 0.0000 --> 0.1366
+    bar [0.0911]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS"]
-    y-axis "KB" 0.0000 --> 16988.7008
-    bar [15444.2734]
+    y-axis "KB" 0.0000 --> 15724.6641
+    bar [10483.1094]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ### Large Blob Fetch
 
@@ -675,70 +675,70 @@ what PostgreJS does here. (sizeBytes=1048576, rowCount=10)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) | Network (KB/op) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.1) | ***51.180*** | ***52.259*** | ***55.248*** | ***19.6*** | ***2.11x*** | 1.1140 | 1204.38 | ***12800.20*** |
-| postgres (postgres.js) (3.4.9) | 107.748 | 110.898 | 122.660 | 9.3 | 1.00x | 0.9831 | ***1197.80*** | 25600.25 |
-| pg (node-postgres) (8.23.0) | 107.774 | 106.999 | 124.563 | 9.3 | 1.00x | ***0.9447*** | 1331.34 | 25600.23 |
+| PostgreJS (3.0.3) | ***52.873*** | ***54.101*** | ***61.413*** | ***19.0*** | ***2.11x*** | 1.2044 | ***731.30*** | ***12800.20*** |
+| postgres (postgres.js) (3.4.9) | 108.211 | 112.792 | 121.440 | 9.3 | 1.03x | 1.0179 | 1426.37 | 25600.25 |
+| pg (node-postgres) (8.23.0) | 111.319 | 114.577 | 124.689 | 9.0 | 1.00x | ***0.9011*** | 1406.31 | 25600.23 |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 118.5511
-    bar [51.1799, 107.7737, 107.7475]
+    y-axis "ms" 0.0000 --> 166.9786
+    bar [52.8734, 111.3191, 108.2113]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 21.5303
-    bar [19.5730, 9.3146, 9.3042]
+    y-axis "ops/sec" 0.0000 --> 28.4694
+    bar [18.9796, 9.0050, 9.2771]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 1.2254
-    bar [1.1140, 0.9447, 0.9831]
+    y-axis "ms/op" 0.0000 --> 1.8066
+    bar [1.2044, 0.9011, 1.0179]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 1464.4695
-    bar [1204.3828, 1331.3359, 1197.8047]
+    y-axis "KB" 0.0000 --> 2139.5508
+    bar [731.2969, 1406.3125, 1426.3672]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Network received (KB/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB/op" 0.0000 --> 28160.2712
+    y-axis "KB/op" 0.0000 --> 38400.3699
     bar [12800.1965, 25600.2332, 25600.2466]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ### Large Array Fetch
 
@@ -778,70 +778,70 @@ as that parser being safe to use. (elementCount=50000, rowCount=10)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) | Network (KB/op) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.1) | ***28.417*** | ***29.422*** | ***32.932*** | ***35.3*** | ***5.87x*** | ***0.8229*** | ***11706.27*** | ***4666.22*** |
-| postgres (postgres.js) (3.4.9) | 65.209 | 66.747 | 71.953 | 15.4 | 2.56x | 1.8015 | 99258.84 | 7019.28 |
-| pg (node-postgres) (8.23.0) | 166.727 | 169.657 | 178.280 | 6.0 | 1.00x | 3.3992 | 102767.80 | 7019.26 |
+| PostgreJS (3.0.3) | ***29.556*** | ***31.186*** | ***34.995*** | ***34.0*** | ***5.60x*** | ***0.8333*** | ***12646.49*** | ***4710.90*** |
+| postgres (postgres.js) (3.4.9) | 66.557 | 67.882 | 76.697 | 15.1 | 2.49x | 2.0212 | 99179.53 | 7019.28 |
+| pg (node-postgres) (8.23.0) | 165.570 | 169.191 | 174.481 | 6.0 | 1.00x | 3.6663 | 101192.11 | 7019.26 |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 183.3992
-    bar [28.4169, 166.7266, 65.2088]
+    y-axis "ms" 0.0000 --> 248.3549
+    bar [29.5561, 165.5699, 66.5566]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 38.8207
-    bar [35.2915, 6.0007, 15.3706]
+    y-axis "ops/sec" 0.0000 --> 50.9628
+    bar [33.9752, 6.0448, 15.0590]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 3.7391
-    bar [0.8229, 3.3992, 1.8015]
+    y-axis "ms/op" 0.0000 --> 5.4994
+    bar [0.8333, 3.6663, 2.0212]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 113044.5766
-    bar [11706.2656, 102767.7969, 99258.8359]
+    y-axis "KB" 0.0000 --> 151788.1641
+    bar [12646.4922, 101192.1094, 99179.5313]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Network received (KB/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB/op" 0.0000 --> 7721.2051
-    bar [4666.2197, 7019.2639, 7019.2773]
+    y-axis "KB/op" 0.0000 --> 10528.9160
+    bar [4710.9031, 7019.2639, 7019.2773]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ### Prepared Statement Reuse (Sequential)
 
@@ -859,58 +859,58 @@ timing it would measure type-conversion choice, not reuse cost. (iterations=50)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.1) | ***19.682*** | ***20.498*** | ***25.322*** | ***51.1*** | ***1.13x*** | ***0.0518*** | ***4472.36*** |
-| postgres (postgres.js) (3.4.9) | 21.861 | 23.932 | 28.442 | 46.4 | 1.02x | 0.2039 | 10690.99 |
-| pg (node-postgres) (8.23.0) | 22.225 | 23.916 | 30.462 | 45.8 | 1.00x | 0.1885 | 14028.02 |
+| PostgreJS (3.0.3) | ***19.813*** | ***21.482*** | ***28.090*** | ***51.1*** | ***1.15x*** | ***0.0456*** | ***4469.58*** |
+| postgres (postgres.js) (3.4.9) | 21.889 | 22.686 | 39.748 | 47.4 | 1.04x | 0.0988 | 9980.20 |
+| pg (node-postgres) (8.23.0) | 22.840 | 24.815 | 32.903 | 45.2 | 1.00x | 0.1242 | 14018.05 |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 24.4479
-    bar [19.6815, 22.2253, 21.8607]
+    y-axis "ms" 0.0000 --> 34.2593
+    bar [19.8132, 22.8395, 21.8889]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 56.2299
-    bar [51.1181, 45.7617, 46.4367]
+    y-axis "ops/sec" 0.0000 --> 76.5899
+    bar [51.0599, 45.1961, 47.4005]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.2243
-    bar [0.0518, 0.1885, 0.2039]
+    y-axis "ms/op" 0.0000 --> 0.1863
+    bar [0.0456, 0.1242, 0.0988]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 15430.8172
-    bar [4472.3594, 14028.0156, 10690.9922]
+    y-axis "KB" 0.0000 --> 21027.0820
+    bar [4469.5781, 14018.0547, 9980.1953]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ### Prepared Statement Reuse (Concurrent)
 
@@ -929,58 +929,58 @@ timing it would measure type-conversion choice, not reuse cost. (concurrency=50)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.1) | ***1.891*** | 1.986 | 2.964 | ***535.7*** | ***1.14x*** | ***0.0166*** | ***8620.96*** |
-| postgres (postgres.js) (3.4.9) | 1.895 | ***1.980*** | ***2.512*** | 532.9 | 1.14x | 0.0269 | 52972.44 |
-| pg (node-postgres) (8.23.0) | 2.163 | 2.261 | 2.803 | 466.2 | 1.00x | 0.0249 | 27751.05 |
+| PostgreJS (3.0.3) | ***1.979*** | ***2.077*** | ***2.819*** | ***512.4*** | ***1.13x*** | ***0.0180*** | ***8582.68*** |
+| pg (node-postgres) (8.23.0) | 2.207 | 2.272 | 3.780 | 461.8 | 1.02x | 0.0252 | 27476.25 |
+| postgres (postgres.js) (3.4.9) | 2.246 | 2.260 | 5.228 | 473.0 | 1.00x | 0.0457 | 51738.88 |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 2.3794
-    bar [1.8908, 2.1630, 1.8951]
+    y-axis "ms" 0.0000 --> 3.3690
+    bar [1.9789, 2.2072, 2.2460]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 589.2696
-    bar [535.6997, 466.2119, 532.8745]
+    y-axis "ops/sec" 0.0000 --> 768.6086
+    bar [512.4057, 461.7901, 473.0220]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.0296
-    bar [0.0166, 0.0249, 0.0269]
+    y-axis "ms/op" 0.0000 --> 0.0685
+    bar [0.0180, 0.0252, 0.0457]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 58269.6813
-    bar [8620.9609, 27751.0469, 52972.4375]
+    y-axis "KB" 0.0000 --> 77608.3242
+    bar [8582.6797, 27476.2500, 51738.8828]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ## Cursor Streaming
 
@@ -994,58 +994,58 @@ so timing it would measure type-conversion choice, not streaming throughput (row
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.1) | ***172.353*** | ***172.581*** | ***181.608*** | ***5.8*** | ***1.23x*** | ***4.1347*** | ***10356.34*** |
-| pg (node-postgres) (8.23.0) | 210.472 | 214.305 | 215.699 | 4.8 | 1.01x | 10.4045 | 68864.31 |
-| postgres (postgres.js) (3.4.9) | 212.027 | 215.413 | 219.535 | 4.7 | 1.00x | 11.7022 | 55002.84 |
+| PostgreJS (3.0.3) | ***172.335*** | ***173.138*** | ***176.725*** | ***5.8*** | ***1.29x*** | ***4.0593*** | ***10332.35*** |
+| pg (node-postgres) (8.23.0) | 211.126 | 215.119 | 224.259 | 4.7 | 1.05x | 10.3752 | 69604.07 |
+| postgres (postgres.js) (3.4.9) | 221.896 | 226.692 | 226.863 | 4.5 | 1.00x | 12.4292 | 54790.53 |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 233.2301
-    bar [172.3525, 210.4721, 212.0273]
+    y-axis "ms" 0.0000 --> 332.8441
+    bar [172.3346, 211.1261, 221.8961]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 6.3873
-    bar [5.8066, 4.7525, 4.7188]
+    y-axis "ops/sec" 0.0000 --> 8.7063
+    bar [5.8042, 4.7445, 4.5095]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 12.8725
-    bar [4.1347, 10.4045, 11.7022]
+    y-axis "ms/op" 0.0000 --> 18.6438
+    bar [4.0593, 10.3752, 12.4292]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 75750.7438
-    bar [10356.3359, 68864.3125, 55002.8438]
+    y-axis "KB" 0.0000 --> 104406.1055
+    bar [10332.3516, 69604.0703, 54790.5313]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ## Connection Pooling
 
@@ -1061,58 +1061,58 @@ using each library's own top-level pooled entry point. (concurrency=1000, poolSi
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.1) | ***8.991*** | ***9.982*** | ***16.795*** | ***116.3*** | ***8.12x*** | ***0.6913*** | 58801.57 |
-| postgres (postgres.js) (3.4.9) | 13.412 | 16.001 | 25.043 | 80.3 | 5.45x | 0.8417 | 71615.28 |
-| pg (node-postgres) (8.23.0) | 73.051 | 76.694 | 80.666 | 13.8 | 1.00x | 1.1507 | ***15575.09*** |
+| PostgreJS (3.0.3) | ***8.249*** | ***8.965*** | ***13.856*** | ***126.4*** | ***8.53x*** | ***0.7805*** | 65891.33 |
+| postgres (postgres.js) (3.4.9) | 13.956 | 16.992 | 26.962 | 80.2 | 5.04x | 0.8884 | 68728.50 |
+| pg (node-postgres) (8.23.0) | 70.393 | 69.871 | 84.842 | 14.3 | 1.00x | 1.1122 | ***15542.80*** |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 80.3562
-    bar [8.9912, 73.0511, 13.4125]
+    y-axis "ms" 0.0000 --> 105.5895
+    bar [8.2493, 70.3930, 13.9558]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 127.9649
-    bar [116.3317, 13.8197, 80.2867]
+    y-axis "ops/sec" 0.0000 --> 189.5858
+    bar [126.3906, 14.3462, 80.2316]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 1.2658
-    bar [0.6913, 1.1507, 0.8417]
+    y-axis "ms/op" 0.0000 --> 1.6683
+    bar [0.7805, 1.1122, 0.8884]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 78776.8094
-    bar [58801.5703, 15575.0938, 71615.2813]
+    y-axis "KB" 0.0000 --> 103092.7500
+    bar [65891.3281, 15542.7969, 68728.5000]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ### Pooled Extended Query
 
@@ -1137,58 +1137,58 @@ entirely, which is what Prepared Statement Reuse below covers. (concurrency=1000
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.1) | ***11.456*** | ***12.581*** | ***20.833*** | ***89.7*** | ***11.78x*** | ***0.8022*** | 65935.15 |
-| pg (node-postgres) (8.23.0) | 70.527 | 70.490 | 82.298 | 14.3 | 1.91x | 1.1297 | ***16005.75*** |
-| postgres (postgres.js) (3.4.9) | 134.960 | 135.915 | 146.102 | 7.4 | 1.00x | 2.0637 | 18421.67 |
+| PostgreJS (3.0.3) | ***11.276*** | ***12.363*** | ***19.206*** | ***91.9*** | ***12.10x*** | ***0.7327*** | 64961.85 |
+| pg (node-postgres) (8.23.0) | 78.000 | 79.719 | 95.534 | 12.9 | 1.75x | 1.4030 | ***16026.11*** |
+| postgres (postgres.js) (3.4.9) | 136.448 | 137.941 | 150.538 | 7.3 | 1.00x | 2.0762 | 18431.98 |
 
-<table border="0" style="border:none;border-collapse:collapse;border-spacing:2px;">
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 148.4559
-    bar [11.4556, 70.5266, 134.9599]
+    y-axis "ms" 0.0000 --> 204.6717
+    bar [11.2756, 78.0001, 136.4478]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}, 'themeVariables': {'xyChart': {'plotColorPalette': '#f2a900'}}}}%%
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 98.6428
-    bar [89.6753, 14.2613, 7.4235]
+    y-axis "ops/sec" 0.0000 --> 137.9192
+    bar [91.9462, 12.9093, 7.3480]
 ```
 
-</td></tr>
-<tr style="border:none;"><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 2.2701
-    bar [0.8022, 1.1297, 2.0637]
+    y-axis "ms/op" 0.0000 --> 3.1143
+    bar [0.7327, 1.4030, 2.0762]
 ```
 
-</td><td style="border:none;margin:0;padding:4px;">
+</div>
+<div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
 ```mermaid
-%%{init: {'xyChart': {'width': 600, 'height': 380}}}%%
+%%{init: {'xyChart': {'width': 600, 'height': 300, 'chartOrientation': 'horizontal'}}}%%
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 72528.6633
-    bar [65935.1484, 16005.7500, 18421.6719]
+    y-axis "KB" 0.0000 --> 97442.7773
+    bar [64961.8516, 16026.1094, 18431.9844]
 ```
 
-</td></tr>
-</table>
+</div>
 
 ## Raw data
 
