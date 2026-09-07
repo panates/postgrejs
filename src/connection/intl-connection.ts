@@ -1,5 +1,4 @@
 import { performance } from 'node:perf_hooks';
-import { coerceToBoolean } from 'putil-varhelpers';
 import { ConnectionState, DEFAULT_COLUMN_FORMAT } from '../constants.js';
 import type { DataTypeMap } from '../data-type-map.js';
 import { GlobalTypeMap } from '../data-type-map.js';
@@ -144,7 +143,7 @@ export class IntlConnection extends SafeEventEmitter {
 
   async execute(
     sql: string,
-    options?: ScriptExecuteOptions,
+    options: ScriptExecuteOptions = {},
     cb?: (event: string, ...args: any[]) => void,
   ): Promise<ScriptResult> {
     this.assertConnected();
@@ -153,36 +152,44 @@ export class IntlConnection extends SafeEventEmitter {
     );
     let beginFirst = false;
     let commitLast = false;
+    const { autoCommit } = options;
     if (!transactionCommand) {
       if (
-        !this.inTransaction &&
-        (options?.autoCommit != null
-          ? options?.autoCommit
-          : this.config.autoCommit) === false
+        (autoCommit != null ? autoCommit : this.config.autoCommit) === false &&
+        !this.inTransaction
       ) {
         beginFirst = true;
       }
-      if (this.inTransaction && options?.autoCommit) commitLast = true;
+      if (autoCommit && this.inTransaction) commitLast = true;
     }
     if (beginFirst) await this._execute('BEGIN');
 
+    // this.inTransaction goes first here, before the config fallback: the
+    // result is only ever consulted below when it's true, so checking it
+    // first short-circuits that read on every call made outside of a
+    // transaction, the common case. Below, `rollbackOnError &&
+    // this.inTransaction` deliberately puts it last instead - re-checking
+    // live state a plain local boolean can't capture (the awaited call in
+    // between may have committed, rolled back, or errored the transaction
+    // out from under it) - but ordered so the cheap local read still
+    // short-circuits the getter whenever rollbackOnError is already
+    // false, which it is outside a transaction.
     const rollbackOnError =
       !transactionCommand &&
-      (options?.rollbackOnError != null
-        ? options.rollbackOnError
-        : coerceToBoolean(this.config.rollbackOnError, true));
+      this.inTransaction &&
+      (options.rollbackOnError ?? this.config.rollbackOnError ?? true);
 
-    if (this.inTransaction && rollbackOnError)
+    if (rollbackOnError && this.inTransaction)
       await this._execute('SAVEPOINT ' + this._onErrorSavePoint);
     try {
       const result = await this._execute(sql, options, cb);
       if (commitLast) await this._execute('COMMIT');
-      else if (this.inTransaction && rollbackOnError) {
+      else if (rollbackOnError && this.inTransaction) {
         await this._execute('RELEASE ' + this._onErrorSavePoint + ';');
       }
       return result;
     } catch (e: any) {
-      if (this.inTransaction && rollbackOnError)
+      if (rollbackOnError && this.inTransaction)
         await this._execute('ROLLBACK TO ' + this._onErrorSavePoint + ';');
       throw e;
     }
@@ -237,6 +244,7 @@ export class IntlConnection extends SafeEventEmitter {
    * Releases the savepoint created by savepoint() - or, when nested, just
    * unwinds one level of that name's depth. The actual RELEASE SAVEPOINT is
    * only sent once that depth reaches zero.
+   * @param name - Name of the savepoint.
    * @param immediate - Ignores the tracked depth and releases right away.
    */
   async releaseSavepoint(name: string, immediate?: boolean): Promise<void> {
@@ -367,16 +375,12 @@ export class IntlConnection extends SafeEventEmitter {
 
   protected async _execute(
     sql: string,
-    options?: ScriptExecuteOptions,
+    options: ScriptExecuteOptions = {},
     cb?: (event: string, ...args: any[]) => void,
   ): Promise<ScriptResult> {
     this.ref();
     try {
-      const opts = options || {};
-      const timingEnabled =
-        opts.timing != null
-          ? opts.timing
-          : coerceToBoolean(this.config.timing, false);
+      const timingEnabled = options.timing ?? this.config.timing ?? false;
       const startTime = timingEnabled ? performance.now() : 0;
       const result: ScriptResult = {
         totalCommands: 0,
@@ -387,7 +391,7 @@ export class IntlConnection extends SafeEventEmitter {
       let current: CommandResult = { command: undefined };
       let fields: Protocol.RowDescription[];
       let error: Error | undefined;
-      const typeMap = opts.typeMap || GlobalTypeMap;
+      const typeMap = options.typeMap || GlobalTypeMap;
       this.runningQueryCount++;
       return await this.socket.sendQueryMessage(
         sql,
@@ -431,15 +435,15 @@ export class IntlConnection extends SafeEventEmitter {
             case Protocol.BackendMessageCode.DataRow:
               {
                 const row: any =
-                  opts.objectRows && current.fields
+                  options.objectRows && current.fields
                     ? parseObjectRow(
                         parsers!,
                         msg.data,
                         msg.columnCount,
-                        opts,
+                        options,
                         current.fields,
                       )
-                    : parseRow(parsers!, msg.data, msg.columnCount, opts);
+                    : parseRow(parsers!, msg.data, msg.columnCount, options);
                 if (cb) cb('row', row);
                 current.rows = current.rows || [];
                 current.rows.push(row);
@@ -459,7 +463,7 @@ export class IntlConnection extends SafeEventEmitter {
                 current.executeTime = performance.now() - currentStart;
               if (current.rows)
                 current.rowType =
-                  opts.objectRows && current.fields ? 'object' : 'array';
+                  options.objectRows && current.fields ? 'object' : 'array';
               result.results.push(current);
               if (cb) cb('command-complete', current);
               current = { command: undefined };
@@ -505,10 +509,7 @@ export class IntlConnection extends SafeEventEmitter {
     this.ref();
     try {
       const typeMap = options.typeMap || GlobalTypeMap;
-      const timingEnabled =
-        options.timing != null
-          ? options.timing
-          : coerceToBoolean(this.config.timing, false);
+      const timingEnabled = options.timing ?? this.config.timing ?? false;
       const startTime = timingEnabled ? performance.now() : 0;
       const result: QueryResult = { command: undefined };
       const rows: any[] = [];
@@ -692,10 +693,7 @@ export class IntlConnection extends SafeEventEmitter {
     this.ref();
     try {
       const typeMap = options.typeMap || GlobalTypeMap;
-      const timingEnabled =
-        options.timing != null
-          ? options.timing
-          : coerceToBoolean(this.config.timing, false);
+      const timingEnabled = options.timing ?? this.config.timing ?? false;
       const startTime = timingEnabled ? performance.now() : 0;
       const result: QueryResult = { command: undefined };
       const rows: any[] = [];
