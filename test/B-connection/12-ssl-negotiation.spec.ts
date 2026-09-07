@@ -54,6 +54,7 @@ describe('SSL negotiation', () => {
 
   describe('against the server', () => {
     let sslEnabled = false;
+    let directNegotiationSupported = false;
 
     before(async () => {
       const connection = new Connection();
@@ -61,6 +62,11 @@ describe('SSL negotiation', () => {
       try {
         const r = await connection.query('show ssl');
         sslEnabled = r.rows?.[0][0] === 'on';
+        // Direct negotiation is a PostgreSQL 17+ feature - an older server
+        // has no idea what a raw TLS handshake byte means where it expects
+        // a StartupMessage, and just closes the connection.
+        const serverVersion = connection.sessionParameters.server_version;
+        directNegotiationSupported = parseInt(serverVersion, 10) >= 17;
       } finally {
         await connection.close(0);
       }
@@ -90,7 +96,7 @@ describe('SSL negotiation', () => {
     it('should connect with direct negotiation', async function () {
       // Direct requires PostgreSQL 17+, which answers only if the client
       // announced "postgresql" over ALPN - so connecting at all proves it.
-      if (!sslEnabled) return this.skip();
+      if (!sslEnabled || !directNegotiationSupported) return this.skip();
       expect(
         await connectAndReport({ sslNegotiation: 'direct' }),
       ).toStrictEqual(true);
