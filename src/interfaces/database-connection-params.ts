@@ -89,6 +89,19 @@ export interface DatabaseConnectionParams {
    * @default true
    */
   asyncErrorHandling?: boolean;
+  /**
+   * Whether `query()`/`execute()` (etc.) measure how long the call took -
+   * `CommandResult.executeTime` and `ScriptResult.totalTime`.
+   *
+   * Off by default: each measurement is a `performance.now()` call, and
+   * unlike `asyncErrorHandling` there is no way to compute it lazily only
+   * once something actually reads it - a real, if small, cost paid on
+   * every call whether or not the result is ever inspected, and one a
+   * client that does not offer this at all does not pay. Set to `true` to
+   * turn it on, connection-wide or for one call.
+   * @default false
+   */
+  timing?: boolean;
   debugLogger?: DebugLogger;
 }
 

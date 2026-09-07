@@ -10,7 +10,8 @@ export interface ScriptResult {
    */
   totalCommands: number;
   /**
-   * Total execution time
+   * Total execution time - only measured when `timing` is enabled (off by
+   * default; see `DatabaseConnectionParams.timing`).
    */
-  totalTime: number;
+  totalTime?: number;
 }

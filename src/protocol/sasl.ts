@@ -126,7 +126,7 @@ export namespace SASL {
 
     const arr = data.split(',');
     for (const s of arr) {
-      if (s[0] === 'v') serverSignature = s.substr(2);
+      if (s[0] === 'v') serverSignature = s.substring(2);
     }
 
     if (serverSignature !== session.serverSignature)

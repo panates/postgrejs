@@ -19,7 +19,7 @@ connection buys each library.`,
   bench: {
     time: 1500,
     iterations: 100,
-    warmupTime: 300,
-    warmupIterations: 50,
+    warmupTime: 800,
+    warmupIterations: 800,
   },
 };

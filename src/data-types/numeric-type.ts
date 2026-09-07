@@ -72,9 +72,12 @@ export const NumericType: DataType = {
     fracPart = fracPart + '0'.repeat(fracPad);
 
     const digits: number[] = [];
-    for (let i = 0; i < intPart.length; i += DEC_DIGITS)
+    let i: number;
+    let l = intPart.length;
+    for (i = 0; i < l; i += DEC_DIGITS)
       digits.push(+intPart.substring(i, i + DEC_DIGITS));
-    for (let i = 0; i < fracPart.length; i += DEC_DIGITS)
+    l = fracPart.length;
+    for (i = 0; i < l; i += DEC_DIGITS)
       digits.push(+fracPart.substring(i, i + DEC_DIGITS));
 
     // weight counts groups before the point, less one; leading zero groups
@@ -88,7 +91,10 @@ export const NumericType: DataType = {
     if (!digits.length) weight = 0;
 
     writeHeader(digits.length, weight, sign, dscale);
-    for (const d of digits) buf.writeInt16BE(d);
+    l = digits.length;
+    for (i = 0; i < l; i++) {
+      buf.writeInt16BE(digits[i]);
+    }
   },
 
   decodeBinary(v: Buffer, offset: number = 0): number {
@@ -216,7 +222,7 @@ export function numberBytesToString(
   }
 
   const extra = (i - scale) % DEC_DIGITS;
-  return out.substr(0, out.length - extra);
+  return out.substring(0, out.length - extra);
 }
 
 /* https://github.com/pgjdbc/pgjdbc/blob/3eca3a76aa4a04cb28cb960ed674cb67db30b5e3/pgjdbc/src/main/java/org/postgresql/util/ByteConverter.java */

@@ -1,5 +1,4 @@
 import { performance } from 'node:perf_hooks';
-import { coerceToBoolean } from 'putil-varhelpers';
 import { ConnectionState, DEFAULT_COLUMN_FORMAT } from '../constants.js';
 import type { DataTypeMap } from '../data-type-map.js';
 import { GlobalTypeMap } from '../data-type-map.js';
@@ -50,6 +49,8 @@ export class IntlConnection extends SafeEventEmitter {
     ExecuteReusedParserCacheEntry
   >();
   protected _refCount = 0;
+  protected _transactionDepth = 0;
+  protected _savepointDepths = new Map<string, number>();
   protected _config: ConnectionConfiguration;
   protected _onErrorSavePoint: string;
   transactionStatus = 'I';
@@ -142,7 +143,7 @@ export class IntlConnection extends SafeEventEmitter {
 
   async execute(
     sql: string,
-    options?: ScriptExecuteOptions,
+    options: ScriptExecuteOptions = {},
     cb?: (event: string, ...args: any[]) => void,
   ): Promise<ScriptResult> {
     this.assertConnected();
@@ -151,56 +152,120 @@ export class IntlConnection extends SafeEventEmitter {
     );
     let beginFirst = false;
     let commitLast = false;
+    const { autoCommit } = options;
     if (!transactionCommand) {
       if (
-        !this.inTransaction &&
-        (options?.autoCommit != null
-          ? options?.autoCommit
-          : this.config.autoCommit) === false
+        (autoCommit != null ? autoCommit : this.config.autoCommit) === false &&
+        !this.inTransaction
       ) {
         beginFirst = true;
       }
-      if (this.inTransaction && options?.autoCommit) commitLast = true;
+      if (autoCommit && this.inTransaction) commitLast = true;
     }
     if (beginFirst) await this._execute('BEGIN');
 
+    // this.inTransaction goes first here, before the config fallback: the
+    // result is only ever consulted below when it's true, so checking it
+    // first short-circuits that read on every call made outside of a
+    // transaction, the common case. Below, `rollbackOnError &&
+    // this.inTransaction` deliberately puts it last instead - re-checking
+    // live state a plain local boolean can't capture (the awaited call in
+    // between may have committed, rolled back, or errored the transaction
+    // out from under it) - but ordered so the cheap local read still
+    // short-circuits the getter whenever rollbackOnError is already
+    // false, which it is outside a transaction.
     const rollbackOnError =
       !transactionCommand &&
-      (options?.rollbackOnError != null
-        ? options.rollbackOnError
-        : coerceToBoolean(this.config.rollbackOnError, true));
+      this.inTransaction &&
+      (options.rollbackOnError ?? this.config.rollbackOnError ?? true);
 
-    if (this.inTransaction && rollbackOnError)
+    if (rollbackOnError && this.inTransaction)
       await this._execute('SAVEPOINT ' + this._onErrorSavePoint);
     try {
       const result = await this._execute(sql, options, cb);
       if (commitLast) await this._execute('COMMIT');
-      else if (this.inTransaction && rollbackOnError) {
+      else if (rollbackOnError && this.inTransaction) {
         await this._execute('RELEASE ' + this._onErrorSavePoint + ';');
       }
       return result;
     } catch (e: any) {
-      if (this.inTransaction && rollbackOnError)
+      if (rollbackOnError && this.inTransaction)
         await this._execute('ROLLBACK TO ' + this._onErrorSavePoint + ';');
       throw e;
     }
   }
 
+  /**
+   * Starts a transaction, or - if one is already running - marks a nested
+   * level of it. Each call increments `_transactionDepth`; only the
+   * outermost one actually sends BEGIN (`inTransaction` is already false at
+   * that point). A matching number of commit() calls is then needed to
+   * actually commit - see commit().
+   */
   async startTransaction(): Promise<void> {
+    this._transactionDepth++;
     if (!this.inTransaction) await this.execute('BEGIN');
   }
 
+  /**
+   * Starts a savepoint, or - if one under the same `name` is already open -
+   * marks a nested level of it. Mirrors startTransaction(): only the
+   * outermost call for a given name actually sends SAVEPOINT: a savepoint
+   * already exists under that name, re-declaring it would just stack a
+   * second, independent one with the same name on the server rather than
+   * nesting the existing one.
+   */
   async savepoint(name: string): Promise<void> {
     if (!(name && name.match(/^[a-zA-Z]\w+$/)))
       throw new Error(`Invalid savepoint "${name}"`);
-    await this.execute('BEGIN; SAVEPOINT ' + name);
+    const depth = (this._savepointDepths.get(name) || 0) + 1;
+    this._savepointDepths.set(name, depth);
+    if (depth === 1) await this.execute('BEGIN; SAVEPOINT ' + name);
   }
 
-  async commit(): Promise<void> {
+  /**
+   * Commits the transaction started by startTransaction() - or, when nested,
+   * just unwinds one level of `_transactionDepth`. The actual COMMIT is only
+   * sent once the depth reaches zero, i.e. once every startTransaction()
+   * call has a matching commit().
+   * @param immediate - Ignores `_transactionDepth` and commits right away,
+   *   regardless of how many nested levels are still open.
+   */
+  async commit(immediate?: boolean): Promise<void> {
+    if (!immediate && this._transactionDepth > 1) {
+      this._transactionDepth--;
+      return;
+    }
+    this._transactionDepth = 0;
     if (this.inTransaction) await this.execute('COMMIT');
   }
 
+  /**
+   * Releases the savepoint created by savepoint() - or, when nested, just
+   * unwinds one level of that name's depth. The actual RELEASE SAVEPOINT is
+   * only sent once that depth reaches zero.
+   * @param name - Name of the savepoint.
+   * @param immediate - Ignores the tracked depth and releases right away.
+   */
+  async releaseSavepoint(name: string, immediate?: boolean): Promise<void> {
+    if (!(name && name.match(/^[a-zA-Z]\w+$/)))
+      throw new Error(`Invalid savepoint "${name}"`);
+    const depth = this._savepointDepths.get(name) || 0;
+    if (!immediate && depth > 1) {
+      this._savepointDepths.set(name, depth - 1);
+      return;
+    }
+    this._savepointDepths.delete(name);
+    await this.execute('RELEASE SAVEPOINT ' + name, { autoCommit: false });
+  }
+
+  /**
+   * Rolls back the whole transaction, regardless of `_transactionDepth` -
+   * a rollback ends the transaction outright, so there is nothing left for
+   * any pending, still-nested commit() call to unwind.
+   */
   async rollback(): Promise<void> {
+    this._transactionDepth = 0;
     if (this.inTransaction) await this.execute('ROLLBACK');
   }
 
@@ -232,16 +297,17 @@ export class IntlConnection extends SafeEventEmitter {
     await this._execute('ROLLBACK PREPARED ' + escapeLiteral(name));
   }
 
+  /**
+   * Rolls back to the given savepoint, regardless of its tracked depth - a
+   * rollback discards it (and everything after it) outright, so there is
+   * nothing left for any pending, still-nested releaseSavepoint() call to
+   * unwind.
+   */
   async rollbackToSavepoint(name: string): Promise<void> {
     if (!(name && name.match(/^[a-zA-Z]\w+$/)))
       throw new Error(`Invalid savepoint "${name}"`);
+    this._savepointDepths.delete(name);
     await this.execute('ROLLBACK TO SAVEPOINT ' + name, { autoCommit: false });
-  }
-
-  async releaseSavepoint(name: string): Promise<void> {
-    if (!(name && name.match(/^[a-zA-Z]\w+$/)))
-      throw new Error(`Invalid savepoint "${name}"`);
-    await this.execute('RELEASE SAVEPOINT ' + name, { autoCommit: false });
   }
 
   /** Asks the server to cancel whatever this session is running. */
@@ -309,24 +375,23 @@ export class IntlConnection extends SafeEventEmitter {
 
   protected async _execute(
     sql: string,
-    options?: ScriptExecuteOptions,
+    options: ScriptExecuteOptions = {},
     cb?: (event: string, ...args: any[]) => void,
   ): Promise<ScriptResult> {
     this.ref();
     try {
-      const startTime = performance.now();
+      const timingEnabled = options.timing ?? this.config.timing ?? false;
+      const startTime = timingEnabled ? performance.now() : 0;
       const result: ScriptResult = {
         totalCommands: 0,
-        totalTime: 0,
         results: [],
       };
-      const opts = options || {};
       let currentStart = startTime;
       let parsers: AnyParseFunction[] | undefined;
       let current: CommandResult = { command: undefined };
       let fields: Protocol.RowDescription[];
       let error: Error | undefined;
-      const typeMap = opts.typeMap || GlobalTypeMap;
+      const typeMap = options.typeMap || GlobalTypeMap;
       this.runningQueryCount++;
       return await this.socket.sendQueryMessage(
         sql,
@@ -370,15 +435,15 @@ export class IntlConnection extends SafeEventEmitter {
             case Protocol.BackendMessageCode.DataRow:
               {
                 const row: any =
-                  opts.objectRows && current.fields
+                  options.objectRows && current.fields
                     ? parseObjectRow(
                         parsers!,
                         msg.data,
                         msg.columnCount,
-                        opts,
+                        options,
                         current.fields,
                       )
-                    : parseRow(parsers!, msg.data, msg.columnCount, opts);
+                    : parseRow(parsers!, msg.data, msg.columnCount, options);
                 if (cb) cb('row', row);
                 current.rows = current.rows || [];
                 current.rows.push(row);
@@ -394,14 +459,15 @@ export class IntlConnection extends SafeEventEmitter {
               ) {
                 current.rowsAffected = msg.rowCount;
               }
-              current.executeTime = performance.now() - currentStart;
+              if (timingEnabled)
+                current.executeTime = performance.now() - currentStart;
               if (current.rows)
                 current.rowType =
-                  opts.objectRows && current.fields ? 'object' : 'array';
+                  options.objectRows && current.fields ? 'object' : 'array';
               result.results.push(current);
               if (cb) cb('command-complete', current);
               current = { command: undefined };
-              currentStart = performance.now();
+              if (timingEnabled) currentStart = performance.now();
               break;
             case Protocol.BackendMessageCode.ReadyForQuery:
               this.transactionStatus = msg.status;
@@ -409,7 +475,8 @@ export class IntlConnection extends SafeEventEmitter {
                 done(error);
                 break;
               }
-              result.totalTime = performance.now() - startTime;
+              if (timingEnabled)
+                result.totalTime = performance.now() - startTime;
               // Ignore COMMIT command that we added to sql
               result.totalCommands = result.results.length;
               done(undefined, result);
@@ -442,7 +509,8 @@ export class IntlConnection extends SafeEventEmitter {
     this.ref();
     try {
       const typeMap = options.typeMap || GlobalTypeMap;
-      const startTime = performance.now();
+      const timingEnabled = options.timing ?? this.config.timing ?? false;
+      const startTime = timingEnabled ? performance.now() : 0;
       const result: QueryResult = { command: undefined };
       const rows: any[] = [];
       let parsers: AnyParseFunction[] | undefined;
@@ -532,7 +600,7 @@ export class IntlConnection extends SafeEventEmitter {
       ) {
         result.rowsAffected = commandTag?.rowCount;
       }
-      result.executeTime = performance.now() - startTime;
+      if (timingEnabled) result.executeTime = performance.now() - startTime;
       return result;
     } finally {
       this.unref();
@@ -625,7 +693,8 @@ export class IntlConnection extends SafeEventEmitter {
     this.ref();
     try {
       const typeMap = options.typeMap || GlobalTypeMap;
-      const startTime = performance.now();
+      const timingEnabled = options.timing ?? this.config.timing ?? false;
+      const startTime = timingEnabled ? performance.now() : 0;
       const result: QueryResult = { command: undefined };
       const rows: any[] = [];
       let parsers: AnyParseFunction[] | undefined;
@@ -740,7 +809,7 @@ export class IntlConnection extends SafeEventEmitter {
       ) {
         result.rowsAffected = commandTag?.rowCount;
       }
-      result.executeTime = performance.now() - startTime;
+      if (timingEnabled) result.executeTime = performance.now() - startTime;
       return result;
     } finally {
       this.unref();

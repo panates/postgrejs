@@ -42,4 +42,10 @@ export interface ScriptExecuteOptions extends DataMappingOptions {
    * @default the connection's own setting
    */
   asyncErrorHandling?: boolean;
+  /**
+   * Overrides the connection's own `timing` for this call only - see
+   * `DatabaseConnectionParams.timing`.
+   * @default the connection's own setting
+   */
+  timing?: boolean;
 }

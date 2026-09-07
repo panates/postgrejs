@@ -19,7 +19,8 @@ export interface CommandResult {
    */
   rowType?: 'array' | 'object';
   /**
-   * Time elapsed to execute command
+   * Time elapsed to execute command - only measured when `timing` is
+   * enabled (off by default; see `DatabaseConnectionParams.timing`).
    */
   executeTime?: number;
   /**

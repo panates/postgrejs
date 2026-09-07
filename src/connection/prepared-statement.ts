@@ -1,4 +1,3 @@
-import { coerceToBoolean } from 'putil-varhelpers';
 import { DEFAULT_COLUMN_FORMAT } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
@@ -100,36 +99,37 @@ export class PreparedStatement
     );
     let beginFirst = false;
     let commitLast = false;
+    const autoCommit = options?.autoCommit;
     if (!transactionCommand) {
       if (
-        !intlCon.inTransaction &&
-        (options?.autoCommit != null
-          ? options?.autoCommit
-          : intlCon.config.autoCommit) === false
+        (autoCommit != null ? autoCommit : intlCon.config.autoCommit) ===
+          false &&
+        !intlCon.inTransaction
       ) {
         beginFirst = true;
       }
-      if (intlCon.inTransaction && options?.autoCommit) commitLast = true;
+      if (autoCommit && intlCon.inTransaction) commitLast = true;
     }
     if (beginFirst) await intlCon.execute('BEGIN');
 
+    // See IntlConnection.execute()'s own rollbackOnError for why
+    // intlCon.inTransaction goes first here but last in the checks below.
     const rollbackOnError =
       !transactionCommand &&
-      (options?.rollbackOnError != null
-        ? options.rollbackOnError
-        : coerceToBoolean(intlCon.config.rollbackOnError, true));
+      intlCon.inTransaction &&
+      (options?.rollbackOnError ?? intlCon.config.rollbackOnError ?? true);
 
-    if (intlCon.inTransaction && rollbackOnError)
+    if (rollbackOnError && intlCon.inTransaction)
       await intlCon.execute('SAVEPOINT ' + this._onErrorSavePoint);
     try {
       const result = await this._execute(options);
       if (commitLast) await intlCon.execute('COMMIT');
-      else if (intlCon.inTransaction && rollbackOnError) {
+      else if (rollbackOnError && intlCon.inTransaction) {
         await intlCon.execute('RELEASE ' + this._onErrorSavePoint + ';');
       }
       return result;
     } catch (e: any) {
-      if (intlCon.inTransaction && rollbackOnError) {
+      if (rollbackOnError && intlCon.inTransaction) {
         await intlCon.execute('ROLLBACK TO ' + this._onErrorSavePoint + ';');
       }
       throw e;

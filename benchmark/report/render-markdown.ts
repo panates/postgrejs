@@ -236,6 +236,8 @@ Some scenarios necessarily exercise each library differently. These are delibera
 6. **Transport** — all three connect via TCP to the same Postgres instance (no Unix-socket path is exercised).
 7. **\`pg-native\` is out of scope for v1** — it requires a system libpq + native compilation, not guaranteed on CI/contributor machines. It can be added later behind an opt-in \`--lib=pg-native\` flag without ever being in the default matrix.
 8. **\`pg\`'s wire pipelining** — \`pg\` 8.23+ added an opt-in \`pipeline: true\` client option (send multiple queries without waiting for each one's response before writing the next), off by default. Every \`*-concurrent\` scenario here fires N queries via \`Promise.all()\` without awaiting each individually - exactly the pattern this flag is for - so it's enabled for \`pg\`'s client here; leaving it off would benchmark its serialized fallback path instead of its real concurrent capability, understating it the same way testing PostgreJS/postgres.js without their own pipelining would. It's a no-op for every sequential (always-awaited-one-at-a-time) scenario.
+9. **Sequential Execution and Concurrent Execution (Simple Query) run 9 repeats, not the usual 3** — a single round trip here costs well under half a millisecond, small enough that one cold first-run in a fresh child process (a page fault, a scheduling hiccup) can swing a 3-repeat median by ten percent or more in either direction, as happened while chasing this exact scenario down: three repeats alone flipped which library came out ahead from one invocation to the next. Nine repeats absorbs that without pretending the noise isn't there.
+10. **Sequential Execution's warmup is 800 iterations, not the usual 50** — the actual root cause behind the point above: at 50 warmup iterations, PostgreJS's own call graph (more, smaller functions across more files than pg's more monolithic one) wasn't consistently reaching V8's fully-optimized tier before the timed window started, so some repeats measured a partially-JIT-warmed run and others didn't - the same code, genuinely different measured speed, not noise in the usual sense. Fully warming it first (verified with up to 2000 warmup iterations, where PostgreJS won every single repeat) removes that variable; 800 was the smallest budget that still did, applied to both libraries equally.
 `;
 }
 
@@ -276,6 +278,7 @@ function renderBarChart(
     unit: string;
     valueOf: (s: ScenarioLibSummary) => number;
     width?: number;
+    height?: number;
     color?: string;
   },
 ): string {
@@ -308,14 +311,19 @@ function renderBarChart(
     maxValue > 0 ? maxValue * 1.1 : minValue < 0 ? 0 : 1
   ).toFixed(4);
   // Mermaid's xychart-beta defaults to a large canvas; the 'xyChart' init
-  // config (must be the first line inside the fence) shrinks it so several
-  // of these in a row don't dominate the page. (xychart-beta's bar/gap
-  // ratio itself isn't configurable - checked mermaid's own resolved
-  // xyChart config schema live, no such option exists - so bar width can't
-  // be tuned separately from chart width.) Bar color is a THEME variable,
-  // not a top-level xyChart config key, hence the separate object.
+  // config (must be the first line inside the fence) resizes it. Sized
+  // generously (not the tight ~440x260 this used to be) because GitHub
+  // overlays every rendered Mermaid diagram with its own fixed-size
+  // pan/zoom control cluster, independent of the diagram's own config -
+  // a small chart gets proportionally swallowed by it (title clipped,
+  // bars covered). More canvas means that fixed-size overlay eats a
+  // smaller fraction of it. (xychart-beta's bar/gap ratio itself isn't
+  // configurable - checked mermaid's own resolved xyChart config schema
+  // live, no such option exists - so bar width can't be tuned separately
+  // from chart width.) Bar color is a THEME variable, not a top-level
+  // xyChart config key, hence the separate object.
   const initParts = [
-    `'xyChart': {'width': ${opts.width ?? 500}, 'height': 260}`,
+    `'xyChart': {'width': ${opts.width ?? 500}, 'height': ${opts.height ?? 260}}`,
   ];
   if (opts.color) {
     initParts.push(
@@ -358,21 +366,25 @@ function renderScenarioCharts(
   const hasPeakHeap = summaries.some(s => s.medianPeakHeapGrowthBytes != null);
   const hasWire =
     !!reportWireBytes && summaries.some(s => s.medianWireRxBytes != null);
-  // Always exactly 2 charts per row (mean+ops/sec is always present), so
-  // width only ever needs to support that.
-  const width = 440;
+  // 2 charts per row (mean+ops/sec is always present). Wide enough that
+  // GitHub's own fixed-size Mermaid pan/zoom overlay (see renderBarChart's
+  // comment) doesn't swallow a meaningful fraction of the chart.
+  const width = 600;
+  const height = 380;
 
   const charts = [
     renderBarChart(summaries, {
       title: 'Mean latency (ms, lower is better)',
       unit: 'ms',
       width,
+      height,
       valueOf: s => s.medianMean,
     }),
     renderBarChart(summaries, {
       title: 'Throughput (ops/sec, higher is better)',
       unit: 'ops/sec',
       width,
+      height,
       valueOf: s => s.medianOpsPerSec,
       color: HIGHER_IS_BETTER_COLOR,
     }),
@@ -383,6 +395,7 @@ function renderScenarioCharts(
         title: 'GC time (ms/op, lower is better)',
         unit: 'ms/op',
         width,
+        height,
         valueOf: s => (s.medianGcDurationMs ?? 0) / s.medianSamples,
       }),
     );
@@ -399,6 +412,7 @@ function renderScenarioCharts(
         title: 'Peak heap growth (KB, max memory reached)',
         unit: 'KB',
         width,
+        height,
         valueOf: s => (s.medianPeakHeapGrowthBytes ?? 0) / 1024,
       }),
     );
@@ -412,6 +426,7 @@ function renderScenarioCharts(
         title: 'Network received (KB/op, lower is better)',
         unit: 'KB/op',
         width,
+        height,
         valueOf: s => (s.medianWireRxBytes ?? 0) / s.medianSamples / 1024,
       }),
     );

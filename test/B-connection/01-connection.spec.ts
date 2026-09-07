@@ -183,6 +183,66 @@ describe('Connection', () => {
     await connection.close();
   });
 
+  it('should require a matching commit() for each nested startTransaction()', async () => {
+    connection = new Connection();
+    await connection.connect();
+    await connection.startTransaction();
+    await connection.startTransaction();
+    expect(connection.inTransaction).toStrictEqual(true);
+    await connection.commit();
+    expect(connection.inTransaction).toStrictEqual(true);
+    await connection.commit();
+    expect(connection.inTransaction).toStrictEqual(false);
+    await connection.close();
+  });
+
+  it('should commit immediately, ignoring nesting, when immediate is true', async () => {
+    connection = new Connection();
+    await connection.connect();
+    await connection.startTransaction();
+    await connection.startTransaction();
+    await connection.commit(true);
+    expect(connection.inTransaction).toStrictEqual(false);
+    await connection.close();
+  });
+
+  it('should roll back the whole transaction regardless of nesting', async () => {
+    connection = new Connection();
+    await connection.connect();
+    await connection.startTransaction();
+    await connection.startTransaction();
+    await connection.rollback();
+    expect(connection.inTransaction).toStrictEqual(false);
+    await connection.close();
+  });
+
+  it('should require a matching releaseSavepoint() for each nested savepoint()', async () => {
+    connection = new Connection();
+    await connection.connect();
+    await connection.savepoint('sp1');
+    await connection.savepoint('sp1');
+    await connection.releaseSavepoint('sp1');
+    // Still nested one level - the real RELEASE SAVEPOINT hasn't been sent
+    // yet, so the savepoint must still exist on the server.
+    await connection.rollbackToSavepoint('sp1');
+    await connection.rollback();
+    expect(connection.inTransaction).toStrictEqual(false);
+    await connection.close();
+  });
+
+  it('should release a savepoint immediately, ignoring nesting, when immediate is true', async () => {
+    connection = new Connection();
+    await connection.connect();
+    await connection.savepoint('sp1');
+    await connection.savepoint('sp1');
+    await connection.releaseSavepoint('sp1', true);
+    // The savepoint no longer exists on the server - confirms immediate
+    // actually released it despite the outstanding nesting.
+    await expect(connection.rollbackToSavepoint('sp1')).rejects.toThrow();
+    await connection.rollback();
+    await connection.close();
+  });
+
   it('should default transaction mode must be autoCommit', async () => {
     connection = new Connection();
     await connection.connect();

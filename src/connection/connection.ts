@@ -1,4 +1,3 @@
-import { coerceToBoolean } from 'putil-varhelpers';
 import { ConnectionState, DataTypeOIDs } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
@@ -179,7 +178,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   ): Promise<ScriptResult> {
     if (typeof sql === 'object' && sql instanceof QueryRequest)
       sql = sql.stringify({ ...options, typeMap: options?.typeMap });
-    this.emit('execute', sql, options);
+    if (this.listenerCount('execute')) this.emit('execute', sql, options);
     return withAbortSignal(
       options?.signal,
       () => this._intlCon.cancel(),
@@ -217,7 +216,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       });
     }
     /* c8 ignore stop */
-    this.emit('query', sql, options);
+    if (this.listenerCount('query')) this.emit('query', sql, options);
     return withAbortSignal(
       options?.signal,
       () => this._intlCon.cancel(),
@@ -256,7 +255,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       });
     }
     /* c8 ignore stop */
-    this.emit('execute', sql);
+    if (this.listenerCount('execute')) this.emit('execute', sql);
     return await this._captureErrorStack(this._intlCon.copyTo(sql)).catch(
       (e: DatabaseError) => {
         throw this._handleError(e, sql);
@@ -292,7 +291,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       });
     }
     /* c8 ignore stop */
-    this.emit('execute', sql);
+    if (this.listenerCount('execute')) this.emit('execute', sql);
     return await this._captureErrorStack(this._intlCon.copyFrom(sql)).catch(
       (e: DatabaseError) => {
         throw this._handleError(e, sql);
@@ -393,10 +392,12 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   /**
-   * Commits current transaction
+   * Commits current transaction.
+   * @param immediate - Commits right away, ignoring how many nested
+   *   startTransaction() calls are still unmatched by a commit().
    */
-  commit(): Promise<void> {
-    return this._captureErrorStack(this._intlCon.commit());
+  commit(immediate?: boolean): Promise<void> {
+    return this._captureErrorStack(this._intlCon.commit(immediate));
   }
 
   /**
@@ -464,9 +465,14 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   /**
    * Releases savepoint
    * @param name {string} - Name of the savepoint
+   * @param immediate - Releases right away, ignoring how many nested
+   *   savepoint() calls under this name are still unmatched by a
+   *   releaseSavepoint().
    */
-  releaseSavepoint(name: string): Promise<void> {
-    return this._captureErrorStack(this._intlCon.releaseSavepoint(name));
+  releaseSavepoint(name: string, immediate?: boolean): Promise<void> {
+    return this._captureErrorStack(
+      this._intlCon.releaseSavepoint(name, immediate),
+    );
   }
 
   async listen(channel: string, callback: NotificationCallback) {
@@ -521,8 +527,8 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         : this._intlCon.config.autoCommit;
     if (
       !options?.cursor &&
-      !this._intlCon.inTransaction &&
-      effectiveAutoCommit !== false
+      effectiveAutoCommit !== false &&
+      !this._intlCon.inTransaction
     ) {
       const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm =>
         prm instanceof BindParam ? prm.value : prm,
@@ -636,23 +642,30 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * `asyncErrorHandling` is the per-call override (execute()/query()'s own
    * option of the same name); when omitted, the connection's own
    * `DatabaseConnectionParams.asyncErrorHandling` decides.
+   *
+   * Not `async` itself, deliberately: every branch below already returns a
+   * promise directly (`promise` itself, or `promise.catch(...)`'s own
+   * derived one) with no `await` in between, so there is nothing here that
+   * needs the function to be a coroutine. Marking it `async` anyway would
+   * still be correct, but the spec requires wrapping whatever an async
+   * function returns through a promise-resolve step, a genuine extra
+   * microtask tick on top of the one `promise`/`.catch()` already goes
+   * through - paid on every single query this wraps, disabled or not.
    */
-  protected async _captureErrorStack<T>(
+  protected _captureErrorStack<T>(
     promise: Promise<T>,
     entry?: (...args: any[]) => any,
     asyncErrorHandling?: boolean,
   ): Promise<T> {
     const enabled =
-      asyncErrorHandling != null
-        ? asyncErrorHandling
-        : coerceToBoolean(this._intlCon.config.asyncErrorHandling, true);
+      asyncErrorHandling ?? this._intlCon.config.asyncErrorHandling ?? true;
     if (!enabled) return promise;
+
     const stackHolder: { stack?: string } = {};
     const originalStackTraceLimit = Error.stackTraceLimit;
     Error.stackTraceLimit = CAPTURE_STACK_TRACE_LIMIT;
     Error.captureStackTrace(stackHolder, entry || this._captureErrorStack);
     Error.stackTraceLimit = originalStackTraceLimit;
-
     return promise.catch(e => {
       const stack = stackHolder.stack;
       if (e instanceof Error && stack) {
