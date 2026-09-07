@@ -4,7 +4,14 @@ import { testEncode, testParse } from './_testers.js';
 
 describe('DataType: numeric', () => {
   const conn = new Connection();
-  before(() => conn.connect());
+  let supportsInfinity = false;
+  before(async () => {
+    await conn.connect();
+    // numeric Infinity/-Infinity were added in PostgreSQL 14 - NaN alone
+    // has always been a valid numeric value.
+    const serverVersion = conn.sessionParameters.server_version;
+    supportsInfinity = parseInt(serverVersion, 10) >= 14;
+  });
   after(() => conn.close(0));
 
   it('should parse "numeric" field (text)', async () => {
@@ -31,7 +38,8 @@ describe('DataType: numeric', () => {
     );
   });
 
-  it('should parse "NaN"/"Infinity"/"-Infinity" (text)', async () => {
+  it('should parse "NaN"/"Infinity"/"-Infinity" (text)', async function () {
+    if (!supportsInfinity) return this.skip();
     await testParse(
       conn,
       DataTypeOIDs.numeric,
@@ -43,7 +51,8 @@ describe('DataType: numeric', () => {
     );
   });
 
-  it('should parse "NaN"/"Infinity"/"-Infinity" (binary)', async () => {
+  it('should parse "NaN"/"Infinity"/"-Infinity" (binary)', async function () {
+    if (!supportsInfinity) return this.skip();
     // Regression test: the sign field was read as a signed int16, so the
     // NaN/+Infinity/-Infinity sign bitmasks (0xC000/0xD000/0xF000, all with
     // the top bit set) never matched their unsigned constants and silently
@@ -136,7 +145,8 @@ describe('DataType: numeric', () => {
     }
   });
 
-  it('should encode "numeric" NaN and infinities in binary', async () => {
+  it('should encode "numeric" NaN and infinities in binary', async function () {
+    if (!supportsInfinity) return this.skip();
     for (const v of [NaN, Infinity, -Infinity]) {
       const r = await conn.query('select $1::numeric::text as t', {
         params: [new BindParam(DataTypeOIDs.numeric, v)],
