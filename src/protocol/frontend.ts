@@ -103,14 +103,18 @@ export class Frontend {
       .writeInt32BE(0) // Preserve length
       .writeInt16BE(Protocol.VERSION_MAJOR)
       .writeInt16BE(Protocol.VERSION_MINOR);
-    for (const [k, v] of Object.entries(args)) {
+    const entries = Object.entries(args);
+    const l = entries.length;
+    let k: string;
+    let v: string;
+    for (let i = 0; i < l; i++) {
+      [k, v] = entries[i];
       if (k !== 'client_encoding')
         io.writeCString(k, 'utf8').writeCString(v, 'utf8');
     }
     io.writeCString('client_encoding', 'utf8')
       .writeCString('UTF8', 'utf8')
       .writeUInt8(0);
-
     return setLengthAndFlush(io, 0);
   }
 
@@ -162,16 +166,19 @@ export class Frontend {
   getParseMessage(args: Frontend.ParseMessageArgs): Buffer {
     if (args.statement && args.statement.length > 63)
       throw new Error('Query name length must be lower than 63');
+    const { paramTypes } = args;
     const io = this._io
       .start()
       .writeInt8(Protocol.FrontendMessageCode.Parse)
       .writeInt32BE(0) // Preserve header
       .writeCString(args.statement || '', 'utf8')
       .writeCString(args.sql, 'utf8')
-      .writeUInt16BE(args.paramTypes ? args.paramTypes.length : 0);
-    if (args.paramTypes) {
-      for (const t of args.paramTypes) {
-        io.writeUInt32BE(t || 0);
+      .writeUInt16BE(paramTypes?.length || 0);
+    if (paramTypes) {
+      let i: number;
+      const l = paramTypes.length;
+      for (i = 0; i < l; i++) {
+        io.writeUInt32BE(paramTypes[i] || 0);
       }
     }
     return setLengthAndFlush(io, 1);
