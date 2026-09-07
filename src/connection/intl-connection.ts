@@ -50,6 +50,8 @@ export class IntlConnection extends SafeEventEmitter {
     ExecuteReusedParserCacheEntry
   >();
   protected _refCount = 0;
+  protected _transactionDepth = 0;
+  protected _savepointDepths = new Map<string, number>();
   protected _config: ConnectionConfiguration;
   protected _onErrorSavePoint: string;
   transactionStatus = 'I';
@@ -186,21 +188,76 @@ export class IntlConnection extends SafeEventEmitter {
     }
   }
 
+  /**
+   * Starts a transaction, or - if one is already running - marks a nested
+   * level of it. Each call increments `_transactionDepth`; only the
+   * outermost one actually sends BEGIN (`inTransaction` is already false at
+   * that point). A matching number of commit() calls is then needed to
+   * actually commit - see commit().
+   */
   async startTransaction(): Promise<void> {
+    this._transactionDepth++;
     if (!this.inTransaction) await this.execute('BEGIN');
   }
 
+  /**
+   * Starts a savepoint, or - if one under the same `name` is already open -
+   * marks a nested level of it. Mirrors startTransaction(): only the
+   * outermost call for a given name actually sends SAVEPOINT: a savepoint
+   * already exists under that name, re-declaring it would just stack a
+   * second, independent one with the same name on the server rather than
+   * nesting the existing one.
+   */
   async savepoint(name: string): Promise<void> {
     if (!(name && name.match(/^[a-zA-Z]\w+$/)))
       throw new Error(`Invalid savepoint "${name}"`);
-    await this.execute('BEGIN; SAVEPOINT ' + name);
+    const depth = (this._savepointDepths.get(name) || 0) + 1;
+    this._savepointDepths.set(name, depth);
+    if (depth === 1) await this.execute('BEGIN; SAVEPOINT ' + name);
   }
 
-  async commit(): Promise<void> {
+  /**
+   * Commits the transaction started by startTransaction() - or, when nested,
+   * just unwinds one level of `_transactionDepth`. The actual COMMIT is only
+   * sent once the depth reaches zero, i.e. once every startTransaction()
+   * call has a matching commit().
+   * @param immediate - Ignores `_transactionDepth` and commits right away,
+   *   regardless of how many nested levels are still open.
+   */
+  async commit(immediate?: boolean): Promise<void> {
+    if (!immediate && this._transactionDepth > 1) {
+      this._transactionDepth--;
+      return;
+    }
+    this._transactionDepth = 0;
     if (this.inTransaction) await this.execute('COMMIT');
   }
 
+  /**
+   * Releases the savepoint created by savepoint() - or, when nested, just
+   * unwinds one level of that name's depth. The actual RELEASE SAVEPOINT is
+   * only sent once that depth reaches zero.
+   * @param immediate - Ignores the tracked depth and releases right away.
+   */
+  async releaseSavepoint(name: string, immediate?: boolean): Promise<void> {
+    if (!(name && name.match(/^[a-zA-Z]\w+$/)))
+      throw new Error(`Invalid savepoint "${name}"`);
+    const depth = this._savepointDepths.get(name) || 0;
+    if (!immediate && depth > 1) {
+      this._savepointDepths.set(name, depth - 1);
+      return;
+    }
+    this._savepointDepths.delete(name);
+    await this.execute('RELEASE SAVEPOINT ' + name, { autoCommit: false });
+  }
+
+  /**
+   * Rolls back the whole transaction, regardless of `_transactionDepth` -
+   * a rollback ends the transaction outright, so there is nothing left for
+   * any pending, still-nested commit() call to unwind.
+   */
   async rollback(): Promise<void> {
+    this._transactionDepth = 0;
     if (this.inTransaction) await this.execute('ROLLBACK');
   }
 
@@ -232,16 +289,17 @@ export class IntlConnection extends SafeEventEmitter {
     await this._execute('ROLLBACK PREPARED ' + escapeLiteral(name));
   }
 
+  /**
+   * Rolls back to the given savepoint, regardless of its tracked depth - a
+   * rollback discards it (and everything after it) outright, so there is
+   * nothing left for any pending, still-nested releaseSavepoint() call to
+   * unwind.
+   */
   async rollbackToSavepoint(name: string): Promise<void> {
     if (!(name && name.match(/^[a-zA-Z]\w+$/)))
       throw new Error(`Invalid savepoint "${name}"`);
+    this._savepointDepths.delete(name);
     await this.execute('ROLLBACK TO SAVEPOINT ' + name, { autoCommit: false });
-  }
-
-  async releaseSavepoint(name: string): Promise<void> {
-    if (!(name && name.match(/^[a-zA-Z]\w+$/)))
-      throw new Error(`Invalid savepoint "${name}"`);
-    await this.execute('RELEASE SAVEPOINT ' + name, { autoCommit: false });
   }
 
   /** Asks the server to cancel whatever this session is running. */

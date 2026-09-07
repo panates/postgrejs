@@ -393,10 +393,12 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   /**
-   * Commits current transaction
+   * Commits current transaction.
+   * @param immediate - Commits right away, ignoring how many nested
+   *   startTransaction() calls are still unmatched by a commit().
    */
-  commit(): Promise<void> {
-    return this._captureErrorStack(this._intlCon.commit());
+  commit(immediate?: boolean): Promise<void> {
+    return this._captureErrorStack(this._intlCon.commit(immediate));
   }
 
   /**
@@ -464,9 +466,14 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   /**
    * Releases savepoint
    * @param name {string} - Name of the savepoint
+   * @param immediate - Releases right away, ignoring how many nested
+   *   savepoint() calls under this name are still unmatched by a
+   *   releaseSavepoint().
    */
-  releaseSavepoint(name: string): Promise<void> {
-    return this._captureErrorStack(this._intlCon.releaseSavepoint(name));
+  releaseSavepoint(name: string, immediate?: boolean): Promise<void> {
+    return this._captureErrorStack(
+      this._intlCon.releaseSavepoint(name, immediate),
+    );
   }
 
   async listen(channel: string, callback: NotificationCallback) {
