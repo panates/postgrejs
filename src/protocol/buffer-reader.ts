@@ -47,6 +47,7 @@ export class BufferReader {
 
   readCString(encoding?: BufferEncoding): string {
     const idx = this.buffer.indexOf(0, this.offset);
+    if (idx === -1) throw new Error('Eof in buffer detected (readCString)');
     const v = this.buffer.toString(encoding, this.offset, idx);
     this.offset = idx + 1;
     return v;
@@ -63,19 +64,9 @@ export class BufferReader {
   readBuffer(len?: number): Buffer {
     if (len) this._checkReadable(len);
     const end = len !== undefined ? this.offset + len : this.length;
-    const buf = this.buffer.slice(this.offset, end);
+    const buf = this.buffer.subarray(this.offset, end);
     this.offset = end;
     return buf;
-  }
-
-  moveBy(n: number): this {
-    return this.moveTo(this.offset + n);
-  }
-
-  moveTo(pos: number): this {
-    if (pos >= this.length) throw new Error('Eof in buffer detected');
-    this.offset = pos;
-    return this;
   }
 
   private _checkReadable(size: number): void {

@@ -1,37 +1,54 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
+import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
 export const JsonType: DataType = {
   name: 'json',
   oid: DataTypeOIDs.json,
   jsType: 'string',
 
-  parseBinary(
+  decodeBinary(
     v: Buffer,
+    offset: number = 0,
     options: DataMappingOptions,
   ): string | object | null | undefined {
-    const content = v.toString('utf8');
-    const fetchAsString =
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.jsonb);
+    const content = v.toString('utf8', offset);
+    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.json);
     if (fetchAsString) return content;
     return content ? JSON.parse(content) : undefined;
   },
 
+  // json is stored as the text itself, so its binary form is those bytes.
+  encodeBinary(buf: SmartBuffer, v: any): void {
+    buf.writeString(JsonType.encodeText!(v, {}), 'utf8');
+  },
+
   encodeText(v): string {
-    if (typeof v === 'object' || typeof v === 'bigint')
-      return JSON.stringify(v);
+    // JSON.stringify() cannot serialize a BigInt itself (it throws), so a
+    // bigint is written directly as a bare numeric literal instead.
+    if (typeof v === 'bigint') return v.toString();
+    if (typeof v === 'object') return JSON.stringify(v);
     if (typeof v === 'boolean') return v ? 'true' : 'false';
     return '' + v;
   },
 
-  parseText(v: string, options: DataMappingOptions): object | string | null {
-    const fetchAsString =
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.jsonb);
+  decodeText(v: string, options: DataMappingOptions): object | string | null {
+    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.json);
     if (fetchAsString) return v;
     return v ? JSON.parse(v) : null;
+  },
+
+  decodeTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): object | string | null {
+    return JsonType.decodeText(
+      buf.toString('utf8', offset, offset + len),
+      options,
+    );
   },
 
   isType(v: any): boolean {

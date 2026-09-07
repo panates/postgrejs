@@ -3,7 +3,16 @@ import crypto from 'crypto';
 export namespace SASL {
   const CLIENT_KEY = 'Client Key';
   const SERVER_KEY = 'Server Key';
-  const GS2_HEADER = 'n,,';
+  /**
+   * The GS2 header states what the client can do about channel binding, and
+   * the server checks it against what it offered. `n` means the client does
+   * not support it; `y` means it does but saw no -PLUS mechanism offered -
+   * which is what lets the server notice an attacker having stripped it;
+   * `p=...` means it is in use.
+   */
+  const GS2_NONE = 'n,,';
+  const GS2_SUPPORTED_UNUSED = 'y,,';
+  const GS2_BOUND = 'p=tls-server-end-point,,';
 
   export interface Session {
     username: string;
@@ -12,15 +21,37 @@ export namespace SASL {
     clientFirstMessage: string;
     clientFinalMessage: string;
     serverSignature: string;
+    /** The GS2 header this session announced; repeated in the final message. */
+    gs2Header: string;
+    /** tls-server-end-point data, present only for SCRAM-SHA-256-PLUS. */
+    bindingData?: Buffer;
   }
 
-  export function createSession(username: string, mechanism: string): Session {
+  /**
+   * @param bindingData - the server certificate's hash, for
+   *   SCRAM-SHA-256-PLUS. Pass undefined for the plain mechanism, and
+   *   `supportsBinding` to say whether the client could have done it, which
+   *   is what tells the server a stripped -PLUS offer would be an attack.
+   */
+  export function createSession(
+    username: string,
+    mechanism: string,
+    bindingData?: Buffer,
+    supportsBinding?: boolean,
+  ): Session {
     const nonce = crypto.randomBytes(18).toString('base64');
-    const clientFirstMessage = `${GS2_HEADER}${firstMessageBare(username, nonce)}`;
+    const gs2Header = bindingData
+      ? GS2_BOUND
+      : supportsBinding
+        ? GS2_SUPPORTED_UNUSED
+        : GS2_NONE;
+    const clientFirstMessage = `${gs2Header}${firstMessageBare(username, nonce)}`;
     return {
       username,
       mechanism,
       nonce,
+      gs2Header,
+      bindingData,
       clientFirstMessage,
     } as Session;
   }
@@ -61,7 +92,16 @@ export namespace SASL {
       throw new Error('SASL: Server nonce does not start with client nonce');
 
     const serverFirstMessage = `r=${nonce},s=${salt},i=${iteration}`;
-    const clientFinalMessageWithoutProof = `c=${encode64(GS2_HEADER)},r=${nonce}`;
+    // c= carries the header again, with the binding data appended when the
+    // channel is bound - so an attacker who relayed the exchange over a
+    // different TLS connection produces a different proof.
+    const cbind = session.bindingData
+      ? Buffer.concat([
+          Buffer.from(session.gs2Header, 'utf8'),
+          session.bindingData,
+        ]).toString('base64')
+      : encode64(session.gs2Header);
+    const clientFinalMessageWithoutProof = `c=${cbind},r=${nonce}`;
     const authMessage = `${firstMessageBare(
       session.username,
       session.nonce,

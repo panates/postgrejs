@@ -31,39 +31,79 @@ declare type ParseCallback = (
 ) => void;
 
 export class Backend {
-  private _buf?: Buffer;
+  private readonly _headerBuf = Buffer.allocUnsafe(HEADER_LENGTH);
+  private _headerFilled = 0;
+  private _code?: Protocol.BackendMessageCode;
+  private _len = 0;
+  private _bodyBuf?: Buffer;
+  private _bodyFilled = 0;
 
   reset() {
-    this._buf = undefined;
+    this._headerFilled = 0;
+    this._code = undefined;
+    this._bodyBuf = undefined;
+    this._bodyFilled = 0;
   }
 
   parse(data: Buffer, callback: ParseCallback) {
-    if (this._buf) {
-      data = Buffer.concat([this._buf, data]);
-      this._buf = undefined;
-    }
-
-    const io = new BufferReader(data);
-    let offsetBookmark;
-    while (io.length - io.offset >= HEADER_LENGTH) {
-      offsetBookmark = io.offset;
-      const code = io.readUInt8() as Protocol.BackendMessageCode;
-      const len = io.readUInt32BE();
-      // Check if frame data not received yet
-      if (io.length - io.offset < len - 4) {
-        io.offset = offsetBookmark;
-        this._buf = io.readBuffer();
-        return;
+    const dataLen = data.length;
+    let pos = 0;
+    while (pos < dataLen) {
+      if (
+        this._headerFilled === 0 &&
+        !this._bodyBuf &&
+        dataLen - pos >= HEADER_LENGTH
+      ) {
+        const code = data.readUInt8(pos) as Protocol.BackendMessageCode;
+        const len = data.readUInt32BE(pos + 1);
+        const bodyStart = pos + HEADER_LENGTH;
+        const bodyEnd = bodyStart + (len - 4);
+        if (bodyEnd <= dataLen) {
+          const io = new BufferReader(data.subarray(bodyStart, bodyEnd));
+          const parser = MessageParsers[code];
+          const v = parser && parser(io, code, len);
+          callback(code, v);
+          pos = bodyEnd;
+          continue;
+        }
       }
 
-      const parser = MessageParsers[code];
-      const v = parser && parser(io, code, len);
-      callback(code, v);
+      if (!this._bodyBuf) {
+        const need = HEADER_LENGTH - this._headerFilled;
+        const take = Math.min(need, dataLen - pos);
+        data.copy(this._headerBuf, this._headerFilled, pos, pos + take);
+        this._headerFilled += take;
+        pos += take;
+        if (this._headerFilled < HEADER_LENGTH) return; // header not complete yet
 
-      // Set offset to next message
-      io.offset = offsetBookmark + len + 1;
+        this._code = this._headerBuf.readUInt8(
+          0,
+        ) as Protocol.BackendMessageCode;
+        this._len = this._headerBuf.readUInt32BE(1);
+        this._bodyBuf = Buffer.allocUnsafe(this._len - 4);
+        this._bodyFilled = 0;
+      }
+
+      const need = this._bodyBuf.length - this._bodyFilled;
+      const take = Math.min(need, dataLen - pos);
+      if (take > 0) {
+        data.copy(this._bodyBuf, this._bodyFilled, pos, pos + take);
+        this._bodyFilled += take;
+        pos += take;
+      }
+      if (this._bodyFilled < this._bodyBuf.length) return; // body not complete yet
+
+      const io = new BufferReader(this._bodyBuf);
+      const parser = MessageParsers[this._code!];
+      const v = parser && parser(io, this._code!, this._len);
+      callback(this._code!, v);
+
+      // Reset reassembly state for the next message.
+      this._headerFilled = 0;
+      this._code = undefined;
+      this._bodyBuf = undefined;
+      this._bodyFilled = 0;
     }
-    if (io.offset < io.length) this._buf = io.readBuffer(io.length - io.offset);
   }
 }
 
@@ -192,7 +232,9 @@ function parseCopyResponse(io: BufferReader): Protocol.CopyResponseMessage {
 
   if (out.columnCount) {
     out.columnFormats = [];
-    for (let i = 0; i < out.columnCount; i++) {
+    const l = out.columnCount;
+    let i: number;
+    for (i = 0; i < l; i++) {
       out.columnFormats.push(
         io.readUInt16BE() === 0
           ? Protocol.DataFormat.text
@@ -203,29 +245,20 @@ function parseCopyResponse(io: BufferReader): Protocol.CopyResponseMessage {
   return out;
 }
 
-function parseDataRow(io: BufferReader): Protocol.DataRowMessage {
-  const out = {
-    columnCount: io.readUInt16BE(),
-  } as Protocol.DataRowMessage;
-
-  if (out.columnCount) {
-    out.columns = [];
-    for (let i = 0; i < out.columnCount; i++) {
-      // The length of the column value, in bytes (this count does not include itself).
-      // Can be zero. As a special case, -1 indicates a NULL column value.
-      // No value bytes follow in the NULL case.
-      const l = io.readInt32BE();
-      if (l < 0) out.columns.push(null);
-      else out.columns.push(io.readBuffer(l));
-    }
-  }
-  return out;
+function parseDataRow(
+  io: BufferReader,
+  code: Protocol.BackendMessageCode,
+  len: number,
+): Protocol.DataRowMessage {
+  const columnCount = io.readUInt16BE();
+  const data = io.readBuffer(len - 6);
+  return { columnCount, data };
 }
 
 function parseErrorResponse(io: BufferReader): Protocol.ErrorResponseMessage {
   const out: Record<string, string> = {};
 
-  let fieldType;
+  let fieldType: string | null;
   while ((fieldType = io.readLString(1)) !== '\0') {
     const value = io.readCString('utf8');
     const key = ErrorFieldTypes[fieldType!];
@@ -268,11 +301,13 @@ function parseParameterDescription(
   io: BufferReader,
 ): Protocol.ParameterDescriptionMessage {
   const out = {
-    parameterCount: io.readUInt32BE(),
+    parameterCount: io.readUInt16BE(),
     parameterIds: [],
   } as Protocol.ParameterDescriptionMessage;
 
-  for (let i = 0; i < out.parameterCount; i++) {
+  const l = out.parameterCount;
+  let i: number;
+  for (i = 0; i < l; i++) {
     out.parameterIds.push(io.readUInt32BE());
   }
 

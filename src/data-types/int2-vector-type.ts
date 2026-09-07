@@ -1,4 +1,5 @@
 import { DataTypeOIDs } from '../constants.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
 import { SmartBuffer } from '../protocol/smart-buffer.js';
 import { decodeBinaryArray } from '../util/decode-binaryarray.js';
@@ -9,10 +10,6 @@ export const Int2VectorType: DataType = {
   name: 'int2vector',
   oid: DataTypeOIDs.int2vector,
   jsType: 'array',
-
-  parseBinary(v: Buffer): number[] | undefined {
-    return decodeBinaryArray<number>(v, b => b.readInt16BE()) || undefined;
-  },
 
   encodeBinary(buf: SmartBuffer, v: number[]): void {
     encodeBinaryArray(
@@ -30,8 +27,26 @@ export const Int2VectorType: DataType = {
     return [v.length];
   },
 
-  parseText(str: string) {
+  decodeBinary(v: Buffer): number[] | undefined {
+    return decodeBinaryArray<number>(v, 0, b => b.readInt16BE()) || undefined;
+  },
+
+  decodeText(str: string) {
     return str.split(' ').map(fastParseInt);
+  },
+
+  // See box-type.ts's decodeTextBuffer comment - same rationale (this text
+  // grammar is pure ASCII digits/minus/space).
+  decodeTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ) {
+    return Int2VectorType.decodeText(
+      buf.toString('latin1', offset, offset + len),
+      options,
+    );
   },
 
   encodeText(v: number[]) {

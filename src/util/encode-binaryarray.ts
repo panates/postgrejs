@@ -25,17 +25,21 @@ export function encodeBinaryArray(
     .writeInt32BE(0) // reserved for has-null flag
     .writeInt32BE(itemOid);
 
-  for (let d = 0; d < ndims; d++) {
+  let d: number;
+  for (d = 0; d < ndims; d++) {
     io.writeInt32BE(dim[d]); // Number of items in dimension
     io.writeInt32BE(0); // LBound always 0.
   }
 
   let hasNull = false;
   let pos: number;
+  const lastDim = ndims - 1;
   const writeDim = (arr: any[], level: number) => {
     const elemCount = dim[level];
-    for (let i = 0; i < elemCount; i++) {
-      if (level < dim.length - 1) {
+    const isLeafLevel = level >= lastDim;
+    let i: number;
+    for (i = 0; i < elemCount; i++) {
+      if (!isLeafLevel) {
         writeDim(arr && arr[i], level + 1);
         continue;
       }

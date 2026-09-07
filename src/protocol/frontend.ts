@@ -30,6 +30,13 @@ const StaticSyncBuffer = Buffer.from([
   0x00,
   0x04,
 ]);
+const StaticCopyDoneBuffer = Buffer.from([
+  Protocol.FrontendMessageCode.CopyDone,
+  0x00,
+  0x00,
+  0x00,
+  0x04,
+]);
 
 export interface FrontendOptions {
   buffer?: SmartBufferConfig;
@@ -107,6 +114,23 @@ export class Frontend {
     return setLengthAndFlush(io, 0);
   }
 
+  /**
+   * Asks the server to cancel whatever the given session is currently
+   * running. Sent on its own fresh connection - a backend busy with a query
+   * is not reading its own socket, which is the whole reason this cannot go
+   * down the normal one.
+   */
+  getCancelRequestMessage(processID: number, secretKey: number): Buffer {
+    return this._io
+      .start()
+      .writeUInt32BE(16) // Length of message contents in bytes, including self.
+      .writeUInt16BE(1234)
+      .writeUInt16BE(5678)
+      .writeUInt32BE(processID)
+      .writeUInt32BE(secretKey)
+      .flush();
+  }
+
   getPasswordMessage(password: string): Buffer {
     const io = this._io
       .start()
@@ -174,14 +198,17 @@ export class Frontend {
     if (params && params.length) {
       io.writeInt16BE(params.length);
       const formatOffset = io.offset;
-      for (let i = 0; i < params.length; i++) {
+      const l = params.length;
+      let i: number;
+      for (i = 0; i < l; i++) {
         io.writeInt16BE(0); // Preserve
       }
 
       // Write parameter values
-      io.writeUInt16BE(params.length);
-      for (let i = 0; i < params?.length; i++) {
-        let v = params[i];
+      io.writeUInt16BE(l);
+      let v: any;
+      for (i = 0; i < l; i++) {
+        v = params[i];
         if (v === null || v === undefined) {
           io.writeInt32BE(-1);
           continue;
@@ -249,8 +276,10 @@ export class Frontend {
     }
 
     if (Array.isArray(columnFormat)) {
-      io.writeUInt16BE(columnFormat.length);
-      for (let i = 0; i < columnFormat.length; i++) {
+      const l = columnFormat.length;
+      io.writeUInt16BE(l);
+      let i: number;
+      for (i = 0; i < l; i++) {
         io.writeUInt16BE(columnFormat[i]);
       }
     } else if (columnFormat === DataFormat.binary) {
@@ -317,6 +346,32 @@ export class Frontend {
       .writeInt8(Protocol.FrontendMessageCode.Query)
       .writeInt32BE(0) // Preserve header
       .writeCString(sql || '', 'utf8');
+    return setLengthAndFlush(io, 1);
+  }
+
+  /**
+   * Returns the CopyData header and the caller's payload as two buffers
+   * rather than one, so a bulk import never copies the caller's bytes.
+   * PgSocket writes an array of buffers as a single corked write anyway,
+   * so this costs nothing on the wire.
+   */
+  getCopyDataMessage(data: Buffer): Buffer[] {
+    const header = Buffer.allocUnsafe(5);
+    header[0] = Protocol.FrontendMessageCode.CopyData;
+    header.writeUInt32BE(data.length + 4, 1);
+    return [header, data];
+  }
+
+  getCopyDoneMessage(): Buffer {
+    return StaticCopyDoneBuffer;
+  }
+
+  getCopyFailMessage(message: string): Buffer {
+    const io = this._io
+      .start()
+      .writeInt8(Protocol.FrontendMessageCode.CopyFail)
+      .writeInt32BE(0) // Preserve header
+      .writeCString(message || '', 'utf8');
     return setLengthAndFlush(io, 1);
   }
 

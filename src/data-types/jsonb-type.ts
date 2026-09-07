@@ -2,40 +2,56 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
 import { BufferReader } from '../protocol/buffer-reader.js';
+import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
 export const JsonbType: DataType = {
   name: 'jsonb',
   oid: DataTypeOIDs.jsonb,
   jsType: 'string',
 
-  parseBinary(
+  encodeText(v): string {
+    if (typeof v === 'object' || typeof v === 'bigint')
+      return JSON.stringify(v);
+    if (typeof v === 'boolean') return v ? 'true' : 'false';
+    return '' + v;
+  },
+
+  encodeBinary(buf: SmartBuffer, v: any): void {
+    buf.writeUInt8(1);
+    buf.writeString(JsonbType.encodeText!(v, {}), 'utf8');
+  },
+
+  decodeBinary(
     v: Buffer,
+    offset: number = 0,
     options: DataMappingOptions,
   ): object | string | null | undefined {
-    const buf = new BufferReader(v);
+    const buf = new BufferReader(offset ? v.subarray(offset) : v);
     if (buf.readUInt8() !== 1)
       throw new Error('Unexpected Jsonb version value in header');
-    const fetchAsString =
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.json);
+    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.jsonb);
     const content = buf.readLString(buf.length - buf.offset);
     if (fetchAsString) return content;
     return content ? JSON.parse(content) : undefined;
   },
 
-  encodeText(v): string {
-    if (typeof v === 'object' || typeof v === 'bigint')
-      return JSON.stringify(v);
-    if (typeof v === 'boolean') return v ? 'true' : 'false';
-    return '\x0001' + v;
-  },
-
-  parseText(v: string, options: DataMappingOptions): object | string | null {
-    const fetchAsString =
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.json);
+  decodeText(v: string, options: DataMappingOptions): object | string | null {
+    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.jsonb);
     if (fetchAsString) return v;
     return v ? JSON.parse(v) : null;
+  },
+
+  // See json-type.ts's decodeTextBuffer comment - same rationale.
+  decodeTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): object | string | null {
+    return JsonbType.decodeText(
+      buf.toString('utf8', offset, offset + len),
+      options,
+    );
   },
 
   isType(v: any): boolean {

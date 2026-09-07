@@ -18,6 +18,34 @@ describe('GlobalTypeMap', () => {
     );
   });
 
+  it('should determine int8 oid for numbers outside the 32-bit int4 range', async () => {
+    // Regression test: values between the int4 boundary and
+    // Number.MAX_SAFE_INTEGER used to be mis-detected as int4 (isType()
+    // only checked <= MAX_SAFE_INTEGER, not the real int4 range), causing
+    // a RangeError from writeInt32BE when encoding.
+    expect(GlobalTypeMap.determine(2147483648)).toStrictEqual(
+      DataTypeOIDs.int8,
+    );
+    expect(GlobalTypeMap.determine(-2147483649)).toStrictEqual(
+      DataTypeOIDs.int8,
+    );
+    expect(GlobalTypeMap.determine(5000000000)).toStrictEqual(
+      DataTypeOIDs.int8,
+    );
+    expect(GlobalTypeMap.determine(-5000000000)).toStrictEqual(
+      DataTypeOIDs.int8,
+    );
+  });
+
+  it('should determine int4 oid for numbers at the exact 32-bit boundary', async () => {
+    expect(GlobalTypeMap.determine(2147483647)).toStrictEqual(
+      DataTypeOIDs.int4,
+    );
+    expect(GlobalTypeMap.determine(-2147483648)).toStrictEqual(
+      DataTypeOIDs.int4,
+    );
+  });
+
   it('should determine int8 oid from "BigInt"', async () => {
     expect(GlobalTypeMap.determine(BigInt(1))).toStrictEqual(DataTypeOIDs.int8);
   });
@@ -33,10 +61,23 @@ describe('GlobalTypeMap', () => {
     );
   });
 
-  it('should determine date oid from "Date"', async () => {
+  it('should determine date oid from "Date" (epoch date at midnight)', async () => {
+    // 1970-01-01 is the one case unambiguous enough to auto-detect as
+    // "date": it carries no information beyond "date-only, no time set".
+    expect(
+      GlobalTypeMap.determine(new Date('1970-01-01T00:00:00')),
+    ).toStrictEqual(DataTypeOIDs.date);
+  });
+
+  it('should determine timestamp oid for a midnight Date on a non-epoch day', async () => {
+    // Regression test: a Date exactly at midnight on a real (non-epoch)
+    // day is ambiguous between "date-only" and "a timestamp that happens
+    // to fall on midnight". This used to be mis-detected as date, losing
+    // type information for genuine timestamp values. A timestamp/timestamptz
+    // column represents midnight just fine, so timestamp is the safe default.
     expect(
       GlobalTypeMap.determine(new Date('2020-12-15T00:00:00')),
-    ).toStrictEqual(DataTypeOIDs.date);
+    ).toStrictEqual(DataTypeOIDs.timestamp);
   });
 
   it('should determine time oid from "Date"', async () => {
@@ -95,5 +136,15 @@ describe('GlobalTypeMap', () => {
 
   it('should determine char oid from "String"', async () => {
     expect(GlobalTypeMap.determine('y')).toStrictEqual(DataTypeOIDs.char);
+  });
+
+  it('should not determine char oid for a single multi-byte character', async () => {
+    // Regression test: isType() used to check JS string .length (UTF-16
+    // code units) instead of UTF-8 byte length, so any single non-ASCII
+    // character (e.g. 'é', '中') was wrongly auto-detected as PostgreSQL's
+    // 1-byte "char" type, whose encoder then wrote 2-3 bytes for it,
+    // causing the server to reject the bind parameter outright.
+    expect(GlobalTypeMap.determine('é')).toStrictEqual(DataTypeOIDs.varchar);
+    expect(GlobalTypeMap.determine('中')).toStrictEqual(DataTypeOIDs.varchar);
   });
 });

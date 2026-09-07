@@ -4,8 +4,7 @@ import type { FieldInfo } from '../interfaces/field-info.js';
 import type { QueryOptions } from '../interfaces/query-options.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { AnyParseFunction, Maybe, Row } from '../types.js';
-import { convertRowToObject } from '../util/convert-row-to-object.js';
-import { parseRow } from '../util/parse-row.js';
+import { parseObjectRow, parseRow } from '../util/parse-row.js';
 import type { Portal } from './portal.js';
 import type { PreparedStatement } from './prepared-statement.js';
 
@@ -53,7 +52,8 @@ export class Cursor extends SafeEventEmitter implements AsyncDisposable {
   async fetch(nRows: number): Promise<Row[]> {
     const out: Row[] = [];
     if (this._closed) return out;
-    for (let i = 0; i < nRows; i++) {
+    let i: number;
+    for (i = 0; i < nRows; i++) {
       if (!this._rows.length) await this._fetchRows();
       if (this._rows.length) out.push(this._rows.shift());
       else break;
@@ -63,13 +63,18 @@ export class Cursor extends SafeEventEmitter implements AsyncDisposable {
 
   async close(): Promise<void> {
     if (this._closed) return;
-    await this._portal.close();
-    await this._statement.close();
+    const combined = await this._statement._maybeCloseWithPortal(
+      this._portal.name!,
+    );
+    if (!combined) await this._portal.close();
     this.emit('close');
     this._closed = true;
   }
 
   private async _fetchRows(): Promise<void> {
+    // Both callers (next()/fetch()) already gate on _closed with no await
+    // in between, so this can't currently observe a change - kept as a
+    // defensive backstop for this private method's own contract.
     if (this._closed) return;
     const portal = this._portal;
     await this._taskQueue
@@ -77,18 +82,28 @@ export class Cursor extends SafeEventEmitter implements AsyncDisposable {
         const queryOptions = this._queryOptions;
         const r = await portal.execute(queryOptions.fetchCount || 100);
         if (r && r.rows && r.rows.length) {
+          const rows: any[] = r.rows;
           if (this._parsers) {
             const objectRows = queryOptions.objectRows;
             const fields = this.fields;
-            const rows = r.rows;
-            for (let i = 0; i < rows.length; i++) {
-              const row = rows[i];
-              parseRow(this._parsers, row, this._queryOptions);
-              if (objectRows) rows[i] = convertRowToObject(fields, row);
+            const parsers = this._parsers;
+            const rowLen = rows.length;
+            let i: number;
+            for (i = 0; i < rowLen; i++) {
+              const { data, columnCount } = rows[i];
+              rows[i] = objectRows
+                ? parseObjectRow(
+                    parsers,
+                    data,
+                    columnCount,
+                    this._queryOptions,
+                    fields,
+                  )
+                : parseRow(parsers, data, columnCount, this._queryOptions);
             }
           }
-          this._rows.push(...r.rows);
-          this.emit('fetch', r.rows);
+          this._rows.push(...rows);
+          this.emit('fetch', rows);
         } else {
           await this.close();
         }

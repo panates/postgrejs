@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig-base.json",
+  "include": ["./**/*.ts"],
+  "compilerOptions": {
+    "composite": true,
+    "types": ["node"],
+    "noEmit": true,
+    "sourceMap": true,
+    "rootDir": ".",
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "paths": {
+      "postgrejs": ["../src/index.js"]
+    }
+  },
+  "references": [{ "path": "../" }]
+}

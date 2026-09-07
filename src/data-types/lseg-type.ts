@@ -1,4 +1,5 @@
 import { DataTypeOIDs } from '../constants.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType, Rectangle } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import type { Maybe } from '../types.js';
@@ -16,14 +17,10 @@ export const LsegType: DataType = {
   name: 'lseg',
   oid: DataTypeOIDs.lseg,
   jsType: 'object',
+  fixedBinarySize: 32,
 
-  parseBinary(v: Buffer): Rectangle {
-    return {
-      x1: v.readDoubleBE(0),
-      y1: v.readDoubleBE(8),
-      x2: v.readDoubleBE(16),
-      y2: v.readDoubleBE(24),
-    };
+  encodeText(v: Rectangle): string {
+    return `[(${v.x1},${v.y1}),(${v.x2},${v.y2})]`;
   },
 
   encodeBinary(buf: SmartBuffer, v: Rectangle): void {
@@ -33,7 +30,16 @@ export const LsegType: DataType = {
     buf.writeDoubleBE(v.y2);
   },
 
-  parseText(v: string): Maybe<Rectangle> {
+  decodeBinary(v: Buffer, offset: number = 0): Rectangle {
+    return {
+      x1: v.readDoubleBE(offset),
+      y1: v.readDoubleBE(offset + 8),
+      x2: v.readDoubleBE(offset + 16),
+      y2: v.readDoubleBE(offset + 24),
+    };
+  },
+
+  decodeText(v: string): Maybe<Rectangle> {
     const m =
       v.match(LSEG_PATTERN1) ||
       v.match(LSEG_PATTERN2) ||
@@ -46,6 +52,19 @@ export const LsegType: DataType = {
       x2: parseFloat(m[3]),
       y2: parseFloat(m[4]),
     };
+  },
+
+  // See box-type.ts's decodeTextBuffer comment - same rationale.
+  decodeTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): Maybe<Rectangle> {
+    return LsegType.decodeText(
+      buf.toString('latin1', offset, offset + len),
+      options,
+    );
   },
 
   isType(v: any): boolean {

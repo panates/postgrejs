@@ -15,7 +15,7 @@ export function parsePostgresArray(
   const out: any[] = [];
 
   const iterate = (arr: any[]): void => {
-    let c;
+    let c: string;
     let exactlyValue = false;
     let token = '';
     let quote = '';
@@ -48,8 +48,8 @@ export function parsePostgresArray(
         continue;
       }
 
-      if (c === '"' || c === "'") {
-        if (quote && quote === c) {
+      if (c === '"') {
+        if (quote) {
           quote = '';
         } else {
           exactlyValue = true;

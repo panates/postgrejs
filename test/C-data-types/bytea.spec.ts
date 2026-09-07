@@ -17,6 +17,14 @@ describe('DataType: bytea', () => {
     });
   });
 
+  it('should parse an empty "bytea" field (text)', async () => {
+    // Boundary case for the buffer-native hex decoder's zero-length loop
+    // (a `\x` marker with zero payload bytes).
+    await testParse(conn, DataTypeOIDs.bytea, [''], [Buffer.alloc(0)], {
+      columnFormat: DataFormat.text,
+    });
+  });
+
   it('should parse "bytea" field (binary)', async () => {
     const input = ['ABCDE', 'FGHIJ'];
     const output = [

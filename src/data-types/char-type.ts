@@ -7,20 +7,28 @@ export const CharType: DataType = {
   oid: DataTypeOIDs.char,
   jsType: 'string',
 
-  parseBinary(v: Buffer): string {
-    return v.toString('utf8');
+  encodeText(v: any): string {
+    return '' + v;
   },
 
   encodeBinary(buf: SmartBuffer, v: string): void {
     buf.writeString((v ? '' + v : ' ')[0], 'utf8');
   },
 
-  parseText(v): string {
-    return '' + v;
+  decodeBinary(v: Buffer, offset: number = 0): string {
+    return v.toString('utf8', offset);
+  },
+
+  decodeText(v): string {
+    return v;
+  },
+
+  decodeTextBuffer(buf: Buffer, offset: number, len: number): string {
+    return buf.toString('utf8', offset, offset + len);
   },
 
   isType(v: any): boolean {
-    return typeof v === 'string' && v.length === 1;
+    return typeof v === 'string' && Buffer.byteLength(v, 'utf8') === 1;
   },
 };
 

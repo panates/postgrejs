@@ -2,6 +2,7 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
+import { formatTime } from '../util/format-datetime.js';
 import { parseTime, STRICT_TIME_PATTERN } from '../util/parse-time.js';
 
 const timeMul = 4294967296;
@@ -10,27 +11,10 @@ export const TimeType: DataType = {
   name: 'time',
   oid: DataTypeOIDs.time,
   jsType: 'string',
+  fixedBinarySize: 8,
 
-  parseBinary(v: Buffer, options: DataMappingOptions): Date | number | string {
-    const fetchAsString =
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.time);
-    const hi = v.readInt32BE();
-    const lo = v.readUInt32BE(4);
-
-    let d = new Date((lo + hi * timeMul) / 1000);
-    if (fetchAsString || !options.utcDates) {
-      d = new Date(
-        d.getUTCFullYear(),
-        d.getUTCMonth(),
-        d.getUTCDate(),
-        d.getUTCHours(),
-        d.getUTCMinutes(),
-        d.getUTCSeconds(),
-        d.getUTCMilliseconds(),
-      );
-    }
-    return fetchAsString ? dateToTimeString(d) : d;
+  encodeText(v: any, options: DataMappingOptions): string {
+    return formatTime(v, options);
   },
 
   encodeBinary(
@@ -51,13 +35,46 @@ export const TimeType: DataType = {
     buf.writeUInt32BE(lo);
   },
 
-  parseText(v: string, options: DataMappingOptions): Date | number | string {
-    if (
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.time)
-    )
-      return v;
+  decodeBinary(
+    v: Buffer,
+    offset: number = 0,
+    options: DataMappingOptions,
+  ): Date | number | string {
+    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.time);
+    const hi = v.readInt32BE(offset);
+    const lo = v.readUInt32BE(offset + 4);
+
+    let d = new Date((lo + hi * timeMul) / 1000);
+    if (fetchAsString || !options.utcDates) {
+      d = new Date(
+        d.getUTCFullYear(),
+        d.getUTCMonth(),
+        d.getUTCDate(),
+        d.getUTCHours(),
+        d.getUTCMinutes(),
+        d.getUTCSeconds(),
+        d.getUTCMilliseconds(),
+      );
+    }
+    return fetchAsString ? dateToTimeString(d) : d;
+  },
+
+  decodeText(v: string, options: DataMappingOptions): Date | number | string {
+    if (options.fetchAsString?.includes(DataTypeOIDs.time)) return v;
     return parseTime(v, false, options.utcDates);
+  },
+
+  // See date-type.ts's decodeTextBuffer comment - same rationale.
+  decodeTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): Date | number | string {
+    return TimeType.decodeText(
+      buf.toString('latin1', offset, offset + len),
+      options,
+    );
   },
 
   isType(v: any): boolean {

@@ -18,7 +18,11 @@ import { ArrayJsonType, JsonType } from './data-types/json-type.js';
 import { ArrayJsonbType, JsonbType } from './data-types/jsonb-type.js';
 import { ArrayLsegType, LsegType } from './data-types/lseg-type.js';
 import { ArrayNumericType, NumericType } from './data-types/numeric-type.js';
-import { ArrayOidType, OidType, VectorOidType } from './data-types/oid-type.js';
+import { ArrayOidType, OidType } from './data-types/oid-type.js';
+import {
+  ArrayOidVectorType,
+  OidVectorType,
+} from './data-types/oid-vector-type.js';
 import { ArrayPointType, PointType } from './data-types/point-type.js';
 import { ArrayTimeType, TimeType } from './data-types/time-type.js';
 import {
@@ -73,7 +77,8 @@ export class DataTypeMap {
 
 export const GlobalTypeMap = new DataTypeMap();
 
-GlobalTypeMap.register([OidType, VectorOidType, ArrayOidType]);
+GlobalTypeMap.register([OidType, ArrayOidType]);
+GlobalTypeMap.register([OidVectorType, ArrayOidVectorType]);
 GlobalTypeMap.register([JsonbType, ArrayJsonbType]);
 GlobalTypeMap.register([JsonType, ArrayJsonType]);
 

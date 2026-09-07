@@ -1,9 +1,17 @@
-import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
+import { expect } from 'expect';
+import { BindParam, Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
 describe('DataType: numeric', () => {
   const conn = new Connection();
-  before(() => conn.connect());
+  let supportsInfinity = false;
+  before(async () => {
+    await conn.connect();
+    // numeric Infinity/-Infinity were added in PostgreSQL 14 - NaN alone
+    // has always been a valid numeric value.
+    const serverVersion = conn.sessionParameters.server_version;
+    supportsInfinity = parseInt(serverVersion, 10) >= 14;
+  });
   after(() => conn.close(0));
 
   it('should parse "numeric" field (text)', async () => {
@@ -24,6 +32,36 @@ describe('DataType: numeric', () => {
       DataTypeOIDs.numeric,
       ['12345.123456789', '-1232.567'],
       [12345.123456789, -1232.567],
+      {
+        columnFormat: DataFormat.binary,
+      },
+    );
+  });
+
+  it('should parse "NaN"/"Infinity"/"-Infinity" (text)', async function () {
+    if (!supportsInfinity) return this.skip();
+    await testParse(
+      conn,
+      DataTypeOIDs.numeric,
+      ['NaN', 'Infinity', '-Infinity'],
+      [NaN, Infinity, -Infinity],
+      {
+        columnFormat: DataFormat.text,
+      },
+    );
+  });
+
+  it('should parse "NaN"/"Infinity"/"-Infinity" (binary)', async function () {
+    if (!supportsInfinity) return this.skip();
+    // Regression test: the sign field was read as a signed int16, so the
+    // NaN/+Infinity/-Infinity sign bitmasks (0xC000/0xD000/0xF000, all with
+    // the top bit set) never matched their unsigned constants and silently
+    // decoded as 0.
+    await testParse(
+      conn,
+      DataTypeOIDs.numeric,
+      ['NaN', 'Infinity', '-Infinity'],
+      [NaN, Infinity, -Infinity],
       {
         columnFormat: DataFormat.binary,
       },
@@ -88,5 +126,32 @@ describe('DataType: numeric', () => {
       ],
     ];
     await testEncode(conn, DataTypeOIDs._numeric, input, output);
+  });
+
+  it('should encode "numeric" in binary, keeping precision a float cannot', async () => {
+    // The whole point of numeric: given as text, it has to survive the
+    // trip without going through a double on the way.
+    for (const v of [
+      '12345678901234567890.123456789',
+      '-98765432109876543210',
+      '0.0001',
+      '10000',
+      '0',
+    ]) {
+      const r = await conn.query('select $1::numeric::text as t', {
+        params: [new BindParam(DataTypeOIDs.numeric, v)],
+      });
+      expect(r.rows?.[0][0]).toStrictEqual(v);
+    }
+  });
+
+  it('should encode "numeric" NaN and infinities in binary', async function () {
+    if (!supportsInfinity) return this.skip();
+    for (const v of [NaN, Infinity, -Infinity]) {
+      const r = await conn.query('select $1::numeric::text as t', {
+        params: [new BindParam(DataTypeOIDs.numeric, v)],
+      });
+      expect(r.rows?.[0][0]).toStrictEqual(String(v));
+    }
   });
 });

@@ -53,6 +53,55 @@ describe('Parse connection string', () => {
       expect(cfg.password).toStrictEqual('1234');
       expect(cfg.user).toStrictEqual('me');
     });
+
+    it('should default to an empty host when the URL has none', () => {
+      const cfg = parseConnectionString('postgres:///mydb');
+      expect(cfg.host).toStrictEqual('');
+      expect(cfg.database).toStrictEqual('mydb');
+    });
+
+    it('should treat a pathless socket URL as the root path', () => {
+      const cfg = parseConnectionString('socket://somepath');
+      expect(cfg.host).toStrictEqual('/somepath');
+    });
+
+    it('should get schema from query', () => {
+      const cfg = parseConnectionString('postgres://h/db?schema=myschema');
+      expect(cfg.schema).toStrictEqual('myschema');
+    });
+
+    it('should get application_name from query', () => {
+      const cfg = parseConnectionString(
+        'postgres://h/db?application_name=myapp',
+      );
+      expect(cfg.applicationName).toStrictEqual('myapp');
+    });
+
+    it('should read a supported channel_binding value', () => {
+      const cfg = parseConnectionString(
+        'postgres://h/db?channel_binding=require',
+      );
+      expect(cfg.channelBinding).toStrictEqual('require');
+    });
+
+    it('should refuse an unsupported channel_binding value', () => {
+      expect(() =>
+        parseConnectionString('postgres://h/db?channel_binding=sideways'),
+      ).toThrow(/channel_binding "sideways" is not supported/);
+    });
+
+    it('should read a supported sslnegotiation value', () => {
+      const cfg = parseConnectionString(
+        'postgres://h/db?sslnegotiation=direct',
+      );
+      expect(cfg.sslNegotiation).toStrictEqual('direct');
+    });
+
+    it('should refuse an unsupported sslnegotiation value', () => {
+      expect(() =>
+        parseConnectionString('postgres://h/db?sslnegotiation=sideways'),
+      ).toThrow(/sslnegotiation "sideways" is not supported/);
+    });
   });
 
   it('Get connection config from environment variables', () => {
@@ -73,5 +122,63 @@ describe('Parse connection string', () => {
     expect(cfg.applicationName).toStrictEqual('PGAPPNAME');
     expect(cfg.connectTimeoutMs).toStrictEqual(32000);
     expect(cfg.buffer?.maxLength).toStrictEqual(4096);
+  });
+
+  describe('multiple hosts', () => {
+    it('should parse a comma-separated host list from a connection string', () => {
+      const cfg = getConnectionConfig('postgres://a:5432,b:5433,c/db');
+      expect(cfg.hosts).toStrictEqual([
+        { host: 'a', port: 5432 },
+        { host: 'b', port: 5433 },
+        { host: 'c', port: 5432 },
+      ]);
+      // host/port keep pointing at the first candidate.
+      expect(cfg.host).toStrictEqual('a');
+      expect(cfg.port).toStrictEqual(5432);
+    });
+
+    it('should parse a comma-separated host given on its own', () => {
+      const cfg = getConnectionConfig({ host: 'h1:1234,h2' });
+      expect(cfg.hosts).toStrictEqual([
+        { host: 'h1', port: 1234 },
+        { host: 'h2', port: 1234 },
+      ]);
+    });
+
+    it('should leave a single host without a list', () => {
+      expect(getConnectionConfig('postgres://h1/db').hosts).toStrictEqual(
+        undefined,
+      );
+    });
+
+    it('should keep credentials out of the host list', () => {
+      const cfg = getConnectionConfig('postgres://user:pass@a,b/db');
+      expect(cfg.hosts?.map(x => x.host)).toStrictEqual(['a', 'b']);
+      expect(cfg.user).toStrictEqual('user');
+    });
+
+    it('should read target_session_attrs', () => {
+      expect(
+        getConnectionConfig('postgres://a,b/db?target_session_attrs=read-write')
+          .targetSessionAttrs,
+      ).toStrictEqual('read-write');
+    });
+
+    it('should refuse an unknown target_session_attrs', () => {
+      expect(() =>
+        getConnectionConfig('postgres://a/db?target_session_attrs=sideways'),
+      ).toThrow(/is not supported/);
+    });
+
+    it('should not treat an already-populated hosts list as a comma-separated host string', () => {
+      delete process.env.PGPORT;
+      const cfg = getConnectionConfig({
+        hosts: [{ host: 'a' }, { host: 'b' }],
+      });
+      expect(cfg.hosts).toStrictEqual([
+        { host: 'a', port: undefined },
+        { host: 'b', port: undefined },
+      ]);
+    });
   });
 });

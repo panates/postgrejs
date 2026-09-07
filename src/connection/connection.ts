@@ -1,4 +1,5 @@
-import { ConnectionState } from '../constants.js';
+import { coerceToBoolean } from 'putil-varhelpers';
+import { ConnectionState, DataTypeOIDs } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
 import type { QueryOptions } from '../interfaces/query-options.js';
@@ -10,18 +11,24 @@ import type { DatabaseError } from '../protocol/database-error.js';
 import type { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { Maybe, OID } from '../types.js';
+import { withAbortSignal } from '../util/abort-signal.js';
+import { QueryRequest } from '../util/sql-tag.js';
 import { BindParam } from './bind-param.js';
+import type { CopyFromStream, CopyToStream } from './copy-stream.js';
 import { IntlConnection } from './intl-connection.js';
+import { LargeObject, LargeObjectMode } from './large-object.js';
 import type { Pool } from './pool.js';
 import { PreparedStatement } from './prepared-statement.js';
 
 export type NotificationMessage = Protocol.NotificationResponseMessage;
 export type NotificationCallback = (msg: NotificationMessage) => any;
 
+const CAPTURE_STACK_TRACE_LIMIT = 5;
+
 export class Connection extends SafeEventEmitter implements AsyncDisposable {
-  protected readonly _pool?: Pool;
-  protected readonly _intlCon: IntlConnection;
-  protected readonly _notificationListeners = new SafeEventEmitter();
+  protected _pool?: Pool;
+  protected _intlCon: IntlConnection;
+  protected _notificationListeners?: SafeEventEmitter;
   protected _closing = false;
 
   constructor(pool: Pool, intlCon: IntlConnection);
@@ -33,24 +40,12 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       typeof arg0 === 'object' &&
       typeof arg0.acquire === 'function'
     ) {
-      if (!(arg1 instanceof IntlConnection))
-        throw new TypeError('Invalid argument');
       this._pool = arg0;
       this._intlCon = arg1;
     } else {
       this._intlCon = new IntlConnection(arg0);
     }
-    this._intlCon.on('ready', (...args) => this.emit('ready', ...args));
-    this._intlCon.on('error', (...args) => this.emit('error', ...args));
-    this._intlCon.on('close', (...args) => this.emit('close', ...args));
-    this._intlCon.on('connecting', (...args) =>
-      this.emit('connecting', ...args),
-    );
-    this._intlCon.on('ready', (...args) => this.emit('ready', ...args));
-    this._intlCon.on('terminate', (...args) => this.emit('terminate', ...args));
-    this._intlCon.on('notification', (msg: NotificationMessage) =>
-      this._handleNotification(msg),
-    );
+    this._intlCon.owner = this;
   }
 
   /**
@@ -61,38 +56,42 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   /**
-   * Returns true if connection is in a transaction
+   * Returns true if the connection is in a transaction
    */
   get inTransaction(): boolean {
     return this._intlCon.inTransaction;
   }
 
   /**
-   * Returns current state of the connection
+   * Returns the current state of the connection
    */
   get state(): ConnectionState {
     return this._intlCon.state;
   }
 
   /**
-   * Returns processId of current session
+   * Returns processId of the current session
    */
   get processID(): Maybe<number> {
     return this._intlCon.processID;
   }
 
   /**
-   * Returns information parameters for current session
+   * Returns information parameters for the current session
    */
   get sessionParameters(): Record<string, string> {
     return this._intlCon.sessionParameters;
   }
 
   /**
-   * Returns secret key of current session
+   * Returns the secret key of the current session
    */
   get secretKey(): Maybe<number> {
     return this._intlCon.secretKey;
+  }
+
+  get runningQueryCount(): number {
+    return this._intlCon.runningQueryCount;
   }
 
   /**
@@ -106,15 +105,14 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   /**
    * Closes connection. You can define how long time the connection will
    * wait for active queries before terminating the connection.
-   * On the end of the given time, it forces to close the socket and than emits `terminate` event.
+   * At the end of the given time, it forces to close the socket and then emits the ` terminate ` event.
    *
    * @param terminateWait {number} - Determines how long the connection will wait for active queries before terminating.
    */
   async close(terminateWait?: number): Promise<void> {
-    this._notificationListeners.removeAllListeners();
-    this._intlCon.statementQueue.clearQueue();
+    this._notificationListeners?.removeAllListeners();
     if (this.state === ConnectionState.CLOSED || this._closing) return;
-    /* istanbul ignore next */
+    /* c8 ignore start */
     if (this.listenerCount('debug')) {
       this.emit('debug', {
         location: 'Connection.close',
@@ -122,6 +120,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         message: `[${this.processID}] closing`,
       });
     }
+    /* c8 ignore stop */
 
     this._closing = true;
     if (
@@ -132,7 +131,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       const startTime = Date.now();
       return this._captureErrorStack(
         new Promise((resolve, reject) => {
-          /* istanbul ignore next */
+          /* c8 ignore start */
           if (this.listenerCount('debug')) {
             this.emit('debug', {
               location: 'Connection.close',
@@ -140,6 +139,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
               message: `[${this.processID}] waiting active queries`,
             });
           }
+          /* c8 ignore stop */
           const timer = setInterval(() => {
             if (
               this._intlCon.refCount <= 0 ||
@@ -147,7 +147,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
             ) {
               clearInterval(timer);
               if (this._intlCon.refCount > 0) {
-                /* istanbul ignore next */
+                /* c8 ignore start */
                 if (this.listenerCount('debug')) {
                   this.emit('debug', {
                     location: 'Connection.close',
@@ -155,6 +155,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
                     message: `[${this.processID}] terminate`,
                   });
                 }
+                /* c8 ignore stop */
                 this.emit('terminate');
               }
               this._close().then(resolve).catch(reject);
@@ -173,20 +174,40 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * @param options {ScriptExecuteOptions} - Execute options
    */
   async execute(
-    sql: string,
+    sql: string | QueryRequest,
     options?: ScriptExecuteOptions,
   ): Promise<ScriptResult> {
+    if (typeof sql === 'object' && sql instanceof QueryRequest)
+      sql = sql.stringify({ ...options, typeMap: options?.typeMap });
     this.emit('execute', sql, options);
-    return this._captureErrorStack(this._intlCon.execute(sql, options)).catch(
-      (e: DatabaseError) => {
-        throw this._handleError(e, sql);
-      },
+    return withAbortSignal(
+      options?.signal,
+      () => this._intlCon.cancel(),
+      () =>
+        this._captureErrorStack(
+          this._intlCon.execute(sql, options),
+          this.execute,
+          options?.asyncErrorHandling,
+        ).catch((e: DatabaseError) => {
+          throw this._handleError(e, sql);
+        }),
     );
   }
 
-  async query(sql: string, options?: QueryOptions): Promise<QueryResult> {
+  async query(
+    sql: string | QueryRequest,
+    options?: QueryOptions,
+  ): Promise<QueryResult> {
+    if (sql instanceof QueryRequest) {
+      if (options?.params)
+        throw new TypeError(
+          'A statement built with sql`` carries its own parameters; passing `params` as well is ambiguous',
+        );
+      options = { ...options, params: sql.params };
+      sql = sql.sql;
+    }
     this._intlCon.assertConnected();
-    /* istanbul ignore next */
+    /* c8 ignore start */
     if (this.listenerCount('debug')) {
       this.emit('debug', {
         location: 'Connection.query',
@@ -195,26 +216,88 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         sql,
       });
     }
+    /* c8 ignore stop */
     this.emit('query', sql, options);
-    const typeMap = options?.typeMap || GlobalTypeMap;
-    const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
-      prm instanceof BindParam ? prm.oid : typeMap.determine(prm),
+    return withAbortSignal(
+      options?.signal,
+      () => this._intlCon.cancel(),
+      () => this._query(sql, options),
     );
-    const statement = await this.prepare(sql, { paramTypes, typeMap }).catch(
+  }
+
+  /**
+   * Runs a `COPY ... TO STDOUT` and returns its output as a stream of the
+   * raw bytes the server sends - text, CSV or binary, whichever the
+   * statement asked for. Nothing is decoded and nothing is copied.
+   *
+   * Resolves as soon as the server accepts the copy, so a large export is
+   * never held in memory; a consumer that falls behind pauses the socket
+   * rather than buffering. `rowCount` is set before the stream ends.
+   *
+   * ```ts
+   * const out = await connection.copyTo(`COPY users TO STDOUT (FORMAT csv)`);
+   * await pipeline(out, fs.createWriteStream('users.csv'));
+   * console.log(out.rowCount);
+   * ```
+   *
+   * The stream must be consumed or destroyed: until the copy finishes the
+   * connection is still mid-statement.
+   *
+   * @param sql {string} - A COPY ... TO STDOUT statement
+   */
+  async copyTo(sql: string): Promise<CopyToStream> {
+    /* c8 ignore start */
+    if (this.listenerCount('debug')) {
+      this.emit('debug', {
+        location: 'Connection.copyTo',
+        connection: this,
+        message: `[${this.processID}] copyTo | ${sql}`,
+        sql,
+      });
+    }
+    /* c8 ignore stop */
+    this.emit('execute', sql);
+    return await this._captureErrorStack(this._intlCon.copyTo(sql)).catch(
       (e: DatabaseError) => {
         throw this._handleError(e, sql);
       },
     );
-    try {
-      const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm =>
-        prm instanceof BindParam ? prm.value : prm,
-      );
-      return await this._captureErrorStack(
-        statement.execute({ ...options, params }),
-      );
-    } finally {
-      await statement.close();
+  }
+
+  /**
+   * Runs a `COPY ... FROM STDIN` and returns a stream to feed it. Whatever
+   * is written is forwarded verbatim, so the statement's own FORMAT decides
+   * the encoding.
+   *
+   * ```ts
+   * const inp = await connection.copyFrom(`COPY users FROM STDIN (FORMAT csv)`);
+   * await pipeline(fs.createReadStream('users.csv'), inp);
+   * console.log(inp.rowCount);
+   * ```
+   *
+   * 'finish' means the server accepted the copy, not merely that the last
+   * byte was written. If the source fails, `pipeline()` destroys the stream
+   * and a CopyFail is sent, so the connection stays usable.
+   *
+   * @param sql {string} - A COPY ... FROM STDIN statement
+   */
+  async copyFrom(sql: string): Promise<CopyFromStream> {
+    /* c8 ignore start */
+    if (this.listenerCount('debug')) {
+      this.emit('debug', {
+        location: 'Connection.copyFrom',
+        connection: this,
+        message: `[${this.processID}] copyFrom | ${sql}`,
+        sql,
+      });
     }
+    /* c8 ignore stop */
+    this.emit('execute', sql);
+    return await this._captureErrorStack(this._intlCon.copyFrom(sql)).catch(
+      (e: DatabaseError) => {
+        throw this._handleError(e, sql);
+      },
+    );
   }
 
   /**
@@ -226,7 +309,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     sql: string,
     options?: StatementPrepareOptions,
   ): Promise<PreparedStatement> {
-    /* istanbul ignore next */
+    /* c8 ignore start */
     if (this.listenerCount('debug')) {
       this.emit('debug', {
         location: 'Connection.prepare',
@@ -235,9 +318,71 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         sql,
       });
     }
+    /* c8 ignore stop */
     return await this._captureErrorStack(
       PreparedStatement.prepare(this, sql, options),
     );
+  }
+
+  /**
+   * Creates a large object and opens it for reading and writing.
+   *
+   * A large object holds binary data outside any row, reachable a piece at
+   * a time instead of whole the way a `bytea` column is - which is what it
+   * is for, along with a 4TB ceiling rather than roughly 1GB.
+   *
+   * ```ts
+   * const lo = await connection.createLargeObject();
+   * await pipeline(fs.createReadStream('video.mp4'), lo.writable());
+   * await lo.close();
+   * await table.insert({ videoOid: lo.oid });
+   * ```
+   *
+   * Nothing links the object to the row that names it: dropping the row
+   * leaves the data behind, so unlinkLargeObject() has to be called when it
+   * is no longer wanted. PostgreSQL ships `vacuumlo` for finding the ones
+   * that were not.
+   */
+  async createLargeObject(
+    mode = LargeObjectMode.readWrite,
+  ): Promise<LargeObject> {
+    const ownsTransaction = await this._beginForLargeObject();
+    const created = await this.query('select lo_creat(-1) as oid');
+    const oid = Number(created.rows?.[0][0]);
+    return this._openLargeObject(oid, mode, ownsTransaction);
+  }
+
+  /**
+   * Opens an existing large object by its OID. See createLargeObject() for
+   * how the transaction is handled.
+   */
+  async openLargeObject(
+    oid: number,
+    mode = LargeObjectMode.read,
+  ): Promise<LargeObject> {
+    const ownsTransaction = await this._beginForLargeObject();
+    return this._openLargeObject(oid, mode, ownsTransaction);
+  }
+
+  /** Deletes a large object and its data. */
+  async unlinkLargeObject(oid: number): Promise<void> {
+    await this.query('select lo_unlink($1)', {
+      params: [new BindParam(DataTypeOIDs.oid, oid)],
+    });
+  }
+
+  /**
+   * Asks the server to cancel whatever this connection is currently running.
+   *
+   * Travels on its own short-lived connection, since a backend busy with a
+   * query is not reading its own socket. It is a request, not a guarantee -
+   * the statement may finish first - and the cancelled call reports the
+   * outcome itself, rejecting with SQLSTATE 57014 if the server acted on it.
+   * Prefer the per-call `signal` option, which does this and reports the
+   * abort to the right caller.
+   */
+  cancel(): Promise<void> {
+    return this._intlCon.cancel();
   }
 
   /**
@@ -262,6 +407,44 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   /**
+   * Ends the current transaction as a prepared one, for two-phase commit.
+   *
+   * The transaction stops belonging to this session and waits under `name`
+   * until it is finished by commitPrepared() or rollbackPrepared() - which
+   * may run on another connection, in another process, after this one is
+   * gone. That is the point: it lets several databases agree to commit
+   * before any of them actually does.
+   *
+   * ```ts
+   * await connection.startTransaction();
+   * await connection.query(sql`insert into t values (${1})`);
+   * await connection.prepareTransaction('tx1');
+   * // ...later, anywhere:
+   * await other.commitPrepared('tx1');
+   * ```
+   *
+   * PostgreSQL ships with `max_prepared_transactions` at zero, so this
+   * fails until the server is configured for it.
+   */
+  prepareTransaction(name: string): Promise<void> {
+    return this._captureErrorStack(this._intlCon.prepareTransaction(name));
+  }
+
+  /**
+   * Commits a transaction left waiting by prepareTransaction(), by name.
+   * Runs outside any transaction and needs no connection to the session
+   * that prepared it.
+   */
+  commitPrepared(name: string): Promise<void> {
+    return this._captureErrorStack(this._intlCon.commitPrepared(name));
+  }
+
+  /** Discards a transaction left waiting by prepareTransaction(), by name. */
+  rollbackPrepared(name: string): Promise<void> {
+    return this._captureErrorStack(this._intlCon.rollbackPrepared(name));
+  }
+
+  /**
    * Starts transaction and creates a savepoint
    * @param name {string} - Name of the savepoint
    */
@@ -271,7 +454,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   /**
-   * Rolls back current transaction to given savepoint
+   * Rolls back the current transaction to given savepoint
    * @param name {string} - Name of the savepoint
    */
   rollbackToSavepoint(name: string): Promise<void> {
@@ -289,30 +472,129 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   async listen(channel: string, callback: NotificationCallback) {
     if (!/^[A-Z]\w+$/i.test(channel))
       throw new TypeError(`Invalid channel name`);
-    const registered = !!this._notificationListeners.eventNames().length;
+    if (!this._notificationListeners) {
+      this._notificationListeners = new SafeEventEmitter();
+      this._intlCon.on('notification', (msg: NotificationMessage) =>
+        this._handleNotification(msg),
+      );
+    }
+    // Bug: this used to check whether ANY channel already had a listener,
+    // not this one specifically - so a second, different channel added
+    // after the first never got its own LISTEN sent at all, and never
+    // received a notification for it (verified live: only the first
+    // channel ever showed up in pg_stat_activity's query text).
+    const alreadyListening =
+      !!this._notificationListeners.listenerCount(channel);
     this._notificationListeners.on(channel, callback);
-    if (!registered)
+    if (!alreadyListening)
       await this._captureErrorStack(this.query('LISTEN ' + channel));
   }
 
   async unListen(channel: string) {
     if (!/^[A-Z]\w+$/i.test(channel))
       throw new TypeError(`Invalid channel name`);
-    this._notificationListeners.removeAllListeners(channel);
-    await this._captureErrorStack(this.query('UNLISTEN ' + channel));
+    if (this._notificationListeners?.listenerCount(channel)) {
+      this._notificationListeners?.removeAllListeners(channel);
+      await this._captureErrorStack(this.query('UNLISTEN ' + channel));
+    }
   }
 
   async unListenAll() {
-    this._notificationListeners.removeAllListeners();
-    await this._captureErrorStack(this.query('UNLISTEN *'));
+    if (this._notificationListeners?.eventNames().length) {
+      this._notificationListeners.removeAllListeners();
+      await this._captureErrorStack(this.query('UNLISTEN *'));
+    }
+  }
+
+  protected async _query(
+    sql: string,
+    options?: QueryOptions,
+  ): Promise<QueryResult> {
+    const typeMap = options?.typeMap || GlobalTypeMap;
+    const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
+      prm instanceof BindParam ? prm.oid : typeMap.determine(prm),
+    );
+
+    const effectiveAutoCommit =
+      options?.autoCommit != null
+        ? options.autoCommit
+        : this._intlCon.config.autoCommit;
+    if (
+      !options?.cursor &&
+      !this._intlCon.inTransaction &&
+      effectiveAutoCommit !== false
+    ) {
+      const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm =>
+        prm instanceof BindParam ? prm.value : prm,
+      );
+      return await this._captureErrorStack(
+        this._intlCon.queryOnce(sql, paramTypes, params, options || {}),
+        this.query,
+        options?.asyncErrorHandling,
+      ).catch((e: DatabaseError) => {
+        throw this._handleError(e, sql);
+      });
+    }
+
+    const statement = await this.prepare(sql, { paramTypes, typeMap }).catch(
+      (e: DatabaseError) => {
+        throw this._handleError(e, sql);
+      },
+    );
+    try {
+      const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm =>
+        prm instanceof BindParam ? prm.value : prm,
+      );
+      return await this._captureErrorStack(
+        statement.execute({ ...options, params }),
+        this.query,
+        options?.asyncErrorHandling,
+      );
+    } finally {
+      await statement.close();
+    }
+  }
+
+  /**
+   * A large object's descriptor is only valid inside the transaction that
+   * opened it. One is started here when there is none, and reported so that
+   * close() commits only what it started - a transaction the caller opened
+   * stays theirs. Mirrors what savepoint() already does.
+   */
+  protected async _beginForLargeObject(): Promise<boolean> {
+    if (this.inTransaction) return false;
+    await this.startTransaction();
+    return true;
+  }
+
+  protected async _openLargeObject(
+    oid: number,
+    mode: number,
+    ownsTransaction: boolean,
+  ): Promise<LargeObject> {
+    const opened = await this.query('select lo_open($1, $2) as fd', {
+      params: [
+        new BindParam(DataTypeOIDs.oid, oid),
+        new BindParam(DataTypeOIDs.int4, mode),
+      ],
+    });
+    return new LargeObject(
+      this,
+      oid,
+      Number(opened.rows?.[0][0]),
+      ownsTransaction,
+    );
   }
 
   protected _handleNotification(msg: NotificationMessage) {
     this.emit('notification', msg);
-    this._notificationListeners.emit(msg.channel, msg);
+    this._notificationListeners?.emit(msg.channel, msg);
   }
 
   protected async _close(): Promise<void> {
+    if (this._notificationListeners?.eventNames().length)
+      await this.unListenAll();
+    if (this.inTransaction) await this.rollback();
     if (this._pool) {
       await this._captureErrorStack(this._pool.release(this));
       this.emit('release');
@@ -335,21 +617,50 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     return err;
   }
 
-  protected async _captureErrorStack<T>(promise: Promise<T>): Promise<T> {
-    const stack = new Error().stack;
+  /**
+   * Remembers where a call came from, so the error it may reject with points
+   * at the caller instead of at an internal async frame.
+   *
+   * `entry` is the public method to cut the trace at: everything from it
+   * inwards is this library's own plumbing and is dropped, which matters
+   * because the captured depth is deliberately small - spending four of five
+   * frames on our own call chain would leave one for the caller, and any
+   * helper of theirs would push the real call site off the end.
+   *
+   * Skippable via `asyncErrorHandling: false` - capturing costs a real,
+   * measurable slice of CPU time once many calls are in flight at once
+   * (a pipelined burst on one connection), where it has to compete with
+   * every other call for the same core instead of hiding behind network
+   * wait the way it does for a single sequential call.
+   *
+   * `asyncErrorHandling` is the per-call override (execute()/query()'s own
+   * option of the same name); when omitted, the connection's own
+   * `DatabaseConnectionParams.asyncErrorHandling` decides.
+   */
+  protected async _captureErrorStack<T>(
+    promise: Promise<T>,
+    entry?: (...args: any[]) => any,
+    asyncErrorHandling?: boolean,
+  ): Promise<T> {
+    const enabled =
+      asyncErrorHandling != null
+        ? asyncErrorHandling
+        : coerceToBoolean(this._intlCon.config.asyncErrorHandling, true);
+    if (!enabled) return promise;
+    const stackHolder: { stack?: string } = {};
+    const originalStackTraceLimit = Error.stackTraceLimit;
+    Error.stackTraceLimit = CAPTURE_STACK_TRACE_LIMIT;
+    Error.captureStackTrace(stackHolder, entry || this._captureErrorStack);
+    Error.stackTraceLimit = originalStackTraceLimit;
+
     return promise.catch(e => {
+      const stack = stackHolder.stack;
       if (e instanceof Error && stack) {
         if (e.stack && stack) {
           e.stack =
             e.stack.substring(0, e.stack.indexOf('\n')) +
             '\n' +
-            stack
-              .split('\n')
-              .filter(
-                (x: string, i: number) =>
-                  i && !x.includes('._captureErrorStack'),
-              )
-              .join('\n');
+            stack.split('\n').slice(1).join('\n');
         }
       }
       throw e;

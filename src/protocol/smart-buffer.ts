@@ -9,7 +9,7 @@ export interface SmartBufferConfig {
 }
 
 export class SmartBuffer extends BufferReader {
-  static DEFAULT_PAGE_SIZE = 4096;
+  static DEFAULT_PAGE_SIZE = 512;
   static DEFAULT_MAX_SIZE = Math.min(
     Math.floor(os.totalmem() / 2),
     1024 * 1024 * 1024 * 2, // 2 GB
@@ -17,7 +17,6 @@ export class SmartBuffer extends BufferReader {
 
   private readonly _houseKeepInterval: number;
   private _houseKeepTimer?: NodeJS.Timeout;
-  private _lastHouseKeep = 0;
   private _stMaxPages = 1;
   private _length = 0;
   readonly pageSize: number;
@@ -54,17 +53,17 @@ export class SmartBuffer extends BufferReader {
 
     const length = this.length;
     this._length = 0;
-    const out = this.buffer.slice(0, length);
+    const out = Buffer.from(this.buffer.subarray(0, length));
 
     const pages = length ? Math.ceil(length / this.pageSize) : 1;
     this._stMaxPages = Math.max(this._stMaxPages, pages);
-    if (this._lastHouseKeep < Date.now() + this._houseKeepInterval)
-      this._houseKeep();
-
-    this._houseKeepTimer = setTimeout(() => {
-      this._houseKeepTimer = undefined;
-      this._houseKeep();
-    }, this._houseKeepInterval).unref();
+    this._houseKeep();
+    if (this.buffer.length > this.pageSize) {
+      this._houseKeepTimer = setTimeout(() => {
+        this._houseKeepTimer = undefined;
+        this._houseKeep();
+      }, this._houseKeepInterval).unref();
+    }
 
     return out;
   }
@@ -73,19 +72,16 @@ export class SmartBuffer extends BufferReader {
     const endOffset = this.offset + len;
     if (this.capacity < endOffset) {
       if (endOffset > this.maxSize) throw new Error('Buffer limit exceeded.');
-      const newSize = Math.ceil(endOffset / this.pageSize) * this.pageSize;
+      const byPage = Math.ceil(endOffset / this.pageSize) * this.pageSize;
+      const newSize = Math.min(
+        Math.max(byPage, this.capacity * 2),
+        this.maxSize,
+      );
       const newBuffer = Buffer.allocUnsafe(newSize);
       this.buffer.copy(newBuffer);
       this.buffer = newBuffer;
     }
     this._length = Math.max(this.length, endOffset);
-    return this;
-  }
-
-  fill(value = 0, len = 1): this {
-    this.ensureSize(len);
-    this.buffer.fill(value, this.offset, this.offset + len);
-    this.offset += len;
     return this;
   }
 

@@ -6,16 +6,25 @@ export const Float4Type: DataType = {
   name: 'float4',
   oid: DataTypeOIDs.float4,
   jsType: 'number',
+  fixedBinarySize: 4,
 
-  parseBinary(v: Buffer): number {
-    return Math.round((v.readFloatBE(0) + Number.EPSILON) * 100) / 100;
+  encodeText(v: any): string {
+    return '' + v;
   },
 
   encodeBinary(buf: SmartBuffer, v: number | string): void {
     buf.writeFloatBE(typeof v === 'number' ? v : parseFloat(v));
   },
 
-  parseText: parseFloat,
+  decodeBinary(v: Buffer, offset: number = 0): number {
+    return v.readFloatBE(offset);
+  },
+
+  decodeText: parseFloat,
+
+  decodeTextBuffer(buf: Buffer, offset: number, len: number): number {
+    return parseFloat(buf.toString('latin1', offset, offset + len));
+  },
 
   isType(v: any): boolean {
     return typeof v === 'number';

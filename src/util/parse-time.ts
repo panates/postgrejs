@@ -22,9 +22,15 @@ export function parseTime(
     const s = m[i];
     args[i + 2] = fastParseInt(s) || 0;
   }
+  // Fractional seconds (m[4]) were never read here at all - pad/truncate to
+  // exactly 3 digits, same reasoning as parse-datetime.ts's equivalent fix.
+  if (m[4]) args[6] = fastParseInt((m[4] + '000').slice(0, 3));
 
   if (parseTimeZone && m[6]) {
-    const r = m[9] === '-' ? -1 : 1;
+    // m[6] is the sign group itself ('+'/'-') - there is no m[9] in this
+    // pattern (only 8 capture groups), so the old `m[9] === '-'` check was
+    // always false, silently treating every offset as positive.
+    const r = m[6] === '-' ? -1 : 1;
     args[3] -= (fastParseInt(m[7]) || 0) * r;
     args[4] -= (fastParseInt(m[8]) || 0) * r;
     return new Date(Date.UTC(...args));

@@ -2,6 +2,7 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
+import { formatTimestamp } from '../util/format-datetime.js';
 import { parseDateTime } from '../util/parse-datetime.js';
 
 const timeShift = 946684800000;
@@ -11,32 +12,10 @@ export const TimestampType: DataType = {
   name: 'timestamp',
   oid: DataTypeOIDs.timestamp,
   jsType: 'Date',
+  fixedBinarySize: 8,
 
-  parseBinary(v: Buffer, options: DataMappingOptions): Date | number | string {
-    const fetchAsString =
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.timestamp);
-    const hi = v.readInt32BE();
-    const lo = v.readUInt32BE(4);
-    if (lo === 0xffffffff && hi === 0x7fffffff)
-      return fetchAsString ? 'infinity' : Infinity;
-    if (lo === 0x00000000 && hi === -0x80000000)
-      return fetchAsString ? '-infinity' : -Infinity;
-
-    // Shift from 2000 to 1970
-    let d = new Date((lo + hi * timeMul) / 1000 + timeShift);
-    if (fetchAsString || !options.utcDates) {
-      d = new Date(
-        d.getUTCFullYear(),
-        d.getUTCMonth(),
-        d.getUTCDate(),
-        d.getUTCHours(),
-        d.getUTCMinutes(),
-        d.getUTCSeconds(),
-        d.getUTCMilliseconds(),
-      );
-    }
-    return fetchAsString ? dateToTimestampString(d) : d;
+  encodeText(v: any, options: DataMappingOptions): string {
+    return formatTimestamp(v, options);
   },
 
   encodeBinary(
@@ -44,8 +23,7 @@ export const TimestampType: DataType = {
     v: Date | number | string,
     options: DataMappingOptions,
   ): void {
-    if (typeof v === 'string')
-      v = parseDateTime(v, true, false, options.utcDates);
+    if (typeof v === 'string') v = parseDateTime(v, options.utcDates);
     if (v === Infinity) {
       buf.writeInt32BE(0x7fffffff); // hi
       buf.writeUInt32BE(0xffffffff); // lo
@@ -68,25 +46,62 @@ export const TimestampType: DataType = {
     buf.writeUInt32BE(lo);
   },
 
-  parseText(v: string, options: DataMappingOptions): Date | number | string {
-    if (
-      options.fetchAsString &&
-      options.fetchAsString.includes(DataTypeOIDs.timestamp)
-    )
-      return v;
-    return parseDateTime(v, true, false, options.utcDates);
+  decodeBinary(
+    v: Buffer,
+    offset: number = 0,
+    options: DataMappingOptions,
+  ): Date | number | string {
+    const fetchAsString = options.fetchAsString?.includes(
+      DataTypeOIDs.timestamp,
+    );
+    const hi = v.readInt32BE(offset);
+    const lo = v.readUInt32BE(offset + 4);
+    if (lo === 0xffffffff && hi === 0x7fffffff)
+      return fetchAsString ? 'infinity' : Infinity;
+    if (lo === 0x00000000 && hi === -0x80000000)
+      return fetchAsString ? '-infinity' : -Infinity;
+
+    // Shift from 2000 to 1970
+    let d = new Date((lo + hi * timeMul) / 1000 + timeShift);
+    if (fetchAsString || !options.utcDates) {
+      d = new Date(
+        d.getUTCFullYear(),
+        d.getUTCMonth(),
+        d.getUTCDate(),
+        d.getUTCHours(),
+        d.getUTCMinutes(),
+        d.getUTCSeconds(),
+        d.getUTCMilliseconds(),
+      );
+    }
+    return fetchAsString ? dateToTimestampString(d) : d;
+  },
+  decodeText(v: string, options: DataMappingOptions): Date | number | string {
+    if (options.fetchAsString?.includes(DataTypeOIDs.timestamp)) return v;
+    return parseDateTime(v, options.utcDates);
+  },
+
+  // See date-type.ts's decodeTextBuffer comment - same rationale.
+  decodeTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): Date | number | string {
+    return TimestampType.decodeText(
+      buf.toString('latin1', offset, offset + len),
+      options,
+    );
   },
 
   isType(v: any): boolean {
+    // A midnight-exact Date is ambiguous between "date-only" and "a real
+    // timestamp that happens to fall on midnight" - default to timestamp,
+    // since a timestamp/timestamptz column represents midnight just fine,
+    // whereas a date column can never represent a non-midnight time.
     return (
       v instanceof Date &&
-      !(v.getFullYear() === 1970 && v.getMonth() === 0 && v.getDate() === 1) &&
-      !(
-        v.getHours() === 0 &&
-        v.getMinutes() === 0 &&
-        v.getSeconds() === 0 &&
-        v.getMilliseconds() === 0
-      )
+      !(v.getFullYear() === 1970 && v.getMonth() === 0 && v.getDate() === 1)
     );
   },
 };

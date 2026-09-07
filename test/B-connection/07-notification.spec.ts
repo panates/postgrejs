@@ -1,3 +1,4 @@
+import { expect } from 'expect';
 import { Connection, Pool } from 'postgrejs';
 
 describe('notification', () => {
@@ -91,6 +92,22 @@ describe('notification', () => {
         .catch(done);
     });
 
+    it('should unlisten one channel while another is still listened on', async () => {
+      // With more than one channel still registered, unListen() must not
+      // fall back to unListenAll() - it forwards to the still-open
+      // notification connection instead, which stays alive for event2.
+      let event2Count = 0;
+      await pool.listen('event1', () => undefined);
+      await pool.listen('event2', () => {
+        event2Count++;
+      });
+      await pool.unListen('event1');
+      await connection.query(`NOTIFY event2`);
+      await new Promise(resolve => setTimeout(resolve, 200));
+      expect(event2Count).toStrictEqual(1);
+      await pool.unListenAll();
+    });
+
     it('should unlisten all channels after release pooled connection', done => {
       pool
         .acquire()
@@ -110,6 +127,28 @@ describe('notification', () => {
           await connection.query(`NOTIFY event1`);
         })
         .catch(() => undefined);
+    });
+
+    it('should re-subscribe every channel after the notification connection drops and reconnects', async function () {
+      this.timeout(5000);
+      // Regression test for two bugs found together: the shared
+      // notification connection's own 'close' used to fire twice per
+      // actual close (so a reconnect could double-register every
+      // callback), and a *successful* reconnect never re-issued LISTEN
+      // for anything at all (so notifications silently stopped forever
+      // after any connection drop - the underlying pgbouncer/network
+      // hiccup this exists to survive).
+      let count = 0;
+      await pool.listen('event1', () => {
+        count++;
+      });
+      const notifConn = (pool as any)._notificationConnection as Connection;
+      await notifConn.close(0);
+      // > the 500ms reconnect delay, plus room for connect() + registerEvents().
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      await connection.query(`NOTIFY event1`);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      expect(count).toStrictEqual(1);
     });
   });
 });

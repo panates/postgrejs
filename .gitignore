@@ -2,6 +2,9 @@ node_modules
 /build
 /examples/*/package-lock.json
 *.tsbuildinfo
+.claude
+graphify-out
+/test-*
 
 # environment variables
 .env
@@ -22,6 +25,9 @@ lerna-debug.log*
 /coverage
 /reports
 /.nyc_output
+
+# Benchmarks
+/benchmark/results
 
 # IDEs and editors
 /.idea

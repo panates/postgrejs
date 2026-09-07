@@ -16,6 +16,26 @@ describe('DataType: int8', () => {
     );
   });
 
+  it('should parse "int8" field (text) at the 15/16-digit boundary', async () => {
+    // Every other (text) test above uses 16-digit values above
+    // Number.MAX_SAFE_INTEGER, so they stay bigint - this exercises the
+    // <=15-digit fast path (decodeTextBuffer's fastParseIntBuffer branch)
+    // and the adjacent 16-digit-but-still-safe case, both of which should
+    // decode to a plain number instead.
+    await testParse(
+      conn,
+      DataTypeOIDs.int8,
+      [
+        '999999999999999',
+        '-999999999999999',
+        '1000000000000000',
+        '-1000000000000000',
+      ],
+      [999999999999999, -999999999999999, 1000000000000000, -1000000000000000],
+      { columnFormat: DataFormat.text },
+    );
+  });
+
   it('should parse "int8" field (binary)', async () => {
     await testParse(
       conn,
