@@ -471,7 +471,15 @@ function renderScenarioCharts(
   // narrower viewport, purely from each box's own fixed width.
   const cellStyle =
     'style="display:inline-block;width:430px;vertical-align:top;margin:4px;"';
-  return charts.map(c => `<div ${cellStyle}>\n\n${c}\n\n</div>`).join('\n');
+  // Trailing newline matters: this is the last element renderScenarioTable()
+  // joins with '\n', and that in turn is joined the same way against
+  // whatever section (often another scenario's heading) follows it - one
+  // more '\n' here is what turns that single line break into an actual
+  // blank line, which a heading directly after a raw HTML block needs to
+  // be recognized as a heading rather than swallowed into that block.
+  return (
+    charts.map(c => `<div ${cellStyle}>\n\n${c}\n\n</div>`).join('\n') + '\n'
+  );
 }
 
 function renderScenarioTable(
