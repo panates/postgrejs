@@ -1,6 +1,86 @@
 ## Changelog
 
-### [v3.0.0](https://github.com/panates/postgrejs/compare/v2.23.1...v3.0.0) - 
+### [v3.0.1](https://github.com/panates/postgrejs/compare/v3.0.0...v3.0.1) - 
+
+- Dev
+- Dev
+- Dev
+- Dev
+- dev: Removed path filter
+- Dev
+- Dev
+- fix missing quotes in exception
+- Don't fail if husky is not present
+- Dev
+- Dev
+
+#### 🚀 New Features
+
+- feat: make async caller-stack capture an opt-out, per-call overridable option @Eray Hanoğlu 
+- feat: exact-match --scenario/--lib by default, glob with a leading/trailing * @Eray Hanoğlu 
+
+#### 🪲 Fixes
+
+- fix: LISTEN dropped for extra channels, lost after Pool reconnect, double 'close' emit @Eray Hanoğlu 
+- fix: cancel() ignored multi-host failover and direct TLS negotiation @Eray Hanoğlu 
+- fix: default omitted day-of-month to 1, not 0, when parsing dates @Eray Hanoğlu 
+- fix: numeric encodeBinary() silently corrupts magnitudes &gt;= 1e21 @Eray Hanoğlu 
+- fix: benchmark console summary leaked every scenario ever run @Eray Hanoğlu 
+- fix: LogicalReplication.close() never actually drops a permanent slot it created @Eray Hanoğlu 
+- fix: JsonType.encodeText() throws on a bigint value @Eray Hanoğlu 
+- fix: restore execute()'s timing, and switch it to performance.now() @Eray Hanoğlu 
+- fix: skip numeric Infinity/-Infinity tests on PostgreSQL &lt; 14 @Eray Hanoğlu 
+- fix: skip direct-negotiation SSL test on PostgreSQL &lt; 17 @Eray Hanoğlu 
+- fix: avoid a rare race in the cancel() test's own cleanup @Eray Hanoğlu 
+- fix: correct stale contact and copyright holder in project docs @Eray Hanoğlu 
+- fix: header link/image attributes in README @Eray Hanoğlu 
+
+#### 📖 Documentation Changes
+
+- docs: rewrite benchmark scenario descriptions as readable paragraphs @Eray Hanoğlu 
+- docs: capitalize PostgreJS consistently, rebuild BENCHMARKS.md for 3.0.0 @Eray Hanoğlu 
+- docs: add a v2-to-v3 migration guide @Eray Hanoğlu 
+- docs: expand CONTRIBUTING.md with a full contributor workflow @Eray Hanoğlu 
+- docs: rewrite README intro to lead with speed, memory, and features @Eray Hanoğlu 
+- docs: expand CLAUDE.md with project orientation and testing techniques @Eray Hanoğlu 
+- docs: tailor issue templates to a PostgreSQL driver @Eray Hanoğlu 
+- docs: document local SCRAM/MD5 test setup in CONTRIBUTING.md @Eray Hanoğlu 
+
+#### 🛠 Refactoring and Updates
+
+- refactor: remove dead Portal/PgSocket message-send methods @Eray Hanoğlu 
+- refactor: remove dead SmartBuffer.fill(), add full coverage @Eray Hanoğlu 
+- refactor: remove dead BufferReader.moveBy()/moveTo(), add full coverage @Eray Hanoğlu 
+
+#### 🧪 Changes to Test Assests
+
+- test: cover pure utility functions, wire-protocol messages, and SASL/cert parsing @Eray Hanoğlu 
+- test: add full coverage for copy-stream.ts @Eray Hanoğlu 
+- test: add full coverage for the pgoutput logical-replication decoder @Eray Hanoğlu 
+- test: add direct unit coverage for LogicalReplication's pure logic @Eray Hanoğlu 
+- test: add full coverage for the remaining small scalar data types @Eray Hanoğlu 
+- test: add full coverage for frontend.ts wire-message builders @Eray Hanoğlu 
+- test: add full coverage for parse-row.ts @Eray Hanoğlu 
+- test: add full coverage for get-parsers.ts @Eray Hanoğlu 
+- test: add full coverage for LsegType @Eray Hanoğlu 
+- test: add full coverage for CircleType @Eray Hanoğlu 
+- test: raise connection-config.ts branch coverage @Eray Hanoğlu 
+- test: raise sql-tag.ts branch coverage, mark one path unreachable @Eray Hanoğlu 
+- test: raise cursor.ts coverage @Eray Hanoğlu 
+- test: add full coverage for OidVectorType @Eray Hanoğlu 
+- test: add full coverage for Int2VectorType @Eray Hanoğlu 
+- test: add coverage for the encodeText() pass-throughs on temporal types @Eray Hanoğlu 
+- test: raise large-object.ts coverage @Eray Hanoğlu 
+- test: raise prepared-statement.ts coverage @Eray Hanoğlu 
+- test: add full coverage for SafeEventEmitter @Eray Hanoğlu 
+- test: add full coverage for CharType @Eray Hanoğlu 
+- test: add full coverage for BoolType.encodeText() @Eray Hanoğlu 
+
+#### ⚡️ Performance Improvments
+
+- perf: skip the instanceof check on plain string SQL in execute() @Eray Hanoğlu 
+
+## [v3.0.0](https://github.com/panates/postgrejs/compare/v2.23.1...v3.0.0) -  6 September 2026 
 
 #### Breaking Changes :warning:
 
