@@ -126,7 +126,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Per-query type mapping            |           ✅           |    ❌ <sup>6</sup>    | ❌ <sup>6</sup>  |
 | Query cancellation                |     ✅ AbortSignal     |          ✅           |        ✅        |
 | Per-query timeout                 |     ✅ AbortSignal     |          ✅           | ❌ <sup>7</sup>  |
-| Reference counters                | Connection · Statement |          ❌           |        ❌        |
+| Reference counters                | Connection / Statement |          ❌           |        ❌        |
 | Caller kept in async error stacks |           ✅           |    🟡 <sup>8</sup>    | 🟡 <sup>9</sup>  |
 | Error located in the SQL text     |    ✅ line and mark    |       🟡 offset       |    🟡 offset     |
 | TC39 Explicit Resource Management |           ✅           |          ❌           |        ❌        |

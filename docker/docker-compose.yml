@@ -1,0 +1,49 @@
+name: PostgreSQL
+
+services:
+  postgres:
+    # image: postgres:latest
+    image: timescale/timescaledb:latest-pg18
+    restart: unless-stopped
+    container_name: postgres
+    # Two-phase commit (PREPARE TRANSACTION) is off unless this is above
+    # zero. Passed as a flag rather than set in postgresql.conf so the
+    # image's own entrypoint and TimescaleDB tuning stay untouched.
+    # SSL needs a certificate as well as the flag; ./certs is mounted below.
+    # PostgreSQL 17+ also accepts a TLS handshake with no SSLRequest first
+    # (sslnegotiation=direct), which is what the client picks, not a server
+    # setting - nothing extra is needed here for it.
+    command: >
+      postgres
+      -c max_prepared_transactions=10
+      -c wal_level=logical
+      -c ssl=on
+      -c ssl_cert_file=/etc/postgresql/certs/server.crt
+      -c ssl_key_file=/etc/postgresql/certs/server.key
+    healthcheck:
+      test: 'pg_isready -U user --dbname=postgres'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - 5432:5432
+    networks:
+      - postgres
+    # set shared memory limit
+    shm_size: 128mb
+    environment:
+      # POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./data:/var/lib/postgresql/data
+      - ./pg_hba.conf:/etc/postgresql/pg_hba.conf
+      - ./certs:/etc/postgresql/certs:ro
+
+networks:
+  postgres:
+    driver: bridge
+
+volumes:
+  data:
+  pgadmin:
