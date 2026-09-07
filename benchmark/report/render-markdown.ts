@@ -276,6 +276,7 @@ function renderBarChart(
     unit: string;
     valueOf: (s: ScenarioLibSummary) => number;
     width?: number;
+    height?: number;
     color?: string;
   },
 ): string {
@@ -308,14 +309,19 @@ function renderBarChart(
     maxValue > 0 ? maxValue * 1.1 : minValue < 0 ? 0 : 1
   ).toFixed(4);
   // Mermaid's xychart-beta defaults to a large canvas; the 'xyChart' init
-  // config (must be the first line inside the fence) shrinks it so several
-  // of these in a row don't dominate the page. (xychart-beta's bar/gap
-  // ratio itself isn't configurable - checked mermaid's own resolved
-  // xyChart config schema live, no such option exists - so bar width can't
-  // be tuned separately from chart width.) Bar color is a THEME variable,
-  // not a top-level xyChart config key, hence the separate object.
+  // config (must be the first line inside the fence) resizes it. Sized
+  // generously (not the tight ~440x260 this used to be) because GitHub
+  // overlays every rendered Mermaid diagram with its own fixed-size
+  // pan/zoom control cluster, independent of the diagram's own config -
+  // a small chart gets proportionally swallowed by it (title clipped,
+  // bars covered). More canvas means that fixed-size overlay eats a
+  // smaller fraction of it. (xychart-beta's bar/gap ratio itself isn't
+  // configurable - checked mermaid's own resolved xyChart config schema
+  // live, no such option exists - so bar width can't be tuned separately
+  // from chart width.) Bar color is a THEME variable, not a top-level
+  // xyChart config key, hence the separate object.
   const initParts = [
-    `'xyChart': {'width': ${opts.width ?? 500}, 'height': 260}`,
+    `'xyChart': {'width': ${opts.width ?? 500}, 'height': ${opts.height ?? 260}}`,
   ];
   if (opts.color) {
     initParts.push(
@@ -358,21 +364,25 @@ function renderScenarioCharts(
   const hasPeakHeap = summaries.some(s => s.medianPeakHeapGrowthBytes != null);
   const hasWire =
     !!reportWireBytes && summaries.some(s => s.medianWireRxBytes != null);
-  // Always exactly 2 charts per row (mean+ops/sec is always present), so
-  // width only ever needs to support that.
-  const width = 440;
+  // 2 charts per row (mean+ops/sec is always present). Wide enough that
+  // GitHub's own fixed-size Mermaid pan/zoom overlay (see renderBarChart's
+  // comment) doesn't swallow a meaningful fraction of the chart.
+  const width = 600;
+  const height = 380;
 
   const charts = [
     renderBarChart(summaries, {
       title: 'Mean latency (ms, lower is better)',
       unit: 'ms',
       width,
+      height,
       valueOf: s => s.medianMean,
     }),
     renderBarChart(summaries, {
       title: 'Throughput (ops/sec, higher is better)',
       unit: 'ops/sec',
       width,
+      height,
       valueOf: s => s.medianOpsPerSec,
       color: HIGHER_IS_BETTER_COLOR,
     }),
@@ -383,6 +393,7 @@ function renderScenarioCharts(
         title: 'GC time (ms/op, lower is better)',
         unit: 'ms/op',
         width,
+        height,
         valueOf: s => (s.medianGcDurationMs ?? 0) / s.medianSamples,
       }),
     );
@@ -399,6 +410,7 @@ function renderScenarioCharts(
         title: 'Peak heap growth (KB, max memory reached)',
         unit: 'KB',
         width,
+        height,
         valueOf: s => (s.medianPeakHeapGrowthBytes ?? 0) / 1024,
       }),
     );
@@ -412,6 +424,7 @@ function renderScenarioCharts(
         title: 'Network received (KB/op, lower is better)',
         unit: 'KB/op',
         width,
+        height,
         valueOf: s => (s.medianWireRxBytes ?? 0) / s.medianSamples / 1024,
       }),
     );
