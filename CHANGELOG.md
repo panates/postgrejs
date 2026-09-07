@@ -1,6 +1,8 @@
 ## Changelog
 
-### [v3.0.2](https://github.com/panates/postgrejs/compare/v3.0.1...v3.0.2) - 
+### [v3.0.3](https://github.com/panates/postgrejs/compare/v3.0.2...v3.0.3) - 
+
+### [v3.0.2](https://github.com/panates/postgrejs/compare/v3.0.1...v3.0.2) -  7 September 2026 
 
 #### 🚀 New Features
 
