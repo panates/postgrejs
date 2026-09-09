@@ -73,7 +73,13 @@ jobs:
           echo "----- Installing PostgreSQL ${{ matrix.postgres }} -----"      
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-          sudo apt-get update            
+          # The runner image ships a Google Chrome apt source we never use here;
+          # when its upstream Release/Packages files briefly disagree (a known,
+          # intermittent issue on their end), `apt-get update` fails outright and
+          # takes the postgresql-org repo update down with it. Drop it first so a
+          # repo we don't need can't block one we do.
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update
           sudo apt-get -y install postgresql-${{ matrix.postgres }}  postgresql-client-${{ matrix.postgres }}    
           echo "----- Configuring -----"        
           sudo cp ./test/_support/pg_hba.conf /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf                                
