@@ -290,11 +290,12 @@ function parseFunctionCallResponse(
 function parseNegotiateProtocolVersion(
   io: BufferReader,
 ): Protocol.NegotiateProtocolVersionMessage {
-  return {
-    supportedVersionMinor: io.readUInt32BE(),
-    numberOfNotSupportedVersions: io.readUInt32BE(),
-    option: io.readCString('utf8'),
-  } as Protocol.NegotiateProtocolVersionMessage;
+  const supportedVersionMinor = io.readUInt32BE();
+  const count = io.readUInt32BE();
+  const unrecognizedOptions: string[] = new Array(count);
+  let i: number;
+  for (i = 0; i < count; i++) unrecognizedOptions[i] = io.readCString('utf8');
+  return { supportedVersionMinor, unrecognizedOptions };
 }
 
 function parseParameterDescription(

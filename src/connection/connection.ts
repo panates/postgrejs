@@ -83,6 +83,19 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   /**
+   * The server's NegotiateProtocolVersion reply, if it sent one during
+   * connect() - undefined means the server fully recognized everything
+   * this client's startup packet asked for (protocol minor version, any
+   * `_pq_.*` options). Present only when the server is older/stricter
+   * than what was requested, or didn't recognize one of the options -
+   * check it after connect() if a feature gated behind such an option
+   * doesn't seem to have taken effect.
+   */
+  get protocolNegotiation(): Maybe<Protocol.NegotiateProtocolVersionMessage> {
+    return this._intlCon.protocolNegotiation;
+  }
+
+  /**
    * Returns the secret key of the current session
    */
   get secretKey(): Maybe<number> {

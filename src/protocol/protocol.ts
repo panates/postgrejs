@@ -173,9 +173,14 @@ export namespace Protocol {
   }
 
   export interface NegotiateProtocolVersionMessage {
+    /** Newest minor protocol version the server supports. */
     supportedVersionMinor: number;
-    numberOfNotSupportedVersions: number;
-    option: string;
+    /**
+     * Startup packet options this client sent that the server didn't
+     * recognize - empty when the only mismatch is the protocol minor
+     * version itself.
+     */
+    unrecognizedOptions: string[];
   }
 
   export interface ParameterDescriptionMessage {

@@ -11,6 +11,20 @@ describe('PgSocket', () => {
     });
   });
 
+  describe('protocolNegotiation', () => {
+    it('should start out undefined before any NegotiateProtocolVersion arrives', () => {
+      const socket = new PgSocket({});
+      expect(socket.protocolNegotiation).toBeUndefined();
+    });
+
+    it('should store the message once _handleNegotiateProtocolVersion runs', () => {
+      const socket: any = new PgSocket({});
+      const msg = { supportedVersionMinor: 0, unrecognizedOptions: ['foo'] };
+      socket._handleNegotiateProtocolVersion(msg);
+      expect(socket.protocolNegotiation).toStrictEqual(msg);
+    });
+  });
+
   describe('_handleAuthenticationMessage()', () => {
     it('should throw on an authentication method it does not support', () => {
       const socket: any = new PgSocket({});

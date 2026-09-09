@@ -95,6 +95,11 @@ export class IntlConnection extends SafeEventEmitter {
     return this.socket.secretKey;
   }
 
+  /** See `PgSocket.protocolNegotiation`. */
+  get protocolNegotiation(): Maybe<Protocol.NegotiateProtocolVersionMessage> {
+    return this.socket.protocolNegotiation;
+  }
+
   get sessionParameters(): Record<string, string> {
     return this.socket.sessionParameters;
   }

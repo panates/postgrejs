@@ -123,18 +123,49 @@ describe('Backend (wire message parsing)', () => {
   });
 
   describe('NegotiateProtocolVersion', () => {
-    it('should read the minor version, unsupported-option count and name', () => {
+    it('should read the minor version and one unrecognized option name', () => {
       const body = Buffer.alloc(12);
       body.writeUInt32BE(2, 0); // supportedVersionMinor
-      body.writeUInt32BE(1, 4); // numberOfNotSupportedVersions
-      body.write('foo\0', 8, 'utf8'); // option
+      body.writeUInt32BE(1, 4); // count
+      body.write('foo\0', 8, 'utf8');
       const { msg } = parseOne(
         message(Protocol.BackendMessageCode.NegotiateProtocolVersion, body),
       );
       expect(msg).toStrictEqual({
         supportedVersionMinor: 2,
-        numberOfNotSupportedVersions: 1,
-        option: 'foo',
+        unrecognizedOptions: ['foo'],
+      });
+    });
+
+    it('should read zero unrecognized options without consuming any string', () => {
+      // A mismatched protocol minor version alone, with every startup
+      // option otherwise recognized, reports a count of 0 and no strings
+      // follow - reading one anyway (the bug this guards against) would
+      // desync every message parsed after this one.
+      const body = Buffer.alloc(8);
+      body.writeUInt32BE(0, 0); // supportedVersionMinor
+      body.writeUInt32BE(0, 4); // count
+      const { msg } = parseOne(
+        message(Protocol.BackendMessageCode.NegotiateProtocolVersion, body),
+      );
+      expect(msg).toStrictEqual({
+        supportedVersionMinor: 0,
+        unrecognizedOptions: [],
+      });
+    });
+
+    it('should read multiple unrecognized option names in order', () => {
+      const body = Buffer.alloc(8 + 4 + 4);
+      body.writeUInt32BE(2, 0); // supportedVersionMinor
+      body.writeUInt32BE(2, 4); // count
+      body.write('foo\0', 8, 'utf8');
+      body.write('bar\0', 12, 'utf8');
+      const { msg } = parseOne(
+        message(Protocol.BackendMessageCode.NegotiateProtocolVersion, body),
+      );
+      expect(msg).toStrictEqual({
+        supportedVersionMinor: 2,
+        unrecognizedOptions: ['foo', 'bar'],
       });
     });
   });
