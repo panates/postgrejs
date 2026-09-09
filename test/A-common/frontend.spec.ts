@@ -348,6 +348,41 @@ describe('Frontend', () => {
     });
   });
 
+  describe('getFunctionCallMessage()', () => {
+    it('should write function id, arg formats, each arg (or -1 for null), and the result format', () => {
+      const frontend = new Frontend({});
+      const arg0 = Buffer.from([0x01, 0x02]);
+      const buf = frontend.getFunctionCallMessage({
+        functionId: 1234,
+        argFormats: [DataFormat.binary],
+        args: [arg0, null],
+        resultFormat: DataFormat.binary,
+      });
+      const io = reader(buf);
+      expect(io.readInt32BE()).toStrictEqual(1234);
+      expect(io.readInt16BE()).toStrictEqual(1); // argFormats.length
+      expect(io.readInt16BE()).toStrictEqual(DataFormat.binary);
+      expect(io.readInt16BE()).toStrictEqual(2); // args.length
+      expect(io.readInt32BE()).toStrictEqual(arg0.length);
+      expect(io.readBuffer(arg0.length)).toStrictEqual(arg0);
+      expect(io.readInt32BE()).toStrictEqual(-1); // null arg
+      expect(io.readInt16BE()).toStrictEqual(DataFormat.binary); // result format
+    });
+
+    it('should default to an empty argFormats and text result format', () => {
+      const frontend = new Frontend({});
+      const buf = frontend.getFunctionCallMessage({
+        functionId: 1,
+        args: [],
+      });
+      const io = reader(buf);
+      expect(io.readInt32BE()).toStrictEqual(1);
+      expect(io.readInt16BE()).toStrictEqual(0); // argFormats.length
+      expect(io.readInt16BE()).toStrictEqual(0); // args.length
+      expect(io.readInt16BE()).toStrictEqual(DataFormat.text);
+    });
+  });
+
   describe('getCopyFailMessage()', () => {
     it('should default a falsy message to the empty string', () => {
       const frontend = new Frontend({});

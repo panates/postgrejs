@@ -79,6 +79,30 @@ export namespace Frontend {
     type: 'P' | 'S';
     name?: string;
   }
+
+  /**
+   * The legacy Function Call sub-protocol - calls a function by OID
+   * directly, bypassing SQL entirely. Superseded by `SELECT func(...)`
+   * over the Simple/Extended Query protocols (which every current
+   * PostgreSQL client, this one included for everything else, uses
+   * exclusively) - kept only for wire-protocol completeness. Arguments
+   * and the result travel as raw wire-format bytes, not JS values: the
+   * caller is responsible for encoding/decoding them (see a `DataType`'s
+   * own `encodeBinary`/`decodeBinary` for the format a given OID expects).
+   */
+  export interface FunctionCallMessageArgs {
+    functionId: OID;
+    /**
+     * Format of each argument in `args`, applied positionally - empty
+     * means text for all of them, a single entry applies to all, or it
+     * must have exactly one entry per argument.
+     */
+    argFormats?: Protocol.DataFormat[];
+    /** `null` for an SQL NULL argument. */
+    args: Maybe<Buffer>[];
+    /** Format the function's return value comes back in. @default text */
+    resultFormat?: Protocol.DataFormat;
+  }
 }
 
 export class Frontend {
@@ -353,6 +377,30 @@ export class Frontend {
       .writeInt8(Protocol.FrontendMessageCode.Query)
       .writeInt32BE(0) // Preserve header
       .writeCString(sql || '', 'utf8');
+    return setLengthAndFlush(io, 1);
+  }
+
+  getFunctionCallMessage(args: Frontend.FunctionCallMessageArgs): Buffer {
+    const { functionId, args: values, argFormats, resultFormat } = args;
+    const formats = argFormats || [];
+    const fl = formats.length;
+    const l = values.length;
+    let i: number;
+    const io = this._io
+      .start()
+      .writeInt8(Protocol.FrontendMessageCode.FunctionCall)
+      .writeInt32BE(0) // Preserve header
+      .writeInt32BE(functionId)
+      .writeInt16BE(fl);
+    for (i = 0; i < fl; i++) io.writeInt16BE(formats[i]);
+    io.writeInt16BE(l);
+    let v: Maybe<Buffer>;
+    for (i = 0; i < l; i++) {
+      v = values[i];
+      if (v == null) io.writeInt32BE(-1);
+      else io.writeInt32BE(v.length).writeBuffer(v);
+    }
+    io.writeInt16BE(resultFormat ?? DataFormat.text);
     return setLengthAndFlush(io, 1);
   }
 

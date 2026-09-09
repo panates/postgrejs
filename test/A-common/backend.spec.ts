@@ -110,15 +110,27 @@ describe('Backend (wire message parsing)', () => {
   });
 
   describe('FunctionCallResponse', () => {
-    it('should read the result as a raw buffer', () => {
-      const result = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
+    it('should read the result value behind its own length prefix', () => {
+      const value = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
+      const body = Buffer.alloc(4 + value.length);
+      body.writeInt32BE(value.length, 0);
+      value.copy(body, 4);
       const { code, msg } = parseOne(
-        message(Protocol.BackendMessageCode.FunctionCallResponse, result),
+        message(Protocol.BackendMessageCode.FunctionCallResponse, body),
       );
       expect(code).toStrictEqual(
         Protocol.BackendMessageCode.FunctionCallResponse,
       );
-      expect(msg.result).toStrictEqual(result);
+      expect(msg.result).toStrictEqual(value);
+    });
+
+    it('should read a -1 length prefix as a null result, with no bytes following', () => {
+      const body = Buffer.alloc(4);
+      body.writeInt32BE(-1, 0);
+      const { msg } = parseOne(
+        message(Protocol.BackendMessageCode.FunctionCallResponse, body),
+      );
+      expect(msg.result).toBeNull();
     });
   });
 

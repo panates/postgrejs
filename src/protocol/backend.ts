@@ -279,12 +279,12 @@ function parseNotificationResponse(
 
 function parseFunctionCallResponse(
   io: BufferReader,
-  code: Protocol.BackendMessageCode,
-  len: number,
 ): Protocol.FunctionCallResponseMessage {
-  return {
-    result: io.readBuffer(len - 4),
-  } as Protocol.FunctionCallResponseMessage;
+  // A length prefix ahead of the value itself (-1 for SQL NULL, with no
+  // bytes following) - not deducible from the outer message length alone,
+  // unlike most fixed-shape messages this codebase parses.
+  const len = io.readInt32BE();
+  return { result: len < 0 ? null : io.readBuffer(len) };
 }
 
 function parseNegotiateProtocolVersion(

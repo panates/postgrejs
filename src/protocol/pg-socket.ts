@@ -289,6 +289,19 @@ export class PgSocket extends SafeEventEmitter {
     );
   }
 
+  /** The legacy Function Call sub-protocol - see `Frontend.FunctionCallMessageArgs`. */
+  sendFunctionCallMessage(
+    args: Frontend.FunctionCallMessageArgs,
+    cb: CaptureCallback,
+  ): Promise<any> {
+    return this._sendAndCapture(
+      this._frontend.getFunctionCallMessage(args),
+      cb,
+      'sendFunctionCallMessage',
+      args,
+    );
+  }
+
   /**
    * Sends Parse+Bind+Describe+Execute+Sync as a single write with a single
    * FIFO capture entry, instead of 5 separate sendXMessage() round trips -

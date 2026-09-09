@@ -169,7 +169,8 @@ export namespace Protocol {
   }
 
   export interface FunctionCallResponseMessage {
-    result: Buffer;
+    /** `null` when the function returned SQL NULL. */
+    result: Buffer | null;
   }
 
   export interface NegotiateProtocolVersionMessage {
