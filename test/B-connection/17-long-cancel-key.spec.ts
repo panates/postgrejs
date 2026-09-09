@@ -8,9 +8,17 @@ describe('longCancelKey (protocol 3.2)', () => {
     if (connection) await connection.close(0);
   });
 
-  it('should hand back a longer secret key than the 4-byte default', async () => {
+  it('should hand back a longer secret key than the 4-byte default', async function () {
     connection = new Connection({ longCancelKey: true });
     await connection.connect();
+    // Protocol 3.2 (and its longer cancel key) only exists on PostgreSQL
+    // 18+; older servers gracefully negotiate back down to 3.0 and hand
+    // back the legacy 4-byte key instead - by design, not a bug.
+    const serverVersion = parseInt(
+      connection.sessionParameters.server_version,
+      10,
+    );
+    if (serverVersion < 18) return this.skip();
     // PostgreSQL sends up to 32 bytes today; the wire format itself
     // allows up to 256 - either way, strictly more than the legacy 4.
     expect(connection.secretKey?.length).toBeGreaterThan(4);
