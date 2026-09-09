@@ -1,6 +1,16 @@
 export namespace Protocol {
   export const VERSION_MAJOR = 3;
   export const VERSION_MINOR = 0;
+  /**
+   * Minor version 3.2 (PostgreSQL 18+) differs from 3.0 only in that
+   * BackendKeyData's secret key - and so CancelRequest's - can be up to
+   * 256 bytes instead of always exactly 4. A server that doesn't support
+   * 3.2 replies with NegotiateProtocolVersion naming the highest minor
+   * version it does support (see `PgSocket.protocolNegotiation`) and the
+   * session simply proceeds at that version instead - requesting 3.2 is
+   * never a connection-breaking choice, only ever a possible no-op.
+   */
+  export const VERSION_MINOR_LONG_CANCEL_KEY = 2;
 
   // https://www.postgresql.org/docs/9.3/protocol-message-formats.html
   export enum BackendMessageCode {
@@ -116,7 +126,14 @@ export namespace Protocol {
 
   export interface BackendKeyDataMessage {
     processID: number;
-    secretKey: number;
+    /**
+     * Always 4 bytes before protocol 3.2, up to 256 with it - see
+     * `VERSION_MINOR_LONG_CANCEL_KEY`. Not a fixed-width int, unlike
+     * before: the field carries whatever bytes the server sent, in
+     * whatever order it sent them, to be relayed back to CancelRequest
+     * unchanged rather than interpreted as a number.
+     */
+    secretKey: Buffer;
   }
 
   export interface CommandCompleteMessage {
@@ -169,13 +186,19 @@ export namespace Protocol {
   }
 
   export interface FunctionCallResponseMessage {
-    result: Buffer;
+    /** `null` when the function returned SQL NULL. */
+    result: Buffer | null;
   }
 
   export interface NegotiateProtocolVersionMessage {
+    /** Newest minor protocol version the server supports. */
     supportedVersionMinor: number;
-    numberOfNotSupportedVersions: number;
-    option: string;
+    /**
+     * Startup packet options this client sent that the server didn't
+     * recognize - empty when the only mismatch is the protocol minor
+     * version itself.
+     */
+    unrecognizedOptions: string[];
   }
 
   export interface ParameterDescriptionMessage {

@@ -109,32 +109,102 @@ describe('Backend (wire message parsing)', () => {
     });
   });
 
+  describe('BackendKeyData', () => {
+    it('should read a legacy 4-byte secret key (protocol 3.0)', () => {
+      const body = Buffer.alloc(8);
+      body.writeUInt32BE(1234, 0); // processID
+      body.write('\xd5\xd4\xb4\x4f', 4, 'binary'); // secretKey, 4 bytes
+      const { msg } = parseOne(
+        message(Protocol.BackendMessageCode.BackendKeyData, body),
+      );
+      expect(msg.processID).toStrictEqual(1234);
+      expect(Buffer.isBuffer(msg.secretKey)).toBe(true);
+      expect(msg.secretKey).toStrictEqual(
+        Buffer.from([0xd5, 0xd4, 0xb4, 0x4f]),
+      );
+    });
+
+    it('should read a longer secret key (protocol 3.2) as whatever bytes remain', () => {
+      const key = Buffer.from(Array.from({ length: 32 }, (_, i) => i));
+      const body = Buffer.alloc(4 + key.length);
+      body.writeUInt32BE(1, 0);
+      key.copy(body, 4);
+      const { msg } = parseOne(
+        message(Protocol.BackendMessageCode.BackendKeyData, body),
+      );
+      expect(msg.secretKey).toStrictEqual(key);
+    });
+  });
+
   describe('FunctionCallResponse', () => {
-    it('should read the result as a raw buffer', () => {
-      const result = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
+    it('should read the result value behind its own length prefix', () => {
+      const value = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
+      const body = Buffer.alloc(4 + value.length);
+      body.writeInt32BE(value.length, 0);
+      value.copy(body, 4);
       const { code, msg } = parseOne(
-        message(Protocol.BackendMessageCode.FunctionCallResponse, result),
+        message(Protocol.BackendMessageCode.FunctionCallResponse, body),
       );
       expect(code).toStrictEqual(
         Protocol.BackendMessageCode.FunctionCallResponse,
       );
-      expect(msg.result).toStrictEqual(result);
+      expect(msg.result).toStrictEqual(value);
+    });
+
+    it('should read a -1 length prefix as a null result, with no bytes following', () => {
+      const body = Buffer.alloc(4);
+      body.writeInt32BE(-1, 0);
+      const { msg } = parseOne(
+        message(Protocol.BackendMessageCode.FunctionCallResponse, body),
+      );
+      expect(msg.result).toBeNull();
     });
   });
 
   describe('NegotiateProtocolVersion', () => {
-    it('should read the minor version, unsupported-option count and name', () => {
+    it('should read the minor version and one unrecognized option name', () => {
       const body = Buffer.alloc(12);
       body.writeUInt32BE(2, 0); // supportedVersionMinor
-      body.writeUInt32BE(1, 4); // numberOfNotSupportedVersions
-      body.write('foo\0', 8, 'utf8'); // option
+      body.writeUInt32BE(1, 4); // count
+      body.write('foo\0', 8, 'utf8');
       const { msg } = parseOne(
         message(Protocol.BackendMessageCode.NegotiateProtocolVersion, body),
       );
       expect(msg).toStrictEqual({
         supportedVersionMinor: 2,
-        numberOfNotSupportedVersions: 1,
-        option: 'foo',
+        unrecognizedOptions: ['foo'],
+      });
+    });
+
+    it('should read zero unrecognized options without consuming any string', () => {
+      // A mismatched protocol minor version alone, with every startup
+      // option otherwise recognized, reports a count of 0 and no strings
+      // follow - reading one anyway (the bug this guards against) would
+      // desync every message parsed after this one.
+      const body = Buffer.alloc(8);
+      body.writeUInt32BE(0, 0); // supportedVersionMinor
+      body.writeUInt32BE(0, 4); // count
+      const { msg } = parseOne(
+        message(Protocol.BackendMessageCode.NegotiateProtocolVersion, body),
+      );
+      expect(msg).toStrictEqual({
+        supportedVersionMinor: 0,
+        unrecognizedOptions: [],
+      });
+    });
+
+    it('should read multiple unrecognized option names in order', () => {
+      const body = Buffer.alloc(8 + 4 + 4);
+      body.writeUInt32BE(2, 0); // supportedVersionMinor
+      body.writeUInt32BE(2, 4); // count
+      body.write('foo\0', 8, 'utf8');
+      body.write('bar\0', 12, 'utf8');
+      const { msg } = parseOne(
+        message(Protocol.BackendMessageCode.NegotiateProtocolVersion, body),
+      );
+      expect(msg).toStrictEqual({
+        supportedVersionMinor: 2,
+        unrecognizedOptions: ['foo', 'bar'],
       });
     });
   });

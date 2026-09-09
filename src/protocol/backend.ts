@@ -197,10 +197,13 @@ function parseAuthentication(
 }
 
 function parseBackendKeyData(io: BufferReader): Protocol.BackendKeyDataMessage {
-  return {
-    processID: io.readUInt32BE(),
-    secretKey: io.readUInt32BE(),
-  } as Protocol.BackendKeyDataMessage;
+  const processID = io.readUInt32BE();
+  // No length prefix of its own: this BufferReader is scoped to exactly
+  // this message's body (see Backend.parse()), so the secret key is
+  // simply whatever bytes remain - 4 of them before protocol 3.2, up to
+  // 256 with it (see VERSION_MINOR_LONG_CANCEL_KEY).
+  const secretKey = io.readBuffer();
+  return { processID, secretKey };
 }
 
 function parseCommandComplete(
@@ -279,22 +282,23 @@ function parseNotificationResponse(
 
 function parseFunctionCallResponse(
   io: BufferReader,
-  code: Protocol.BackendMessageCode,
-  len: number,
 ): Protocol.FunctionCallResponseMessage {
-  return {
-    result: io.readBuffer(len - 4),
-  } as Protocol.FunctionCallResponseMessage;
+  // A length prefix ahead of the value itself (-1 for SQL NULL, with no
+  // bytes following) - not deducible from the outer message length alone,
+  // unlike most fixed-shape messages this codebase parses.
+  const len = io.readInt32BE();
+  return { result: len < 0 ? null : io.readBuffer(len) };
 }
 
 function parseNegotiateProtocolVersion(
   io: BufferReader,
 ): Protocol.NegotiateProtocolVersionMessage {
-  return {
-    supportedVersionMinor: io.readUInt32BE(),
-    numberOfNotSupportedVersions: io.readUInt32BE(),
-    option: io.readCString('utf8'),
-  } as Protocol.NegotiateProtocolVersionMessage;
+  const supportedVersionMinor = io.readUInt32BE();
+  const count = io.readUInt32BE();
+  const unrecognizedOptions: string[] = new Array(count);
+  let i: number;
+  for (i = 0; i < count; i++) unrecognizedOptions[i] = io.readCString('utf8');
+  return { supportedVersionMinor, unrecognizedOptions };
 }
 
 function parseParameterDescription(

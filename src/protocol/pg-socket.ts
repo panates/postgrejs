@@ -42,7 +42,8 @@ export class PgSocket extends SafeEventEmitter {
   private _sessionParameters: Record<string, string> = {};
   private _saslSession?: SASL.Session;
   private _processID?: number;
-  private _secretKey?: number;
+  private _secretKey?: Buffer;
+  private _protocolNegotiation?: Protocol.NegotiateProtocolVersionMessage;
   private _captureQueue = new DoublyLinked<CaptureEntry>();
   private _pendingWrites: { data: Buffer; cb?: Callback }[] = [];
   private _flushScheduled = false;
@@ -67,8 +68,19 @@ export class PgSocket extends SafeEventEmitter {
     return this._processID;
   }
 
-  get secretKey(): Maybe<number> {
+  get secretKey(): Maybe<Buffer> {
     return this._secretKey;
+  }
+
+  /**
+   * The server's NegotiateProtocolVersion reply, if it sent one -
+   * undefined means everything this client asked for in its startup
+   * packet (protocol minor version, any `_pq_.*` options) was fully
+   * recognized. Present only when the server is older/stricter than what
+   * was requested, or didn't recognize one of the startup options.
+   */
+  get protocolNegotiation(): Maybe<Protocol.NegotiateProtocolVersionMessage> {
+    return this._protocolNegotiation;
   }
 
   get sessionParameters(): Record<string, string> {
@@ -273,6 +285,19 @@ export class PgSocket extends SafeEventEmitter {
       this._frontend.getCloseMessage(args),
       cb,
       'sendCloseMessage',
+      args,
+    );
+  }
+
+  /** The legacy Function Call sub-protocol - see `Frontend.FunctionCallMessageArgs`. */
+  sendFunctionCallMessage(
+    args: Frontend.FunctionCallMessageArgs,
+    cb: CaptureCallback,
+  ): Promise<any> {
+    return this._sendAndCapture(
+      this._frontend.getFunctionCallMessage(args),
+      cb,
+      'sendFunctionCallMessage',
       args,
     );
   }
@@ -555,14 +580,19 @@ export class PgSocket extends SafeEventEmitter {
     socket.on('error', (err: SocketError) => this._handleError(err));
     socket.on('close', () => this._handleClose());
     this._send(
-      this._frontend.getStartupMessage({
-        user: this.options.user || 'postgres',
-        database: this.options.database || '',
-        application_name: this.options.applicationName || '',
-        ...(this.options.replication
-          ? { replication: this.options.replication }
-          : undefined),
-      }),
+      this._frontend.getStartupMessage(
+        {
+          user: this.options.user || 'postgres',
+          database: this.options.database || '',
+          application_name: this.options.applicationName || '',
+          ...(this.options.replication
+            ? { replication: this.options.replication }
+            : undefined),
+        },
+        this.options.longCancelKey
+          ? Protocol.VERSION_MINOR_LONG_CANCEL_KEY
+          : undefined,
+      ),
     );
   }
 
@@ -700,6 +730,11 @@ export class PgSocket extends SafeEventEmitter {
             case Protocol.BackendMessageCode.ParameterStatus:
               this._handleParameterStatus(
                 payload as Protocol.ParameterStatusMessage,
+              );
+              break;
+            case Protocol.BackendMessageCode.NegotiateProtocolVersion:
+              this._handleNegotiateProtocolVersion(
+                payload as Protocol.NegotiateProtocolVersionMessage,
               );
               break;
             case Protocol.BackendMessageCode.BackendKeyData:
@@ -874,6 +909,25 @@ export class PgSocket extends SafeEventEmitter {
 
   protected _handleParameterStatus(msg: Protocol.ParameterStatusMessage): void {
     this._sessionParameters[msg.name] = msg.value;
+  }
+
+  protected _handleNegotiateProtocolVersion(
+    msg: Protocol.NegotiateProtocolVersionMessage,
+  ): void {
+    this._protocolNegotiation = msg;
+    /* c8 ignore start */
+    if (this.listenerCount('debug')) {
+      this.emit('debug', {
+        location: 'PgSocket._handleNegotiateProtocolVersion',
+        message:
+          `server supports protocol 3.${msg.supportedVersionMinor}` +
+          (msg.unrecognizedOptions.length
+            ? `; did not recognize startup option(s): ${msg.unrecognizedOptions.join(', ')}`
+            : ''),
+        ...msg,
+      });
+    }
+    /* c8 ignore stop */
   }
 
   protected _handleBackendKeyData(msg: Protocol.BackendKeyDataMessage): void {

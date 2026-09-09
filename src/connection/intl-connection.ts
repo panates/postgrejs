@@ -5,6 +5,8 @@ import { GlobalTypeMap } from '../data-type-map.js';
 import type { CommandResult } from '../interfaces/command-result.js';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
+import type { FunctionCallOptions } from '../interfaces/function-call-options.js';
+import type { FunctionCallResult } from '../interfaces/function-call-result.js';
 import type { QueryOptions } from '../interfaces/query-options.js';
 import type { QueryResult } from '../interfaces/query-result.js';
 import type { ScriptExecuteOptions } from '../interfaces/script-execute-options.js';
@@ -91,8 +93,13 @@ export class IntlConnection extends SafeEventEmitter {
     return this.socket.processID;
   }
 
-  get secretKey(): Maybe<number> {
+  get secretKey(): Maybe<Buffer> {
     return this.socket.secretKey;
+  }
+
+  /** See `PgSocket.protocolNegotiation`. */
+  get protocolNegotiation(): Maybe<Protocol.NegotiateProtocolVersionMessage> {
+    return this.socket.protocolNegotiation;
   }
 
   get sessionParameters(): Record<string, string> {
@@ -192,6 +199,60 @@ export class IntlConnection extends SafeEventEmitter {
       if (rollbackOnError && this.inTransaction)
         await this._execute('ROLLBACK TO ' + this._onErrorSavePoint + ';');
       throw e;
+    }
+  }
+
+  /**
+   * The legacy Function Call sub-protocol: calls a function by OID
+   * directly, bypassing SQL entirely. PostgreSQL itself calls this
+   * superseded by `SELECT func(...)` over the Simple/Extended Query
+   * protocols (what this driver uses everywhere else, and what every
+   * other current client uses exclusively) - kept only for wire-protocol
+   * completeness. Arguments and the result travel as raw wire-format
+   * bytes rather than through this driver's usual typed encode/decode
+   * pipeline - the caller is responsible for both (see a `DataType`'s own
+   * `encodeBinary`/`decodeBinary` for the format a given OID expects).
+   */
+  async callFunction(
+    functionId: OID,
+    args: Maybe<Buffer>[],
+    options: FunctionCallOptions = {},
+  ): Promise<FunctionCallResult> {
+    this.assertConnected();
+    this.ref();
+    try {
+      let result: FunctionCallResult | undefined;
+      let error: Error | undefined;
+      return await this.socket.sendFunctionCallMessage(
+        {
+          functionId,
+          args,
+          argFormats: options.argFormats,
+          resultFormat: options.resultFormat,
+        },
+        (code, msg, done) => {
+          switch (code) {
+            case Protocol.BackendMessageCode.ErrorResponse:
+              error = msg;
+              break;
+            case Protocol.BackendMessageCode.FunctionCallResponse:
+              result = msg as FunctionCallResult;
+              break;
+            case Protocol.BackendMessageCode.ReadyForQuery:
+              this.transactionStatus = msg.status;
+              if (error) {
+                done(error);
+                break;
+              }
+              done(undefined, result);
+              break;
+            default:
+              break;
+          }
+        },
+      );
+    } finally {
+      this.unref();
     }
   }
 

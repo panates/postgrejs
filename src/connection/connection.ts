@@ -1,6 +1,8 @@
 import { ConnectionState, DataTypeOIDs } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
+import type { FunctionCallOptions } from '../interfaces/function-call-options.js';
+import type { FunctionCallResult } from '../interfaces/function-call-result.js';
 import type { QueryOptions } from '../interfaces/query-options.js';
 import type { QueryResult } from '../interfaces/query-result.js';
 import type { ScriptExecuteOptions } from '../interfaces/script-execute-options.js';
@@ -83,9 +85,22 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   /**
+   * The server's NegotiateProtocolVersion reply, if it sent one during
+   * connect() - undefined means the server fully recognized everything
+   * this client's startup packet asked for (protocol minor version, any
+   * `_pq_.*` options). Present only when the server is older/stricter
+   * than what was requested, or didn't recognize one of the options -
+   * check it after connect() if a feature gated behind such an option
+   * doesn't seem to have taken effect.
+   */
+  get protocolNegotiation(): Maybe<Protocol.NegotiateProtocolVersionMessage> {
+    return this._intlCon.protocolNegotiation;
+  }
+
+  /**
    * Returns the secret key of the current session
    */
-  get secretKey(): Maybe<number> {
+  get secretKey(): Maybe<Buffer> {
     return this._intlCon.secretKey;
   }
 
@@ -190,6 +205,36 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         ).catch((e: DatabaseError) => {
           throw this._handleError(e, sql);
         }),
+    );
+  }
+
+  /**
+   * The legacy Function Call sub-protocol - calls a function by OID
+   * directly, bypassing SQL entirely. Superseded by `SELECT func(...)`
+   * over the Simple/Extended Query protocols (what `execute()`/`query()`
+   * use, and what every current PostgreSQL client uses exclusively) -
+   * kept only for wire-protocol completeness. Arguments and the result
+   * travel as raw wire-format bytes, not JS values: the caller is
+   * responsible for encoding/decoding them (see a `DataType`'s own
+   * `encodeBinary`/`decodeBinary` for the format a given OID expects).
+   *
+   * @param functionId - OID of the function to call
+   * @param args - Each argument's own already-encoded wire bytes, or
+   *   `null` for SQL NULL
+   */
+  callFunction(
+    functionId: OID,
+    args: Maybe<Buffer>[],
+    options?: FunctionCallOptions & { signal?: AbortSignal },
+  ): Promise<FunctionCallResult> {
+    return withAbortSignal(
+      options?.signal,
+      () => this._intlCon.cancel(),
+      () =>
+        this._captureErrorStack(
+          this._intlCon.callFunction(functionId, args, options),
+          this.callFunction,
+        ),
     );
   }
 

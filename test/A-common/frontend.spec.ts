@@ -348,12 +348,86 @@ describe('Frontend', () => {
     });
   });
 
+  describe('getFunctionCallMessage()', () => {
+    it('should write function id, arg formats, each arg (or -1 for null), and the result format', () => {
+      const frontend = new Frontend({});
+      const arg0 = Buffer.from([0x01, 0x02]);
+      const buf = frontend.getFunctionCallMessage({
+        functionId: 1234,
+        argFormats: [DataFormat.binary],
+        args: [arg0, null],
+        resultFormat: DataFormat.binary,
+      });
+      const io = reader(buf);
+      expect(io.readInt32BE()).toStrictEqual(1234);
+      expect(io.readInt16BE()).toStrictEqual(1); // argFormats.length
+      expect(io.readInt16BE()).toStrictEqual(DataFormat.binary);
+      expect(io.readInt16BE()).toStrictEqual(2); // args.length
+      expect(io.readInt32BE()).toStrictEqual(arg0.length);
+      expect(io.readBuffer(arg0.length)).toStrictEqual(arg0);
+      expect(io.readInt32BE()).toStrictEqual(-1); // null arg
+      expect(io.readInt16BE()).toStrictEqual(DataFormat.binary); // result format
+    });
+
+    it('should default to an empty argFormats and text result format', () => {
+      const frontend = new Frontend({});
+      const buf = frontend.getFunctionCallMessage({
+        functionId: 1,
+        args: [],
+      });
+      const io = reader(buf);
+      expect(io.readInt32BE()).toStrictEqual(1);
+      expect(io.readInt16BE()).toStrictEqual(0); // argFormats.length
+      expect(io.readInt16BE()).toStrictEqual(0); // args.length
+      expect(io.readInt16BE()).toStrictEqual(DataFormat.text);
+    });
+  });
+
   describe('getCopyFailMessage()', () => {
     it('should default a falsy message to the empty string', () => {
       const frontend = new Frontend({});
       const buf = frontend.getCopyFailMessage('');
       const io = reader(buf);
       expect(io.readCString()).toStrictEqual('');
+    });
+  });
+
+  describe('getStartupMessage()', () => {
+    // No leading message code byte at all, unlike every other message
+    // here - StartupMessage/CancelRequest/SSLRequest are identified by
+    // their own magic number instead, so there is no 5-byte header for
+    // reader() to skip.
+    it('should default to protocol 3.0 when no minor version is given', () => {
+      const frontend = new Frontend({});
+      const buf = frontend.getStartupMessage({ user: 'u', database: 'd' });
+      expect(buf.readInt16BE(4)).toStrictEqual(3); // major
+      expect(buf.readInt16BE(6)).toStrictEqual(0); // minor
+    });
+
+    it('should write the given minor version', () => {
+      const frontend = new Frontend({});
+      const buf = frontend.getStartupMessage({ user: 'u', database: 'd' }, 2);
+      expect(buf.readInt16BE(6)).toStrictEqual(2);
+    });
+  });
+
+  describe('getCancelRequestMessage()', () => {
+    it('should write a 4-byte legacy secret key unchanged', () => {
+      const frontend = new Frontend({});
+      const secretKey = Buffer.from([0x01, 0x02, 0x03, 0x04]);
+      const buf = frontend.getCancelRequestMessage(99, secretKey);
+      expect(buf.readUInt32BE(0)).toStrictEqual(16); // length, incl. self
+      expect(buf.readUInt32BE(4)).toStrictEqual(80877102); // cancel code
+      expect(buf.readUInt32BE(8)).toStrictEqual(99); // processID
+      expect(buf.subarray(12)).toStrictEqual(secretKey);
+    });
+
+    it('should write a longer secret key with a correspondingly longer length', () => {
+      const frontend = new Frontend({});
+      const secretKey = Buffer.alloc(32, 0xab);
+      const buf = frontend.getCancelRequestMessage(1, secretKey);
+      expect(buf.readUInt32BE(0)).toStrictEqual(12 + secretKey.length);
+      expect(buf.subarray(12)).toStrictEqual(secretKey);
     });
   });
 });
