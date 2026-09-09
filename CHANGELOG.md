@@ -1,6 +1,17 @@
 ## Changelog
 
-### [v3.0.4](https://github.com/panates/postgrejs/compare/v3.0.3...v3.0.4) - 
+### [v3.1.0](https://github.com/panates/postgrejs/compare/v3.0.4...v3.1.0) - 
+
+#### 🚀 New Features
+
+- feat: implement the legacy Function Call sub-protocol ('F'/'V') @Eray Hanoğlu 
+- feat: support protocol 3.2's longer cancellation key (PostgreSQL 18+) @Eray Hanoğlu 
+
+#### 🪲 Fixes
+
+- fix: correctly parse NegotiateProtocolVersion and expose it on Connection @Eray Hanoğlu 
+
+### [v3.0.4](https://github.com/panates/postgrejs/compare/v3.0.3...v3.0.4) -  9 September 2026 
 
 ### [v3.0.3](https://github.com/panates/postgrejs/compare/v3.0.2...v3.0.3) -  8 September 2026 
 
