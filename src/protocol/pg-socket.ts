@@ -42,7 +42,7 @@ export class PgSocket extends SafeEventEmitter {
   private _sessionParameters: Record<string, string> = {};
   private _saslSession?: SASL.Session;
   private _processID?: number;
-  private _secretKey?: number;
+  private _secretKey?: Buffer;
   private _protocolNegotiation?: Protocol.NegotiateProtocolVersionMessage;
   private _captureQueue = new DoublyLinked<CaptureEntry>();
   private _pendingWrites: { data: Buffer; cb?: Callback }[] = [];
@@ -68,7 +68,7 @@ export class PgSocket extends SafeEventEmitter {
     return this._processID;
   }
 
-  get secretKey(): Maybe<number> {
+  get secretKey(): Maybe<Buffer> {
     return this._secretKey;
   }
 
@@ -580,14 +580,19 @@ export class PgSocket extends SafeEventEmitter {
     socket.on('error', (err: SocketError) => this._handleError(err));
     socket.on('close', () => this._handleClose());
     this._send(
-      this._frontend.getStartupMessage({
-        user: this.options.user || 'postgres',
-        database: this.options.database || '',
-        application_name: this.options.applicationName || '',
-        ...(this.options.replication
-          ? { replication: this.options.replication }
-          : undefined),
-      }),
+      this._frontend.getStartupMessage(
+        {
+          user: this.options.user || 'postgres',
+          database: this.options.database || '',
+          application_name: this.options.applicationName || '',
+          ...(this.options.replication
+            ? { replication: this.options.replication }
+            : undefined),
+        },
+        this.options.longCancelKey
+          ? Protocol.VERSION_MINOR_LONG_CANCEL_KEY
+          : undefined,
+      ),
     );
   }
 

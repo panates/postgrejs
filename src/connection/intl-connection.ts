@@ -93,7 +93,7 @@ export class IntlConnection extends SafeEventEmitter {
     return this.socket.processID;
   }
 
-  get secretKey(): Maybe<number> {
+  get secretKey(): Maybe<Buffer> {
     return this.socket.secretKey;
   }
 

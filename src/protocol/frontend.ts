@@ -121,12 +121,15 @@ export class Frontend {
       .flush();
   }
 
-  getStartupMessage(args: Frontend.StartupMessageArgs): Buffer {
+  getStartupMessage(
+    args: Frontend.StartupMessageArgs,
+    minorVersion: number = Protocol.VERSION_MINOR,
+  ): Buffer {
     const io = this._io
       .start()
       .writeInt32BE(0) // Preserve length
       .writeInt16BE(Protocol.VERSION_MAJOR)
-      .writeInt16BE(Protocol.VERSION_MINOR);
+      .writeInt16BE(minorVersion);
     const entries = Object.entries(args);
     const l = entries.length;
     let k: string;
@@ -148,14 +151,14 @@ export class Frontend {
    * is not reading its own socket, which is the whole reason this cannot go
    * down the normal one.
    */
-  getCancelRequestMessage(processID: number, secretKey: number): Buffer {
+  getCancelRequestMessage(processID: number, secretKey: Buffer): Buffer {
     return this._io
       .start()
-      .writeUInt32BE(16) // Length of message contents in bytes, including self.
+      .writeUInt32BE(12 + secretKey.length) // Length of message contents in bytes, including self.
       .writeUInt16BE(1234)
       .writeUInt16BE(5678)
       .writeUInt32BE(processID)
-      .writeUInt32BE(secretKey)
+      .writeBuffer(secretKey)
       .flush();
   }
 

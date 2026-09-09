@@ -100,7 +100,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   /**
    * Returns the secret key of the current session
    */
-  get secretKey(): Maybe<number> {
+  get secretKey(): Maybe<Buffer> {
     return this._intlCon.secretKey;
   }
 

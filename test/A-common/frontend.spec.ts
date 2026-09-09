@@ -391,4 +391,43 @@ describe('Frontend', () => {
       expect(io.readCString()).toStrictEqual('');
     });
   });
+
+  describe('getStartupMessage()', () => {
+    // No leading message code byte at all, unlike every other message
+    // here - StartupMessage/CancelRequest/SSLRequest are identified by
+    // their own magic number instead, so there is no 5-byte header for
+    // reader() to skip.
+    it('should default to protocol 3.0 when no minor version is given', () => {
+      const frontend = new Frontend({});
+      const buf = frontend.getStartupMessage({ user: 'u', database: 'd' });
+      expect(buf.readInt16BE(4)).toStrictEqual(3); // major
+      expect(buf.readInt16BE(6)).toStrictEqual(0); // minor
+    });
+
+    it('should write the given minor version', () => {
+      const frontend = new Frontend({});
+      const buf = frontend.getStartupMessage({ user: 'u', database: 'd' }, 2);
+      expect(buf.readInt16BE(6)).toStrictEqual(2);
+    });
+  });
+
+  describe('getCancelRequestMessage()', () => {
+    it('should write a 4-byte legacy secret key unchanged', () => {
+      const frontend = new Frontend({});
+      const secretKey = Buffer.from([0x01, 0x02, 0x03, 0x04]);
+      const buf = frontend.getCancelRequestMessage(99, secretKey);
+      expect(buf.readUInt32BE(0)).toStrictEqual(16); // length, incl. self
+      expect(buf.readUInt32BE(4)).toStrictEqual(80877102); // cancel code
+      expect(buf.readUInt32BE(8)).toStrictEqual(99); // processID
+      expect(buf.subarray(12)).toStrictEqual(secretKey);
+    });
+
+    it('should write a longer secret key with a correspondingly longer length', () => {
+      const frontend = new Frontend({});
+      const secretKey = Buffer.alloc(32, 0xab);
+      const buf = frontend.getCancelRequestMessage(1, secretKey);
+      expect(buf.readUInt32BE(0)).toStrictEqual(12 + secretKey.length);
+      expect(buf.subarray(12)).toStrictEqual(secretKey);
+    });
+  });
 });

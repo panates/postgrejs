@@ -59,6 +59,18 @@ export interface DatabaseConnectionParams {
    * usual case with `sslmode=require` or a self-signed certificate.
    */
   channelBinding?: 'prefer' | 'require' | 'disable';
+  /**
+   * Requests protocol 3.2 (PostgreSQL 18+) instead of 3.0, so a
+   * `cancel()` in progress on this connection can't be forged by an
+   * attacker guessing a 4-byte secret key - 3.2 lets the server hand out
+   * one up to 256 bytes instead. Off by default: an older server simply
+   * reports back that it doesn't support 3.2 (see
+   * `Connection.protocolNegotiation`) and the session proceeds at 3.0
+   * exactly as if this had never been set, so turning it on is never a
+   * connection-breaking choice - just not something every server rewards
+   * yet.
+   */
+  longCancelKey?: boolean;
   requireSSL?: boolean;
   ssl?: TlsConnectionOptions;
   timezone?: string;

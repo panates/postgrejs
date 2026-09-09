@@ -109,6 +109,33 @@ describe('Backend (wire message parsing)', () => {
     });
   });
 
+  describe('BackendKeyData', () => {
+    it('should read a legacy 4-byte secret key (protocol 3.0)', () => {
+      const body = Buffer.alloc(8);
+      body.writeUInt32BE(1234, 0); // processID
+      body.write('\xd5\xd4\xb4\x4f', 4, 'binary'); // secretKey, 4 bytes
+      const { msg } = parseOne(
+        message(Protocol.BackendMessageCode.BackendKeyData, body),
+      );
+      expect(msg.processID).toStrictEqual(1234);
+      expect(Buffer.isBuffer(msg.secretKey)).toBe(true);
+      expect(msg.secretKey).toStrictEqual(
+        Buffer.from([0xd5, 0xd4, 0xb4, 0x4f]),
+      );
+    });
+
+    it('should read a longer secret key (protocol 3.2) as whatever bytes remain', () => {
+      const key = Buffer.from(Array.from({ length: 32 }, (_, i) => i));
+      const body = Buffer.alloc(4 + key.length);
+      body.writeUInt32BE(1, 0);
+      key.copy(body, 4);
+      const { msg } = parseOne(
+        message(Protocol.BackendMessageCode.BackendKeyData, body),
+      );
+      expect(msg.secretKey).toStrictEqual(key);
+    });
+  });
+
   describe('FunctionCallResponse', () => {
     it('should read the result value behind its own length prefix', () => {
       const value = Buffer.from([0xde, 0xad, 0xbe, 0xef]);

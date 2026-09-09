@@ -197,10 +197,13 @@ function parseAuthentication(
 }
 
 function parseBackendKeyData(io: BufferReader): Protocol.BackendKeyDataMessage {
-  return {
-    processID: io.readUInt32BE(),
-    secretKey: io.readUInt32BE(),
-  } as Protocol.BackendKeyDataMessage;
+  const processID = io.readUInt32BE();
+  // No length prefix of its own: this BufferReader is scoped to exactly
+  // this message's body (see Backend.parse()), so the secret key is
+  // simply whatever bytes remain - 4 of them before protocol 3.2, up to
+  // 256 with it (see VERSION_MINOR_LONG_CANCEL_KEY).
+  const secretKey = io.readBuffer();
+  return { processID, secretKey };
 }
 
 function parseCommandComplete(

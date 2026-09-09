@@ -70,7 +70,10 @@ describe('Connection', () => {
   it('should get secret key', async () => {
     connection = new Connection();
     await connection.connect();
-    expect(connection.secretKey).toBeGreaterThan(0);
+    // 4 bytes by default (protocol 3.0) - see 17-long-cancel-key.spec.ts
+    // for the longer key protocol 3.2 (longCancelKey: true) hands back.
+    expect(Buffer.isBuffer(connection.secretKey)).toBe(true);
+    expect(connection.secretKey?.length).toStrictEqual(4);
   });
 
   it('should set application_name', async () => {
