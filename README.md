@@ -1,7 +1,7 @@
 <!--suppress HtmlDeprecatedAttribute -->
 <p align="center">
-  <a href="https://postgrejs.panates.com/" target="_blank" rel="noopener noreferrer">
-    <img src="https://postgrejs.panates.com/img/postgrejs-header-block.webp" width="800" height="446" alt="PostgreJS Logo" />
+  <a href="https://www.postgrejs.com/" target="_blank" rel="noopener noreferrer">
+    <img src="https://www.postgrejs.com/img/postgrejs-header-block.webp" width="800" height="446" alt="PostgreJS Logo" />
   </a>
 </p>
 
@@ -53,7 +53,7 @@ $ npm install postgrejs --save
 
 ## Documentation
 
-Please read :small_orange_diamond: [DOCUMENTATION](https://postgrejs.panates.com/) :small_orange_diamond: for detailed
+Please read :small_orange_diamond: [DOCUMENTATION](https://www.postgrejs.com/) :small_orange_diamond: for detailed
 usage.
 
 ## Library Overview
