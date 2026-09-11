@@ -1,6 +1,12 @@
 ## Changelog
 
-### [v3.1.2](https://github.com/panates/postgrejs/compare/v3.1.1...v3.1.2) - 
+### [v3.1.3](https://github.com/panates/postgrejs/compare/v3.1.2...v3.1.3) - 
+
+#### 🪲 Fixes
+
+- fix: reset transaction depth after prepareTransaction() @Eray Hanoğlu 
+
+### [v3.1.2](https://github.com/panates/postgrejs/compare/v3.1.1...v3.1.2) -  11 September 2026 
 
 #### 💬 General Changes
 
