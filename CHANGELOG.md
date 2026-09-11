@@ -1,6 +1,12 @@
 ## Changelog
 
-### [v3.1.1](https://github.com/panates/postgrejs/compare/v3.1.0...v3.1.1) - 
+### [v3.1.2](https://github.com/panates/postgrejs/compare/v3.1.1...v3.1.2) - 
+
+#### 💬 General Changes
+
+- update: adjust README logo image width for consistency @Eray Hanoğlu 
+
+### [v3.1.1](https://github.com/panates/postgrejs/compare/v3.1.0...v3.1.1) -  10 September 2026 
 
 #### 🪲 Fixes
 
