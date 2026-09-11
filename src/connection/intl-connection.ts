@@ -343,9 +343,17 @@ export class IntlConnection extends SafeEventEmitter {
    *
    * Requires `max_prepared_transactions` above zero on the server, which is
    * not the default; the server's own error says so if it is not.
+   *
+   * Resets `_transactionDepth` like commit()/rollback() do: PREPARE
+   * TRANSACTION ends the session's transaction on the wire regardless of
+   * how many nested startTransaction() calls led up to it, so a stale,
+   * nonzero depth left behind here would make a later, unrelated commit()
+   * on this same connection treat itself as still nested and silently skip
+   * sending COMMIT.
    */
   async prepareTransaction(name: string): Promise<void> {
     await this._execute('PREPARE TRANSACTION ' + escapeLiteral(name));
+    this._transactionDepth = 0;
   }
 
   /** Commits a transaction left waiting by prepareTransaction(). */

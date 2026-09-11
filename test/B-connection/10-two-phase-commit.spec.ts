@@ -81,4 +81,27 @@ describe('Two-phase commit', () => {
     await connection.prepareTransaction(name);
     await connection.rollbackPrepared(name);
   });
+
+  it('should not leave a later commit() on the same connection stuck nested', async function () {
+    if (!enabled) return this.skip();
+    // prepareTransaction() must reset _transactionDepth like commit()/
+    // rollback() do - otherwise a startTransaction() that follows it thinks
+    // it is nested one level deeper than it really is, and the matching
+    // commit() just unwinds that phantom level instead of sending COMMIT.
+    await connection.execute('truncate table tpc_test');
+    await connection.startTransaction();
+    await connection.execute('insert into tpc_test values (4)');
+    await connection.prepareTransaction('tpc_depth');
+    await connection.rollbackPrepared('tpc_depth');
+
+    await connection.startTransaction();
+    await connection.execute('insert into tpc_test values (5)');
+    await connection.commit();
+    expect(connection.inTransaction).toStrictEqual(false);
+
+    const r = await connection.query(
+      'select count(*)::int4 as c from tpc_test',
+    );
+    expect(r.rows?.[0][0]).toStrictEqual(1);
+  });
 });
