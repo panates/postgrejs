@@ -1,7 +1,7 @@
 {
   "name": "postgrejs",
   "description": "Professional PostgreSQL client NodeJS",
-  "version": "3.1.0",
+  "version": "3.1.2",
   "author": "Panates",
   "license": "BSD-3-Clause",
   "private": true,
@@ -79,7 +79,7 @@
   "engines": {
     "node": ">=20.0"
   },
-  "homepage": "https://postgrejs.panates.com/",
+  "homepage": "https://www.postgrejs.com/",
   "contributors": [
     "Eray Hanoglu <e.hanoglu@panates.com>"
   ],

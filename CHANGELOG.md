@@ -1,6 +1,27 @@
 ## Changelog
 
-### [v3.1.0](https://github.com/panates/postgrejs/compare/v3.0.4...v3.1.0) - 
+### [v3.1.2](https://github.com/panates/postgrejs/compare/v3.1.1...v3.1.2) - 
+
+#### 💬 General Changes
+
+- update: adjust README logo image width for consistency @Eray Hanoğlu 
+
+### [v3.1.1](https://github.com/panates/postgrejs/compare/v3.1.0...v3.1.1) -  10 September 2026 
+
+#### 🪲 Fixes
+
+- fix: skip long-cancel-key length assertion below PostgreSQL 18 @Eray Hanoğlu 
+- fix: drop the runner's Chrome apt source before installing PostgreSQL in CI @Eray Hanoğlu 
+
+#### 📖 Documentation Changes
+
+- docs: update README for protocol 3.2 support and feature comparison @Eray Hanoğlu 
+
+#### 💬 General Changes
+
+- update: change homepage URLs to use the new domain @Eray Hanoğlu 
+
+### [v3.1.0](https://github.com/panates/postgrejs/compare/v3.0.4...v3.1.0) -  9 September 2026 
 
 #### 🚀 New Features
 
