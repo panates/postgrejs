@@ -1,7 +1,7 @@
 <!--suppress HtmlDeprecatedAttribute -->
 <p align="center">
   <a href="https://www.postgrejs.com/" target="_blank" rel="noopener noreferrer">
-    <img src="https://www.postgrejs.com/img/postgrejs-header-block.webp" width="800" height="446" alt="PostgreJS Logo" />
+    <img src="https://www.postgrejs.com/img/postgrejs-header-block.webp" width="1280" alt="PostgreJS Logo" />
   </a>
 </p>
 
