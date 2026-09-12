@@ -20,10 +20,10 @@ export function encodeBinaryArray(
   itemOid = itemOid || DataTypeOIDs.varchar;
   const dim = encodeCalculateDimFn(value);
   const ndims = dim.length;
-  const zeroOffset = io.offset;
-  io.writeInt32BE(ndims) // Number of dimensions
-    .writeInt32BE(0) // reserved for has-null flag
-    .writeInt32BE(itemOid);
+  const zeroOffset = io.position;
+  io.writeInt32BE(ndims); // Number of dimensions
+  io.writeInt32BE(0); // reserved for has-null flag
+  io.writeInt32BE(itemOid);
 
   let d: number;
   for (d = 0; d < ndims; d++) {
@@ -50,10 +50,10 @@ export function encodeBinaryArray(
         continue;
       }
       io.writeInt32BE(0); // reserved for data len
-      pos = io.offset;
+      pos = io.position;
       encode(io, arr[i], options);
       // Update item data size
-      io.buffer.writeInt32BE(io.length - pos, pos - 4);
+      io.buffer.writeInt32BE(io.size - pos, pos - 4);
     }
   };
   writeDim(value, 0);

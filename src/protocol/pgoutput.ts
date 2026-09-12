@@ -153,7 +153,7 @@ export class PgOutputDecoder {
         const lsn = readLsn(io);
         const prefix = io.readCString();
         const length = io.readUInt32BE();
-        return { kind: 'message', prefix, lsn, content: io.readBuffer(length) };
+        return { kind: 'message', prefix, lsn, content: io.readBytes(length) };
       }
       default:
         return { kind: 'unknown', code };
@@ -183,7 +183,7 @@ export class PgOutputDecoder {
         continue;
       } else {
         const length = io.readUInt32BE();
-        out[column.name] = io.readBuffer(length).toString('utf8');
+        out[column.name] = io.readBytes(length).toString('utf8');
       }
     }
     return out;

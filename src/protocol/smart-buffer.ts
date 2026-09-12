@@ -1,205 +1,41 @@
+import { FlexyBuffer } from 'flexy-buffer';
 import * as os from 'os';
-import { writeBigUInt64BE } from '../util/bigint-methods.js';
-import { BufferReader } from './buffer-reader.js';
 
 export interface SmartBufferConfig {
   pageSize?: number;
   maxLength?: number;
-  houseKeepInterval?: number;
+  houseKeepMs?: number;
 }
 
-export class SmartBuffer extends BufferReader {
+/**
+ * Adds the PostgreSQL wire format's two string encodings on top of
+ * flexy-buffer's `FlexyBuffer`: a NUL-terminated C string, and a
+ * length-prefixed string where a `null`/`undefined` value is written as a
+ * length of -1 with no bytes following.
+ */
+export class SmartBuffer extends FlexyBuffer {
   static DEFAULT_PAGE_SIZE = 512;
   static DEFAULT_MAX_SIZE = Math.min(
     Math.floor(os.totalmem() / 2),
     1024 * 1024 * 1024 * 2, // 2 GB
   );
 
-  private readonly _houseKeepInterval: number;
-  private _houseKeepTimer?: NodeJS.Timeout;
-  private _stMaxPages = 1;
-  private _length = 0;
-  readonly pageSize: number;
-  readonly maxSize: number;
-
   constructor(cfg?: SmartBufferConfig) {
-    super(Buffer.allocUnsafe(cfg?.pageSize || SmartBuffer.DEFAULT_PAGE_SIZE));
-    this._houseKeepInterval = cfg?.houseKeepInterval || 5000;
-    this.pageSize = this.buffer.length;
-    this.maxSize = cfg?.maxLength || SmartBuffer.DEFAULT_MAX_SIZE;
-    this._length = 0;
+    super({
+      pageSize: cfg?.pageSize || SmartBuffer.DEFAULT_PAGE_SIZE,
+      maxLength: cfg?.maxLength || SmartBuffer.DEFAULT_MAX_SIZE,
+      houseKeepMs: cfg?.houseKeepMs,
+    });
   }
 
-  get capacity(): number {
-    return this.buffer.length;
+  writeCString(str: string, encoding?: BufferEncoding): number {
+    const written = this.writeString(str, encoding);
+    return written + this.writeUInt8(0);
   }
 
-  get length(): number {
-    return this._length;
-  }
-
-  start(): this {
-    this.offset = 0;
-    this._length = 0;
-    if (this._houseKeepTimer) {
-      clearTimeout(this._houseKeepTimer);
-      this._houseKeepTimer = undefined;
-    }
-    return this;
-  }
-
-  flush(): Buffer {
-    if (this._houseKeepTimer) clearTimeout(this._houseKeepTimer);
-
-    const length = this.length;
-    this._length = 0;
-    const out = Buffer.from(this.buffer.subarray(0, length));
-
-    const pages = length ? Math.ceil(length / this.pageSize) : 1;
-    this._stMaxPages = Math.max(this._stMaxPages, pages);
-    this._houseKeep();
-    if (this.buffer.length > this.pageSize) {
-      this._houseKeepTimer = setTimeout(() => {
-        this._houseKeepTimer = undefined;
-        this._houseKeep();
-      }, this._houseKeepInterval).unref();
-    }
-
-    return out;
-  }
-
-  growSize(len: number): this {
-    const endOffset = this.offset + len;
-    if (this.capacity < endOffset) {
-      if (endOffset > this.maxSize) throw new Error('Buffer limit exceeded.');
-      const byPage = Math.ceil(endOffset / this.pageSize) * this.pageSize;
-      const newSize = Math.min(
-        Math.max(byPage, this.capacity * 2),
-        this.maxSize,
-      );
-      const newBuffer = Buffer.allocUnsafe(newSize);
-      this.buffer.copy(newBuffer);
-      this.buffer = newBuffer;
-    }
-    this._length = Math.max(this.length, endOffset);
-    return this;
-  }
-
-  writeCString(str: string, encoding?: BufferEncoding): this {
-    const len = str ? Buffer.byteLength(str, encoding) : 0;
-    this.ensureSize(len + 1);
-    if (str) {
-      this.buffer.write(str, this.offset, encoding);
-      this.offset += len;
-    }
-    this.writeUInt8(0);
-    return this;
-  }
-
-  writeLString(str?: string, encoding?: BufferEncoding): this {
-    const len = str ? Buffer.byteLength(str, encoding) : 0;
-    this.ensureSize(len + 4);
-    this.writeInt32BE(str == null ? -1 : len);
-    if (str) {
-      if (encoding)
-        this.offset += this.buffer.write(str, this.offset, encoding);
-      else this.offset += this.buffer.write(str, this.offset);
-    }
-    return this;
-  }
-
-  writeString(str: string, encoding?: BufferEncoding): this {
-    if (str) {
-      const len = Buffer.byteLength(str, encoding);
-      this.ensureSize(len);
-      this.offset += this.buffer.write(str, this.offset, encoding);
-    }
-    return this;
-  }
-
-  writeInt8(n: number): this {
-    this.ensureSize(1);
-    this.buffer.writeInt8(n, this.offset);
-    this.offset++;
-    return this;
-  }
-
-  writeUInt8(n: number): this {
-    this.ensureSize(1);
-    this.buffer.writeUInt8(n, this.offset);
-    this.offset++;
-    return this;
-  }
-
-  writeUInt16BE(n: number): this {
-    this.ensureSize(2);
-    this.buffer.writeUInt16BE(n, this.offset);
-    this.offset += 2;
-    return this;
-  }
-
-  writeUInt32BE(n: number): this {
-    this.ensureSize(4);
-    this.buffer.writeUInt32BE(n, this.offset);
-    this.offset += 4;
-    return this;
-  }
-
-  writeInt16BE(n: number): this {
-    this.ensureSize(2);
-    this.buffer.writeInt16BE(n, this.offset);
-    this.offset += 2;
-    return this;
-  }
-
-  writeInt32BE(n: number): this {
-    this.ensureSize(4);
-    this.buffer.writeInt32BE(n, this.offset);
-    this.offset += 4;
-    return this;
-  }
-
-  writeBigInt64BE(n: bigint | number): this {
-    n = typeof n === 'bigint' ? n : BigInt(n);
-    this.ensureSize(8);
-    if (typeof this.buffer.writeBigInt64BE === 'function')
-      this.buffer.writeBigInt64BE(n, this.offset);
-    else writeBigUInt64BE(this.buffer, n, this.offset);
-    this.offset += 8;
-    return this;
-  }
-
-  writeFloatBE(n: number): this {
-    this.ensureSize(4);
-    this.buffer.writeFloatBE(n, this.offset);
-    this.offset += 4;
-    return this;
-  }
-
-  writeDoubleBE(n: number): this {
-    this.ensureSize(8);
-    this.buffer.writeDoubleBE(n, this.offset);
-    this.offset += 8;
-    return this;
-  }
-
-  writeBuffer(buffer: Buffer): this {
-    this.ensureSize(buffer.length);
-    buffer.copy(this.buffer, this.offset, 0, buffer.length);
-    this.offset += buffer.length;
-    return this;
-  }
-
-  private ensureSize(len: number): this {
-    const n = this.offset + len - this.length;
-    if (n > 0) this.growSize(n);
-    return this;
-  }
-
-  private _houseKeep(): void {
-    const needSize = this._stMaxPages * this.pageSize;
-    if (this.buffer.length > needSize)
-      this.buffer = Buffer.allocUnsafe(needSize);
-    this._stMaxPages = this.length ? Math.ceil(this.length / this.pageSize) : 1;
+  writeLString(str?: string, encoding?: BufferEncoding): number {
+    if (str == null) return this.writeInt32BE(-1);
+    const len = Buffer.byteLength(str, encoding);
+    return this.writeInt32BE(len) + this.writeString(str, encoding);
   }
 }

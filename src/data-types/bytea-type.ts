@@ -14,7 +14,7 @@ export const ByteaType: DataType = {
   },
 
   encodeBinary(buf: SmartBuffer, v: Buffer): void {
-    buf.writeBuffer(v);
+    buf.writeBytes(v);
   },
 
   decodeBinary(v: Buffer, offset: number = 0): Buffer {

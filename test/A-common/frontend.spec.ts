@@ -85,7 +85,7 @@ describe('Frontend', () => {
       io.readInt16BE(); // format code slot
       io.readUInt16BE(); // value count
       const len = io.readInt32BE();
-      const text = io.readBuffer(len).toString('utf8');
+      const text = io.readBytes(len).toString('utf8');
       // stringifyArrayLiteral() quotes every leaf value once an encode
       // function is supplied - see stringify-arrayliteral.spec.ts.
       expect(text).toStrictEqual('{"a","b"}');
@@ -164,7 +164,7 @@ describe('Frontend', () => {
       io.readInt16BE();
       io.readUInt16BE();
       const len = io.readInt32BE();
-      expect(io.readBuffer(len).toString('utf8')).toStrictEqual('Xhi');
+      expect(io.readBytes(len).toString('utf8')).toStrictEqual('Xhi');
     });
 
     it('should bind a raw Buffer as binary when no DataType is registered for its OID', () => {
@@ -185,7 +185,7 @@ describe('Frontend', () => {
       expect(formatCode).toStrictEqual(DataFormat.binary);
       io.readUInt16BE();
       const len = io.readInt32BE();
-      expect(io.readBuffer(len)).toStrictEqual(raw);
+      expect(io.readBytes(len)).toStrictEqual(raw);
     });
 
     it('should stringify anything else with no matching type as plain text', () => {
@@ -204,7 +204,7 @@ describe('Frontend', () => {
       io.readInt16BE();
       io.readUInt16BE();
       const len = io.readInt32BE();
-      expect(io.readBuffer(len).toString('utf8')).toStrictEqual('12345');
+      expect(io.readBytes(len).toString('utf8')).toStrictEqual('12345');
     });
 
     it('should write a per-column format array when columnFormat is an array', () => {
@@ -364,7 +364,7 @@ describe('Frontend', () => {
       expect(io.readInt16BE()).toStrictEqual(DataFormat.binary);
       expect(io.readInt16BE()).toStrictEqual(2); // args.length
       expect(io.readInt32BE()).toStrictEqual(arg0.length);
-      expect(io.readBuffer(arg0.length)).toStrictEqual(arg0);
+      expect(io.readBytes(arg0.length)).toStrictEqual(arg0);
       expect(io.readInt32BE()).toStrictEqual(-1); // null arg
       expect(io.readInt16BE()).toStrictEqual(DataFormat.binary); // result format
     });

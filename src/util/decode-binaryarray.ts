@@ -11,7 +11,7 @@ export function decodeBinaryArray<T = any>(
 ): Nullable<T[]> {
   if (!buf.length) return null;
   const io = new BufferReader(buf);
-  io.offset = offset;
+  io.position = offset;
   const ndims = io.readInt32BE();
   io.readInt32BE(); // hasNulls
   const elementOID = io.readInt32BE(); // element oid
@@ -34,10 +34,10 @@ export function decodeBinaryArray<T = any>(
       len = io.readInt32BE();
       if (len === -1) target[i] = null;
       else if (fixedBinarySize != null) {
-        target[i] = decoder(buf, io.offset, elementOptions);
-        io.offset += len;
+        target[i] = decoder(buf, io.position, elementOptions);
+        io.position += len;
       } else {
-        target[i] = decoder(io.readBuffer(len), 0, elementOptions);
+        target[i] = decoder(io.readBytes(len), 0, elementOptions);
       }
     }
     return target;

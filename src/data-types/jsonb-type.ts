@@ -30,7 +30,7 @@ export const JsonbType: DataType = {
     if (buf.readUInt8() !== 1)
       throw new Error('Unexpected Jsonb version value in header');
     const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.jsonb);
-    const content = buf.readLString(buf.length - buf.offset);
+    const content = buf.readLString(buf.size - buf.position);
     if (fetchAsString) return content;
     return content ? JSON.parse(content) : undefined;
   },

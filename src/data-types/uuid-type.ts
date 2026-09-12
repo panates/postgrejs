@@ -19,7 +19,7 @@ export const UuidType: DataType = {
     if (!GUID_PATTERN.test(v))
       throw new Error(`"${v}" is not a valid guid value`);
     const b = Buffer.from(v.replace(/-/g, ''), 'hex');
-    buf.writeBuffer(b);
+    buf.writeBytes(b);
   },
 
   decodeBinary(v: Buffer, offset: number = 0): string {
