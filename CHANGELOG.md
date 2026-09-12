@@ -1,6 +1,12 @@
 ## Changelog
 
-### [v3.1.3](https://github.com/panates/postgrejs/compare/v3.1.2...v3.1.3) - 
+### [v3.2.0](https://github.com/panates/postgrejs/compare/v3.1.3...v3.2.0) - 
+
+#### 🛠 Refactoring and Updates
+
+- refactor: build SmartBuffer/BufferReader on top of flexy-buffer @Eray Hanoğlu 
+
+### [v3.1.3](https://github.com/panates/postgrejs/compare/v3.1.2...v3.1.3) -  11 September 2026 
 
 #### 🪲 Fixes
 
