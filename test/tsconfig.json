@@ -5,9 +5,10 @@
     "types": ["node", "mocha"],
     "noEmit": true,
     "sourceMap": true,
-    "baseUrl": "..",
+    "baseUrl": ".",
+    "rootDir": "..",
     "paths": {
-      "postgrejs": ["./src/index.js"]
+      "postgrejs": ["../src/index.js"]
     }
   }
 }
