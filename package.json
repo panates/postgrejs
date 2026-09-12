@@ -99,7 +99,16 @@
     "client",
     "backend",
     "rdbms",
-    "sql"
+    "sql",
+    "typescript",
+    "wire-protocol",
+    "no-native-bindings",
+    "cursor",
+    "server-side-cursor",
+    "logical-replication",
+    "copy",
+    "connection-pool",
+    "prepared-statements"
   ],
   "publishConfig": {
     "access": "public"
