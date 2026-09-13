@@ -4,7 +4,8 @@ import type { FieldInfo } from '../interfaces/field-info.js';
 import type { QueryOptions } from '../interfaces/query-options.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { AnyParseFunction, Maybe, Row } from '../types.js';
-import { parseObjectRow, parseRow } from '../util/parse-row.js';
+import type { RowDecoder } from '../util/row-decoder.js';
+import { resolveRowDecoder, resolveRowType } from '../util/row-decoder.js';
 import type { Portal } from './portal.js';
 import type { PreparedStatement } from './prepared-statement.js';
 
@@ -13,6 +14,7 @@ export class Cursor extends SafeEventEmitter implements AsyncDisposable {
   private readonly _portal: Portal;
   private readonly _parsers: AnyParseFunction[];
   private readonly _queryOptions: QueryOptions;
+  private readonly _rowDecoder: RowDecoder;
   private _taskQueue = new TaskQueue({ concurrency: 1 });
   private _rows = new DoublyLinked();
   private _closed = false;
@@ -31,10 +33,11 @@ export class Cursor extends SafeEventEmitter implements AsyncDisposable {
     this._parsers = parsers;
     this._queryOptions = queryOptions;
     this.fields = fields;
+    this._rowDecoder = resolveRowDecoder(queryOptions);
   }
 
-  get rowType(): 'array' | 'object' {
-    return this._queryOptions.objectRows ? 'object' : 'array';
+  get rowType(): 'array' | 'object' | 'custom' {
+    return resolveRowType(this._queryOptions);
   }
 
   get isClosed(): boolean {
@@ -84,22 +87,20 @@ export class Cursor extends SafeEventEmitter implements AsyncDisposable {
         if (r && r.rows && r.rows.length) {
           const rows: any[] = r.rows;
           if (this._parsers) {
-            const objectRows = queryOptions.objectRows;
             const fields = this.fields;
             const parsers = this._parsers;
+            const rowDecoder = this._rowDecoder;
             const rowLen = rows.length;
             let i: number;
             for (i = 0; i < rowLen; i++) {
               const { data, columnCount } = rows[i];
-              rows[i] = objectRows
-                ? parseObjectRow(
-                    parsers,
-                    data,
-                    columnCount,
-                    this._queryOptions,
-                    fields,
-                  )
-                : parseRow(parsers, data, columnCount, this._queryOptions);
+              rows[i] = rowDecoder.decode(
+                parsers,
+                data,
+                columnCount,
+                this._queryOptions,
+                fields,
+              );
             }
           }
           this._rows.push(...rows);

@@ -9,6 +9,7 @@ import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { AnyParseFunction, Maybe, OID } from '../types.js';
 import { withAbortSignal } from '../util/abort-signal.js';
 import { getParsers } from '../util/get-parsers.js';
+import { resolveRowType } from '../util/row-decoder.js';
 import { wrapRowDescription } from '../util/wrap-row-description.js';
 import type { Connection } from './connection.js';
 import { Cursor } from './cursor.js';
@@ -173,7 +174,7 @@ export class PreparedStatement
         const result: QueryResult = {
           command: undefined,
           fields: resultFields,
-          rowType: options.objectRows ? 'object' : 'array',
+          rowType: resolveRowType(options),
           cursor: new Cursor(this, portal, resultFields, parsers, options),
         };
         this._refCount++;

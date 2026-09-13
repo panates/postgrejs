@@ -27,6 +27,7 @@ export * from './util/connection-config.js';
 export * from './util/escape-identifier.js';
 export * from './util/escape-literal.js';
 export * from './util/parse-datetime.js';
+export * from './util/row-decoder.js';
 export * from './util/sql-tag.js';
 export * from './util/stringify-arrayliteral.js';
 export * from './util/stringify-for-sql.js';

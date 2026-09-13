@@ -18,7 +18,7 @@ import type { AnyParseFunction, Maybe, OID } from '../types.js';
 import { getConnectionConfig } from '../util/connection-config.js';
 import { escapeLiteral } from '../util/escape-literal.js';
 import { getParsers } from '../util/get-parsers.js';
-import { parseObjectRow, parseRow } from '../util/parse-row.js';
+import { resolveRowDecoder, resolveRowType } from '../util/row-decoder.js';
 import { wrapRowDescription } from '../util/wrap-row-description.js';
 import type { Connection } from './connection.js';
 import { CopyFromStream, CopyToStream } from './copy-stream.js';
@@ -461,6 +461,7 @@ export class IntlConnection extends SafeEventEmitter {
       let fields: Protocol.RowDescription[];
       let error: Error | undefined;
       const typeMap = options.typeMap || GlobalTypeMap;
+      const rowDecoder = resolveRowDecoder(options);
       this.runningQueryCount++;
       return await this.socket.sendQueryMessage(
         sql,
@@ -503,16 +504,13 @@ export class IntlConnection extends SafeEventEmitter {
               break;
             case Protocol.BackendMessageCode.DataRow:
               {
-                const row: any =
-                  options.objectRows && current.fields
-                    ? parseObjectRow(
-                        parsers!,
-                        msg.data,
-                        msg.columnCount,
-                        options,
-                        current.fields,
-                      )
-                    : parseRow(parsers!, msg.data, msg.columnCount, options);
+                const row: any = rowDecoder.decode(
+                  parsers!,
+                  msg.data,
+                  msg.columnCount,
+                  options,
+                  current.fields!,
+                );
                 if (cb) cb('row', row);
                 current.rows = current.rows || [];
                 current.rows.push(row);
@@ -530,9 +528,7 @@ export class IntlConnection extends SafeEventEmitter {
               }
               if (timingEnabled)
                 current.executeTime = performance.now() - currentStart;
-              if (current.rows)
-                current.rowType =
-                  options.objectRows && current.fields ? 'object' : 'array';
+              if (current.rows) current.rowType = resolveRowType(options);
               result.results.push(current);
               if (cb) cb('command-complete', current);
               current = { command: undefined };
@@ -586,6 +582,7 @@ export class IntlConnection extends SafeEventEmitter {
       let resultFields: FieldInfo[] | undefined;
       let commandTag: Protocol.CommandCompleteMessage | undefined;
       let error: Error | undefined;
+      const rowDecoder = resolveRowDecoder(options);
 
       this.runningQueryCount++;
       await this.socket
@@ -616,7 +613,7 @@ export class IntlConnection extends SafeEventEmitter {
                   options.columnFormat || DEFAULT_COLUMN_FORMAT,
                 );
                 result.fields = resultFields;
-                result.rowType = options.objectRows ? 'object' : 'array';
+                result.rowType = resolveRowType(options);
                 break;
               case Protocol.BackendMessageCode.DataRow:
                 rows.push(msg);
@@ -651,15 +648,13 @@ export class IntlConnection extends SafeEventEmitter {
         const l = rows.length;
         let i: number;
         for (i = 0; i < l; i++) {
-          rows[i] = options.objectRows
-            ? parseObjectRow(
-                parsers,
-                rows[i].data,
-                rows[i].columnCount,
-                options,
-                resultFields,
-              )
-            : parseRow(parsers, rows[i].data, rows[i].columnCount, options);
+          rows[i] = rowDecoder.decode(
+            parsers,
+            rows[i].data,
+            rows[i].columnCount,
+            options,
+            resultFields,
+          );
         }
       }
       if (
@@ -770,6 +765,7 @@ export class IntlConnection extends SafeEventEmitter {
       let resultFields: FieldInfo[] | undefined;
       let commandTag: Protocol.CommandCompleteMessage | undefined;
       let error: Error | undefined;
+      const rowDecoder = resolveRowDecoder(options);
 
       if (cachedFields) {
         const columnFormat =
@@ -801,7 +797,7 @@ export class IntlConnection extends SafeEventEmitter {
           });
         }
         result.fields = resultFields;
-        result.rowType = options.objectRows ? 'object' : 'array';
+        result.rowType = resolveRowType(options);
       }
 
       this.runningQueryCount++;
@@ -860,15 +856,13 @@ export class IntlConnection extends SafeEventEmitter {
         const l = rows.length;
         let i: number;
         for (i = 0; i < l; i++) {
-          rows[i] = options.objectRows
-            ? parseObjectRow(
-                parsers,
-                rows[i].data,
-                rows[i].columnCount,
-                options,
-                resultFields,
-              )
-            : parseRow(parsers, rows[i].data, rows[i].columnCount, options);
+          rows[i] = rowDecoder.decode(
+            parsers,
+            rows[i].data,
+            rows[i].columnCount,
+            options,
+            resultFields,
+          );
         }
       }
       if (

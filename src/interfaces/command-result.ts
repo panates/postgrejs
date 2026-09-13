@@ -15,9 +15,10 @@ export interface CommandResult {
    */
   rows?: Row[];
   /**
-   * Contains row type
+   * Contains row type - `'custom'` when a custom `RowDecoder` instance was
+   * supplied via `rowDecoder` (there's no way to know what shape it returns)
    */
-  rowType?: 'array' | 'object';
+  rowType?: 'array' | 'object' | 'custom';
   /**
    * Time elapsed to execute command - only measured when `timing` is
    * enabled (off by default; see `DatabaseConnectionParams.timing`).
