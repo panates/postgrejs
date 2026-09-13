@@ -9,6 +9,14 @@ import { parseObjectRow, parseRow } from './parse-row.js';
  * `columnCount`/`parsers` are exactly what `parseRow`/`parseObjectRow` take -
  * a subclass is free to defer decoding individual columns (e.g. lazily, on
  * first access) instead of eagerly decoding the whole row up front.
+ *
+ * Contract: `data` is never written to or reused by PostgreJS once `decode()`
+ * is called with it - it's safe to retain a reference to it (or a
+ * `Buffer.subarray()` of it) for as long as you want, e.g. to defer decoding
+ * a column until it's actually read. The only cost of doing so is memory:
+ * `data` is itself a zero-copy view into the socket's own read buffer (up to
+ * ~64KB), so holding onto even one row's `data` keeps that whole chunk (and
+ * every other row's bytes in it) alive until released.
  */
 export abstract class RowDecoder {
   abstract decode(
