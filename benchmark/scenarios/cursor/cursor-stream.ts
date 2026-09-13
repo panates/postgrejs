@@ -14,9 +14,16 @@ export function cursorStreamSql(schema: string, rowTarget: number): string {
 export const CURSOR_STREAM_SCENARIO: ScenarioMeta = {
   name: 'cursor-stream',
   title: 'Cursor Streaming',
-  description: `Stream ${CURSOR_STREAM_ROW_TARGET} rows via a server-side cursor in batches of ${CURSOR_STREAM_BATCH_SIZE}. 
-Excludes int8: pg/postgres.js/PostgreJS return it as genuinely different JS types by default (string/BigInt/number-or-BigInt), 
-so timing it would measure type-conversion choice, not streaming throughput`,
+  description: `Stream ${CURSOR_STREAM_ROW_TARGET} rows via a server-side cursor in batches of ${CURSOR_STREAM_BATCH_SIZE}.
+Excludes int8: pg/postgres.js/PostgreJS return it as genuinely different JS types by default (string/BigInt/number-or-BigInt),
+so timing it would measure type-conversion choice, not streaming throughput.
+
+Bun's SQL client has no cursor/streaming API at all - no \`.cursor()\`, no
+\`.forEach()\`, no \`Symbol.asyncIterator\` on a query (verified against its
+own type declarations and empirically). It isn't benchmarked here.`,
+  unsupportedLibs: {
+    bun: 'Not Supported',
+  },
   bench: {
     time: 800,
     iterations: 5,

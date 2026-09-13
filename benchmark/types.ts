@@ -1,4 +1,4 @@
-export type LibId = 'postgrejs' | 'pg' | 'postgres';
+export type LibId = 'postgrejs' | 'pg' | 'postgres' | 'bun';
 
 export type ScenarioName =
   | 'connect'
@@ -95,6 +95,15 @@ export interface BenchResultStats {
   wireRxBytes?: number;
 }
 
+/** Which JS runtime actually executed this result's worker process - see
+ * runner/orchestrator.ts's RESULTS_DIR (results are stored under a
+ * runtime-named subdirectory) and report/render-markdown.ts (a separate
+ * report is generated per runtime, never merged - mixing pg/postgres/
+ * postgrejs-under-Node numbers with Bun.sql-under-Bun numbers in one
+ * table would silently conflate a library difference with a runtime
+ * difference). */
+export type BenchRuntime = 'node' | 'bun';
+
 export interface BenchResult {
   lib: LibId;
   libraryVersion: string;
@@ -103,7 +112,8 @@ export interface BenchResult {
   stats: BenchResultStats;
   params: Record<string, unknown>;
   timestamp: string;
-  node: {
+  runtime: {
+    name: BenchRuntime;
     version: string;
     platform: string;
     arch: string;

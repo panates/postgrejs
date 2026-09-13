@@ -26,6 +26,7 @@
     "@types/node": "^22.20.2",
     "@types/pg": "^8.23.1",
     "auto-changelog": "^2.6.0",
+    "bun-types": "^1.4.2",
     "c8": "^12.0.0",
     "dotenv": "^17.4.2",
     "dpdm": "^4.2.0",
@@ -55,6 +56,7 @@
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --max-warnings=0 --fix",
     "bench": "node --import ./benchmark/env.mjs --import @swc-node/register/esm-register benchmark/cli.ts",
+    "bench:bun": "bun run --import ./benchmark/env.mjs benchmark/cli.ts",
     "bench:report": "node --import ./benchmark/env.mjs --import @swc-node/register/esm-register benchmark/report/render-markdown.ts",
     "format": "prettier . --write --log-level=warn",
     "precover": "rimraf coverage",
@@ -108,7 +110,9 @@
     "logical-replication",
     "copy",
     "connection-pool",
-    "prepared-statements"
+    "prepared-statements",
+    "bun",
+    "bunjs"
   ],
   "publishConfig": {
     "access": "public"

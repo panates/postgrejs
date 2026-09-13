@@ -3,7 +3,7 @@
   "include": ["./**/*.ts"],
   "compilerOptions": {
     "composite": true,
-    "types": ["node"],
+    "types": ["node", "bun-types"],
     "noEmit": true,
     "sourceMap": true,
     "rootDir": ".",

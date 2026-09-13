@@ -244,6 +244,13 @@ async function main(): Promise<void> {
       params.rowTarget = SIMPLE_QUERY_FETCH_ROW_TARGET;
       break;
     case 'cursor-stream':
+      // The orchestrator skips (lib, scenario) pairs listed in this
+      // scenario's unsupportedLibs before ever spawning a worker for them,
+      // so this should only run for libs that implement the method - this
+      // check is defense-in-depth for a manual/direct worker invocation.
+      if (!adapter.scenarios.cursorStream) {
+        throw new Error(`${lib} does not implement cursor-stream`);
+      }
       adapter.scenarios.cursorStream(
         handle,
         bench,
@@ -292,6 +299,23 @@ async function main(): Promise<void> {
   }
 
   const gcStats = await withGcStats(() => bench.run());
+  // Bun's native SQL client doesn't go through node:net's Socket (its own
+  // wire I/O is implemented natively, not via the net.Socket.prototype.push
+  // patch above), so rxBytes never moves for it - report "no data" rather
+  // than a misleading 0 bytes received.
+  if (lib === 'bun') gcStats.wireRxBytes = undefined;
+  // PerformanceObserver({entryTypes: ['gc']}) silently never fires under
+  // Bun - confirmed live: forcing heavy allocation + global.gc() (which
+  // itself doesn't throw) produces zero observed 'gc' entries under bun,
+  // vs. dozens under the identical script run with node. That makes
+  // gcCount/gcDurationMs always read 0 for *every* lib once this whole
+  // worker process is running under bun (not just the `bun` adapter - this
+  // is a runtime limitation, not a per-library one), which would silently
+  // misreport "no GC happened" rather than "couldn't observe it".
+  if (process.versions.bun) {
+    gcStats.gcCount = undefined;
+    gcStats.gcDurationMs = undefined;
+  }
 
   if (needsHandle) await adapter.teardown(handle);
 
@@ -322,8 +346,13 @@ async function main(): Promise<void> {
     },
     params,
     timestamp: new Date().toISOString(),
-    node: {
-      version: process.version,
+    runtime: {
+      // process.version under Bun reports the Node compat version it
+      // mimics (e.g. "v24.3.0"), not Bun's own version - process.versions.bun
+      // is Bun's actual version string, and doing it this way also makes
+      // the field genuinely undefined (not just falsy) under plain Node.
+      name: process.versions.bun ? 'bun' : 'node',
+      version: process.versions.bun ?? process.version,
       platform: process.platform,
       arch: process.arch,
     },
@@ -340,6 +369,10 @@ async function main(): Promise<void> {
     gcStats.peakHeapGrowthBytes != null
       ? `${(gcStats.peakHeapGrowthBytes / 1024).toFixed(1)}KB`
       : 'n/a';
+  const gcText =
+    gcStats.gcCount != null
+      ? `${gcStats.gcCount}/${gcStats.gcDurationMs?.toFixed(1)}ms`
+      : 'n/a';
   console.log(
     `[${lib}/${scenarioName} run ${run}] ` +
       `mean=${result.latency.mean.toFixed(3)}ms ` +
@@ -347,7 +380,7 @@ async function main(): Promise<void> {
       `p99=${result.latency.p99.toFixed(3)}ms ` +
       `ops/sec=${result.throughput.mean.toFixed(1)} ` +
       `samples=${result.latency.samplesCount} ` +
-      `gc=${gcStats.gcCount}/${gcStats.gcDurationMs?.toFixed(1)}ms ` +
+      `gc=${gcText} ` +
       `peakHeap=${peakHeapText}`,
   );
 

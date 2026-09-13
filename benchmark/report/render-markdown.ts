@@ -4,13 +4,14 @@ import * as path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { Connection } from 'postgrejs';
-import {
-  readInstalledVersion,
-  readOwnPackageVersion,
-} from '../adapters/pkg-version.js';
 import { getBenchDbConfig } from '../config.js';
 import { SCENARIO_NAMES, SCENARIOS } from '../scenarios/index.js';
-import type { LibId, ScenarioName } from '../types.js';
+import type {
+  BenchResult,
+  BenchRuntime,
+  LibId,
+  ScenarioName,
+} from '../types.js';
 import {
   groupByScenario,
   readResults,
@@ -21,13 +22,12 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BENCHMARK_DIR = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(BENCHMARK_DIR, '..');
-const RESULTS_DIR = path.join(BENCHMARK_DIR, 'results');
-const OUTPUT_PATH = path.join(REPO_ROOT, 'doc', 'BENCHMARKS.md');
 
 const LIB_LABELS: Record<string, string> = {
   postgrejs: 'PostgreJS',
   pg: 'pg (node-postgres)',
   postgres: 'postgres (postgres.js)',
+  bun: 'Bun.sql',
 };
 
 // Short labels for the chart's x-axis only - the full "(node-postgres)"/
@@ -38,13 +38,17 @@ const CHART_LIB_LABELS: Record<string, string> = {
   postgrejs: 'PostgreJS',
   pg: 'pg',
   postgres: 'postgres',
+  bun: 'Bun.sql',
 };
 
 // Fixed chart order (not sorted by speed, unlike the table): PostgreJS's
 // bar is always in the same position across every scenario's chart, so a
 // reader scanning down BENCHMARKS.md can compare it scenario-to-scenario
-// without hunting for it in a ranking that reshuffles per scenario.
-const CHART_LIB_ORDER: LibId[] = ['postgrejs', 'pg', 'postgres'];
+// without hunting for it in a ranking that reshuffles per scenario. `bun`
+// only ever appears in the separate Bun report (see main()) - listed last
+// here so it never displaces the other three's order if it's ever run
+// alongside them.
+const CHART_LIB_ORDER: LibId[] = ['postgrejs', 'pg', 'postgres', 'bun'];
 
 interface ResultGroup {
   title: string;
@@ -222,6 +226,8 @@ Each \`(library, scenario)\` pair runs in its own child process, spawned sequent
 
 Each table also reports **GC (ms/op)** and **Peak Heap (KB)** - allocation pressure, not just wall-clock speed. GC (ms/op) is the total time spent in garbage collection during the run (observed via \`node:perf_hooks\`, every GC pause regardless of cause), divided by the number of timed samples - a proxy for how much garbage a library's own decode/encode path churns through per call, independent of how much of it survives. Peak Heap (KB) is different, and isn't a per-call figure: each worker process is started with \`--expose-gc\`, forces a clean GC immediately before the run to get a baseline \`heapUsed\`, then polls \`heapUsed\` throughout the run and keeps the highest single sample - the most the heap ever grew above that baseline at any point while running the whole scenario, not just what's left over once it's done (a call that allocates a large temporary buffer and frees it before finishing would show a real spike here while still showing near-zero long-term growth). Both include tinybench's own warmup iterations (it doesn't expose a hook at the boundary between warmup and the timed run), and memory measurements are inherently noisier than latency ones - GC timing isn't deterministic and V8's heap growth isn't perfectly linear, so treat these as directional, not to the same precision as the latency columns. (A median-of-samples "typical heap" figure was tried and dropped: for I/O-bound scenarios almost all of the polled samples land during idle network wait rather than the brief allocation burst, so the median collapsed to ~0 even on runs with a real, multi-hundred-KB peak - it doesn't have a reliable per-call interpretation the way Peak Heap does.)
 
+**GC (ms/op) is unavailable under Bun** and shows as \`-\` in that report: \`PerformanceObserver({entryTypes: ['gc']})\` never fires a single \`'gc'\` entry there (confirmed directly - forcing heavy allocation plus an explicit \`global.gc()\`, which itself runs without error, still produces zero observed entries under \`bun\`, versus dozens under the identical script run with \`node\`), so it's reported as missing rather than a misleading 0. Peak Heap (KB) is unaffected - it comes from \`process.memoryUsage().heapUsed\`, which works the same on both runtimes.
+
 Two scenarios - Large Blob Fetch and Large Array Fetch - additionally report **Network (KB/op)**: the bytes the server actually sent, per call, counted at the socket (\`Readable.push()\`, so all three libraries are measured identically rather than through any library's own accounting). It is reported only there because that is where it separates the libraries: PostgreJS reads those columns in the binary protocol while pg and postgres.js read them as text, and the same rows cost very different amounts on the wire in the two formats. A \`bytea\` costs exactly twice as much as text (\`\\x\`-prefixed hex, two characters per byte), while an \`int4[]\` depends entirely on the values - binary spends a fixed 8 bytes per element (4-byte length prefix + 4-byte value) where text spends one byte per digit, so full-width int4s favour binary and values near zero favour text. Everywhere else the payload is small and near-identical across libraries, so the number would be noise rather than information.
 
 ### Disclosed asymmetries
@@ -244,18 +250,27 @@ Some scenarios necessarily exercise each library differently. These are delibera
 function renderEnvironment(
   postgresVersion: string,
   libVersions: Record<string, string>,
+  runtimeInfo: BenchResult['runtime'],
 ): string {
   const cpus = os.cpus();
   const totalMemGb = os.totalmem() / (1024 * 1024 * 1024);
+  const runtimeLabel = runtimeInfo.name === 'bun' ? 'Bun' : 'Node.js';
   const lines = [
     `- Run date: ${new Date().toISOString()}`,
-    `- Node.js: ${process.version}`,
-    `- OS: ${os.type()} ${os.release()} (${process.platform}/${process.arch})`,
+    `- Runtime: ${runtimeLabel} ${runtimeInfo.version}`,
+    // platform/arch come from the worker process that actually produced
+    // these results, not this report-generation process - the two only
+    // ever differ if the report is regenerated on a different machine
+    // than the one the benchmark ran on, but that's exactly the case
+    // worth getting right rather than assuming "same machine".
+    `- OS: ${os.type()} ${os.release()} (${runtimeInfo.platform}/${runtimeInfo.arch})`,
     `- CPU: ${cpus[0]?.model ?? 'unknown'} (${cpus.length} logical cores)`,
     `- RAM: ${totalMemGb.toFixed(1)} GB total`,
     `- PostgreSQL: ${postgresVersion}`,
     `- Library versions (installed, not this repo's semver range): ` +
-      `PostgreJS ${libVersions.postgrejs}, pg ${libVersions.pg}, postgres ${libVersions.postgres}`,
+      Object.entries(libVersions)
+        .map(([lib, v]) => `${LIB_LABELS[lib] ?? lib} ${v}`)
+        .join(', '),
   ];
   return `## Environment\n\n${lines.join('\n')}\n`;
 }
@@ -619,32 +634,56 @@ function renderScenarioTable(
   ].join('\n');
 }
 
-async function main(): Promise<void> {
-  const results = readResults(RESULTS_DIR);
-  if (results.length === 0) {
-    console.error(
-      'No results found in benchmark/results/. Run `npm run bench` first.',
-    );
-    process.exit(1);
-  }
+/** One installed-version string per lib actually present in `results`,
+ * taken from what each result itself recorded at run time (rather than
+ * re-reading node_modules now, which could disagree if a dependency was
+ * bumped since the benchmark ran) - works uniformly for npm packages
+ * (pg, postgres, postgrejs) and for Bun's runtime-bundled SQL client
+ * (which has no installed npm version to read at all). */
+function libVersionsFromResults(
+  results: BenchResult[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const r of results) out[r.lib] ??= r.libraryVersion;
+  return out;
+}
+
+/**
+ * Renders one runtime's results into its own markdown file - `node` and
+ * `bun` are never merged into a single report/table (see BenchRuntime's
+ * doc comment): a Bun.sql-under-Bun number sits next to a pg/postgres/
+ * postgrejs-under-Node number in the exact same table otherwise, silently
+ * conflating a library difference with a runtime difference.
+ *
+ * @returns false if there were no results for this runtime (nothing
+ * written), true otherwise.
+ */
+async function generateReport(
+  runtime: BenchRuntime,
+  resultsDir: string,
+  outputPath: string,
+  title: string,
+  postgresVersion: string,
+): Promise<boolean> {
+  const results = readResults(resultsDir);
+  if (results.length === 0) return false;
 
   const summaries = summarize(results);
   const byScenario = groupByScenario(summaries);
+  const libVersions = libVersionsFromResults(results);
 
-  const postgresVersion = await getPostgresVersion();
-  const libVersions = {
-    postgrejs: readOwnPackageVersion(),
-    pg: readInstalledVersion('pg'),
-    postgres: readInstalledVersion('postgres'),
-  };
-
-  const sections: string[] = [
-    '# PostgreJS Benchmarks',
+  const titleBlock = [
+    `# ${title}`,
     '',
     '_Generated by `npm run bench:report`. Do not hand-edit — re-run the command instead._',
     '',
+  ].join('\n');
+
+  const sections: string[] = [
+    titleBlock.trimEnd(),
+    '',
     renderMethodology(),
-    renderEnvironment(postgresVersion, libVersions),
+    renderEnvironment(postgresVersion, libVersions, results[0].runtime),
   ];
 
   const grouped = new Set<ScenarioName>();
@@ -673,27 +712,50 @@ async function main(): Promise<void> {
   sections.push(
     '## Raw data',
     '',
-    'Backing raw data for the numbers above lives in `benchmark/results/*.json` ' +
-      '(gitignored; regenerate with `npm run bench`).',
+    'Backing raw data for the numbers above lives in ' +
+      `\`benchmark/results/${runtime}/*.json\` ` +
+      `(gitignored; regenerate with \`npm run ${runtime === 'bun' ? 'bench:bun' : 'bench'}\`).`,
     '',
   );
 
   // The index is generated from the finished body, then spliced in right
   // after the title block - see renderIndex().
   const body = sections.join('\n');
-  const titleBlock = [
-    '# PostgreJS Benchmarks',
-    '',
-    '_Generated by `npm run bench:report`. Do not hand-edit — re-run the command instead._',
-    '',
-  ].join('\n');
   // body.slice() already starts with the newline that separated the title
   // block from the first section, so the index needs no trailing one.
   const output =
     titleBlock + '\n' + renderIndex(body) + body.slice(titleBlock.length);
 
-  fs.writeFileSync(OUTPUT_PATH, output);
-  console.log(`Wrote ${path.relative(REPO_ROOT, OUTPUT_PATH)}`);
+  fs.writeFileSync(outputPath, output);
+  console.log(`Wrote ${path.relative(REPO_ROOT, outputPath)}`);
+  return true;
+}
+
+async function main(): Promise<void> {
+  const postgresVersion = await getPostgresVersion();
+
+  const wroteNode = await generateReport(
+    'node',
+    path.join(BENCHMARK_DIR, 'results', 'node'),
+    path.join(REPO_ROOT, 'doc', 'BENCHMARKS.md'),
+    'PostgreJS Benchmarks',
+    postgresVersion,
+  );
+  const wroteBun = await generateReport(
+    'bun',
+    path.join(BENCHMARK_DIR, 'results', 'bun'),
+    path.join(REPO_ROOT, 'doc', 'BENCHMARKS-bun.md'),
+    'PostgreJS Benchmarks (Bun)',
+    postgresVersion,
+  );
+
+  if (!wroteNode && !wroteBun) {
+    console.error(
+      'No results found in benchmark/results/{node,bun}/. Run `npm run bench` ' +
+        'or `npm run bench:bun` first.',
+    );
+    process.exit(1);
+  }
 }
 
 main().catch(err => {
