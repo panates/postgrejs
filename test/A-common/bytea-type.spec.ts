@@ -9,14 +9,17 @@ describe('ByteaType', () => {
   });
 
   describe('decodeBinary()', () => {
-    it('should return the buffer unchanged when offset is 0', () => {
+    it('should return a view over the whole value when offset is 0', () => {
       const buf = Buffer.from([1, 2, 3]);
-      expect(ByteaType.decodeBinary!(buf, 0, {})).toBe(buf);
+      const out = ByteaType.decodeBinary!(buf, 0, 3, {});
+      expect([...out]).toStrictEqual([1, 2, 3]);
+      // A view onto the caller's own bytes, not a copy of them.
+      expect(out.buffer).toBe(buf.buffer);
     });
 
     it('should return a sliced sub-buffer when offset is non-zero', () => {
       const buf = Buffer.from([1, 2, 3, 4]);
-      expect([...ByteaType.decodeBinary!(buf, 2, {})]).toStrictEqual([3, 4]);
+      expect([...ByteaType.decodeBinary!(buf, 2, 2, {})]).toStrictEqual([3, 4]);
     });
   });
 

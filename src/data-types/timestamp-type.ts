@@ -4,6 +4,7 @@ import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import { formatTimestamp } from '../util/format-datetime.js';
 import { parseDateTime } from '../util/parse-datetime.js';
+import { parsePgTimestampBuffer } from '../util/parse-pg-timestamp.js';
 
 const timeShift = 946684800000;
 const timeMul = 4294967296;
@@ -12,7 +13,6 @@ export const TimestampType: DataType = {
   name: 'timestamp',
   oid: DataTypeOIDs.timestamp,
   jsType: 'Date',
-  fixedBinarySize: 8,
 
   encodeText(v: any, options: DataMappingOptions): string {
     return formatTimestamp(v, options);
@@ -49,6 +49,7 @@ export const TimestampType: DataType = {
   decodeBinary(
     v: Buffer,
     offset: number = 0,
+    _len: number,
     options: DataMappingOptions,
   ): Date | number | string {
     const fetchAsString = options.fetchAsString?.includes(
@@ -81,13 +82,24 @@ export const TimestampType: DataType = {
     return parseDateTime(v, options.utcDates);
   },
 
-  // See date-type.ts's decodeTextBuffer comment - same rationale.
+  // Reads PostgreSQL's own timestamp shape straight from the wire bytes -
+  // see timestamptz-type.ts's decodeTextBuffer for why. The two guards are
+  // what decodeText()/parseDateTime() would have applied anyway: with
+  // fetchAsString the raw string is the answer, and with utcDates the
+  // string has to go through the regex path that reads it as UTC.
   decodeTextBuffer(
     buf: Buffer,
     offset: number,
     len: number,
     options: DataMappingOptions,
   ): Date | number | string {
+    if (
+      !options.utcDates &&
+      !options.fetchAsString?.includes(DataTypeOIDs.timestamp)
+    ) {
+      const d = parsePgTimestampBuffer(buf, offset, offset + len);
+      if (d !== undefined) return d;
+    }
     return TimestampType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,

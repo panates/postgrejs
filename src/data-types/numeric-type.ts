@@ -1,6 +1,7 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
+import { fastParseFloatBuffer } from '../util/fast-parsefloat.js';
 
 const NUMERIC_NEG = 0x4000;
 const NUMERIC_NAN = 0xc000;
@@ -126,10 +127,7 @@ export const NumericType: DataType = {
 
   decodeText: parseFloat,
 
-  // See float4-type.ts's decodeTextBuffer comment - same rationale.
-  decodeTextBuffer(buf: Buffer, offset: number, len: number): number {
-    return parseFloat(buf.toString('latin1', offset, offset + len));
-  },
+  decodeTextBuffer: fastParseFloatBuffer,
 
   isType(v: any): boolean {
     return typeof v === 'number';

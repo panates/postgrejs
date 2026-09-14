@@ -33,8 +33,11 @@ export const OidVectorType: DataType = {
     return [v.length];
   },
 
-  decodeBinary(v: Buffer): number[] | undefined {
-    return decodeBinaryArray<number>(v, 0, b => b.readUInt32BE()) || undefined;
+  decodeBinary(v: Buffer, offset: number = 0): number[] | undefined {
+    return (
+      decodeBinaryArray<number>(v, offset, (b, off) => b.readUInt32BE(off)) ||
+      undefined
+    );
   },
 
   decodeText(str: string) {

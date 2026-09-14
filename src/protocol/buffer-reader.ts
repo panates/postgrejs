@@ -1,76 +1,21 @@
-export class BufferReader {
-  buffer: Buffer;
-  offset = 0;
+import { BufferReader as FlexyBufferReader } from 'flexy-buffer';
 
-  constructor(buffer: Buffer) {
-    this.buffer = buffer;
-  }
-
-  get length(): number {
-    return this.buffer.length;
-  }
-
-  readUInt8(): number {
-    this._checkReadable(1);
-    const v = this.buffer.readUInt8(this.offset);
-    this.offset++;
-    return v;
-  }
-
-  readUInt16BE(): number {
-    this._checkReadable(2);
-    const v = this.buffer.readUInt16BE(this.offset);
-    this.offset += 2;
-    return v;
-  }
-
-  readInt16BE(): number {
-    this._checkReadable(2);
-    const v = this.buffer.readInt16BE(this.offset);
-    this.offset += 2;
-    return v;
-  }
-
-  readUInt32BE(): number {
-    this._checkReadable(4);
-    const v = this.buffer.readUInt32BE(this.offset);
-    this.offset += 4;
-    return v;
-  }
-
-  readInt32BE(): number {
-    this._checkReadable(4);
-    const v = this.buffer.readInt32BE(this.offset);
-    this.offset += 4;
-    return v;
-  }
-
+/**
+ * Adds the PostgreSQL wire format's two string encodings on top of
+ * flexy-buffer's `BufferReader`: a NUL-terminated C string, and a
+ * length-prefixed string where a negative length is the NULL sentinel.
+ */
+export class BufferReader extends FlexyBufferReader {
   readCString(encoding?: BufferEncoding): string {
-    const idx = this.buffer.indexOf(0, this.offset);
+    const idx = this.buffer.indexOf(0, this.position);
     if (idx === -1) throw new Error('Eof in buffer detected (readCString)');
-    const v = this.buffer.toString(encoding, this.offset, idx);
-    this.offset = idx + 1;
+    const v = this.buffer.toString(encoding, this.position, idx);
+    this.position = idx + 1;
     return v;
   }
 
   readLString(len: number, encoding?: BufferEncoding): string | null {
     if (len < 0) return null;
-    this._checkReadable(len);
-    const v = this.buffer.toString(encoding, this.offset, this.offset + len);
-    this.offset += len;
-    return v;
-  }
-
-  readBuffer(len?: number): Buffer {
-    if (len) this._checkReadable(len);
-    const end = len !== undefined ? this.offset + len : this.length;
-    const buf = this.buffer.subarray(this.offset, end);
-    this.offset = end;
-    return buf;
-  }
-
-  private _checkReadable(size: number): void {
-    if (this.offset + size - 1 >= this.length)
-      throw new Error('Eof in buffer detected');
+    return this.readString(len, encoding);
   }
 }

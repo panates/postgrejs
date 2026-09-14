@@ -6,7 +6,6 @@ export const BoolType: DataType = {
   name: 'bool',
   oid: DataTypeOIDs.bool,
   jsType: 'boolean',
-  fixedBinarySize: 1,
 
   // 't'/'f', the form decodeText above reads and the server itself
   // emits - encodeText and decodeText are a public pair and have to stay

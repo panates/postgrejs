@@ -16,7 +16,6 @@ export const CircleType: DataType = {
   name: 'circle',
   oid: DataTypeOIDs.circle,
   jsType: 'object',
-  fixedBinarySize: 24,
 
   encodeText(v: Circle): string {
     return `<(${v.x},${v.y}),${v.r}>`;

@@ -8,7 +8,7 @@ import { SmartBuffer } from '../../src/protocol/smart-buffer.js';
 function roundTrip(v: any): number {
   const buf = new SmartBuffer();
   NumericType.encodeBinary!(buf, v, {});
-  return NumericType.decodeBinary!(buf.buffer, 0, {});
+  return NumericType.decodeBinary!(buf.buffer, 0, buf.buffer.length, {});
 }
 
 describe('NumericType', () => {

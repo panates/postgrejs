@@ -12,7 +12,7 @@
 
 ## Why PostgreJS?
 
-**PostgreJS** is a PostgreSQL driver for Node.js built from the wire protocol up - no `libpq`, no native bindings,
+**PostgreJS** is a PostgreSQL driver for Node.js and Bun built from the wire protocol up - no `libpq`, no native bindings,
 just TypeScript talking directly to PostgreSQL. That from-scratch design is also what makes it fast and light: every
 byte on the wire is handled by code written for exactly that purpose, with a binary-first protocol, shared buffers,
 and row/column decoding pipelines built to avoid unnecessary allocation, instead of generic string plumbing bolted
@@ -22,11 +22,14 @@ onto a client meant for text.
 
 The numbers back it up. In PostgreJS's own benchmark suite - run head-to-head against
 [`pg`](https://github.com/brianc/node-postgres) (node-postgres) and [`postgres`](https://github.com/porsager/postgres)
-(postgres.js) on identical workloads - PostgreJS opens a connection up to **3x faster** than postgres.js and
-**2x faster** than pg, pushes pooled queries through up to **6.6x faster** than postgres.js, and fetches large
-result sets nearly **5x faster** than pg. It's also the only one of the three with a complete binary wire protocol
-across every data type, rather than falling back to text for most of them. See
-[`doc/BENCHMARKS.md`](doc/BENCHMARKS.md) for the full methodology and every scenario.
+(postgres.js) on identical workloads - PostgreJS opens a connection up to **3x faster** than postgres.js, pushes
+pooled queries through up to **6.6x faster** than postgres.js, and fetches large result sets nearly **5x faster**
+than pg. It's also the only one of the three Node drivers with a complete binary wire protocol across every data
+type, rather than falling back to text for most of them. See [`doc/BENCHMARKS.md`](doc/BENCHMARKS.md) for the full
+methodology and every scenario.
+
+The same suite runs under Bun, where Bun's own built-in `Bun.sql` joins the comparison as a fourth client - see
+[`doc/BENCHMARKS-bun.md`](doc/BENCHMARKS-bun.md).
 
 ### 🪶 Small Footprint
 
@@ -223,14 +226,27 @@ concurrency, each library run through its own idiomatic fast path. The numbers t
 machine via `npm run bench` against the repo's own
 `docker/docker-compose.yml` Postgres instance; see [`benchmark/README.md`](./benchmark/README.md) for details.
 
+The same suite runs under Bun via `npm run bench:bun`, where it also measures Bun's own built-in `Bun.sql` client as
+a fourth library. Those results live in [`doc/BENCHMARKS-bun.md`](doc/BENCHMARKS-bun.md) and are deliberately kept
+in a separate report rather than merged into the Node one: GC instrumentation, cursor streaming and binary-format
+control all differ enough between the two runtimes that a single table would conflate a library difference with a
+runtime difference.
+
+Both reports list libraries in a fixed order rather than fastest-first, and mark every result statistically tied
+with the leader rather than bolding a lone winner - several scenarios separate the leading drivers by about a
+percent, which is less than the run-to-run spread of the measurement itself.
+
 ## Support
 
 You can report bugs and discuss features on the [GitHub issues](https://github.com/panates/postgrejs/issues) page When
 you open an issue please provide version of NodeJS and PostgreSQL server.
 
-## Node Compatibility
+## Runtime Compatibility
 
-- node >= 20.x
+- Node.js >= 20.x
+- Bun - the same test suite runs under Bun in CI against PostgreSQL 18 on every push, so Bun is a supported target
+  rather than an untested coincidence. (Coverage is collected on the Node matrix only: `c8` instruments V8's
+  coverage APIs, which JavaScriptCore doesn't have.)
 
 ## License
 
@@ -242,5 +258,5 @@ PostgreJS is available under the [BSD 3-Clause](LICENSE) license.
 [downloads-url]: https://npmjs.org/package/postgrejs
 [ci-test-image]: https://github.com/panates/postgrejs/actions/workflows/test.yml/badge.svg
 [ci-test-url]: https://github.com/panates/postgrejs/actions/workflows/test.yml
-[coveralls-image]: https://img.shields.io/coveralls/panates/postgrejs/master.svg
+[coveralls-image]: https://img.shields.io/coveralls/panates/postgrejs/dev.svg
 [coveralls-url]: https://coveralls.io/r/panates/postgrejs

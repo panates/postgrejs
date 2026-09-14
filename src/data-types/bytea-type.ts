@@ -14,11 +14,13 @@ export const ByteaType: DataType = {
   },
 
   encodeBinary(buf: SmartBuffer, v: Buffer): void {
-    buf.writeBuffer(v);
+    buf.writeBytes(v);
   },
 
-  decodeBinary(v: Buffer, offset: number = 0): Buffer {
-    return offset ? v.subarray(offset) : v;
+  decodeBinary(v: Buffer, offset: number = 0, len: number): Buffer {
+    // A view, not a copy - the value handed back is the caller's own
+    // window onto the wire bytes, which is what bytea has always returned.
+    return v.subarray(offset, offset + len);
   },
 
   decodeText: parseBytea,

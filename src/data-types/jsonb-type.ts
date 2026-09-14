@@ -1,7 +1,6 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
-import { BufferReader } from '../protocol/buffer-reader.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
 export const JsonbType: DataType = {
@@ -24,13 +23,16 @@ export const JsonbType: DataType = {
   decodeBinary(
     v: Buffer,
     offset: number = 0,
+    len: number,
     options: DataMappingOptions,
   ): object | string | null | undefined {
-    const buf = new BufferReader(offset ? v.subarray(offset) : v);
-    if (buf.readUInt8() !== 1)
+    // jsonb's binary form is a one-byte version followed by the JSON text,
+    // which carries no terminator of its own - so its end is whatever
+    // `len` says, not the end of the buffer it happens to sit in.
+    if (v[offset] !== 1)
       throw new Error('Unexpected Jsonb version value in header');
+    const content = v.toString('utf8', offset + 1, offset + len);
     const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.jsonb);
-    const content = buf.readLString(buf.length - buf.offset);
     if (fetchAsString) return content;
     return content ? JSON.parse(content) : undefined;
   },

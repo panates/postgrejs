@@ -28,22 +28,11 @@ export function getParsers(
         if (decode) {
           if (isArray) {
             parsers[i] = (data, offset, len, options) =>
-              decodeBinaryArray(
-                data,
-                offset,
-                decode,
-                options,
-                dataTypeReg.fixedBinarySize,
-              );
-          } else if (dataTypeReg.fixedBinarySize != null) {
-            const fixedSize = dataTypeReg.fixedBinarySize;
-            parsers[i] = (data, offset, len, options) =>
-              len === fixedSize
-                ? decode(data, offset, options)
-                : decode(data.subarray(offset, offset + len), 0, options);
+              decodeBinaryArray(data, offset, decode, options);
           } else {
-            parsers[i] = (data, offset, len, options) =>
-              decode(data.subarray(offset, offset + len), 0, options);
+            // Straight through: decodeBinary is told where its value starts
+            // and how long it is, so there is nothing to slice first.
+            parsers[i] = decode;
           }
         }
       } else if (f.format === DataFormat.text) {

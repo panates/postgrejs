@@ -113,35 +113,35 @@ export class Frontend {
   }
 
   getSSLRequestMessage(): Buffer {
-    return this._io
-      .start()
-      .writeUInt32BE(8) // Length of message contents in bytes, including self.
-      .writeUInt16BE(1234)
-      .writeUInt16BE(5679)
-      .flush();
+    const io = this._io.start();
+    io.writeUInt32BE(8); // Length of message contents in bytes, including self.
+    io.writeUInt16BE(1234);
+    io.writeUInt16BE(5679);
+    return io.flush();
   }
 
   getStartupMessage(
     args: Frontend.StartupMessageArgs,
     minorVersion: number = Protocol.VERSION_MINOR,
   ): Buffer {
-    const io = this._io
-      .start()
-      .writeInt32BE(0) // Preserve length
-      .writeInt16BE(Protocol.VERSION_MAJOR)
-      .writeInt16BE(minorVersion);
+    const io = this._io.start();
+    io.writeInt32BE(0); // Preserve length
+    io.writeInt16BE(Protocol.VERSION_MAJOR);
+    io.writeInt16BE(minorVersion);
     const entries = Object.entries(args);
     const l = entries.length;
     let k: string;
     let v: string;
     for (let i = 0; i < l; i++) {
       [k, v] = entries[i];
-      if (k !== 'client_encoding')
-        io.writeCString(k, 'utf8').writeCString(v, 'utf8');
+      if (k !== 'client_encoding') {
+        io.writeCString(k, 'utf8');
+        io.writeCString(v, 'utf8');
+      }
     }
-    io.writeCString('client_encoding', 'utf8')
-      .writeCString('UTF8', 'utf8')
-      .writeUInt8(0);
+    io.writeCString('client_encoding', 'utf8');
+    io.writeCString('UTF8', 'utf8');
+    io.writeUInt8(0);
     return setLengthAndFlush(io, 0);
   }
 
@@ -152,41 +152,37 @@ export class Frontend {
    * down the normal one.
    */
   getCancelRequestMessage(processID: number, secretKey: Buffer): Buffer {
-    return this._io
-      .start()
-      .writeUInt32BE(12 + secretKey.length) // Length of message contents in bytes, including self.
-      .writeUInt16BE(1234)
-      .writeUInt16BE(5678)
-      .writeUInt32BE(processID)
-      .writeBuffer(secretKey)
-      .flush();
+    const io = this._io.start();
+    io.writeUInt32BE(12 + secretKey.length); // Length of message contents in bytes, including self.
+    io.writeUInt16BE(1234);
+    io.writeUInt16BE(5678);
+    io.writeUInt32BE(processID);
+    io.writeBytes(secretKey);
+    return io.flush();
   }
 
   getPasswordMessage(password: string): Buffer {
-    const io = this._io
-      .start()
-      .writeInt8(Protocol.FrontendMessageCode.PasswordMessage)
-      .writeInt32BE(0) // Preserve header
-      .writeCString(password, 'utf8');
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.PasswordMessage);
+    io.writeInt32BE(0); // Preserve header
+    io.writeCString(password, 'utf8');
     return setLengthAndFlush(io, 1);
   }
 
   getSASLMessage(sasl: SASL.Session): Buffer {
-    const io = this._io
-      .start()
-      .writeInt8(Protocol.FrontendMessageCode.PasswordMessage)
-      .writeInt32BE(0) // Preserve header
-      .writeCString(sasl.mechanism, 'utf8')
-      .writeLString(sasl.clientFirstMessage);
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.PasswordMessage);
+    io.writeInt32BE(0); // Preserve header
+    io.writeCString(sasl.mechanism, 'utf8');
+    io.writeLString(sasl.clientFirstMessage);
     return setLengthAndFlush(io, 1);
   }
 
   getSASLFinalMessage(session: SASL.Session): Buffer {
-    const io = this._io
-      .start()
-      .writeInt8(Protocol.FrontendMessageCode.PasswordMessage)
-      .writeInt32BE(0) // Preserve header
-      .writeString(session.clientFinalMessage);
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.PasswordMessage);
+    io.writeInt32BE(0); // Preserve header
+    io.writeString(session.clientFinalMessage);
     return setLengthAndFlush(io, 1);
   }
 
@@ -194,13 +190,12 @@ export class Frontend {
     if (args.statement && args.statement.length > 63)
       throw new Error('Query name length must be lower than 63');
     const { paramTypes } = args;
-    const io = this._io
-      .start()
-      .writeInt8(Protocol.FrontendMessageCode.Parse)
-      .writeInt32BE(0) // Preserve header
-      .writeCString(args.statement || '', 'utf8')
-      .writeCString(args.sql, 'utf8')
-      .writeUInt16BE(paramTypes?.length || 0);
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.Parse);
+    io.writeInt32BE(0); // Preserve header
+    io.writeCString(args.statement || '', 'utf8');
+    io.writeCString(args.sql, 'utf8');
+    io.writeUInt16BE(paramTypes?.length || 0);
     if (paramTypes) {
       let i: number;
       const l = paramTypes.length;
@@ -217,12 +212,11 @@ export class Frontend {
     if (args.statement && args.statement.length > 63)
       throw new Error('Query name length must be lower than 63');
 
-    const io = this._io
-      .start()
-      .writeInt8(Protocol.FrontendMessageCode.Bind)
-      .writeInt32BE(0) // Preserve header
-      .writeCString(args.portal || '', 'utf8')
-      .writeCString(args.statement || '', 'utf8');
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.Bind);
+    io.writeInt32BE(0); // Preserve header
+    io.writeCString(args.portal || '', 'utf8');
+    io.writeCString(args.statement || '', 'utf8');
     const { params, paramTypes, queryOptions } = args;
     const columnFormat =
       queryOptions.columnFormat != null
@@ -231,7 +225,7 @@ export class Frontend {
 
     if (params && params.length) {
       io.writeInt16BE(params.length);
-      const formatOffset = io.offset;
+      const formatOffset = io.position;
       const l = params.length;
       let i: number;
       for (i = 0; i < l; i++) {
@@ -267,7 +261,7 @@ export class Frontend {
             );
             // Preserve data length
             io.writeInt32BE(0);
-            const dataOffset = io.offset;
+            const dataOffset = io.position;
             if (dt.elementsOID) {
               // If data type is array
               v = Array.isArray(v) ? v : [v];
@@ -282,7 +276,7 @@ export class Frontend {
             } else {
               dt.encodeBinary(io, v, queryOptions);
             }
-            io.buffer.writeInt32BE(io.length - dataOffset, dataOffset - 4); // Update length
+            io.buffer.writeInt32BE(io.size - dataOffset, dataOffset - 4); // Update length
           } else if (typeof dt.encodeText === 'function') {
             v = dt.elementsOID
               ? stringifyArrayLiteral(v, queryOptions, dt.encodeText)
@@ -297,9 +291,9 @@ export class Frontend {
           );
           // Preserve data length
           io.writeInt32BE(0);
-          const dataOffset = io.offset;
-          io.writeBuffer(v);
-          io.buffer.writeInt32BE(io.length - dataOffset, dataOffset - 4); // Update length
+          const dataOffset = io.position;
+          io.writeBytes(v);
+          io.buffer.writeInt32BE(io.size - dataOffset, dataOffset - 4); // Update length
         } else {
           io.writeLString('' + v, 'utf8');
         }
@@ -332,12 +326,11 @@ export class Frontend {
           : 'Statement name length must be lower than 63',
       );
     }
-    const io = this._io
-      .start()
-      .writeInt8(Protocol.FrontendMessageCode.Describe)
-      .writeInt32BE(0) // Preserve header
-      .writeUInt8(args.type.charCodeAt(0))
-      .writeCString(args.name || '', 'utf8');
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.Describe);
+    io.writeInt32BE(0); // Preserve header
+    io.writeUInt8(args.type.charCodeAt(0));
+    io.writeCString(args.name || '', 'utf8');
     return setLengthAndFlush(io, 1);
   }
 
@@ -348,12 +341,11 @@ export class Frontend {
     ) {
       throw new Error('fetchCount can be between 0 and 4294967295');
     }
-    const io = this._io
-      .start()
-      .writeInt8(Protocol.FrontendMessageCode.Execute)
-      .writeInt32BE(0) // Preserve header
-      .writeCString(args.portal || '', 'utf8')
-      .writeUInt32BE(args.fetchCount || 0);
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.Execute);
+    io.writeInt32BE(0); // Preserve header
+    io.writeCString(args.portal || '', 'utf8');
+    io.writeUInt32BE(args.fetchCount || 0);
     return setLengthAndFlush(io, 1);
   }
 
@@ -365,21 +357,19 @@ export class Frontend {
           : 'Statement name length must be lower than 63',
       );
     }
-    const io = this._io
-      .start()
-      .writeInt8(Protocol.FrontendMessageCode.Close)
-      .writeInt32BE(0) // Preserve header
-      .writeUInt8(args.type.charCodeAt(0))
-      .writeCString(args.name || '', 'utf8');
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.Close);
+    io.writeInt32BE(0); // Preserve header
+    io.writeUInt8(args.type.charCodeAt(0));
+    io.writeCString(args.name || '', 'utf8');
     return setLengthAndFlush(io, 1);
   }
 
   getQueryMessage(sql: string): Buffer {
-    const io = this._io
-      .start()
-      .writeInt8(Protocol.FrontendMessageCode.Query)
-      .writeInt32BE(0) // Preserve header
-      .writeCString(sql || '', 'utf8');
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.Query);
+    io.writeInt32BE(0); // Preserve header
+    io.writeCString(sql || '', 'utf8');
     return setLengthAndFlush(io, 1);
   }
 
@@ -389,19 +379,21 @@ export class Frontend {
     const fl = formats.length;
     const l = values.length;
     let i: number;
-    const io = this._io
-      .start()
-      .writeInt8(Protocol.FrontendMessageCode.FunctionCall)
-      .writeInt32BE(0) // Preserve header
-      .writeInt32BE(functionId)
-      .writeInt16BE(fl);
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.FunctionCall);
+    io.writeInt32BE(0); // Preserve header
+    io.writeInt32BE(functionId);
+    io.writeInt16BE(fl);
     for (i = 0; i < fl; i++) io.writeInt16BE(formats[i]);
     io.writeInt16BE(l);
     let v: Maybe<Buffer>;
     for (i = 0; i < l; i++) {
       v = values[i];
       if (v == null) io.writeInt32BE(-1);
-      else io.writeInt32BE(v.length).writeBuffer(v);
+      else {
+        io.writeInt32BE(v.length);
+        io.writeBytes(v);
+      }
     }
     io.writeInt16BE(resultFormat ?? DataFormat.text);
     return setLengthAndFlush(io, 1);
@@ -425,11 +417,10 @@ export class Frontend {
   }
 
   getCopyFailMessage(message: string): Buffer {
-    const io = this._io
-      .start()
-      .writeInt8(Protocol.FrontendMessageCode.CopyFail)
-      .writeInt32BE(0) // Preserve header
-      .writeCString(message || '', 'utf8');
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.CopyFail);
+    io.writeInt32BE(0); // Preserve header
+    io.writeCString(message || '', 'utf8');
     return setLengthAndFlush(io, 1);
   }
 
@@ -447,6 +438,6 @@ export class Frontend {
 }
 
 function setLengthAndFlush(io: SmartBuffer, lengthOffset: number): Buffer {
-  io.buffer.writeUInt32BE(io.length - lengthOffset, lengthOffset);
+  io.buffer.writeUInt32BE(io.size - lengthOffset, lengthOffset);
   return io.flush();
 }

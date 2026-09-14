@@ -11,7 +11,6 @@ export const TimeType: DataType = {
   name: 'time',
   oid: DataTypeOIDs.time,
   jsType: 'string',
-  fixedBinarySize: 8,
 
   encodeText(v: any, options: DataMappingOptions): string {
     return formatTime(v, options);
@@ -38,6 +37,7 @@ export const TimeType: DataType = {
   decodeBinary(
     v: Buffer,
     offset: number = 0,
+    _len: number,
     options: DataMappingOptions,
   ): Date | number | string {
     const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.time);

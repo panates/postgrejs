@@ -1,12 +1,12 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
+import { fastParseFloatBuffer } from '../util/fast-parsefloat.js';
 
 export const Float8Type: DataType = {
   name: 'float8',
   oid: DataTypeOIDs.float8,
   jsType: 'number',
-  fixedBinarySize: 8,
 
   // Infinity/NaN stringify to the words PostgreSQL itself uses.
   encodeText(v: any): string {
@@ -23,10 +23,7 @@ export const Float8Type: DataType = {
 
   decodeText: parseFloat,
 
-  // See float4-type.ts's decodeTextBuffer comment - same rationale.
-  decodeTextBuffer(buf: Buffer, offset: number, len: number): number {
-    return parseFloat(buf.toString('latin1', offset, offset + len));
-  },
+  decodeTextBuffer: fastParseFloatBuffer,
 
   isType(v: any): boolean {
     return typeof v === 'number';

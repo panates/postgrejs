@@ -4,13 +4,14 @@ import * as path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { Connection } from 'postgrejs';
-import {
-  readInstalledVersion,
-  readOwnPackageVersion,
-} from '../adapters/pkg-version.js';
 import { getBenchDbConfig } from '../config.js';
 import { SCENARIO_NAMES, SCENARIOS } from '../scenarios/index.js';
-import type { LibId, ScenarioName } from '../types.js';
+import type {
+  BenchResult,
+  BenchRuntime,
+  LibId,
+  ScenarioName,
+} from '../types.js';
 import {
   groupByScenario,
   readResults,
@@ -21,13 +22,12 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BENCHMARK_DIR = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(BENCHMARK_DIR, '..');
-const RESULTS_DIR = path.join(BENCHMARK_DIR, 'results');
-const OUTPUT_PATH = path.join(REPO_ROOT, 'doc', 'BENCHMARKS.md');
 
 const LIB_LABELS: Record<string, string> = {
   postgrejs: 'PostgreJS',
   pg: 'pg (node-postgres)',
   postgres: 'postgres (postgres.js)',
+  bun: 'Bun.sql',
 };
 
 // Short labels for the chart's x-axis only - the full "(node-postgres)"/
@@ -38,13 +38,47 @@ const CHART_LIB_LABELS: Record<string, string> = {
   postgrejs: 'PostgreJS',
   pg: 'pg',
   postgres: 'postgres',
+  bun: 'Bun.sql',
 };
 
-// Fixed chart order (not sorted by speed, unlike the table): PostgreJS's
-// bar is always in the same position across every scenario's chart, so a
-// reader scanning down BENCHMARKS.md can compare it scenario-to-scenario
-// without hunting for it in a ranking that reshuffles per scenario.
-const CHART_LIB_ORDER: LibId[] = ['postgrejs', 'pg', 'postgres'];
+// Fixed library order, used by both the charts and the tables: a library
+// sits in the same position in every scenario, so a reader scanning down
+// BENCHMARKS.md can compare it scenario-to-scenario without hunting for it
+// in a ranking that reshuffles per scenario.
+//
+// The tables used to sort by mean instead, which quietly overstated what
+// the measurement can resolve: ordering a 2.434 ms above a 2.458 ms reads
+// as "this one won" when the two are a percent apart and a repeat of the
+// same run can swap them. Several scenarios here are within that margin,
+// and the differences that remain are visible in the numbers themselves -
+// which are still printed in full - without the row order asserting a
+// verdict on top of them. See renderScenarioTable()'s tie handling for the
+// same reasoning applied to the bolding.
+//
+// `bun` only ever appears in the separate Bun report (see main()) - listed
+// last here so it never displaces the other three's order if it's ever run
+// alongside them.
+const LIB_ORDER: LibId[] = ['postgrejs', 'pg', 'postgres', 'bun'];
+
+/** Smallest relative gap that can still count as a real difference, used
+ * as a floor under the data-derived tie band in renderScenarioTable(). One
+ * percent is below what a paired, same-process A/B can resolve on the
+ * machines these numbers get produced on - measured repeatedly while
+ * chasing this project's own regressions, where re-running an unchanged
+ * pair moved the gap by more than this in both directions. */
+const TIE_FLOOR = 0.01;
+
+/** Ceiling on that same band. The band is the leader's own spread across
+ * repeats, which a single bad repeat can blow out without limit - one
+ * scheduling stall in one run of one library and every value in the table
+ * gets called a tie, including pairs that are genuinely half a
+ * multiple apart. Past a few percent the honest reading is "this
+ * scenario's repeats were too noisy to compare", which a table of numbers
+ * has no way to say, so the band stops growing and the larger differences
+ * are shown as differences again. Five percent sits above what separate
+ * child processes minutes apart can resolve and below the gaps this suite
+ * is built to surface, which run to multiples rather than percentages. */
+const TIE_CEILING = 0.05;
 
 interface ResultGroup {
   title: string;
@@ -218,9 +252,11 @@ These numbers are produced by \`benchmark/\` (run via \`npm run bench\`), compar
 
 Each scenario is implemented once per library, using that library's own idiomatic/fastest calling convention — not a shared lowest-common-denominator \`query(sql, params)\` call — while all three read the exact same SQL text, row counts, and concurrency/pool-size knobs from \`benchmark/scenarios/*.ts\`. Only the mechanism varies per library, not the workload.
 
-Each \`(library, scenario)\` pair runs in its own child process, spawned sequentially (never in parallel), to avoid CPU/connection contention skewing numbers and to get clean, uncontaminated V8 JIT warm-up per run. The default matrix runs each pair \`--repeats=3\` times; the tables below report the **median across repeats**, with intra-run p75/p99 latency and ops/sec from tinybench's own sample statistics.
+Each \`(library, scenario)\` pair runs in its own child process, spawned sequentially (never in parallel), to avoid CPU/connection contention skewing numbers and to get clean, uncontaminated V8 JIT warm-up per run. The default matrix runs each pair \`--repeats=3\` times; the tables below report the **median across repeats**, with intra-run p75/p99 latency and ops/sec from tinybench's own sample statistics.\n\nRows are listed in a **fixed library order, not fastest-first**, and the bolding marks a band rather than a single winner. Sorting by mean would read as a verdict the measurement cannot support: several scenarios here separate the leading libraries by around one percent, and re-running the same pair can reorder them. A value is bolded when it is within the leader's own run-to-run spread for that column - how far the leader's repeats of that very number moved between runs - so a library is only shown as behind when the gap is larger than the noise the leader itself exhibits. The numbers are all printed in full, so a reader who wants a ranking can still read one off; what is deliberately absent is the table asserting one on their behalf. Where a genuine, repeatable difference exists it is usually not subtle - see Large Blob Fetch or Pooled Simple Query, which separate the libraries by 2x and more.
 
 Each table also reports **GC (ms/op)** and **Peak Heap (KB)** - allocation pressure, not just wall-clock speed. GC (ms/op) is the total time spent in garbage collection during the run (observed via \`node:perf_hooks\`, every GC pause regardless of cause), divided by the number of timed samples - a proxy for how much garbage a library's own decode/encode path churns through per call, independent of how much of it survives. Peak Heap (KB) is different, and isn't a per-call figure: each worker process is started with \`--expose-gc\`, forces a clean GC immediately before the run to get a baseline \`heapUsed\`, then polls \`heapUsed\` throughout the run and keeps the highest single sample - the most the heap ever grew above that baseline at any point while running the whole scenario, not just what's left over once it's done (a call that allocates a large temporary buffer and frees it before finishing would show a real spike here while still showing near-zero long-term growth). Both include tinybench's own warmup iterations (it doesn't expose a hook at the boundary between warmup and the timed run), and memory measurements are inherently noisier than latency ones - GC timing isn't deterministic and V8's heap growth isn't perfectly linear, so treat these as directional, not to the same precision as the latency columns. (A median-of-samples "typical heap" figure was tried and dropped: for I/O-bound scenarios almost all of the polled samples land during idle network wait rather than the brief allocation burst, so the median collapsed to ~0 even on runs with a real, multi-hundred-KB peak - it doesn't have a reliable per-call interpretation the way Peak Heap does.)
+
+**GC (ms/op) is unavailable under Bun** and shows as \`-\` in that report: \`PerformanceObserver({entryTypes: ['gc']})\` never fires a single \`'gc'\` entry there (confirmed directly - forcing heavy allocation plus an explicit \`global.gc()\`, which itself runs without error, still produces zero observed entries under \`bun\`, versus dozens under the identical script run with \`node\`), so it's reported as missing rather than a misleading 0. Peak Heap (KB) is unaffected - it comes from \`process.memoryUsage().heapUsed\`, which works the same on both runtimes.
 
 Two scenarios - Large Blob Fetch and Large Array Fetch - additionally report **Network (KB/op)**: the bytes the server actually sent, per call, counted at the socket (\`Readable.push()\`, so all three libraries are measured identically rather than through any library's own accounting). It is reported only there because that is where it separates the libraries: PostgreJS reads those columns in the binary protocol while pg and postgres.js read them as text, and the same rows cost very different amounts on the wire in the two formats. A \`bytea\` costs exactly twice as much as text (\`\\x\`-prefixed hex, two characters per byte), while an \`int4[]\` depends entirely on the values - binary spends a fixed 8 bytes per element (4-byte length prefix + 4-byte value) where text spends one byte per digit, so full-width int4s favour binary and values near zero favour text. Everywhere else the payload is small and near-identical across libraries, so the number would be noise rather than information.
 
@@ -244,18 +280,27 @@ Some scenarios necessarily exercise each library differently. These are delibera
 function renderEnvironment(
   postgresVersion: string,
   libVersions: Record<string, string>,
+  runtimeInfo: BenchResult['runtime'],
 ): string {
   const cpus = os.cpus();
   const totalMemGb = os.totalmem() / (1024 * 1024 * 1024);
+  const runtimeLabel = runtimeInfo.name === 'bun' ? 'Bun' : 'Node.js';
   const lines = [
     `- Run date: ${new Date().toISOString()}`,
-    `- Node.js: ${process.version}`,
-    `- OS: ${os.type()} ${os.release()} (${process.platform}/${process.arch})`,
+    `- Runtime: ${runtimeLabel} ${runtimeInfo.version}`,
+    // platform/arch come from the worker process that actually produced
+    // these results, not this report-generation process - the two only
+    // ever differ if the report is regenerated on a different machine
+    // than the one the benchmark ran on, but that's exactly the case
+    // worth getting right rather than assuming "same machine".
+    `- OS: ${os.type()} ${os.release()} (${runtimeInfo.platform}/${runtimeInfo.arch})`,
     `- CPU: ${cpus[0]?.model ?? 'unknown'} (${cpus.length} logical cores)`,
     `- RAM: ${totalMemGb.toFixed(1)} GB total`,
     `- PostgreSQL: ${postgresVersion}`,
     `- Library versions (installed, not this repo's semver range): ` +
-      `PostgreJS ${libVersions.postgrejs}, pg ${libVersions.pg}, postgres ${libVersions.postgres}`,
+      Object.entries(libVersions)
+        .map(([lib, v]) => `${LIB_LABELS[lib] ?? lib} ${v}`)
+        .join(', '),
   ];
   return `## Environment\n\n${lines.join('\n')}\n`;
 }
@@ -283,7 +328,7 @@ function renderBarChart(
   },
 ): string {
   const byLib = new Map(summaries.map(s => [s.lib, s]));
-  const ordered = CHART_LIB_ORDER.map(lib => byLib.get(lib)).filter(
+  const ordered = LIB_ORDER.map(lib => byLib.get(lib)).filter(
     (s): s is ScenarioLibSummary => !!s,
   );
   const xAxis = ordered.map(s => CHART_LIB_LABELS[s.lib] ?? s.lib);
@@ -488,8 +533,23 @@ function renderScenarioTable(
   headingLevel: '##' | '###' = '###',
 ): string {
   const meta = SCENARIOS[scenarioName];
-  const sorted = [...summaries].sort((a, b) => a.medianMean - b.medianMean);
-  const slowest = sorted[sorted.length - 1];
+  // Fixed order (see LIB_ORDER), not fastest-first - the row position is
+  // deliberately not a verdict. `slowest` still comes from the values, so
+  // the vs.-slowest column means the same thing it always did.
+  //
+  // Anything not in LIB_ORDER is dropped rather than rendered: the results
+  // directory is a plain pile of JSON files that nothing prunes, so a lib
+  // id that no longer exists in the code - a removed adapter, an
+  // abandoned experiment - otherwise keeps showing up as a phantom row in
+  // a published document long after its reason for existing is gone. It
+  // would also sort to the top here, since indexOf() gives it -1.
+  const sorted = summaries
+    .filter(s => LIB_ORDER.includes(s.lib))
+    .sort((a, b) => LIB_ORDER.indexOf(a.lib) - LIB_ORDER.indexOf(b.lib));
+  const slowest = sorted.reduce(
+    (worst, s) => (worst && worst.medianMean >= s.medianMean ? worst : s),
+    sorted[0],
+  );
   const params = sorted[0]?.runs[0]?.params ?? {};
   const paramsText = Object.entries(params)
     .map(([k, v]) => `${k}=${v}`)
@@ -522,6 +582,9 @@ function renderScenarioTable(
     return {
       label: LIB_LABELS[s.lib] ?? s.lib,
       version: s.libraryVersion,
+      // Kept on the row so the tie band can be derived from the leader's
+      // own repeats rather than a hard-coded threshold.
+      runs: s.runs,
       mean: s.medianMean,
       p75: s.medianP75,
       p99: s.medianP99,
@@ -537,6 +600,19 @@ function renderScenarioTable(
   // higher is better for ops/sec and the vs.-slowest multiplier) - only
   // meaningful when this scenario actually has more than one library to
   // compare, otherwise every value would trivially be "the best".
+  //
+  // "Best" is a band, not a single winner: everything statistically tied
+  // with the leader is bolded too. Bolding a lone minimum claims a
+  // precision this measurement does not have - several scenarios separate
+  // the top libraries by about a percent, and repeating the same run can
+  // reorder them. The band is taken from the data rather than picked: it
+  // is how far the leader's own repeats of this very column spread, so a
+  // rival is only called slower when it is further away than the leader
+  // wobbles by itself between runs. TIE_FLOOR keeps a scenario whose three
+  // repeats happened to land on nearly the same number from producing a
+  // ~0 band and reinstating the lone-winner behaviour; TIE_CEILING stops
+  // one stalled repeat from widening the band until everything in the
+  // table counts as tied.
   const definedOrNull = (values: (number | null)[]): number | null => {
     const defined = values.filter((v): v is number => v != null);
     return defined.length ? Math.min(...defined) : null;
@@ -550,22 +626,109 @@ function renderScenarioTable(
   const bestGcMsPerOp = definedOrNull(rowData.map(r => r.gcMsPerOp));
   const bestPeakHeapKb = definedOrNull(rowData.map(r => r.peakHeapKb));
   const bestWireKbPerOp = definedOrNull(rowData.map(r => r.wireKbPerOp));
-  const boldIfBest = (formatted: string, value: number, best: number) =>
-    shouldBold && value === best ? `***${formatted}***` : formatted;
+
+  /** Spread of the leader's own repeats for one column, as an absolute
+   * value - the run-to-run wobble a difference has to beat to be real. */
+  const leaderSpread = (
+    best: number,
+    valueOf: (r: (typeof rowData)[number]) => number | null,
+    runValueOf: (run: BenchResult) => number | null,
+  ): number => {
+    const leader = rowData.find(r => valueOf(r) === best);
+    const values = (leader?.runs ?? [])
+      .map(runValueOf)
+      .filter((v): v is number => v != null && Number.isFinite(v));
+    const spread = values.length
+      ? Math.max(...values) - Math.min(...values)
+      : 0;
+    return Math.min(
+      Math.max(spread, Math.abs(best) * TIE_FLOOR),
+      Math.abs(best) * TIE_CEILING,
+    );
+  };
+
+  const meanBand = leaderSpread(
+    bestMean,
+    r => r.mean,
+    run => run.stats.mean,
+  );
+  const p75Band = leaderSpread(
+    bestP75,
+    r => r.p75,
+    run => run.stats.p75,
+  );
+  const p99Band = leaderSpread(
+    bestP99,
+    r => r.p99,
+    run => run.stats.p99,
+  );
+  const opsBand = leaderSpread(
+    bestOpsPerSec,
+    r => r.opsPerSec,
+    run => run.stats.opsPerSec,
+  );
+  const gcBand = leaderSpread(
+    bestGcMsPerOp ?? NaN,
+    r => r.gcMsPerOp,
+    run =>
+      run.stats.gcDurationMs != null && run.stats.samples
+        ? run.stats.gcDurationMs / run.stats.samples
+        : null,
+  );
+  const heapBand = leaderSpread(
+    bestPeakHeapKb ?? NaN,
+    r => r.peakHeapKb,
+    run =>
+      run.stats.peakHeapGrowthBytes != null
+        ? run.stats.peakHeapGrowthBytes / 1024
+        : null,
+  );
+  const wireBand = leaderSpread(
+    bestWireKbPerOp ?? NaN,
+    r => r.wireKbPerOp,
+    run =>
+      run.stats.wireRxBytes != null && run.stats.samples
+        ? run.stats.wireRxBytes / run.stats.samples / 1024
+        : null,
+  );
+  // vs.-slowest is a restatement of mean, so it ties exactly when mean
+  // does rather than getting a band of its own.
+  const multBand = bestMult - slowest.medianMean / (bestMean + meanBand);
+
+  const boldIfBest = (
+    formatted: string,
+    value: number,
+    best: number,
+    band = 0,
+  ) =>
+    shouldBold && Math.abs(value - best) <= band + Number.EPSILON
+      ? `***${formatted}***`
+      : formatted;
 
   const rows = rowData.map(r => {
-    const meanStr = boldIfBest(r.mean.toFixed(3), r.mean, bestMean);
-    const p75Str = boldIfBest(r.p75.toFixed(3), r.p75, bestP75);
-    const p99Str = boldIfBest(r.p99.toFixed(3), r.p99, bestP99);
+    const meanStr = boldIfBest(r.mean.toFixed(3), r.mean, bestMean, meanBand);
+    const p75Str = boldIfBest(r.p75.toFixed(3), r.p75, bestP75, p75Band);
+    const p99Str = boldIfBest(r.p99.toFixed(3), r.p99, bestP99, p99Band);
     const opsStr = boldIfBest(
       r.opsPerSec.toFixed(1),
       r.opsPerSec,
       bestOpsPerSec,
+      opsBand,
     );
-    const multStr = boldIfBest(`${r.mult.toFixed(2)}x`, r.mult, bestMult);
+    const multStr = boldIfBest(
+      `${r.mult.toFixed(2)}x`,
+      r.mult,
+      bestMult,
+      multBand,
+    );
     const gcStr =
       r.gcMsPerOp != null
-        ? boldIfBest(r.gcMsPerOp.toFixed(4), r.gcMsPerOp, bestGcMsPerOp ?? NaN)
+        ? boldIfBest(
+            r.gcMsPerOp.toFixed(4),
+            r.gcMsPerOp,
+            bestGcMsPerOp ?? NaN,
+            gcBand,
+          )
         : '—';
     const peakHeapStr =
       r.peakHeapKb != null
@@ -573,6 +736,7 @@ function renderScenarioTable(
             r.peakHeapKb.toFixed(2),
             r.peakHeapKb,
             bestPeakHeapKb ?? NaN,
+            heapBand,
           )
         : '—';
     const wireStr =
@@ -582,6 +746,7 @@ function renderScenarioTable(
             r.wireKbPerOp.toFixed(2),
             r.wireKbPerOp,
             bestWireKbPerOp ?? NaN,
+            wireBand,
           ) +
           ' |'
         : '';
@@ -619,32 +784,56 @@ function renderScenarioTable(
   ].join('\n');
 }
 
-async function main(): Promise<void> {
-  const results = readResults(RESULTS_DIR);
-  if (results.length === 0) {
-    console.error(
-      'No results found in benchmark/results/. Run `npm run bench` first.',
-    );
-    process.exit(1);
-  }
+/** One installed-version string per lib actually present in `results`,
+ * taken from what each result itself recorded at run time (rather than
+ * re-reading node_modules now, which could disagree if a dependency was
+ * bumped since the benchmark ran) - works uniformly for npm packages
+ * (pg, postgres, postgrejs) and for Bun's runtime-bundled SQL client
+ * (which has no installed npm version to read at all). */
+function libVersionsFromResults(
+  results: BenchResult[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const r of results) out[r.lib] ??= r.libraryVersion;
+  return out;
+}
+
+/**
+ * Renders one runtime's results into its own markdown file - `node` and
+ * `bun` are never merged into a single report/table (see BenchRuntime's
+ * doc comment): a Bun.sql-under-Bun number sits next to a pg/postgres/
+ * postgrejs-under-Node number in the exact same table otherwise, silently
+ * conflating a library difference with a runtime difference.
+ *
+ * @returns false if there were no results for this runtime (nothing
+ * written), true otherwise.
+ */
+async function generateReport(
+  runtime: BenchRuntime,
+  resultsDir: string,
+  outputPath: string,
+  title: string,
+  postgresVersion: string,
+): Promise<boolean> {
+  const results = readResults(resultsDir);
+  if (results.length === 0) return false;
 
   const summaries = summarize(results);
   const byScenario = groupByScenario(summaries);
+  const libVersions = libVersionsFromResults(results);
 
-  const postgresVersion = await getPostgresVersion();
-  const libVersions = {
-    postgrejs: readOwnPackageVersion(),
-    pg: readInstalledVersion('pg'),
-    postgres: readInstalledVersion('postgres'),
-  };
-
-  const sections: string[] = [
-    '# PostgreJS Benchmarks',
+  const titleBlock = [
+    `# ${title}`,
     '',
     '_Generated by `npm run bench:report`. Do not hand-edit — re-run the command instead._',
     '',
+  ].join('\n');
+
+  const sections: string[] = [
+    titleBlock.trimEnd(),
+    '',
     renderMethodology(),
-    renderEnvironment(postgresVersion, libVersions),
+    renderEnvironment(postgresVersion, libVersions, results[0].runtime),
   ];
 
   const grouped = new Set<ScenarioName>();
@@ -673,27 +862,50 @@ async function main(): Promise<void> {
   sections.push(
     '## Raw data',
     '',
-    'Backing raw data for the numbers above lives in `benchmark/results/*.json` ' +
-      '(gitignored; regenerate with `npm run bench`).',
+    'Backing raw data for the numbers above lives in ' +
+      `\`benchmark/results/${runtime}/*.json\` ` +
+      `(gitignored; regenerate with \`npm run ${runtime === 'bun' ? 'bench:bun' : 'bench'}\`).`,
     '',
   );
 
   // The index is generated from the finished body, then spliced in right
   // after the title block - see renderIndex().
   const body = sections.join('\n');
-  const titleBlock = [
-    '# PostgreJS Benchmarks',
-    '',
-    '_Generated by `npm run bench:report`. Do not hand-edit — re-run the command instead._',
-    '',
-  ].join('\n');
   // body.slice() already starts with the newline that separated the title
   // block from the first section, so the index needs no trailing one.
   const output =
     titleBlock + '\n' + renderIndex(body) + body.slice(titleBlock.length);
 
-  fs.writeFileSync(OUTPUT_PATH, output);
-  console.log(`Wrote ${path.relative(REPO_ROOT, OUTPUT_PATH)}`);
+  fs.writeFileSync(outputPath, output);
+  console.log(`Wrote ${path.relative(REPO_ROOT, outputPath)}`);
+  return true;
+}
+
+async function main(): Promise<void> {
+  const postgresVersion = await getPostgresVersion();
+
+  const wroteNode = await generateReport(
+    'node',
+    path.join(BENCHMARK_DIR, 'results', 'node'),
+    path.join(REPO_ROOT, 'doc', 'BENCHMARKS.md'),
+    'PostgreJS Benchmarks',
+    postgresVersion,
+  );
+  const wroteBun = await generateReport(
+    'bun',
+    path.join(BENCHMARK_DIR, 'results', 'bun'),
+    path.join(REPO_ROOT, 'doc', 'BENCHMARKS-bun.md'),
+    'PostgreJS Benchmarks (Bun)',
+    postgresVersion,
+  );
+
+  if (!wroteNode && !wroteBun) {
+    console.error(
+      'No results found in benchmark/results/{node,bun}/. Run `npm run bench` ' +
+        'or `npm run bench:bun` first.',
+    );
+    process.exit(1);
+  }
 }
 
 main().catch(err => {

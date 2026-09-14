@@ -151,7 +151,7 @@ function parseAuthentication(
     case 5:
       return {
         kind: 'MD5Password',
-        salt: io.readBuffer(len - 8),
+        salt: io.readBytes(len - 8),
       } as Protocol.AuthenticationMD5PasswordMessage;
     case 6:
       return {
@@ -168,7 +168,7 @@ function parseAuthentication(
     case 8:
       return {
         kind: 'GSSContinue',
-        data: io.readBuffer(len - 8),
+        data: io.readBytes(len - 8),
       } as Protocol.AuthenticationGSSContinueMessage;
     case 10: {
       const out = {
@@ -202,7 +202,7 @@ function parseBackendKeyData(io: BufferReader): Protocol.BackendKeyDataMessage {
   // this message's body (see Backend.parse()), so the secret key is
   // simply whatever bytes remain - 4 of them before protocol 3.2, up to
   // 256 with it (see VERSION_MINOR_LONG_CANCEL_KEY).
-  const secretKey = io.readBuffer();
+  const secretKey = io.readBytes();
   return { processID, secretKey };
 }
 
@@ -220,7 +220,7 @@ function parseCopyData(
   len: number,
 ): Protocol.CopyDataMessage {
   return {
-    data: io.readBuffer(len - 4),
+    data: io.readBytes(len - 4),
   } as Protocol.CopyDataMessage;
 }
 
@@ -254,7 +254,7 @@ function parseDataRow(
   len: number,
 ): Protocol.DataRowMessage {
   const columnCount = io.readUInt16BE();
-  const data = io.readBuffer(len - 6);
+  const data = io.readBytes(len - 6);
   return { columnCount, data };
 }
 
@@ -287,7 +287,7 @@ function parseFunctionCallResponse(
   // bytes following) - not deducible from the outer message length alone,
   // unlike most fixed-shape messages this codebase parses.
   const len = io.readInt32BE();
-  return { result: len < 0 ? null : io.readBuffer(len) };
+  return { result: len < 0 ? null : io.readBytes(len) };
 }
 
 function parseNegotiateProtocolVersion(

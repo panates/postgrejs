@@ -1,5 +1,6 @@
 // noinspection RegExpUnnecessaryNonCapturingGroup
 import { fastParseInt } from './fast-parseint.js';
+import { parsePgTimestampString } from './parse-pg-timestamp.js';
 
 // noinspection RegExpUnnecessaryNonCapturingGroup
 const TIMESTAMP_PATTERN =
@@ -46,6 +47,8 @@ export function parseDateTime(str: string, utc?: boolean): Date | number {
   if (!utc) {
     if (str === 'infinity') return Infinity;
     if (str === '-infinity') return -Infinity;
+    const fast = parsePgTimestampString(str);
+    if (fast) return fast;
     const d = new Date(str);
     if (!isNaN(d.getTime())) return d;
   }
@@ -72,6 +75,8 @@ export function parseDateTime(str: string, utc?: boolean): Date | number {
 export function parseDateTimeTz(str: string, utc?: boolean): Date | number {
   if (str === 'infinity') return Infinity;
   if (str === '-infinity') return -Infinity;
+  const fast = parsePgTimestampString(str);
+  if (fast) return fast;
   const native = new Date(str);
   if (!isNaN(native.getTime())) return native;
 

@@ -7,12 +7,20 @@ import { readResults, summarize } from '../report/aggregate.js';
 import { renderConsoleSummary } from '../report/render-console.js';
 import { SCENARIOS } from '../scenarios/index.js';
 import { setupBenchSchema } from '../setup.js';
-import type { LibId, ScenarioName } from '../types.js';
+import type { BenchRuntime, LibId, ScenarioName } from '../types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BENCHMARK_DIR = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(BENCHMARK_DIR, '..');
-export const RESULTS_DIR = path.join(BENCHMARK_DIR, 'results');
+// Whichever executable is running *this* orchestrator process is also what
+// every worker it spawns runs under (spawnWorker always re-invokes
+// process.execPath) - so results land in a runtime-named subdirectory
+// rather than a flat one, keeping a `bun run` invocation's numbers (e.g.
+// --lib=bun, Bun's native SQL client) from ever landing in the same file
+// as a plain `node` invocation's (see report/render-markdown.ts, which
+// generates one report per runtime from these, never merged).
+const RUNTIME: BenchRuntime = process.versions.bun ? 'bun' : 'node';
+export const RESULTS_DIR = path.join(BENCHMARK_DIR, 'results', RUNTIME);
 
 export interface OrchestratorOptions {
   libs: LibId[];

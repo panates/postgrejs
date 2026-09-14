@@ -22,10 +22,21 @@ binary from pg would return those columns unparsed or corrupted rather
 than a comparable value, so it's excluded rather than reported as a
 misleading number.
 
+Bun's SQL client already uses binary for several of these columns by
+default - int4, float4, float8, timestamp, timestamptz, and bytea, verified
+by capturing its actual \`Bind\` message over a logging TCP proxy - but int2,
+int8, varchar, json, and jsonb go out as text regardless, a fixed per-type
+choice with no exposed option (in the SQL constructor, \`.unsafe()\`, or the
+tagged-template call) to override it either way. Since it can't be forced
+into PostgreJS's "request binary for every column" shape, its result here
+would be neither this scenario nor a fair text-protocol one - it isn't
+benchmarked here for that reason.
+
 Only PostgreJS's own result is shown.`,
   unsupportedLibs: {
     pg: 'Not Fully Supported',
     postgres: 'Not Supported',
+    bun: 'Not Controllable',
   },
   bench: {
     time: 500,

@@ -11,9 +11,10 @@ export const JsonType: DataType = {
   decodeBinary(
     v: Buffer,
     offset: number = 0,
+    len: number,
     options: DataMappingOptions,
   ): string | object | null | undefined {
-    const content = v.toString('utf8', offset);
+    const content = v.toString('utf8', offset, offset + len);
     const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.json);
     if (fetchAsString) return content;
     return content ? JSON.parse(content) : undefined;

@@ -45,8 +45,6 @@ export class PgSocket extends SafeEventEmitter {
   private _secretKey?: Buffer;
   private _protocolNegotiation?: Protocol.NegotiateProtocolVersionMessage;
   private _captureQueue = new DoublyLinked<CaptureEntry>();
-  private _pendingWrites: { data: Buffer; cb?: Callback }[] = [];
-  private _flushScheduled = false;
   private _hosts: { host: string; port?: number }[] = [];
   private _hostIndex = 0;
   private _sessionAttrsChecked = false;
@@ -566,9 +564,6 @@ export class PgSocket extends SafeEventEmitter {
     this._processID = undefined;
     this._secretKey = undefined;
     this._saslSession = undefined;
-    // Anything still queued belonged to the connection being reset - it
-    // must never reach a freshly connected socket.
-    this._pendingWrites = [];
   }
 
   protected _handleConnect(): void {
@@ -947,61 +942,37 @@ export class PgSocket extends SafeEventEmitter {
     return result;
   }
 
-  /**
-   * Queues `data` for the socket instead of writing it straight through:
-   * everything handed to _send() during the same synchronous burst (e.g.
-   * many concurrent query() calls fired via Promise.all over one
-   * connection) is flushed together on the next tick, corked, so Node
-   * turns the whole batch into a single underlying writev rather than one
-   * socket write per call. Measured against postgres.js, which coalesces
-   * the same way at the application level (its connection.js write()/
-   * nextWrite() pair, flushing on a 1KB threshold or setImmediate): 50
-   * concurrent prepared executes cost it 3 socket writes where this cost
-   * us 50, and that write path was the single largest non-idle item in a
-   * CPU profile of the scenario.
-   *
-   * nextTick rather than setImmediate, deliberately: it still batches a
-   * whole synchronous burst, but a lone query doesn't have to wait for the
-   * event loop's check phase before its bytes go out - which would trade
-   * away the sequential/single-query scenarios to win the concurrent ones.
-   *
-   * Returns whether the socket could accept the data at all; the write
-   * itself is reported through `cb` (and a socket that dies before the
-   * flush rejects every pending capture via _failPendingCaptures()).
-   */
   protected _send(data: Buffer | Buffer[], cb?: Callback): boolean {
-    if (!this._socket || !this._socket.writable) return false;
+    const socket = this._socket;
+    if (!socket || !socket.writable) return false;
 
-    if (Array.isArray(data)) {
+    if (!Array.isArray(data)) {
+      socket.write(data, cb);
+      return true;
+    }
+    socket.cork();
+    try {
       const l = data.length;
-      for (let i = 0; i < l; i++)
-        this._pendingWrites.push({
-          data: data[i],
-          cb: i === l - 1 ? cb : undefined,
-        });
-    } else this._pendingWrites.push({ data, cb });
-    if (this._captureQueue.length > 1) {
-      if (!this._flushScheduled) {
-        this._flushScheduled = true;
-        process.nextTick(this._flushPendingWrites);
-      }
-    } else this._flushPendingWrites();
+      let i: number;
+      for (i = 0; i < l; i++)
+        socket.write(data[i], i === l - 1 ? cb : undefined);
+    } finally {
+      socket.uncork();
+    }
     return true;
   }
 
   /**
-   * Writes COPY bytes straight through instead of queueing them for the
-   * next tick like _send() does. Two reasons: during a copy the capture
-   * queue holds exactly one entry (the Query that opened it), so _send()'s
-   * "batch only when more than one request is in flight" test would never
-   * fire and every chunk would be written on its own anyway; and the
-   * caller needs write()'s own return value to know when to stop, which a
-   * deferred write cannot give it.
+   * Same write as _send(), but reporting backpressure instead of
+   * writability: a COPY IN producer needs write()'s own return value to
+   * know when to stop pushing, whereas _send()'s callers only need to know
+   * whether the socket could take the bytes at all. Kept separate rather
+   * than folded into _send() precisely so those two meanings of `false`
+   * cannot be confused at a call site.
    */
   protected _sendCopy(data: Buffer | Buffer[], cb?: Callback): boolean {
     const socket = this._socket;
     if (!socket || !socket.writable) return false;
-    this._flushPendingWrites();
     if (!Array.isArray(data)) return socket.write(data, cb);
     socket.cork();
     try {
@@ -1015,25 +986,4 @@ export class PgSocket extends SafeEventEmitter {
       socket.uncork();
     }
   }
-
-  /** Arrow property, not a method: used as a bare process.nextTick callback. */
-  private _flushPendingWrites = (): void => {
-    this._flushScheduled = false;
-    const pending = this._pendingWrites;
-    if (!pending.length) return;
-    this._pendingWrites = [];
-    const socket = this._socket;
-    if (!socket || !socket.writable) return;
-    socket.cork();
-    try {
-      const l = pending.length;
-      let i: number;
-      for (i = 0; i < l; i++) {
-        const { data, cb } = pending[i];
-        socket.write(data, cb);
-      }
-    } finally {
-      socket.uncork();
-    }
-  };
 }

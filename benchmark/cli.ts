@@ -1,13 +1,24 @@
 import process from 'node:process';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { ALL_LIB_IDS } from './adapters/registry.js';
+import { ALL_LIB_IDS, DEFAULT_LIB_IDS } from './adapters/registry.js';
 import { runMatrix } from './runner/orchestrator.js';
 import { SCENARIO_NAMES } from './scenarios/index.js';
 import type { LibId, ScenarioName } from './types.js';
 
-function resolveList<T extends string>(value: string, all: readonly T[]): T[] {
-  if (value === 'all') return [...all];
+/**
+ * @param matchAgainst - What an individual (non-"all"/"none") item is
+ * validated/matched against.
+ * @param allExpansion - What "all" expands to - defaults to `matchAgainst`,
+ * but `--lib`'s "all" deliberately expands to a narrower default set (see
+ * DEFAULT_LIB_IDS) while still accepting an opt-in-only id explicitly.
+ */
+function resolveList<T extends string>(
+  value: string,
+  matchAgainst: readonly T[],
+  allExpansion: readonly T[] = matchAgainst,
+): T[] {
+  if (value === 'all') return [...allExpansion];
   if (value === 'none') return [];
   const items = value
     .split(',')
@@ -15,7 +26,7 @@ function resolveList<T extends string>(value: string, all: readonly T[]): T[] {
     .filter(Boolean);
   const seen = new Set<T>();
   for (const item of items) {
-    const matches = all.filter(v =>
+    const matches = matchAgainst.filter(v =>
       item.startsWith('*') && item.endsWith('*')
         ? v.includes(item.replaceAll('*', ''))
         : item.startsWith('*')
@@ -37,7 +48,9 @@ async function main(): Promise<void> {
       type: 'string',
       alias: 'l',
       default: 'all',
-      describe: `Comma-separated library ids, or "all" (${ALL_LIB_IDS.join(', ')})`,
+      describe:
+        `Comma-separated library ids, or "all" (default: ${DEFAULT_LIB_IDS.join(', ')}). ` +
+        `Opt-in only, needs an explicit --lib: ${ALL_LIB_IDS.filter(id => !(DEFAULT_LIB_IDS as string[]).includes(id)).join(', ')}`,
     })
     .option('scenario', {
       alias: 's',
@@ -66,7 +79,7 @@ async function main(): Promise<void> {
     .help()
     .parse();
 
-  const libs: LibId[] = resolveList(argv.lib, ALL_LIB_IDS);
+  const libs: LibId[] = resolveList(argv.lib, ALL_LIB_IDS, DEFAULT_LIB_IDS);
   const scenarios: ScenarioName[] = resolveList(argv.scenario, SCENARIO_NAMES);
   const repeats = argv.repeats;
 

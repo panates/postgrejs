@@ -27,19 +27,21 @@ describe('JsonType', () => {
     it('should return the raw text when fetchAsString includes the json oid', () => {
       const buf = Buffer.from('{"a":1}', 'utf8');
       expect(
-        JsonType.decodeBinary!(buf, 0, { fetchAsString: [114] }),
+        JsonType.decodeBinary!(buf, 0, buf.length, { fetchAsString: [114] }),
       ).toStrictEqual('{"a":1}');
     });
 
     it('should return undefined for an empty binary value', () => {
-      expect(JsonType.decodeBinary!(Buffer.alloc(0), 0, {})).toStrictEqual(
+      expect(JsonType.decodeBinary!(Buffer.alloc(0), 0, 0, {})).toStrictEqual(
         undefined,
       );
     });
 
     it('should parse non-empty content as JSON', () => {
       const buf = Buffer.from('{"a":1}', 'utf8');
-      expect(JsonType.decodeBinary!(buf, 0, {})).toStrictEqual({ a: 1 });
+      expect(JsonType.decodeBinary!(buf, 0, buf.length, {})).toStrictEqual({
+        a: 1,
+      });
     });
   });
 

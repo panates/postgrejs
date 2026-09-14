@@ -7,9 +7,9 @@ describe('OidVectorType', () => {
   });
 
   it('should decode an empty binary array value as undefined', () => {
-    expect(OidVectorType.decodeBinary!(Buffer.alloc(0), 0, {})).toStrictEqual(
-      undefined,
-    );
+    expect(
+      OidVectorType.decodeBinary!(Buffer.alloc(0), 0, 0, {}),
+    ).toStrictEqual(undefined);
   });
 
   describe('isType()', () => {

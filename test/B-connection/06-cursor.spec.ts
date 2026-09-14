@@ -1,5 +1,5 @@
 import { expect } from 'expect';
-import { Connection } from 'postgrejs';
+import { Connection, RowDecoder } from 'postgrejs';
 
 describe('Cursor support', () => {
   let connection: Connection;
@@ -81,6 +81,24 @@ describe('Cursor support', () => {
     );
     expect(objectResult.cursor?.rowType).toStrictEqual('object');
     await objectResult.cursor?.close();
+  });
+
+  it('should decode fetched rows with a custom RowDecoder', async () => {
+    class FirstColumnOnlyRowDecoder extends RowDecoder {
+      decode(parsers: any[], data: Buffer, columnCount: number, options: any) {
+        const len = data.readInt32BE(0);
+        return len < 0 ? null : parsers[0](data, 4, len, options);
+      }
+    }
+    const result = await connection.query(
+      `select * from customers order by id`,
+      { rowDecoder: new FirstColumnOnlyRowDecoder(), cursor: true },
+    );
+    const cursor = result.cursor!;
+    expect(cursor.rowType).toStrictEqual('custom');
+    const row = await cursor.next();
+    expect(row).toStrictEqual(1);
+    await cursor.close();
   });
 
   it('should automatically close cursor after fetching all rows', async () => {

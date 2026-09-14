@@ -1,4 +1,5 @@
 import type { DataTypeMap } from '../data-type-map.js';
+import type { RowDecoder } from '../util/row-decoder.js';
 import type { DataMappingOptions } from './data-mapping-options.js';
 
 export interface ScriptExecuteOptions extends DataMappingOptions {
@@ -9,9 +10,20 @@ export interface ScriptExecuteOptions extends DataMappingOptions {
   autoCommit?: boolean;
   /**
    * Specifies if rows will be fetched as <FieldName, Value> pair objects or array of values
+   * @deprecated Use `rowDecoder: 'object'` instead - `objectRows: true` still works exactly
+   * as before, it's just the same thing `rowDecoder` now also expresses.
    * @default false
    */
   objectRows?: boolean;
+  /**
+   * Controls how each row's raw column data is turned into the value handed back to the
+   * caller. `'array'` and `'object'` select the built-in decoders (the same output
+   * `objectRows` has always produced); pass an instance of your own `RowDecoder` subclass
+   * to take over decoding entirely instead - e.g. for lazy per-cell decoding. Takes
+   * precedence over `objectRows` when both are set.
+   * @default 'array'
+   */
+  rowDecoder?: 'array' | 'object' | RowDecoder;
   /**
    * Data type map instance
    * @default GlobalTypeMap

@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { expect } from 'expect';
-import { Connection, Cursor, DataFormat } from 'postgrejs';
+import { Connection, Cursor, DataFormat, RowDecoder } from 'postgrejs';
 
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
@@ -79,6 +79,53 @@ describe('query() (Extended Query)', () => {
     assert(result.rows);
     expect(result.rows[0].code).toStrictEqual('CA');
     expect(result.rows[0].name).toStrictEqual('Canada');
+  });
+
+  it("should return object rows via rowDecoder: 'object'", async () => {
+    const result = await connection.query(
+      `select * from countries order by code`,
+      { rowDecoder: 'object' },
+    );
+    expect(result.rowType).toStrictEqual('object');
+    assert(result.rows);
+    expect(result.rows[0].code).toStrictEqual('CA');
+  });
+
+  it('should let rowDecoder win over objectRows when both are set', async () => {
+    const result = await connection.query(
+      `select * from countries order by code`,
+      { objectRows: true, rowDecoder: 'array' },
+    );
+    expect(result.rowType).toStrictEqual('array');
+    assert(result.rows);
+    expect(result.rows[0][0]).toStrictEqual('CA');
+  });
+
+  it('should decode rows with a custom RowDecoder', async () => {
+    class UppercaseNameRowDecoder extends RowDecoder {
+      decode(parsers: any[], data: Buffer, columnCount: number, options: any) {
+        const row: any[] = [];
+        let offset = 0;
+        for (let i = 0; i < columnCount; i++) {
+          const len = data.readInt32BE(offset);
+          offset += 4;
+          if (len < 0) {
+            row.push(null);
+          } else {
+            row.push(parsers[i](data, offset, len, options));
+            offset += len;
+          }
+        }
+        return { code: row[0], name: String(row[1]).toUpperCase() };
+      }
+    }
+    const result = await connection.query(
+      `select * from countries order by code`,
+      { rowDecoder: new UppercaseNameRowDecoder() },
+    );
+    expect(result.rowType).toStrictEqual('custom');
+    assert(result.rows);
+    expect(result.rows[0]).toStrictEqual({ code: 'CA', name: 'CANADA' });
   });
 
   it('should limit number of returning rows with "fetchCount" property', async () => {

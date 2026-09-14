@@ -95,7 +95,13 @@ export interface Adapter {
       rowCount: number,
     ): void;
     simpleQueryFetch(handle: unknown, bench: Bench, rowTarget: number): void;
-    cursorStream(
+    /**
+     * Optional: not every library exposes a cursor/streaming API (see
+     * cursor-stream.ts's ScenarioMeta.unsupportedLibs for which ones don't
+     * and why) - the orchestrator never calls this for a lib not
+     * implementing it.
+     */
+    cursorStream?(
       handle: unknown,
       bench: Bench,
       rowTarget: number,
