@@ -68,6 +68,18 @@ const LIB_ORDER: LibId[] = ['postgrejs', 'pg', 'postgres', 'bun'];
  * pair moved the gap by more than this in both directions. */
 const TIE_FLOOR = 0.01;
 
+/** Ceiling on that same band. The band is the leader's own spread across
+ * repeats, which a single bad repeat can blow out without limit - one
+ * scheduling stall in one run of one library and every value in the table
+ * gets called a tie, including pairs that are genuinely half a
+ * multiple apart. Past a few percent the honest reading is "this
+ * scenario's repeats were too noisy to compare", which a table of numbers
+ * has no way to say, so the band stops growing and the larger differences
+ * are shown as differences again. Five percent sits above what separate
+ * child processes minutes apart can resolve and below the gaps this suite
+ * is built to surface, which run to multiples rather than percentages. */
+const TIE_CEILING = 0.05;
+
 interface ResultGroup {
   title: string;
   description: string;
@@ -598,7 +610,9 @@ function renderScenarioTable(
   // rival is only called slower when it is further away than the leader
   // wobbles by itself between runs. TIE_FLOOR keeps a scenario whose three
   // repeats happened to land on nearly the same number from producing a
-  // ~0 band and reinstating the lone-winner behaviour.
+  // ~0 band and reinstating the lone-winner behaviour; TIE_CEILING stops
+  // one stalled repeat from widening the band until everything in the
+  // table counts as tied.
   const definedOrNull = (values: (number | null)[]): number | null => {
     const defined = values.filter((v): v is number => v != null);
     return defined.length ? Math.min(...defined) : null;
@@ -627,7 +641,10 @@ function renderScenarioTable(
     const spread = values.length
       ? Math.max(...values) - Math.min(...values)
       : 0;
-    return Math.max(spread, Math.abs(best) * TIE_FLOOR);
+    return Math.min(
+      Math.max(spread, Math.abs(best) * TIE_FLOOR),
+      Math.abs(best) * TIE_CEILING,
+    );
   };
 
   const meanBand = leaderSpread(
