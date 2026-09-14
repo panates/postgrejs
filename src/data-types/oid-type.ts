@@ -7,7 +7,6 @@ export const OidType: DataType = {
   name: 'oid',
   oid: DataTypeOIDs.oid,
   jsType: 'number',
-  fixedBinarySize: 4,
 
   encodeText(v: any): string {
     return '' + v;

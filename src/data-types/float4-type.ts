@@ -7,7 +7,6 @@ export const Float4Type: DataType = {
   name: 'float4',
   oid: DataTypeOIDs.float4,
   jsType: 'number',
-  fixedBinarySize: 4,
 
   encodeText(v: any): string {
     return '' + v;

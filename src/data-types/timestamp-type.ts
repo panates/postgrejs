@@ -13,7 +13,6 @@ export const TimestampType: DataType = {
   name: 'timestamp',
   oid: DataTypeOIDs.timestamp,
   jsType: 'Date',
-  fixedBinarySize: 8,
 
   encodeText(v: any, options: DataMappingOptions): string {
     return formatTimestamp(v, options);
@@ -50,6 +49,7 @@ export const TimestampType: DataType = {
   decodeBinary(
     v: Buffer,
     offset: number = 0,
+    _len: number,
     options: DataMappingOptions,
   ): Date | number | string {
     const fetchAsString = options.fetchAsString?.includes(

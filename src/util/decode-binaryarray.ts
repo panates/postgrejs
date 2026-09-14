@@ -7,7 +7,6 @@ export function decodeBinaryArray<T = any>(
   offset: number,
   decoder: DecodeBinaryFunction,
   options: DataMappingOptions = {},
-  fixedBinarySize?: number,
 ): Nullable<T[]> {
   if (!buf.length) return null;
   const io = new BufferReader(buf);
@@ -33,11 +32,12 @@ export function decodeBinaryArray<T = any>(
       }
       len = io.readInt32BE();
       if (len === -1) target[i] = null;
-      else if (fixedBinarySize != null) {
-        target[i] = decoder(buf, io.position, elementOptions);
+      else {
+        // Every element carries its own length on the wire, so the decoder
+        // can be pointed straight at it - no bounded slice per element,
+        // whether or not the element type has a fixed binary size.
+        target[i] = decoder(buf, io.position, len, elementOptions);
         io.position += len;
-      } else {
-        target[i] = decoder(io.readBytes(len), 0, elementOptions);
       }
     }
     return target;

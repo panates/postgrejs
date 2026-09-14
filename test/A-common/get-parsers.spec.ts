@@ -36,42 +36,34 @@ describe('getParsers()', () => {
     expect(parse(data, 2, 5, {})).toStrictEqual('hello');
   });
 
-  it("should fall back to a bounded slice when a fixed-size binary column's wire length does not match its declared size", () => {
-    const decodeCalls: { bufLength: number; offset: number }[] = [];
+  it('should hand a binary decoder the shared row buffer, never a slice of it', () => {
+    // decodeBinary is told where its value starts and how long it is, so
+    // there is nothing to slice first - and that holds whether or not the
+    // type declares a fixed binary size, and whether or not the wire
+    // length agrees with it.
+    const decodeCalls: { bufLength: number; offset: number; len: number }[] =
+      [];
+    const record = (buf: Buffer, offset: number, len: number) => {
+      decodeCalls.push({ bufLength: buf.length, offset, len });
+      return undefined;
+    };
     const typeMap = typeMapOf({
-      42: {
-        fixedBinarySize: 4,
-        decodeBinary: (buf: Buffer, offset: number) => {
-          decodeCalls.push({ bufLength: buf.length, offset });
-          return undefined;
-        },
-      },
+      42: { fixedBinarySize: 4, decodeBinary: record },
+      43: { decodeBinary: record },
     });
-    const [parse] = getParsers(typeMap, [field(42, DataFormat.binary)]);
+    const [fixed, variable] = getParsers(typeMap, [
+      field(42, DataFormat.binary),
+      field(43, DataFormat.binary),
+    ]);
     const data = Buffer.alloc(10);
-    // len (3) deliberately does not match fixedBinarySize (4).
-    parse(data, 2, 3, {});
-    // The fallback re-slices to a fresh, 0-offset buffer bounded to `len`,
-    // rather than reading directly out of the shared row buffer at `offset`.
-    expect(decodeCalls[0]).toStrictEqual({ bufLength: 3, offset: 0 });
-  });
-
-  it('should read directly from the shared row buffer when the wire length matches the declared fixed size', () => {
-    const decodeCalls: { bufLength: number; offset: number }[] = [];
-    const typeMap = typeMapOf({
-      42: {
-        fixedBinarySize: 4,
-        decodeBinary: (buf: Buffer, offset: number) => {
-          decodeCalls.push({ bufLength: buf.length, offset });
-          return undefined;
-        },
-      },
-    });
-    const [parse] = getParsers(typeMap, [field(42, DataFormat.binary)]);
-    const data = Buffer.alloc(10);
-    parse(data, 2, 4, {});
-    // No slicing: the same 10-byte shared buffer, read at its real offset.
-    expect(decodeCalls[0]).toStrictEqual({ bufLength: 10, offset: 2 });
+    fixed(data, 2, 4, {});
+    fixed(data, 2, 3, {}); // wire length disagreeing with the declared size
+    variable(data, 5, 3, {});
+    expect(decodeCalls).toStrictEqual([
+      { bufLength: 10, offset: 2, len: 4 },
+      { bufLength: 10, offset: 2, len: 3 },
+      { bufLength: 10, offset: 5, len: 3 },
+    ]);
   });
 
   it('should decode via toString() when a scalar text type has no decodeTextBuffer fast path', () => {

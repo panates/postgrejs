@@ -10,7 +10,7 @@ describe('Int8Type', () => {
     const buf = Buffer.alloc(8);
     buf.writeBigInt64BE(123n);
     (buf as any).readBigInt64BE = undefined;
-    expect(Int8Type.decodeBinary!(buf, 0, {})).toStrictEqual(123);
+    expect(Int8Type.decodeBinary!(buf, 0, 8, {})).toStrictEqual(123);
   });
 
   describe('decodeText()', () => {

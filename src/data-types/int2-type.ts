@@ -7,7 +7,6 @@ export const Int2Type: DataType = {
   name: 'int2',
   oid: DataTypeOIDs.int2,
   jsType: 'number',
-  fixedBinarySize: 2,
 
   encodeText(v: any): string {
     return '' + v;

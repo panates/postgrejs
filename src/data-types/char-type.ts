@@ -15,8 +15,8 @@ export const CharType: DataType = {
     buf.writeString((v ? '' + v : ' ')[0], 'utf8');
   },
 
-  decodeBinary(v: Buffer, offset: number = 0): string {
-    return v.toString('utf8', offset);
+  decodeBinary(v: Buffer, offset: number = 0, len: number): string {
+    return v.toString('utf8', offset, offset + len);
   },
 
   decodeText(v): string {

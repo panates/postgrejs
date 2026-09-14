@@ -16,7 +16,6 @@ export const BoxType: DataType = {
   oid: DataTypeOIDs.box,
   jsType: 'object',
   arraySeparator: ';',
-  fixedBinarySize: 32,
 
   encodeText(v: Rectangle): string {
     return `(${v.x1},${v.y1}),(${v.x2},${v.y2})`;

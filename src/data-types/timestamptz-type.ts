@@ -13,7 +13,6 @@ export const TimestamptzType: DataType = {
   name: 'timestamptz',
   oid: DataTypeOIDs.timestamptz,
   jsType: 'Date',
-  fixedBinarySize: 8,
 
   encodeText(v: any): string {
     return formatTimestamptz(v);
@@ -47,6 +46,7 @@ export const TimestamptzType: DataType = {
   decodeBinary(
     v: Buffer,
     offset: number = 0,
+    _len: number,
     options: DataMappingOptions,
   ): Date | number | string {
     const fetchAsString = options.fetchAsString?.includes(

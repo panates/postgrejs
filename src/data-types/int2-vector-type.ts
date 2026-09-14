@@ -27,8 +27,11 @@ export const Int2VectorType: DataType = {
     return [v.length];
   },
 
-  decodeBinary(v: Buffer): number[] | undefined {
-    return decodeBinaryArray<number>(v, 0, b => b.readInt16BE()) || undefined;
+  decodeBinary(v: Buffer, offset: number = 0): number[] | undefined {
+    return (
+      decodeBinaryArray<number>(v, offset, (b, off) => b.readInt16BE(off)) ||
+      undefined
+    );
   },
 
   decodeText(str: string) {

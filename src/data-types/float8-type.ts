@@ -7,7 +7,6 @@ export const Float8Type: DataType = {
   name: 'float8',
   oid: DataTypeOIDs.float8,
   jsType: 'number',
-  fixedBinarySize: 8,
 
   // Infinity/NaN stringify to the words PostgreSQL itself uses.
   encodeText(v: any): string {

@@ -16,7 +16,7 @@ function encode(d: Date): Buffer {
 }
 
 const decode = (d: Date, options = {}) =>
-  TimestamptzType.decodeBinary!(encode(d), 0, options) as Date;
+  TimestamptzType.decodeBinary!(encode(d), 0, 8, options) as Date;
 
 /**
  * Finds an instant that local time cannot name unambiguously - one inside

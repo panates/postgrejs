@@ -17,7 +17,6 @@ export const LsegType: DataType = {
   name: 'lseg',
   oid: DataTypeOIDs.lseg,
   jsType: 'object',
-  fixedBinarySize: 32,
 
   encodeText(v: Rectangle): string {
     return `[(${v.x1},${v.y1}),(${v.x2},${v.y2})]`;

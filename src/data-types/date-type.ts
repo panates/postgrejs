@@ -11,7 +11,6 @@ export const DateType: DataType = {
   name: 'date',
   oid: DataTypeOIDs.date,
   jsType: 'Date',
-  fixedBinarySize: 4,
 
   encodeText(v: any, options: DataMappingOptions): string {
     return formatDate(v, options);
@@ -43,6 +42,7 @@ export const DateType: DataType = {
   decodeBinary(
     v: Buffer,
     offset: number = 0,
+    _len: number,
     options: DataMappingOptions,
   ): Date | number | string {
     const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.date);

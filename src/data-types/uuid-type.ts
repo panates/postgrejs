@@ -9,7 +9,6 @@ export const UuidType: DataType = {
   name: 'uuid',
   oid: DataTypeOIDs.uuid,
   jsType: 'String',
-  fixedBinarySize: 16,
 
   encodeText(v: any): string {
     return '' + v;

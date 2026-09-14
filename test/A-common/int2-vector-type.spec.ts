@@ -7,9 +7,9 @@ describe('Int2VectorType', () => {
   });
 
   it('should decode an empty binary array value as undefined', () => {
-    expect(Int2VectorType.decodeBinary!(Buffer.alloc(0), 0, {})).toStrictEqual(
-      undefined,
-    );
+    expect(
+      Int2VectorType.decodeBinary!(Buffer.alloc(0), 0, 0, {}),
+    ).toStrictEqual(undefined);
   });
 
   describe('isType()', () => {

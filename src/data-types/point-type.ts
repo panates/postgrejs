@@ -11,7 +11,6 @@ export const PointType: DataType = {
   name: 'point',
   oid: DataTypeOIDs.point,
   jsType: 'object',
-  fixedBinarySize: 16,
 
   encodeText(v: Point): string {
     return `(${v.x},${v.y})`;

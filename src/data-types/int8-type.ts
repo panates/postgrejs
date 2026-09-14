@@ -10,7 +10,6 @@ export const Int8Type: DataType = {
   name: 'int8',
   oid: DataTypeOIDs.int8,
   jsType: 'BigInt',
-  fixedBinarySize: 8,
 
   encodeText(v: any): string {
     return '' + v;
