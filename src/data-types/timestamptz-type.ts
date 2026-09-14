@@ -4,6 +4,7 @@ import type { DataType } from '../interfaces/data-type.js';
 import { SmartBuffer } from '../protocol/smart-buffer.js';
 import { formatTimestamptz } from '../util/format-datetime.js';
 import { parseDateTimeTz } from '../util/parse-datetime.js';
+import { parsePgTimestampBuffer } from '../util/parse-pg-timestamp.js';
 
 const timeShift = 946684800000;
 const timeMul = 4294967296;
@@ -87,16 +88,28 @@ export const TimestamptzType: DataType = {
     return d;
   },
 
-  // See date-type.ts's decodeTextBuffer comment - same rationale. Note this
-  // type's decodeText always parses first and only branches on
+  // Reads PostgreSQL's own timestamp shape straight from the wire bytes.
+  // Building the string first and handing it to decodeText() costs about
+  // as much again as the parse itself, for a string that exists only to be
+  // scanned a character at a time. Anything not in that exact shape
+  // (infinity, a BC suffix, an LMT-style offset) has no Date to give back
+  // and takes the original path, which still needs the string.
+  //
+  // Note this type's decodeText always parses first and only branches on
   // fetchAsString afterward (unlike date/time/timestamp, which early-return
-  // the raw string) - delegating by reference preserves that as-is.
+  // the raw string), so the same order is kept here.
   decodeTextBuffer(
     buf: Buffer,
     offset: number,
     len: number,
     options: DataMappingOptions,
   ): Date | number | string {
+    const d = parsePgTimestampBuffer(buf, offset, offset + len);
+    if (d !== undefined) {
+      return options.fetchAsString?.includes(DataTypeOIDs.timestamptz)
+        ? dateToTimestamptzString(d)
+        : d;
+    }
     return TimestamptzType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,
