@@ -1,6 +1,41 @@
 ## Changelog
 
-### [v3.2.0](https://github.com/panates/postgrejs/compare/v3.1.3...v3.2.0) - 
+### [v3.3.0](https://github.com/panates/postgrejs/compare/v3.2.0...v3.3.0) - 
+
+#### 🚀 New Features
+
+- feat: add first-class Bun support with dedicated benchmark suite @Eray Hanoğlu 
+- feat: add pluggable RowDecoder for custom row decoding @Eray Hanoğlu 
+
+#### 🪲 Fixes
+
+- fix: return the actual instant when decoding timestamptz from binary @Eray Hanoğlu 
+- fix: point coverage badge at dev instead of the abandoned master branch @Eray Hanoğlu 
+
+#### 📖 Documentation Changes
+
+- docs: refresh both benchmark reports on 3.3.0 @Eray Hanoğlu 
+- docs: document Bun support and the Bun benchmark report in the README @Eray Hanoğlu 
+- docs: cover the Bun benchmarks in the README's speed section too @Eray Hanoğlu 
+- docs: document RowDecoder's data-immutability contract @Eray Hanoğlu 
+
+#### ⚡️ Performance Improvments
+
+- perf: decode timestamps from the wire bytes instead of a string @Eray Hanoğlu 
+- perf: build object rows from a compiled literal instead of per-column assignment @Eray Hanoğlu 
+- perf: decode float and numeric text without materialising a string @Eray Hanoğlu 
+- perf: decode PostgreSQL's own timestamp text shape without the engine parser @Eray Hanoğlu 
+- perf: write protocol messages immediately instead of deferring a tick @Eray Hanoğlu 
+
+#### 💬 General Changes
+
+- bench: report near-ties as ties instead of ranking them @Eray Hanoğlu 
+- feat!: give decodeBinary the value's length, not a slice of it @Eray Hanoğlu 
+- bench: stop measuring type-declaration policy in the Extended Query scenarios @Eray Hanoğlu 
+- bench: stop one stalled repeat from making every result a tie @Eray Hanoğlu 
+- bench: document why concurrent Simple Query varies its literal @Eray Hanoğlu 
+
+### [v3.2.0](https://github.com/panates/postgrejs/compare/v3.1.3...v3.2.0) -  12 September 2026 
 
 #### 🛠 Refactoring and Updates
 
