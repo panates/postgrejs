@@ -41,14 +41,32 @@ const CHART_LIB_LABELS: Record<string, string> = {
   bun: 'Bun.sql',
 };
 
-// Fixed chart order (not sorted by speed, unlike the table): PostgreJS's
-// bar is always in the same position across every scenario's chart, so a
-// reader scanning down BENCHMARKS.md can compare it scenario-to-scenario
-// without hunting for it in a ranking that reshuffles per scenario. `bun`
-// only ever appears in the separate Bun report (see main()) - listed last
-// here so it never displaces the other three's order if it's ever run
+// Fixed library order, used by both the charts and the tables: a library
+// sits in the same position in every scenario, so a reader scanning down
+// BENCHMARKS.md can compare it scenario-to-scenario without hunting for it
+// in a ranking that reshuffles per scenario.
+//
+// The tables used to sort by mean instead, which quietly overstated what
+// the measurement can resolve: ordering a 2.434 ms above a 2.458 ms reads
+// as "this one won" when the two are a percent apart and a repeat of the
+// same run can swap them. Several scenarios here are within that margin,
+// and the differences that remain are visible in the numbers themselves -
+// which are still printed in full - without the row order asserting a
+// verdict on top of them. See renderScenarioTable()'s tie handling for the
+// same reasoning applied to the bolding.
+//
+// `bun` only ever appears in the separate Bun report (see main()) - listed
+// last here so it never displaces the other three's order if it's ever run
 // alongside them.
-const CHART_LIB_ORDER: LibId[] = ['postgrejs', 'pg', 'postgres', 'bun'];
+const LIB_ORDER: LibId[] = ['postgrejs', 'pg', 'postgres', 'bun'];
+
+/** Smallest relative gap that can still count as a real difference, used
+ * as a floor under the data-derived tie band in renderScenarioTable(). One
+ * percent is below what a paired, same-process A/B can resolve on the
+ * machines these numbers get produced on - measured repeatedly while
+ * chasing this project's own regressions, where re-running an unchanged
+ * pair moved the gap by more than this in both directions. */
+const TIE_FLOOR = 0.01;
 
 interface ResultGroup {
   title: string;
@@ -222,7 +240,7 @@ These numbers are produced by \`benchmark/\` (run via \`npm run bench\`), compar
 
 Each scenario is implemented once per library, using that library's own idiomatic/fastest calling convention — not a shared lowest-common-denominator \`query(sql, params)\` call — while all three read the exact same SQL text, row counts, and concurrency/pool-size knobs from \`benchmark/scenarios/*.ts\`. Only the mechanism varies per library, not the workload.
 
-Each \`(library, scenario)\` pair runs in its own child process, spawned sequentially (never in parallel), to avoid CPU/connection contention skewing numbers and to get clean, uncontaminated V8 JIT warm-up per run. The default matrix runs each pair \`--repeats=3\` times; the tables below report the **median across repeats**, with intra-run p75/p99 latency and ops/sec from tinybench's own sample statistics.
+Each \`(library, scenario)\` pair runs in its own child process, spawned sequentially (never in parallel), to avoid CPU/connection contention skewing numbers and to get clean, uncontaminated V8 JIT warm-up per run. The default matrix runs each pair \`--repeats=3\` times; the tables below report the **median across repeats**, with intra-run p75/p99 latency and ops/sec from tinybench's own sample statistics.\n\nRows are listed in a **fixed library order, not fastest-first**, and the bolding marks a band rather than a single winner. Sorting by mean would read as a verdict the measurement cannot support: several scenarios here separate the leading libraries by around one percent, and re-running the same pair can reorder them. A value is bolded when it is within the leader's own run-to-run spread for that column - how far the leader's repeats of that very number moved between runs - so a library is only shown as behind when the gap is larger than the noise the leader itself exhibits. The numbers are all printed in full, so a reader who wants a ranking can still read one off; what is deliberately absent is the table asserting one on their behalf. Where a genuine, repeatable difference exists it is usually not subtle - see Large Blob Fetch or Pooled Simple Query, which separate the libraries by 2x and more.
 
 Each table also reports **GC (ms/op)** and **Peak Heap (KB)** - allocation pressure, not just wall-clock speed. GC (ms/op) is the total time spent in garbage collection during the run (observed via \`node:perf_hooks\`, every GC pause regardless of cause), divided by the number of timed samples - a proxy for how much garbage a library's own decode/encode path churns through per call, independent of how much of it survives. Peak Heap (KB) is different, and isn't a per-call figure: each worker process is started with \`--expose-gc\`, forces a clean GC immediately before the run to get a baseline \`heapUsed\`, then polls \`heapUsed\` throughout the run and keeps the highest single sample - the most the heap ever grew above that baseline at any point while running the whole scenario, not just what's left over once it's done (a call that allocates a large temporary buffer and frees it before finishing would show a real spike here while still showing near-zero long-term growth). Both include tinybench's own warmup iterations (it doesn't expose a hook at the boundary between warmup and the timed run), and memory measurements are inherently noisier than latency ones - GC timing isn't deterministic and V8's heap growth isn't perfectly linear, so treat these as directional, not to the same precision as the latency columns. (A median-of-samples "typical heap" figure was tried and dropped: for I/O-bound scenarios almost all of the polled samples land during idle network wait rather than the brief allocation burst, so the median collapsed to ~0 even on runs with a real, multi-hundred-KB peak - it doesn't have a reliable per-call interpretation the way Peak Heap does.)
 
@@ -298,7 +316,7 @@ function renderBarChart(
   },
 ): string {
   const byLib = new Map(summaries.map(s => [s.lib, s]));
-  const ordered = CHART_LIB_ORDER.map(lib => byLib.get(lib)).filter(
+  const ordered = LIB_ORDER.map(lib => byLib.get(lib)).filter(
     (s): s is ScenarioLibSummary => !!s,
   );
   const xAxis = ordered.map(s => CHART_LIB_LABELS[s.lib] ?? s.lib);
@@ -503,8 +521,23 @@ function renderScenarioTable(
   headingLevel: '##' | '###' = '###',
 ): string {
   const meta = SCENARIOS[scenarioName];
-  const sorted = [...summaries].sort((a, b) => a.medianMean - b.medianMean);
-  const slowest = sorted[sorted.length - 1];
+  // Fixed order (see LIB_ORDER), not fastest-first - the row position is
+  // deliberately not a verdict. `slowest` still comes from the values, so
+  // the vs.-slowest column means the same thing it always did.
+  //
+  // Anything not in LIB_ORDER is dropped rather than rendered: the results
+  // directory is a plain pile of JSON files that nothing prunes, so a lib
+  // id that no longer exists in the code - a removed adapter, an
+  // abandoned experiment - otherwise keeps showing up as a phantom row in
+  // a published document long after its reason for existing is gone. It
+  // would also sort to the top here, since indexOf() gives it -1.
+  const sorted = summaries
+    .filter(s => LIB_ORDER.includes(s.lib))
+    .sort((a, b) => LIB_ORDER.indexOf(a.lib) - LIB_ORDER.indexOf(b.lib));
+  const slowest = sorted.reduce(
+    (worst, s) => (worst && worst.medianMean >= s.medianMean ? worst : s),
+    sorted[0],
+  );
   const params = sorted[0]?.runs[0]?.params ?? {};
   const paramsText = Object.entries(params)
     .map(([k, v]) => `${k}=${v}`)
@@ -537,6 +570,9 @@ function renderScenarioTable(
     return {
       label: LIB_LABELS[s.lib] ?? s.lib,
       version: s.libraryVersion,
+      // Kept on the row so the tie band can be derived from the leader's
+      // own repeats rather than a hard-coded threshold.
+      runs: s.runs,
       mean: s.medianMean,
       p75: s.medianP75,
       p99: s.medianP99,
@@ -552,6 +588,17 @@ function renderScenarioTable(
   // higher is better for ops/sec and the vs.-slowest multiplier) - only
   // meaningful when this scenario actually has more than one library to
   // compare, otherwise every value would trivially be "the best".
+  //
+  // "Best" is a band, not a single winner: everything statistically tied
+  // with the leader is bolded too. Bolding a lone minimum claims a
+  // precision this measurement does not have - several scenarios separate
+  // the top libraries by about a percent, and repeating the same run can
+  // reorder them. The band is taken from the data rather than picked: it
+  // is how far the leader's own repeats of this very column spread, so a
+  // rival is only called slower when it is further away than the leader
+  // wobbles by itself between runs. TIE_FLOOR keeps a scenario whose three
+  // repeats happened to land on nearly the same number from producing a
+  // ~0 band and reinstating the lone-winner behaviour.
   const definedOrNull = (values: (number | null)[]): number | null => {
     const defined = values.filter((v): v is number => v != null);
     return defined.length ? Math.min(...defined) : null;
@@ -565,22 +612,106 @@ function renderScenarioTable(
   const bestGcMsPerOp = definedOrNull(rowData.map(r => r.gcMsPerOp));
   const bestPeakHeapKb = definedOrNull(rowData.map(r => r.peakHeapKb));
   const bestWireKbPerOp = definedOrNull(rowData.map(r => r.wireKbPerOp));
-  const boldIfBest = (formatted: string, value: number, best: number) =>
-    shouldBold && value === best ? `***${formatted}***` : formatted;
+
+  /** Spread of the leader's own repeats for one column, as an absolute
+   * value - the run-to-run wobble a difference has to beat to be real. */
+  const leaderSpread = (
+    best: number,
+    valueOf: (r: (typeof rowData)[number]) => number | null,
+    runValueOf: (run: BenchResult) => number | null,
+  ): number => {
+    const leader = rowData.find(r => valueOf(r) === best);
+    const values = (leader?.runs ?? [])
+      .map(runValueOf)
+      .filter((v): v is number => v != null && Number.isFinite(v));
+    const spread = values.length
+      ? Math.max(...values) - Math.min(...values)
+      : 0;
+    return Math.max(spread, Math.abs(best) * TIE_FLOOR);
+  };
+
+  const meanBand = leaderSpread(
+    bestMean,
+    r => r.mean,
+    run => run.stats.mean,
+  );
+  const p75Band = leaderSpread(
+    bestP75,
+    r => r.p75,
+    run => run.stats.p75,
+  );
+  const p99Band = leaderSpread(
+    bestP99,
+    r => r.p99,
+    run => run.stats.p99,
+  );
+  const opsBand = leaderSpread(
+    bestOpsPerSec,
+    r => r.opsPerSec,
+    run => run.stats.opsPerSec,
+  );
+  const gcBand = leaderSpread(
+    bestGcMsPerOp ?? NaN,
+    r => r.gcMsPerOp,
+    run =>
+      run.stats.gcDurationMs != null && run.stats.samples
+        ? run.stats.gcDurationMs / run.stats.samples
+        : null,
+  );
+  const heapBand = leaderSpread(
+    bestPeakHeapKb ?? NaN,
+    r => r.peakHeapKb,
+    run =>
+      run.stats.peakHeapGrowthBytes != null
+        ? run.stats.peakHeapGrowthBytes / 1024
+        : null,
+  );
+  const wireBand = leaderSpread(
+    bestWireKbPerOp ?? NaN,
+    r => r.wireKbPerOp,
+    run =>
+      run.stats.wireRxBytes != null && run.stats.samples
+        ? run.stats.wireRxBytes / run.stats.samples / 1024
+        : null,
+  );
+  // vs.-slowest is a restatement of mean, so it ties exactly when mean
+  // does rather than getting a band of its own.
+  const multBand = bestMult - slowest.medianMean / (bestMean + meanBand);
+
+  const boldIfBest = (
+    formatted: string,
+    value: number,
+    best: number,
+    band = 0,
+  ) =>
+    shouldBold && Math.abs(value - best) <= band + Number.EPSILON
+      ? `***${formatted}***`
+      : formatted;
 
   const rows = rowData.map(r => {
-    const meanStr = boldIfBest(r.mean.toFixed(3), r.mean, bestMean);
-    const p75Str = boldIfBest(r.p75.toFixed(3), r.p75, bestP75);
-    const p99Str = boldIfBest(r.p99.toFixed(3), r.p99, bestP99);
+    const meanStr = boldIfBest(r.mean.toFixed(3), r.mean, bestMean, meanBand);
+    const p75Str = boldIfBest(r.p75.toFixed(3), r.p75, bestP75, p75Band);
+    const p99Str = boldIfBest(r.p99.toFixed(3), r.p99, bestP99, p99Band);
     const opsStr = boldIfBest(
       r.opsPerSec.toFixed(1),
       r.opsPerSec,
       bestOpsPerSec,
+      opsBand,
     );
-    const multStr = boldIfBest(`${r.mult.toFixed(2)}x`, r.mult, bestMult);
+    const multStr = boldIfBest(
+      `${r.mult.toFixed(2)}x`,
+      r.mult,
+      bestMult,
+      multBand,
+    );
     const gcStr =
       r.gcMsPerOp != null
-        ? boldIfBest(r.gcMsPerOp.toFixed(4), r.gcMsPerOp, bestGcMsPerOp ?? NaN)
+        ? boldIfBest(
+            r.gcMsPerOp.toFixed(4),
+            r.gcMsPerOp,
+            bestGcMsPerOp ?? NaN,
+            gcBand,
+          )
         : '—';
     const peakHeapStr =
       r.peakHeapKb != null
@@ -588,6 +719,7 @@ function renderScenarioTable(
             r.peakHeapKb.toFixed(2),
             r.peakHeapKb,
             bestPeakHeapKb ?? NaN,
+            heapBand,
           )
         : '—';
     const wireStr =
@@ -597,6 +729,7 @@ function renderScenarioTable(
             r.wireKbPerOp.toFixed(2),
             r.wireKbPerOp,
             bestWireKbPerOp ?? NaN,
+            wireBand,
           ) +
           ' |'
         : '';

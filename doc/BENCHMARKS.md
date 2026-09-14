@@ -37,7 +37,11 @@ Each scenario is implemented once per library, using that library's own idiomati
 
 Each `(library, scenario)` pair runs in its own child process, spawned sequentially (never in parallel), to avoid CPU/connection contention skewing numbers and to get clean, uncontaminated V8 JIT warm-up per run. The default matrix runs each pair `--repeats=3` times; the tables below report the **median across repeats**, with intra-run p75/p99 latency and ops/sec from tinybench's own sample statistics.
 
+Rows are listed in a **fixed library order, not fastest-first**, and the bolding marks a band rather than a single winner. Sorting by mean would read as a verdict the measurement cannot support: several scenarios here separate the leading libraries by around one percent, and re-running the same pair can reorder them. A value is bolded when it is within the leader's own run-to-run spread for that column - how far the leader's repeats of that very number moved between runs - so a library is only shown as behind when the gap is larger than the noise the leader itself exhibits. The numbers are all printed in full, so a reader who wants a ranking can still read one off; what is deliberately absent is the table asserting one on their behalf. Where a genuine, repeatable difference exists it is usually not subtle - see Large Blob Fetch or Pooled Simple Query, which separate the libraries by 2x and more.
+
 Each table also reports **GC (ms/op)** and **Peak Heap (KB)** - allocation pressure, not just wall-clock speed. GC (ms/op) is the total time spent in garbage collection during the run (observed via `node:perf_hooks`, every GC pause regardless of cause), divided by the number of timed samples - a proxy for how much garbage a library's own decode/encode path churns through per call, independent of how much of it survives. Peak Heap (KB) is different, and isn't a per-call figure: each worker process is started with `--expose-gc`, forces a clean GC immediately before the run to get a baseline `heapUsed`, then polls `heapUsed` throughout the run and keeps the highest single sample - the most the heap ever grew above that baseline at any point while running the whole scenario, not just what's left over once it's done (a call that allocates a large temporary buffer and frees it before finishing would show a real spike here while still showing near-zero long-term growth). Both include tinybench's own warmup iterations (it doesn't expose a hook at the boundary between warmup and the timed run), and memory measurements are inherently noisier than latency ones - GC timing isn't deterministic and V8's heap growth isn't perfectly linear, so treat these as directional, not to the same precision as the latency columns. (A median-of-samples "typical heap" figure was tried and dropped: for I/O-bound scenarios almost all of the polled samples land during idle network wait rather than the brief allocation burst, so the median collapsed to ~0 even on runs with a real, multi-hundred-KB peak - it doesn't have a reliable per-call interpretation the way Peak Heap does.)
+
+**GC (ms/op) is unavailable under Bun** and shows as `-` in that report: `PerformanceObserver({entryTypes: ['gc']})` never fires a single `'gc'` entry there (confirmed directly - forcing heavy allocation plus an explicit `global.gc()`, which itself runs without error, still produces zero observed entries under `bun`, versus dozens under the identical script run with `node`), so it's reported as missing rather than a misleading 0. Peak Heap (KB) is unaffected - it comes from `process.memoryUsage().heapUsed`, which works the same on both runtimes.
 
 Two scenarios - Large Blob Fetch and Large Array Fetch - additionally report **Network (KB/op)**: the bytes the server actually sent, per call, counted at the socket (`Readable.push()`, so all three libraries are measured identically rather than through any library's own accounting). It is reported only there because that is where it separates the libraries: PostgreJS reads those columns in the binary protocol while pg and postgres.js read them as text, and the same rows cost very different amounts on the wire in the two formats. A `bytea` costs exactly twice as much as text (`\x`-prefixed hex, two characters per byte), while an `int4[]` depends entirely on the values - binary spends a fixed 8 bytes per element (4-byte length prefix + 4-byte value) where text spends one byte per digit, so full-width int4s favour binary and values near zero favour text. Everywhere else the payload is small and near-identical across libraries, so the number would be noise rather than information.
 
@@ -58,13 +62,13 @@ Some scenarios necessarily exercise each library differently. These are delibera
 
 ## Environment
 
-- Run date: 2026-09-07T21:49:59.163Z
-- Node.js: v24.15.0
+- Run date: 2026-09-14T14:43:44.050Z
+- Runtime: Node.js v24.15.0
 - OS: Darwin 25.6.0 (darwin/arm64)
 - CPU: Apple M1 Pro (10 logical cores)
 - RAM: 16.0 GB total
 - PostgreSQL: PostgreSQL 18.4 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
-- Library versions (installed, not this repo's semver range): PostgreJS 3.0.3, pg 8.23.0, postgres 3.4.9
+- Library versions (installed, not this repo's semver range): pg (node-postgres) 8.23.0, PostgreJS 3.2.0, postgres (postgres.js) 3.4.9
 
 ## Connection
 
@@ -76,9 +80,9 @@ Open a fresh connection/session and close it, repeated per sample
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | ***4.792*** | ***4.922*** | ***8.432*** | ***212.9*** | ***2.95x*** | ***0.0197*** | 4331.39 |
-| pg (node-postgres) (8.23.0) | 6.081 | 6.205 | 12.285 | 171.4 | 2.32x | 0.0513 | ***2330.84*** |
-| postgres (postgres.js) (3.4.9) | 14.130 | 14.600 | 17.153 | 71.1 | 1.00x | 0.1844 | 8151.02 |
+| PostgreJS (3.2.0) | ***3.771*** | ***3.877*** | ***5.034*** | ***266.7*** | ***3.88x*** | ***0.0292*** | 4208.64 |
+| pg (node-postgres) (8.23.0) | 5.568 | 5.692 | ***7.089*** | 180.3 | 2.63x | 0.0415 | ***2329.80*** |
+| postgres (postgres.js) (3.4.9) | 14.633 | 15.282 | 18.086 | 68.6 | 1.00x | 0.2890 | 8346.96 |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -87,8 +91,8 @@ Open a fresh connection/session and close it, repeated per sample
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 21.1950
-    bar [4.7921, 6.0814, 14.1300]
+    y-axis "ms" 0.0000 --> 21.9492
+    bar [3.7713, 5.5684, 14.6328]
 ```
 
 </div>
@@ -99,8 +103,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 319.2927
-    bar [212.8618, 171.3811, 71.0807]
+    y-axis "ops/sec" 0.0000 --> 399.9786
+    bar [266.6524, 180.3319, 68.6473]
 ```
 
 </div>
@@ -111,8 +115,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.2766
-    bar [0.0197, 0.0513, 0.1844]
+    y-axis "ms/op" 0.0000 --> 0.4335
+    bar [0.0292, 0.0415, 0.2890]
 ```
 
 </div>
@@ -123,8 +127,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 12226.5234
-    bar [4331.3906, 2330.8359, 8151.0156]
+    y-axis "KB" 0.0000 --> 12520.4414
+    bar [4208.6406, 2329.7969, 8346.9609]
 ```
 
 </div>
@@ -149,9 +153,9 @@ connection buys each library.
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | ***0.393*** | ***0.405*** | ***0.698*** | ***2617.9*** | ***1.12x*** | ***0.0021*** | ***5336.63*** |
-| pg (node-postgres) (8.23.0) | 0.423 | 0.438 | 0.820 | 2489.5 | 1.04x | 0.0045 | 9745.25 |
-| postgres (postgres.js) (3.4.9) | 0.440 | 0.467 | 0.934 | 2375.3 | 1.00x | 0.0044 | 9069.66 |
+| PostgreJS (3.2.0) | ***0.475*** | ***0.484*** | ***1.137*** | ***2235.0*** | ***1.04x*** | ***0.0024*** | ***5226.66*** |
+| pg (node-postgres) (8.23.0) | ***0.458*** | ***0.465*** | 1.270 | ***2359.2*** | ***1.08x*** | 0.0042 | 8634.17 |
+| postgres (postgres.js) (3.4.9) | ***0.494*** | ***0.498*** | 1.303 | 2168.5 | ***1.00x*** | 0.0041 | 8262.52 |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -160,8 +164,8 @@ connection buys each library.
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 0.6607
-    bar [0.3929, 0.4229, 0.4405]
+    y-axis "ms" 0.0000 --> 0.7408
+    bar [0.4746, 0.4584, 0.4939]
 ```
 
 </div>
@@ -172,8 +176,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 3926.7873
-    bar [2617.8582, 2489.5124, 2375.3436]
+    y-axis "ops/sec" 0.0000 --> 3538.7798
+    bar [2235.0149, 2359.1865, 2168.4651]
 ```
 
 </div>
@@ -184,8 +188,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.0068
-    bar [0.0021, 0.0045, 0.0044]
+    y-axis "ms/op" 0.0000 --> 0.0063
+    bar [0.0024, 0.0042, 0.0041]
 ```
 
 </div>
@@ -196,8 +200,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 14617.8750
-    bar [5336.6250, 9745.2500, 9069.6563]
+    y-axis "KB" 0.0000 --> 12951.2578
+    bar [5226.6563, 8634.1719, 8262.5156]
 ```
 
 </div>
@@ -205,7 +209,7 @@ xychart-beta
 ### Concurrent Execution
 
 The concurrent counterpart to Sequential Execution above. Fire
-50 Simple Query calls on the SAME
+100 Simple Query calls on the SAME
 already-open connection without awaiting each one individually, then await
 them all via Promise.all().
 
@@ -216,13 +220,26 @@ awaited between calls.
 
 Each call selects a distinct literal and checks the result against it, so
 this scenario verifies correctness too - do the other libraries' single
-connections queue/pipeline correctly? - not just timing. (concurrency=50)
+connections queue/pipeline correctly? - not just timing. Without distinct
+values every response would be interchangeable and a client that matched
+them back to the wrong caller would still return a valid row for each,
+reporting a fast but wrong number instead of failing.
+
+The distinct literal costs nothing on the server and does not turn this
+into a measurement of statement preparation: the Simple Query protocol has
+no server-side statement cache, so PostgreSQL parses, rewrites and plans
+every Query message it receives even when the text is byte-identical to
+the previous one. Measured, 100 concurrent calls with a constant literal
+land within noise of the varying one (Node -2.5% to +1.5% across repeats,
+Bun +0.3% - the sign flips between runs). Simple Query has no bind
+parameters to carry the distinct value instead, which is why this varies
+the text where the Extended Query counterpart varies a parameter. (concurrency=100)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | ***1.992*** | ***2.085*** | ***2.432*** | ***506.2*** | ***1.15x*** | ***0.0158*** | ***9152.52*** |
-| pg (node-postgres) (8.23.0) | 2.274 | 2.380 | 3.038 | 444.5 | 1.01x | 0.0197 | 19789.27 |
-| postgres (postgres.js) (3.4.9) | 2.291 | 2.426 | 3.628 | 442.5 | 1.00x | 0.0426 | 29656.68 |
+| PostgreJS (3.2.0) | ***3.997*** | ***4.162*** | ***4.765*** | ***251.5*** | ***1.02x*** | ***0.0433*** | ***14212.94*** |
+| pg (node-postgres) (8.23.0) | ***4.033*** | ***4.180*** | ***4.776*** | ***249.1*** | ***1.01x*** | ***0.0395*** | 20060.64 |
+| postgres (postgres.js) (3.4.9) | 4.073 | 4.220 | 4.939 | 246.7 | 1.00x | 0.0735 | 30194.98 |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -231,8 +248,8 @@ connections queue/pipeline correctly? - not just timing. (concurrency=50)
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 3.4364
-    bar [1.9916, 2.2736, 2.2909]
+    y-axis "ms" 0.0000 --> 6.1092
+    bar [3.9967, 4.0330, 4.0728]
 ```
 
 </div>
@@ -243,8 +260,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 759.2919
-    bar [506.1946, 444.5185, 442.4751]
+    y-axis "ops/sec" 0.0000 --> 377.3217
+    bar [251.5478, 249.0798, 246.7425]
 ```
 
 </div>
@@ -255,8 +272,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.0638
-    bar [0.0158, 0.0197, 0.0426]
+    y-axis "ms/op" 0.0000 --> 0.1102
+    bar [0.0433, 0.0395, 0.0735]
 ```
 
 </div>
@@ -267,8 +284,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 44485.0195
-    bar [9152.5234, 19789.2734, 29656.6797]
+    y-axis "KB" 0.0000 --> 45292.4648
+    bar [14212.9375, 20060.6406, 30194.9766]
 ```
 
 </div>
@@ -287,9 +304,9 @@ that column would measure type-conversion choice, not decode speed. (rowTarget=1
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | ***2.473*** | ***2.454*** | ***4.001*** | ***417.7*** | ***1.43x*** | ***0.0527*** | ***8963.38*** |
-| postgres (postgres.js) (3.4.9) | 3.188 | 3.209 | 7.262 | 328.2 | 1.11x | 0.2628 | 53515.19 |
-| pg (node-postgres) (8.23.0) | 3.531 | 3.585 | 7.097 | 293.5 | 1.00x | 0.2721 | 62620.48 |
+| PostgreJS (3.2.0) | ***2.114*** | ***2.219*** | ***3.486*** | ***486.6*** | ***1.62x*** | ***0.0638*** | ***11907.91*** |
+| pg (node-postgres) (8.23.0) | 3.432 | 3.565 | 6.839 | 298.8 | 1.00x | 0.2513 | 64137.58 |
+| postgres (postgres.js) (3.4.9) | 3.007 | 3.037 | 6.817 | 345.0 | 1.14x | 0.2153 | 53042.05 |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -298,8 +315,8 @@ that column would measure type-conversion choice, not decode speed. (rowTarget=1
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 5.2965
-    bar [2.4733, 3.5310, 3.1875]
+    y-axis "ms" 0.0000 --> 5.1478
+    bar [2.1143, 3.4319, 3.0070]
 ```
 
 </div>
@@ -310,8 +327,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 626.6069
-    bar [417.7379, 293.4999, 328.1567]
+    y-axis "ops/sec" 0.0000 --> 729.9156
+    bar [486.6104, 298.7708, 345.0111]
 ```
 
 </div>
@@ -322,8 +339,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.4082
-    bar [0.0527, 0.2721, 0.2628]
+    y-axis "ms/op" 0.0000 --> 0.3769
+    bar [0.0638, 0.2513, 0.2153]
 ```
 
 </div>
@@ -334,8 +351,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 93930.7148
-    bar [8963.3750, 62620.4766, 53515.1875]
+    y-axis "KB" 0.0000 --> 96206.3672
+    bar [11907.9063, 64137.5781, 53042.0547]
 ```
 
 </div>
@@ -350,8 +367,8 @@ The Extended Query counterpart to the Simple Query group's
 Sequential Execution above: one already-open connection, one call at a
 time, each awaited before the next starts.
 
-Instead of a literal, it selects an int2 value bound as a real query
-parameter (`select $1::int2`), so every library genuinely goes through
+Instead of a literal, it selects an int4 value bound as a real query
+parameter (`select $1::int4`), so every library genuinely goes through
 Parse/Bind/Describe/Execute/Sync rather than a single Query message.
 
 Unlike Prepared Statement Reuse below, there is no reused or cached
@@ -360,11 +377,25 @@ Extended Query pays on top of the Simple Query baseline. Compare it
 against Concurrent Execution below to see what overlapping calls buys
 each library here too.
 
+The cast is `int4`, not a narrower integer type, on purpose. Libraries
+differ in whether they declare parameter types at all: PostgreJS names an
+OID for every parameter in Parse (int4 for a JS number), while pg and
+postgres.js send none and let the server infer each one from context. With
+a narrower target - `$1::int2` - that difference stops being free: the
+server has to wrap PostgreJS's int4 parameter in a runtime cast that the
+others never pay for, and this scenario ends up measuring type-declaration
+policy rather than Extended Query speed. Measured with a counterbalanced
+A/B/B/A run (each library taking both positions in the pair, so ordering
+bias cancels - it is worth ~1.4 points here on its own): against pg,
+`$1::int2` put PostgreJS 4.3% behind on average, `$1::int4` 0.5%, which
+is inside this measurement's noise. Keep the parameter's declared type and
+the cast's target the same.
+
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | ***0.427*** | ***0.431*** | ***1.191*** | ***2523.3*** | ***1.97x*** | ***0.0016*** | ***5190.83*** |
-| pg (node-postgres) (8.23.0) | 0.436 | 0.441 | 1.351 | 2486.5 | 1.93x | 0.0033 | 8566.11 |
-| postgres (postgres.js) (3.4.9) | 0.842 | 0.833 | 2.119 | 1332.3 | 1.00x | 0.0035 | 6237.35 |
+| PostgreJS (3.2.0) | ***0.463*** | ***0.470*** | ***1.098*** | ***2244.7*** | ***1.93x*** | ***0.0023*** | ***5212.16*** |
+| pg (node-postgres) (8.23.0) | ***0.459*** | ***0.465*** | ***1.023*** | ***2290.1*** | ***1.95x*** | 0.0030 | 7489.90 |
+| postgres (postgres.js) (3.4.9) | 0.894 | 0.906 | 1.886 | 1163.5 | 1.00x | 0.0058 | 6193.51 |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -373,8 +404,8 @@ each library here too.
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 1.2636
-    bar [0.4273, 0.4359, 0.8424]
+    y-axis "ms" 0.0000 --> 1.3407
+    bar [0.4635, 0.4589, 0.8938]
 ```
 
 </div>
@@ -385,8 +416,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 3785.0015
-    bar [2523.3343, 2486.5334, 1332.2838]
+    y-axis "ops/sec" 0.0000 --> 3435.1907
+    bar [2244.7067, 2290.1271, 1163.4753]
 ```
 
 </div>
@@ -397,8 +428,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.0053
-    bar [0.0016, 0.0033, 0.0035]
+    y-axis "ms/op" 0.0000 --> 0.0086
+    bar [0.0023, 0.0030, 0.0058]
 ```
 
 </div>
@@ -409,8 +440,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 12849.1641
-    bar [5190.8281, 8566.1094, 6237.3516]
+    y-axis "KB" 0.0000 --> 11234.8477
+    bar [5212.1641, 7489.8984, 6193.5078]
 ```
 
 </div>
@@ -421,7 +452,7 @@ The concurrent counterpart to Sequential Execution above, same
 shape as the Simple Query group's Concurrent Execution.
 
 Fire 50 genuine Extended Query
-calls (`select $1::int2`, a real bind parameter, not a reused/cached
+calls (`select $1::int4`, a real bind parameter, not a reused/cached
 statement) on the SAME already-open connection without awaiting each one
 individually, then await them all via Promise.all(). PostgreJS pipelines
 these at the wire level, so results never cross-talk even though the
@@ -430,13 +461,27 @@ caller never awaited between calls.
 Each call binds a distinct value and checks the result against it, so this
 scenario verifies correctness too - do the other libraries' single
 connections queue/pipeline Extended Query calls correctly? - not just
-timing. (concurrency=50)
+timing.
+
+The cast is `int4`, not a narrower integer type, on purpose. Libraries
+differ in whether they declare parameter types at all: PostgreJS names an
+OID for every parameter in Parse (int4 for a JS number), while pg and
+postgres.js send none and let the server infer each one from context. With
+a narrower target - `$1::int2` - that difference stops being free: the
+server has to wrap PostgreJS's int4 parameter in a runtime cast that the
+others never pay for, and this scenario ends up measuring type-declaration
+policy rather than Extended Query speed. Measured with a counterbalanced
+A/B/B/A run (each library taking both positions in the pair, so ordering
+bias cancels - it is worth ~1.4 points here on its own): against pg,
+`$1::int2` put PostgreJS 4.3% behind on average, `$1::int4` 0.5%, which
+is inside this measurement's noise. Keep the parameter's declared type and
+the cast's target the same. (concurrency=50)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | ***2.585*** | ***2.668*** | ***3.440*** | ***394.3*** | ***16.53x*** | ***0.0250*** | ***9534.55*** |
-| pg (node-postgres) (8.23.0) | 2.627 | 2.869 | 4.070 | 387.0 | 16.27x | 0.0269 | 20115.39 |
-| postgres (postgres.js) (3.4.9) | 42.737 | 45.826 | 59.101 | 24.3 | 1.00x | 0.1978 | 14264.13 |
+| PostgreJS (3.2.0) | ***2.437*** | ***2.557*** | 3.183 | ***415.0*** | ***18.84x*** | 0.0290 | ***9742.82*** |
+| pg (node-postgres) (8.23.0) | ***2.415*** | ***2.520*** | ***2.970*** | ***416.9*** | ***19.01x*** | ***0.0244*** | 20268.84 |
+| postgres (postgres.js) (3.4.9) | 45.907 | 48.319 | 53.655 | 21.9 | 1.00x | 0.3008 | 14259.60 |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -445,8 +490,8 @@ timing. (concurrency=50)
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 64.1049
-    bar [2.5855, 2.6272, 42.7366]
+    y-axis "ms" 0.0000 --> 68.8609
+    bar [2.4367, 2.4146, 45.9073]
 ```
 
 </div>
@@ -457,8 +502,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 591.4430
-    bar [394.2954, 386.9874, 24.2936]
+    y-axis "ops/sec" 0.0000 --> 625.3030
+    bar [415.0200, 416.8687, 21.9209]
 ```
 
 </div>
@@ -469,8 +514,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.2968
-    bar [0.0250, 0.0269, 0.1978]
+    y-axis "ms/op" 0.0000 --> 0.4512
+    bar [0.0290, 0.0244, 0.3008]
 ```
 
 </div>
@@ -481,8 +526,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 30173.0859
-    bar [9534.5469, 20115.3906, 14264.1250]
+    y-axis "KB" 0.0000 --> 30403.2539
+    bar [9742.8203, 20268.8359, 14259.6016]
 ```
 
 </div>
@@ -514,9 +559,9 @@ speed. (rowTarget=1000)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | ***3.258*** | ***3.260*** | ***4.656*** | ***315.7*** | ***1.14x*** | ***0.0671*** | ***9043.60*** |
-| pg (node-postgres) (8.23.0) | 3.521 | 3.640 | 7.008 | 290.7 | 1.05x | 0.2731 | 60523.16 |
-| postgres (postgres.js) (3.4.9) | 3.715 | 3.647 | 8.628 | 292.1 | 1.00x | 0.2859 | 53134.91 |
+| PostgreJS (3.2.0) | ***2.720*** | ***2.922*** | ***3.834*** | ***373.9*** | ***1.30x*** | ***0.0694*** | ***9399.65*** |
+| pg (node-postgres) (8.23.0) | 3.528 | 3.589 | 7.268 | 290.0 | 1.00x | 0.2844 | 56317.86 |
+| postgres (postgres.js) (3.4.9) | 3.497 | 3.533 | 8.562 | 296.8 | 1.01x | 0.2639 | 53103.23 |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -525,8 +570,8 @@ speed. (rowTarget=1000)
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 5.5723
-    bar [3.2577, 3.5215, 3.7148]
+    y-axis "ms" 0.0000 --> 5.2919
+    bar [2.7196, 3.5279, 3.4967]
 ```
 
 </div>
@@ -537,8 +582,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 473.5150
-    bar [315.6767, 290.7367, 292.0852]
+    y-axis "ops/sec" 0.0000 --> 560.7947
+    bar [373.8632, 289.9685, 296.8180]
 ```
 
 </div>
@@ -549,8 +594,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.4288
-    bar [0.0671, 0.2731, 0.2859]
+    y-axis "ms/op" 0.0000 --> 0.4265
+    bar [0.0694, 0.2844, 0.2639]
 ```
 
 </div>
@@ -561,8 +606,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 90784.7344
-    bar [9043.6016, 60523.1563, 53134.9063]
+    y-axis "KB" 0.0000 --> 84476.7891
+    bar [9399.6484, 56317.8594, 53103.2266]
 ```
 
 </div>
@@ -587,13 +632,24 @@ binary from pg would return those columns unparsed or corrupted rather
 than a comparable value, so it's excluded rather than reported as a
 misleading number.
 
+Bun's SQL client already uses binary for several of these columns by
+default - int4, float4, float8, timestamp, timestamptz, and bytea, verified
+by capturing its actual `Bind` message over a logging TCP proxy - but int2,
+int8, varchar, json, and jsonb go out as text regardless, a fixed per-type
+choice with no exposed option (in the SQL constructor, `.unsafe()`, or the
+tagged-template call) to override it either way. Since it can't be forced
+into PostgreJS's "request binary for every column" shape, its result here
+would be neither this scenario nor a fair text-protocol one - it isn't
+benchmarked here for that reason.
+
 Only PostgreJS's own result is shown. (rowTarget=1000)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | 2.677 | 2.691 | 4.535 | 380.7 | 1.00x | 0.0911 | 10483.11 |
+| PostgreJS (3.2.0) | 2.315 | 2.363 | 3.709 | 441.8 | 1.00x | 0.0585 | 8792.45 |
 | pg (node-postgres) | Not Fully Supported | — | — | — | — | — | — |
 | postgres (postgres.js) | Not Supported | — | — | — | — | — | — |
+| Bun.sql | Not Controllable | — | — | — | — | — | — |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -602,8 +658,8 @@ Only PostgreJS's own result is shown. (rowTarget=1000)
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS"]
-    y-axis "ms" 0.0000 --> 4.0154
-    bar [2.6769]
+    y-axis "ms" 0.0000 --> 3.4720
+    bar [2.3147]
 ```
 
 </div>
@@ -614,8 +670,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS"]
-    y-axis "ops/sec" 0.0000 --> 570.9812
-    bar [380.6541]
+    y-axis "ops/sec" 0.0000 --> 662.7677
+    bar [441.8451]
 ```
 
 </div>
@@ -626,8 +682,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS"]
-    y-axis "ms/op" 0.0000 --> 0.1366
-    bar [0.0911]
+    y-axis "ms/op" 0.0000 --> 0.0877
+    bar [0.0585]
 ```
 
 </div>
@@ -638,8 +694,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS"]
-    y-axis "KB" 0.0000 --> 15724.6641
-    bar [10483.1094]
+    y-axis "KB" 0.0000 --> 13188.6680
+    bar [8792.4453]
 ```
 
 </div>
@@ -675,9 +731,9 @@ what PostgreJS does here. (sizeBytes=1048576, rowCount=10)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) | Network (KB/op) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | ***52.873*** | ***54.101*** | ***61.413*** | ***19.0*** | ***2.11x*** | 1.2044 | ***731.30*** | ***12800.20*** |
-| postgres (postgres.js) (3.4.9) | 108.211 | 112.792 | 121.440 | 9.3 | 1.03x | 1.0179 | 1426.37 | 25600.25 |
-| pg (node-postgres) (8.23.0) | 111.319 | 114.577 | 124.689 | 9.0 | 1.00x | ***0.9011*** | 1406.31 | 25600.23 |
+| PostgreJS (3.2.0) | ***51.865*** | ***52.387*** | ***56.294*** | ***19.3*** | ***2.01x*** | 1.1533 | ***1203.95*** | ***12800.20*** |
+| pg (node-postgres) (8.23.0) | 103.703 | 103.788 | 113.516 | 9.7 | 1.01x | ***0.8577*** | ***1506.86*** | 25600.23 |
+| postgres (postgres.js) (3.4.9) | 104.470 | 106.236 | 111.769 | 9.6 | 1.00x | ***1.0405*** | ***1166.96*** | 25600.25 |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -686,8 +742,8 @@ what PostgreJS does here. (sizeBytes=1048576, rowCount=10)
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 166.9786
-    bar [52.8734, 111.3191, 108.2113]
+    y-axis "ms" 0.0000 --> 156.7054
+    bar [51.8654, 103.7026, 104.4703]
 ```
 
 </div>
@@ -698,8 +754,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 28.4694
-    bar [18.9796, 9.0050, 9.2771]
+    y-axis "ops/sec" 0.0000 --> 28.9647
+    bar [19.3098, 9.6583, 9.5779]
 ```
 
 </div>
@@ -710,8 +766,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 1.8066
-    bar [1.2044, 0.9011, 1.0179]
+    y-axis "ms/op" 0.0000 --> 1.7300
+    bar [1.1533, 0.8577, 1.0405]
 ```
 
 </div>
@@ -722,8 +778,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 2139.5508
-    bar [731.2969, 1406.3125, 1426.3672]
+    y-axis "KB" 0.0000 --> 2260.2891
+    bar [1203.9453, 1506.8594, 1166.9609]
 ```
 
 </div>
@@ -778,9 +834,9 @@ as that parser being safe to use. (elementCount=50000, rowCount=10)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) | Network (KB/op) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | ***29.556*** | ***31.186*** | ***34.995*** | ***34.0*** | ***5.60x*** | ***0.8333*** | ***12646.49*** | ***4710.90*** |
-| postgres (postgres.js) (3.4.9) | 66.557 | 67.882 | 76.697 | 15.1 | 2.49x | 2.0212 | 99179.53 | 7019.28 |
-| pg (node-postgres) (8.23.0) | 165.570 | 169.191 | 174.481 | 6.0 | 1.00x | 3.6663 | 101192.11 | 7019.26 |
+| PostgreJS (3.2.0) | ***29.186*** | ***30.531*** | ***32.627*** | ***34.5*** | ***5.64x*** | ***0.8418*** | ***8598.85*** | ***4687.92*** |
+| pg (node-postgres) (8.23.0) | 164.506 | 165.482 | 173.628 | 6.1 | 1.00x | 3.4204 | 99097.10 | 7019.26 |
+| postgres (postgres.js) (3.4.9) | 65.204 | 66.836 | 70.251 | 15.4 | 2.52x | 1.7833 | 101395.23 | 7019.28 |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -789,8 +845,8 @@ as that parser being safe to use. (elementCount=50000, rowCount=10)
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 248.3549
-    bar [29.5561, 165.5699, 66.5566]
+    y-axis "ms" 0.0000 --> 246.7592
+    bar [29.1856, 164.5062, 65.2039]
 ```
 
 </div>
@@ -801,8 +857,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 50.9628
-    bar [33.9752, 6.0448, 15.0590]
+    y-axis "ops/sec" 0.0000 --> 51.6998
+    bar [34.4665, 6.0816, 15.3608]
 ```
 
 </div>
@@ -813,8 +869,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 5.4994
-    bar [0.8333, 3.6663, 2.0212]
+    y-axis "ms/op" 0.0000 --> 5.1306
+    bar [0.8418, 3.4204, 1.7833]
 ```
 
 </div>
@@ -825,8 +881,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 151788.1641
-    bar [12646.4922, 101192.1094, 99179.5313]
+    y-axis "KB" 0.0000 --> 152092.8398
+    bar [8598.8516, 99097.1016, 101395.2266]
 ```
 
 </div>
@@ -838,7 +894,7 @@ xychart-beta
     title "Network received (KB/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
     y-axis "KB/op" 0.0000 --> 10528.9160
-    bar [4710.9031, 7019.2639, 7019.2773]
+    bar [4687.9230, 7019.2639, 7019.2773]
 ```
 
 </div>
@@ -859,9 +915,9 @@ timing it would measure type-conversion choice, not reuse cost. (iterations=50)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | ***19.813*** | ***21.482*** | ***28.090*** | ***51.1*** | ***1.15x*** | ***0.0456*** | ***4469.58*** |
-| postgres (postgres.js) (3.4.9) | 21.889 | 22.686 | 39.748 | 47.4 | 1.04x | 0.0988 | 9980.20 |
-| pg (node-postgres) (8.23.0) | 22.840 | 24.815 | 32.903 | 45.2 | 1.00x | 0.1242 | 14018.05 |
+| PostgreJS (3.2.0) | ***20.621*** | ***22.197*** | ***29.366*** | ***49.0*** | ***1.10x*** | ***0.0550*** | ***4634.95*** |
+| pg (node-postgres) (8.23.0) | ***22.141*** | ***24.367*** | ***29.308*** | ***45.9*** | ***1.03x*** | 0.1612 | 14028.98 |
+| postgres (postgres.js) (3.4.9) | ***22.719*** | ***24.466*** | ***29.840*** | ***44.7*** | ***1.00x*** | 0.1671 | 9647.05 |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -870,8 +926,8 @@ timing it would measure type-conversion choice, not reuse cost. (iterations=50)
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 34.2593
-    bar [19.8132, 22.8395, 21.8889]
+    y-axis "ms" 0.0000 --> 34.0786
+    bar [20.6209, 22.1413, 22.7191]
 ```
 
 </div>
@@ -882,8 +938,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 76.5899
-    bar [51.0599, 45.1961, 47.4005]
+    y-axis "ops/sec" 0.0000 --> 73.4569
+    bar [48.9712, 45.9240, 44.6926]
 ```
 
 </div>
@@ -894,8 +950,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.1863
-    bar [0.0456, 0.1242, 0.0988]
+    y-axis "ms/op" 0.0000 --> 0.2506
+    bar [0.0550, 0.1612, 0.1671]
 ```
 
 </div>
@@ -906,8 +962,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 21027.0820
-    bar [4469.5781, 14018.0547, 9980.1953]
+    y-axis "KB" 0.0000 --> 21043.4766
+    bar [4634.9453, 14028.9844, 9647.0469]
 ```
 
 </div>
@@ -929,9 +985,9 @@ timing it would measure type-conversion choice, not reuse cost. (concurrency=50)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | ***1.979*** | ***2.077*** | ***2.819*** | ***512.4*** | ***1.13x*** | ***0.0180*** | ***8582.68*** |
-| pg (node-postgres) (8.23.0) | 2.207 | 2.272 | 3.780 | 461.8 | 1.02x | 0.0252 | 27476.25 |
-| postgres (postgres.js) (3.4.9) | 2.246 | 2.260 | 5.228 | 473.0 | 1.00x | 0.0457 | 51738.88 |
+| PostgreJS (3.2.0) | 2.029 | 2.132 | ***2.555*** | 497.1 | 1.02x | ***0.0210*** | ***8800.74*** |
+| pg (node-postgres) (8.23.0) | 2.075 | 2.164 | ***2.653*** | 487.6 | 1.00x | 0.0224 | 27533.68 |
+| postgres (postgres.js) (3.4.9) | ***1.930*** | ***2.004*** | ***2.518*** | ***524.3*** | ***1.08x*** | 0.0276 | 52828.21 |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -940,8 +996,8 @@ timing it would measure type-conversion choice, not reuse cost. (concurrency=50)
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 3.3690
-    bar [1.9789, 2.2072, 2.2460]
+    y-axis "ms" 0.0000 --> 3.1124
+    bar [2.0289, 2.0750, 1.9296]
 ```
 
 </div>
@@ -952,8 +1008,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 768.6086
-    bar [512.4057, 461.7901, 473.0220]
+    y-axis "ops/sec" 0.0000 --> 786.5061
+    bar [497.0820, 487.6472, 524.3374]
 ```
 
 </div>
@@ -964,8 +1020,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.0685
-    bar [0.0180, 0.0252, 0.0457]
+    y-axis "ms/op" 0.0000 --> 0.0413
+    bar [0.0210, 0.0224, 0.0276]
 ```
 
 </div>
@@ -976,8 +1032,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 77608.3242
-    bar [8582.6797, 27476.2500, 51738.8828]
+    y-axis "KB" 0.0000 --> 79242.3164
+    bar [8800.7422, 27533.6797, 52828.2109]
 ```
 
 </div>
@@ -988,15 +1044,20 @@ A server-side cursor (postgrejs's `Connection.query(sql, { cursor: true })`) fet
 
 ### Cursor Streaming
 
-Stream 50000 rows via a server-side cursor in batches of 500. 
-Excludes int8: pg/postgres.js/PostgreJS return it as genuinely different JS types by default (string/BigInt/number-or-BigInt), 
-so timing it would measure type-conversion choice, not streaming throughput (rowTarget=50000, batchSize=500)
+Stream 50000 rows via a server-side cursor in batches of 500.
+Excludes int8: pg/postgres.js/PostgreJS return it as genuinely different JS types by default (string/BigInt/number-or-BigInt),
+so timing it would measure type-conversion choice, not streaming throughput.
+
+Bun's SQL client has no cursor/streaming API at all - no `.cursor()`, no
+`.forEach()`, no `Symbol.asyncIterator` on a query (verified against its
+own type declarations and empirically). It isn't benchmarked here. (rowTarget=50000, batchSize=500)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | ***172.335*** | ***173.138*** | ***176.725*** | ***5.8*** | ***1.29x*** | ***4.0593*** | ***10332.35*** |
-| pg (node-postgres) (8.23.0) | 211.126 | 215.119 | 224.259 | 4.7 | 1.05x | 10.3752 | 69604.07 |
-| postgres (postgres.js) (3.4.9) | 221.896 | 226.692 | 226.863 | 4.5 | 1.00x | 12.4292 | 54790.53 |
+| PostgreJS (3.2.0) | ***151.669*** | ***153.148*** | ***160.371*** | ***6.6*** | ***1.39x*** | ***3.4790*** | ***9917.16*** |
+| pg (node-postgres) (8.23.0) | 205.118 | 206.133 | ***213.506*** | 4.9 | 1.03x | 10.1940 | 69517.54 |
+| postgres (postgres.js) (3.4.9) | 211.266 | 214.661 | ***216.616*** | 4.7 | 1.00x | 12.1021 | 54685.55 |
+| Bun.sql | Not Supported | — | — | — | — | — | — |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -1005,8 +1066,8 @@ so timing it would measure type-conversion choice, not streaming throughput (row
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 332.8441
-    bar [172.3346, 211.1261, 221.8961]
+    y-axis "ms" 0.0000 --> 316.8992
+    bar [151.6691, 205.1179, 211.2661]
 ```
 
 </div>
@@ -1017,8 +1078,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 8.7063
-    bar [5.8042, 4.7445, 4.5095]
+    y-axis "ops/sec" 0.0000 --> 9.8986
+    bar [6.5991, 4.8790, 4.7379]
 ```
 
 </div>
@@ -1029,8 +1090,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 18.6438
-    bar [4.0593, 10.3752, 12.4292]
+    y-axis "ms/op" 0.0000 --> 18.1532
+    bar [3.4790, 10.1940, 12.1021]
 ```
 
 </div>
@@ -1041,8 +1102,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 104406.1055
-    bar [10332.3516, 69604.0703, 54790.5313]
+    y-axis "KB" 0.0000 --> 104276.3086
+    bar [9917.1641, 69517.5391, 54685.5469]
 ```
 
 </div>
@@ -1061,9 +1122,9 @@ using each library's own top-level pooled entry point. (concurrency=1000, poolSi
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | ***8.249*** | ***8.965*** | ***13.856*** | ***126.4*** | ***8.53x*** | ***0.7805*** | 65891.33 |
-| postgres (postgres.js) (3.4.9) | 13.956 | 16.992 | 26.962 | 80.2 | 5.04x | 0.8884 | 68728.50 |
-| pg (node-postgres) (8.23.0) | 70.393 | 69.871 | 84.842 | 14.3 | 1.00x | 1.1122 | ***15542.80*** |
+| PostgreJS (3.2.0) | ***10.376*** | ***10.891*** | ***15.966*** | ***97.9*** | ***6.54x*** | ***0.6876*** | 59247.28 |
+| pg (node-postgres) (8.23.0) | 67.809 | 68.729 | 78.408 | 14.8 | 1.00x | 0.9949 | ***15517.13*** |
+| postgres (postgres.js) (3.4.9) | 13.389 | 16.311 | 24.416 | 82.0 | 5.06x | 1.0426 | 74208.03 |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -1072,8 +1133,8 @@ using each library's own top-level pooled entry point. (concurrency=1000, poolSi
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 105.5895
-    bar [8.2493, 70.3930, 13.9558]
+    y-axis "ms" 0.0000 --> 101.7138
+    bar [10.3759, 67.8092, 13.3885]
 ```
 
 </div>
@@ -1084,8 +1145,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 189.5858
-    bar [126.3906, 14.3462, 80.2316]
+    y-axis "ops/sec" 0.0000 --> 146.8922
+    bar [97.9281, 14.8088, 82.0176]
 ```
 
 </div>
@@ -1096,8 +1157,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 1.6683
-    bar [0.7805, 1.1122, 0.8884]
+    y-axis "ms/op" 0.0000 --> 1.5639
+    bar [0.6876, 0.9949, 1.0426]
 ```
 
 </div>
@@ -1108,8 +1169,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 103092.7500
-    bar [65891.3281, 15542.7969, 68728.5000]
+    y-axis "KB" 0.0000 --> 111312.0469
+    bar [59247.2813, 15517.1328, 74208.0313]
 ```
 
 </div>
@@ -1119,7 +1180,7 @@ xychart-beta
 The Extended Query counterpart to Pooled Simple Query above: the
 same 1000 concurrent calls against a
 pool of max size 10, but binding a
-real query parameter (`select $1::int2 as one`) so every library goes
+real query parameter (`select $1::int4 as one`) so every library goes
 through Parse/Bind/Describe/Execute/Sync instead of a single Query
 message.
 
@@ -1137,9 +1198,9 @@ entirely, which is what Prepared Statement Reuse below covers. (concurrency=1000
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.0.3) | ***11.276*** | ***12.363*** | ***19.206*** | ***91.9*** | ***12.10x*** | ***0.7327*** | 64961.85 |
-| pg (node-postgres) (8.23.0) | 78.000 | 79.719 | 95.534 | 12.9 | 1.75x | 1.4030 | ***16026.11*** |
-| postgres (postgres.js) (3.4.9) | 136.448 | 137.941 | 150.538 | 7.3 | 1.00x | 2.0762 | 18431.98 |
+| PostgreJS (3.2.0) | ***13.844*** | ***14.809*** | ***22.769*** | ***74.0*** | ***9.66x*** | ***0.8899*** | 70827.28 |
+| pg (node-postgres) (8.23.0) | 69.880 | 70.690 | 81.910 | 14.4 | 1.91x | ***1.1516*** | ***16007.31*** |
+| postgres (postgres.js) (3.4.9) | 133.752 | 132.944 | 147.868 | 7.5 | 1.00x | 2.0923 | 18444.21 |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -1148,8 +1209,8 @@ entirely, which is what Prepared Statement Reuse below covers. (concurrency=1000
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 204.6717
-    bar [11.2756, 78.0001, 136.4478]
+    y-axis "ms" 0.0000 --> 200.6282
+    bar [13.8441, 69.8804, 133.7521]
 ```
 
 </div>
@@ -1160,8 +1221,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 137.9192
-    bar [91.9462, 12.9093, 7.3480]
+    y-axis "ops/sec" 0.0000 --> 111.0054
+    bar [74.0036, 14.3601, 7.5003]
 ```
 
 </div>
@@ -1172,8 +1233,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 3.1143
-    bar [0.7327, 1.4030, 2.0762]
+    y-axis "ms/op" 0.0000 --> 3.1384
+    bar [0.8899, 1.1516, 2.0923]
 ```
 
 </div>
@@ -1184,12 +1245,12 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 97442.7773
-    bar [64961.8516, 16026.1094, 18431.9844]
+    y-axis "KB" 0.0000 --> 106240.9219
+    bar [70827.2813, 16007.3125, 18444.2109]
 ```
 
 </div>
 
 ## Raw data
 
-Backing raw data for the numbers above lives in `benchmark/results/*.json` (gitignored; regenerate with `npm run bench`).
+Backing raw data for the numbers above lives in `benchmark/results/node/*.json` (gitignored; regenerate with `npm run bench`).
