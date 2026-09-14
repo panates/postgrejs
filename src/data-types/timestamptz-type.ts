@@ -59,19 +59,16 @@ export const TimestamptzType: DataType = {
     if (lo === 0x00000000 && hi === -0x80000000)
       return fetchAsString ? '-infinity' : -Infinity;
 
-    // Shift from 2000 to 1970
-    let d = new Date((lo + hi * timeMul) / 1000 + timeShift);
-    if (fetchAsString || !options.utcDates) {
-      d = new Date(
-        d.getFullYear(),
-        d.getMonth(),
-        d.getDate(),
-        d.getHours(),
-        d.getMinutes(),
-        d.getSeconds(),
-        d.getMilliseconds(),
-      );
-    }
+    // Shift from 2000 to 1970. A timestamptz is an absolute instant, so
+    // this is already the value - there is nothing to reinterpret against
+    // the local zone the way `timestamp` (which carries no zone of its
+    // own) has to. Rebuilding the Date from its own local getters, as this
+    // used to, gave back the same instant for every value except one: an
+    // instant inside the hour that repeats when local time falls back is
+    // ambiguous read as wall-clock, so the rebuild silently picked the
+    // other one and moved the value an hour. The text path never did that,
+    // so the same row decoded binary and text disagreed.
+    const d = new Date((lo + hi * timeMul) / 1000 + timeShift);
     return fetchAsString ? dateToTimestamptzString(d) : d;
   },
 
