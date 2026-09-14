@@ -1,6 +1,7 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
+import { fastParseFloatBuffer } from '../util/fast-parsefloat.js';
 
 export const Float4Type: DataType = {
   name: 'float4',
@@ -22,9 +23,7 @@ export const Float4Type: DataType = {
 
   decodeText: parseFloat,
 
-  decodeTextBuffer(buf: Buffer, offset: number, len: number): number {
-    return parseFloat(buf.toString('latin1', offset, offset + len));
-  },
+  decodeTextBuffer: fastParseFloatBuffer,
 
   isType(v: any): boolean {
     return typeof v === 'number';
