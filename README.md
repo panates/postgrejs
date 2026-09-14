@@ -22,11 +22,14 @@ onto a client meant for text.
 
 The numbers back it up. In PostgreJS's own benchmark suite - run head-to-head against
 [`pg`](https://github.com/brianc/node-postgres) (node-postgres) and [`postgres`](https://github.com/porsager/postgres)
-(postgres.js) on identical workloads - PostgreJS opens a connection up to **3x faster** than postgres.js and
-**2x faster** than pg, pushes pooled queries through up to **6.6x faster** than postgres.js, and fetches large
-result sets nearly **5x faster** than pg. It's also the only one of the three with a complete binary wire protocol
-across every data type, rather than falling back to text for most of them. See
-[`doc/BENCHMARKS.md`](doc/BENCHMARKS.md) for the full methodology and every scenario.
+(postgres.js) on identical workloads - PostgreJS opens a connection up to **3x faster** than postgres.js, pushes
+pooled queries through up to **6.6x faster** than postgres.js, and fetches large result sets nearly **5x faster**
+than pg. It's also the only one of the three Node drivers with a complete binary wire protocol across every data
+type, rather than falling back to text for most of them. See [`doc/BENCHMARKS.md`](doc/BENCHMARKS.md) for the full
+methodology and every scenario.
+
+The same suite runs under Bun, where Bun's own built-in `Bun.sql` joins the comparison as a fourth client - see
+[`doc/BENCHMARKS-bun.md`](doc/BENCHMARKS-bun.md).
 
 ### 🪶 Small Footprint
 
