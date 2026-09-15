@@ -14,6 +14,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Same reasoning as test.yml: the reusable workflow this calls only checks
+# out and runs quality checks, and a called workflow inherits the caller's
+# permissions, so the token is pinned to read here rather than inherited
+# from the repository default.
+permissions:
+  contents: read
+
 jobs:
   qc:
     uses: panates/github-actions/.github/workflows/node-qc.yaml@v1
