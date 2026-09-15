@@ -1,6 +1,14 @@
 ## Changelog
 
-### [v3.3.0](https://github.com/panates/postgrejs/compare/v3.2.0...v3.3.0) - 
+### [v3.4.0](https://github.com/panates/postgrejs/compare/v3.3.0...v3.4.0) - 
+
+- feat: add PreparedStatement.executeBatch() for multi-set execution
+
+#### 💬 General Changes
+
+- ci: pin GITHUB_TOKEN to read-only in the test and qc workflows @Eray Hanoğlu 
+
+### [v3.3.0](https://github.com/panates/postgrejs/compare/v3.2.0...v3.3.0) -  14 September 2026 
 
 #### 🚀 New Features
 
