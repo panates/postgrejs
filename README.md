@@ -76,6 +76,8 @@ usage.
   efficient data handling.
 - **Prepared Statements:** Named prepared statements for optimized query execution.
 - **Cursors:** Features fast double-link cache cursors for efficient data retrieval.
+- **Batch Execution:** `executeBatch()` runs one prepared statement over many parameter sets under a single `Sync`,
+  reporting each set's row count - 1000 updates in 20ms where the same calls pipelined individually take 188ms.
 - **Notifications:**  High-level implementation for PostgreSQL notifications (LISTEN/NOTIFY), enabling real-time data
   updates.
 - **Extensibility:** Extensible data-types and type mapping to accommodate custom requirements.
@@ -114,7 +116,7 @@ usage.
 
 How PostgreJS compares to [`pg`](https://github.com/brianc/node-postgres) (node-postgres) and
 [`postgres`](https://github.com/porsager/postgres) (postgres.js). Every row was checked against the libraries' own
-source rather than their documentation — versions compared: **PostgreJS 3.1.0, pg 8.23.0, postgres.js 3.4.9**. ✅ built
+source rather than their documentation — versions compared: **PostgreJS 3.4.0, pg 8.23.0, postgres.js 3.4.9**. ✅ built
 in · 🟡 partial or needs a separate package · ❌ not supported.
 
 | Feature                           |       PostgreJS        |          pg           |   postgres.js    |
@@ -147,6 +149,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Query parameters                  |           ✅           |          ✅           |        ✅        |
 | Parameter type casting            |           ✅           |   🟡 <sup>10</sup>    |        ✅        |
 | Prepared statements               |      ✅ explicit       |          ✅           |   ✅ automatic   |
+| Batch execution <sup>21</sup>     |           ✅           |          ❌           |        ❌        |
 | Multi-statement scripts           |           ✅           |          ✅           |        ✅        |
 | Server-side cursors               |           ✅           |   🟡 <sup>11</sup>    |        ✅        |
 | `COPY TO` / `COPY FROM`           |           ✅           |   🟡 <sup>12</sup>    |        ✅        |
@@ -215,6 +218,12 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   documentation lists what stops working with it: `pg-cursor`, `pg-query-stream` and
   `pg-copy-streams` all "operate directly on the binary stream and therefore are
   incompatible" - so server-side cursors, row streaming and COPY are what it costs.
+- <sup>21</sup> One statement executed over many parameter sets behind a single `Sync`, each set's row count reported
+  separately. pg and postgres.js both emit a `Sync` per execution (`syncBuffer` in pg's `connection.js`, the
+  concatenated `ExecuteUnnamed` in postgres.js's), so a burst of executions costs a server round of implicit-transaction
+  bookkeeping each, pipelined or not. Writing one multi-row statement by hand is a separate approach that all three
+  support, and both PostgreJS and postgres.js ship value builders for it - it is faster still where it applies, but it
+  is one statement rather than many, and PostgreSQL's 65535-parameter ceiling bounds it.
 
 
 ## Benchmarks
