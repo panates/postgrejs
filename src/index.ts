@@ -8,6 +8,7 @@ export * from './connection/pool.js';
 export * from './connection/prepared-statement.js';
 export * from './constants.js';
 export * from './data-type-map.js';
+export * from './interfaces/batch-result.js';
 export * from './interfaces/command-result.js';
 export * from './interfaces/data-mapping-options.js';
 export * from './interfaces/data-type.js';

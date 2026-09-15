@@ -2,6 +2,10 @@ import { performance } from 'node:perf_hooks';
 import { ConnectionState, DEFAULT_COLUMN_FORMAT } from '../constants.js';
 import type { DataTypeMap } from '../data-type-map.js';
 import { GlobalTypeMap } from '../data-type-map.js';
+import type {
+  BatchCommandResult,
+  BatchResult,
+} from '../interfaces/batch-result.js';
 import type { CommandResult } from '../interfaces/command-result.js';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
@@ -11,6 +15,7 @@ import type { QueryOptions } from '../interfaces/query-options.js';
 import type { QueryResult } from '../interfaces/query-result.js';
 import type { ScriptExecuteOptions } from '../interfaces/script-execute-options.js';
 import type { ScriptResult } from '../interfaces/script-result.js';
+import { DatabaseError } from '../protocol/database-error.js';
 import { PgSocket } from '../protocol/pg-socket.js';
 import { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
@@ -746,6 +751,187 @@ export class IntlConnection extends SafeEventEmitter {
    * the RowDescription fields prepareOnce() already fetched instead of
    * re-Describing a fresh portal on every call.
    */
+  /**
+   * Parsers and wrapped field descriptions for a statement whose
+   * RowDescription prepare() already fetched, memoised per RowDescription
+   * so repeated executes of the same statement don't rebuild them.
+   * Shared by executeReused() and executeBatchReused().
+   */
+  protected _resolveReusedParsers(
+    cachedFields: Protocol.RowDescription[],
+    typeMap: DataTypeMap,
+    options: QueryOptions,
+  ): { parsers: AnyParseFunction[]; resultFields: FieldInfo[] } {
+    const columnFormat =
+      options.columnFormat != null
+        ? options.columnFormat
+        : DEFAULT_COLUMN_FORMAT;
+    const cached = this._executeReusedParserCache.get(cachedFields);
+    if (
+      cached &&
+      cached.typeMap === typeMap &&
+      columnFormatsEqual(cached.columnFormat, columnFormat)
+    ) {
+      return { parsers: cached.parsers, resultFields: cached.resultFields };
+    }
+    const fields = cachedFields.map((f, i) => ({
+      ...f,
+      format: Array.isArray(columnFormat) ? columnFormat[i] : columnFormat,
+    }));
+    const parsers = getParsers(typeMap, fields);
+    const resultFields = wrapRowDescription(typeMap, fields, columnFormat);
+    this._executeReusedParserCache.set(cachedFields, {
+      typeMap,
+      columnFormat,
+      parsers,
+      resultFields,
+    });
+    return { parsers, resultFields };
+  }
+
+  /**
+   * Executes one prepared statement once per parameter set, as a single
+   * Bind/Execute stream closed by one Sync (see
+   * PgSocket.sendBatchBindExecuteMessages() for the wire shape and what
+   * the single Sync implies).
+   *
+   * Sets map to results positionally: the server answers each Execute with
+   * its own CommandComplete, and rows that arrive before one belong to the
+   * set it closes. When the server rejects a set, everything behind it is
+   * discarded unexecuted - the completed prefix is attached to the thrown
+   * error as `batchResults`, and the rejected set's index as `batchIndex`,
+   * so a caller can tell how far the batch actually got.
+   */
+  async executeBatchReused(
+    statementName: string,
+    cachedFields: Protocol.RowDescription[] | undefined,
+    paramTypes: Maybe<Maybe<OID>[]>,
+    paramSets: Maybe<any>[][],
+    options: QueryOptions,
+  ): Promise<BatchResult> {
+    this.assertConnected();
+    this.ref();
+    try {
+      const typeMap = options.typeMap || GlobalTypeMap;
+      const timingEnabled = options.timing ?? this.config.timing ?? false;
+      const startTime = timingEnabled ? performance.now() : 0;
+      const rowDecoder = resolveRowDecoder(options);
+      let parsers: AnyParseFunction[] | undefined;
+      let resultFields: FieldInfo[] | undefined;
+      if (cachedFields) {
+        const resolved = this._resolveReusedParsers(
+          cachedFields,
+          typeMap,
+          options,
+        );
+        parsers = resolved.parsers;
+        resultFields = resolved.resultFields;
+      }
+
+      const results: BatchCommandResult[] = [];
+      let pendingRows: any[] | undefined;
+      let error: DatabaseError | undefined;
+
+      const binds = paramSets.map(params => ({
+        typeMap,
+        statement: statementName,
+        paramTypes,
+        params,
+        queryOptions: options,
+      }));
+
+      this.runningQueryCount++;
+      await this.socket
+        .sendBatchBindExecuteMessages(
+          {
+            binds,
+            // Unlimited, never options.fetchCount: a suspended portal would
+            // break the positional set-to-result mapping above.
+            execute: { fetchCount: 0 },
+          },
+          (
+            code: Protocol.BackendMessageCode,
+            msg: any,
+            done: (err?: Error, result?: any) => void,
+          ) => {
+            switch (code) {
+              case Protocol.BackendMessageCode.BindComplete:
+              case Protocol.BackendMessageCode.NoticeResponse:
+                break;
+              case Protocol.BackendMessageCode.DataRow:
+                (pendingRows || (pendingRows = [])).push(msg);
+                break;
+              case Protocol.BackendMessageCode.EmptyQueryResponse:
+              case Protocol.BackendMessageCode.CommandComplete: {
+                const item: BatchCommandResult = {};
+                if (msg?.command) item.command = msg.command;
+                if (
+                  item.command === 'DELETE' ||
+                  item.command === 'INSERT' ||
+                  item.command === 'UPDATE'
+                )
+                  item.rowsAffected = msg.rowCount;
+                if (pendingRows && parsers && resultFields) {
+                  const l = pendingRows.length;
+                  let i: number;
+                  for (i = 0; i < l; i++) {
+                    pendingRows[i] = rowDecoder.decode(
+                      parsers,
+                      pendingRows[i].data,
+                      pendingRows[i].columnCount,
+                      options,
+                      resultFields,
+                    );
+                  }
+                  item.rows = pendingRows;
+                  if (!item.command) item.command = 'SELECT';
+                }
+                pendingRows = undefined;
+                results.push(item);
+                break;
+              }
+              case Protocol.BackendMessageCode.ErrorResponse:
+                error = msg;
+                break;
+              case Protocol.BackendMessageCode.ReadyForQuery:
+                this.transactionStatus = msg.status;
+                done(error);
+                break;
+              default:
+                done(
+                  new Error(
+                    `Server returned unexpected response message (${String.fromCharCode(code)})`,
+                  ),
+                );
+            }
+          },
+        )
+        .catch((e: any) => {
+          // The rejected set is the one right after everything that
+          // completed, since results only grow on CommandComplete.
+          if (e instanceof DatabaseError && error === e) {
+            e.batchIndex = results.length;
+            e.batchResults = results;
+          }
+          throw e;
+        })
+        .finally(() => {
+          this.runningQueryCount--;
+        });
+
+      let totalRowsAffected = 0;
+      const l = results.length;
+      let i: number;
+      for (i = 0; i < l; i++) totalRowsAffected += results[i].rowsAffected || 0;
+      const out: BatchResult = { results, totalRowsAffected };
+      if (resultFields) out.fields = resultFields;
+      if (timingEnabled) out.executeTime = performance.now() - startTime;
+      return out;
+    } finally {
+      this.unref();
+    }
+  }
+
   async executeReused(
     statementName: string,
     cachedFields: Protocol.RowDescription[] | undefined,
@@ -768,34 +954,13 @@ export class IntlConnection extends SafeEventEmitter {
       const rowDecoder = resolveRowDecoder(options);
 
       if (cachedFields) {
-        const columnFormat =
-          options.columnFormat != null
-            ? options.columnFormat
-            : DEFAULT_COLUMN_FORMAT;
-        const cached = this._executeReusedParserCache.get(cachedFields);
-        if (
-          cached &&
-          cached.typeMap === typeMap &&
-          columnFormatsEqual(cached.columnFormat, columnFormat)
-        ) {
-          parsers = cached.parsers;
-          resultFields = cached.resultFields;
-        } else {
-          const fields = cachedFields.map((f, i) => ({
-            ...f,
-            format: Array.isArray(columnFormat)
-              ? columnFormat[i]
-              : columnFormat,
-          }));
-          parsers = getParsers(typeMap, fields);
-          resultFields = wrapRowDescription(typeMap, fields, columnFormat);
-          this._executeReusedParserCache.set(cachedFields, {
-            typeMap,
-            columnFormat,
-            parsers,
-            resultFields,
-          });
-        }
+        const resolved = this._resolveReusedParsers(
+          cachedFields,
+          typeMap,
+          options,
+        );
+        parsers = resolved.parsers;
+        resultFields = resolved.resultFields;
         result.fields = resultFields;
         result.rowType = resolveRowType(options);
       }

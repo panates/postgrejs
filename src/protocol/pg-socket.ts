@@ -374,6 +374,46 @@ export class PgSocket extends SafeEventEmitter {
   }
 
   /**
+   * One Bind+Execute pair per parameter set against the same prepared
+   * statement, then a SINGLE Sync for the lot - the wire shape behind
+   * PreparedStatement.executeBatch().
+   *
+   * The single Sync is the whole point, and it is also what gives the
+   * batch its semantics. Sending Bind/Execute/Sync per set (what N
+   * separate execute() calls do, even pipelined) makes the server finish
+   * an implicit transaction and answer ReadyForQuery every time; one Sync
+   * at the end collapses that to one, which is where the bulk of the
+   * speedup comes from. It also means the sets share one implicit
+   * transaction, and that PostgreSQL discards everything between an error
+   * and the Sync - so a set that fails stops the ones behind it from
+   * running at all. Both of those are inherent to this framing rather
+   * than choices made above it.
+   *
+   * Every Execute here must be unlimited (fetchCount 0): a portal that
+   * suspends mid-batch would answer PortalSuspended instead of
+   * CommandComplete and desynchronise the positional set-to-result
+   * mapping the caller relies on.
+   */
+  sendBatchBindExecuteMessages(
+    args: {
+      binds: Frontend.BindMessageArgs[];
+      execute: Frontend.ExecuteMessageArgs;
+    },
+    cb: CaptureCallback,
+  ): Promise<any> {
+    const binds = args.binds;
+    const l = binds.length;
+    const data: Buffer[] = new Array(l * 2 + 1);
+    let i: number;
+    for (i = 0; i < l; i++) {
+      data[i * 2] = this._frontend.getBindMessage(binds[i]);
+      data[i * 2 + 1] = this._frontend.getExecuteMessage(args.execute);
+    }
+    data[l * 2] = this._frontend.getSyncMessage();
+    return this._sendAndCapture(data, cb, 'sendBatchBindExecuteMessages', args);
+  }
+
+  /**
    * Bind + Describe(portal) + Flush as a single round trip (NOT Sync - see
    * Portal.bindAndRetrieveFields()'s doc comment for why a Sync here would
    * be unsafe: it would commit an implicit/autocommit transaction and
