@@ -366,26 +366,31 @@ export class PgSocket extends SafeEventEmitter {
   sendPipelineMessages(
     args: {
       statements: {
-        parse: Frontend.ParseMessageArgs;
+        parse?: Frontend.ParseMessageArgs;
         bind: Frontend.BindMessageArgs;
-        describe: Frontend.DescribeMessageArgs;
+        describe?: Frontend.DescribeMessageArgs;
         execute: Frontend.ExecuteMessageArgs;
       }[];
     },
     cb: CaptureCallback,
   ): Promise<any> {
     const l = args.statements.length;
-    const data: Buffer[] = new Array(l * 4 + 1);
+    const data: Buffer[] = [];
     let i: number;
     let st: (typeof args.statements)[number];
     for (i = 0; i < l; i++) {
       st = args.statements[i];
-      data[i * 4] = this._frontend.getParseMessage(st.parse);
-      data[i * 4 + 1] = this._frontend.getBindMessage(st.bind);
-      data[i * 4 + 2] = this._frontend.getDescribeMessage(st.describe);
-      data[i * 4 + 3] = this._frontend.getExecuteMessage(st.execute);
+      // Parse and Describe are both optional: a statement bound to one the
+      // connection has already prepared needs neither, since the server
+      // still holds the plan and IntlConnection still holds the
+      // RowDescription that came with it.
+      if (st.parse) data.push(this._frontend.getParseMessage(st.parse));
+      data.push(this._frontend.getBindMessage(st.bind));
+      if (st.describe)
+        data.push(this._frontend.getDescribeMessage(st.describe));
+      data.push(this._frontend.getExecuteMessage(st.execute));
     }
-    data[l * 4] = this._frontend.getSyncMessage();
+    data.push(this._frontend.getSyncMessage());
     return this._sendAndCapture(data, cb, 'sendPipelineMessages', args);
   }
 

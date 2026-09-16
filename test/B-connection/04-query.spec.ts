@@ -412,6 +412,128 @@ describe('query() (Extended Query)', () => {
       expect(r[1].rows).toBeUndefined();
       expect(r[2].rows?.[0]).toStrictEqual([2]);
     });
+
+    describe('prepared statement reuse', () => {
+      const open = async (cfg?: any) => {
+        const c = new Connection(cfg);
+        await c.connect();
+        return c;
+      };
+      const prepared = async (c: Connection) =>
+        (
+          await c.query(
+            'select count(*)::int4 as n from pg_prepared_statements',
+            { prepare: false },
+          )
+        ).rows?.[0][0];
+
+      it('should bind a repeat of the same SQL to one prepared statement', async () => {
+        // The second occurrence earns the name; the third binds to it
+        // rather than parsing a third time. An unnamed statement could not
+        // be reused this way - the statement in between replaces it.
+        const c = await open();
+        try {
+          const r = await c.pipeline([
+            { sql: 'select $1::int4 as v', params: [1] },
+            { sql: 'select $1::int4 * 10 as v', params: [2] },
+            { sql: 'select $1::int4 as v', params: [3] },
+            { sql: 'select $1::int4 as v', params: [4] },
+          ]);
+          expect(r.map(x => x.rows?.[0][0])).toStrictEqual([1, 20, 3, 4]);
+          expect(await prepared(c)).toStrictEqual(1);
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should stop preparing once every statement is cached', async () => {
+        const c = await open();
+        try {
+          const reqs = [
+            { sql: 'select $1::int4 as v', params: [7] },
+            { sql: 'select $1::int4 * 10 as v', params: [8] },
+          ];
+          await c.pipeline(reqs);
+          await c.pipeline(reqs);
+          const settled = await prepared(c);
+          const r = await c.pipeline(reqs);
+          expect(r.map(x => x.rows?.[0][0])).toStrictEqual([7, 80]);
+          expect(await prepared(c)).toStrictEqual(settled);
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should keep row counts and columns right for a cached statement', async () => {
+        // A cached statement sends no Describe, so its columns have to
+        // come from the cache entry instead of the wire.
+        const c = await open();
+        try {
+          await c.execute('create temp table t_pipe_cache (id int4)');
+          for (let i = 0; i < 3; i++) {
+            const r = await c.pipeline([
+              { sql: 'insert into t_pipe_cache values ($1)', params: [i] },
+              { sql: 'select count(*)::int4 as n from t_pipe_cache' },
+            ]);
+            expect(r[0].command).toStrictEqual('INSERT');
+            expect(r[0].rowsAffected).toStrictEqual(1);
+            expect(r[1].rows?.[0]).toStrictEqual([i + 1]);
+            expect(r[1].fields?.length).toStrictEqual(1);
+          }
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should recover when a schema change invalidates a cached plan', async () => {
+        const c = await open();
+        try {
+          await c.execute(
+            'create temp table t_pipe_ddl (a int4); insert into t_pipe_ddl values (1)',
+          );
+          for (let i = 0; i < 3; i++)
+            await c.pipeline([{ sql: 'select * from t_pipe_ddl' }]);
+          await c.execute('alter table t_pipe_ddl add column b text');
+          const r = await c.pipeline([{ sql: 'select * from t_pipe_ddl' }]);
+          expect(r[0].rows?.[0].length).toStrictEqual(2);
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should prepare nothing when prepare is off', async () => {
+        const c = await open();
+        try {
+          const before = await prepared(c);
+          for (let i = 0; i < 3; i++)
+            await c.pipeline([{ sql: 'select $1::int8 as v', params: [1] }], {
+              prepare: false,
+            });
+          expect(await prepared(c)).toStrictEqual(before);
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should honour columnFormat per call on a cached statement', async () => {
+        const c = await open();
+        try {
+          const reqs = [{ sql: 'select $1::int4 as v', params: [5] }];
+          await c.pipeline(reqs);
+          await c.pipeline(reqs);
+          const text = await c.pipeline(reqs, {
+            columnFormat: DataFormat.text,
+          });
+          const binary = await c.pipeline(reqs, {
+            columnFormat: DataFormat.binary,
+          });
+          expect(text[0].rows?.[0]).toStrictEqual([5]);
+          expect(binary[0].rows?.[0]).toStrictEqual([5]);
+        } finally {
+          await c.close(0);
+        }
+      });
+    });
   });
 
   describe('prepared statement cache', () => {
