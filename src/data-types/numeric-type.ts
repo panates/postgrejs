@@ -1,6 +1,7 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
+import { assertCoercedNumber } from '../util/assert-integer.js';
 import { fastParseFloatBuffer } from '../util/fast-parsefloat.js';
 
 const NUMERIC_NEG = 0x4000;
@@ -49,6 +50,12 @@ export const NumericType: DataType = {
     if (str === 'NaN') return writeHeader(0, 0, NUMERIC_NAN, 0);
     if (str === 'Infinity') return writeHeader(0, 0, NUMERIC_PINF, 0);
     if (str === '-Infinity') return writeHeader(0, 0, NUMERIC_NINF, 0);
+    // Anything with no numeric reading at all - `{}` stringifies to
+    // "[object Object]", `true` to "true" - would otherwise be walked
+    // digit by digit below and stored as 0.
+    // Number('') is 0, not NaN, so an empty string - what `[]` and `null`
+    // stringify to - would slip past the NaN check below.
+    assertCoercedNumber(str.length ? Number(str) : NaN, 'numeric');
     // Exponent form has no place in the wire format; go through Number to
     // get it back into plain notation. toFixed() cannot do this itself -
     // per spec it falls back to exponential notation once the magnitude

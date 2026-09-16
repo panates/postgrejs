@@ -1,6 +1,7 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
+import { assertInteger } from '../util/assert-integer.js';
 import { fastParseInt, fastParseIntBuffer } from '../util/fast-parseint.js';
 
 export const Int4Type: DataType = {
@@ -13,7 +14,7 @@ export const Int4Type: DataType = {
   },
 
   encodeBinary(buf: SmartBuffer, v: number): void {
-    buf.writeInt32BE(fastParseInt(v));
+    buf.writeInt32BE(assertInteger(fastParseInt(v), 'int4'));
   },
 
   decodeBinary(v: Buffer, offset: number = 0): number {

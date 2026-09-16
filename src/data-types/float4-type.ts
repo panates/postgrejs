@@ -1,6 +1,7 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
+import { assertCoercedNumber } from '../util/assert-integer.js';
 import { fastParseFloatBuffer } from '../util/fast-parsefloat.js';
 
 export const Float4Type: DataType = {
@@ -13,7 +14,9 @@ export const Float4Type: DataType = {
   },
 
   encodeBinary(buf: SmartBuffer, v: number | string): void {
-    buf.writeFloatBE(typeof v === 'number' ? v : parseFloat(v));
+    buf.writeFloatBE(
+      typeof v === 'number' ? v : assertCoercedNumber(parseFloat(v), 'float4'),
+    );
   },
 
   decodeBinary(v: Buffer, offset: number = 0): number {
