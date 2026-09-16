@@ -10,6 +10,7 @@ export * from './constants.js';
 export * from './data-type-map.js';
 export * from './interfaces/batch-result.js';
 export * from './interfaces/command-result.js';
+export * from './interfaces/copy-from-rows-options.js';
 export * from './interfaces/data-mapping-options.js';
 export * from './interfaces/data-type.js';
 export * from './interfaces/database-connection-params.js';

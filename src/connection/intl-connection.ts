@@ -7,6 +7,10 @@ import type {
   BatchResult,
 } from '../interfaces/batch-result.js';
 import type { CommandResult } from '../interfaces/command-result.js';
+import type {
+  CopyFromRowsOptions,
+  CopyFromRowsResult,
+} from '../interfaces/copy-from-rows-options.js';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
 import type { FunctionCallOptions } from '../interfaces/function-call-options.js';
@@ -21,6 +25,12 @@ import { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { AnyParseFunction, Maybe, OID } from '../types.js';
 import { getConnectionConfig } from '../util/connection-config.js';
+import {
+  buildCopySql,
+  buildProbeSql,
+  type CopyRowSource,
+  writeCopyBinaryRows,
+} from '../util/copy-from-rows.js';
 import { escapeLiteral } from '../util/escape-literal.js';
 import { getParsers } from '../util/get-parsers.js';
 import { resolveRowDecoder, resolveRowType } from '../util/row-decoder.js';
@@ -431,6 +441,86 @@ export class IntlConnection extends SafeEventEmitter {
    * Runs a COPY ... FROM STDIN and hands back a stream to feed it.
    * Resolves once the server is ready for data.
    */
+  /**
+   * Streams rows into a table with `COPY ... FROM STDIN (FORMAT binary)`,
+   * encoding each value with its own type's binary encoder.
+   *
+   * Binary COPY performs no conversion server-side, so the destination
+   * column types have to be known exactly. They are read from the server
+   * unless the caller supplies them: a Describe of `select <columns> from
+   * <table> where false` against the unnamed statement returns a
+   * RowDescription carrying each column's OID, which costs one round trip
+   * and leaves nothing to close (the next Parse replaces the unnamed
+   * statement). Letting PostgreSQL resolve the name is the reason to do it
+   * this way rather than reading the catalog here - schemas, quoting,
+   * search_path and views then behave exactly as they will for the COPY.
+   */
+  async copyFromRows(
+    table: string,
+    source: CopyRowSource,
+    options: CopyFromRowsOptions = {},
+  ): Promise<CopyFromRowsResult> {
+    this.assertConnected();
+    let columns = options.columns;
+    let dataTypeIds = options.columnTypes;
+
+    if (!dataTypeIds || !columns) {
+      const { fields } = await this.prepareOnce(
+        buildProbeSql(table, columns),
+        undefined,
+        '',
+      );
+      if (!fields?.length)
+        throw new Error(
+          `Cannot determine columns of "${table}" - it returned no column descriptions`,
+        );
+      columns = columns || fields.map(f => f.fieldName);
+      dataTypeIds = dataTypeIds || fields.map(f => f.dataTypeId);
+    }
+    if (columns.length !== dataTypeIds.length)
+      throw new Error(
+        `columnTypes has ${dataTypeIds.length} entries but ${columns.length} columns were given`,
+      );
+
+    const stream = await this.copyFrom(buildCopySql(table, columns));
+    // The CopyFail sent below comes back as an ErrorResponse, which the
+    // stream emits as 'error'. Node turns an 'error' with no listener into
+    // an uncaught exception and takes the process down - so a value this
+    // method already rejected cleanly would kill the caller instead.
+    // Recorded rather than ignored, since the same listener covers a
+    // socket that dies mid-copy.
+    let streamError: Error | undefined;
+    stream.on('error', e => {
+      streamError = streamError || e;
+    });
+    try {
+      const result = await writeCopyBinaryRows(source, {
+        columns,
+        dataTypeIds,
+        options,
+        write: chunk =>
+          new Promise<void>((resolve, reject) => {
+            const accepted = this.socket.sendCopyData(chunk, err =>
+              err ? reject(err) : resolve(),
+            );
+            // Taken without buffering - no reason to wait for the write
+            // callback, which would add a turn of latency per chunk.
+            if (accepted) resolve();
+          }),
+      });
+      await new Promise<void>(resolve => stream.end(resolve));
+      if (streamError) throw streamError;
+      return result;
+    } catch (e) {
+      // Tell the server to abandon the copy rather than leaving it waiting
+      // for a stream that will never arrive.
+      this.socket.sendCopyFail(
+        e instanceof Error ? e.message : 'copyFromRows() failed',
+      );
+      throw e;
+    }
+  }
+
   async copyFrom(sql: string): Promise<CopyFromStream> {
     this.assertConnected();
     this.ref();
