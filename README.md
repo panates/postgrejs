@@ -86,7 +86,9 @@ usage.
 - **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
 - **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure
   authentication.
-- **Bulk Import/Export:** `COPY TO STDOUT` and `COPY FROM STDIN` as Node streams, with backpressure in both directions.
+- **Bulk Import/Export:** `COPY TO STDOUT` and `COPY FROM STDIN` as Node streams, with backpressure in both directions,
+  plus `copyFromRows()`, which encodes rows straight into binary `COPY` - around 4x faster than the CSV equivalent and
+  no text escaping to get wrong. Takes arrays or objects from anything iterable, so a file larger than memory streams in.
 - **Query Pipelining:** Pooled queries can share connections so a burst is not capped by pool size - opt-in per call.
 - **Dynamic SQL:** A `sql` tag builds statements from composable fragments - values become parameters, names are quoted,
   and `sql.values()`/`sql.set()` write INSERT and UPDATE clauses from objects.
@@ -153,6 +155,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Multi-statement scripts           |           ✅           |          ✅           |        ✅        |
 | Server-side cursors               |           ✅           |   🟡 <sup>11</sup>    |        ✅        |
 | `COPY TO` / `COPY FROM`           |           ✅           |   🟡 <sup>12</sup>    |        ✅        |
+| Binary COPY encoding <sup>22</sup> |           ✅           |          ❌           |        ❌        |
 | Row count after a COPY            |           ✅           |          ✅           |        ❌        |
 | ***Transaction management***      |                        |                       |                  |
 | Transaction API                   |           ✅           |          ❌           |        ✅        |
@@ -224,6 +227,12 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   bookkeeping each, pipelined or not. Writing one multi-row statement by hand is a separate approach that all three
   support, and both PostgreJS and postgres.js ship value builders for it - it is faster still where it applies, but it
   is one statement rather than many, and PostgreSQL's 65535-parameter ceiling bounds it.
+- <sup>22</sup> Turning JavaScript rows into the binary `COPY` format, rather than carrying a payload the caller
+  formatted first. All three can carry a `COPY` stream, but only as bytes: postgres.js hands back a `Writable` that
+  wraps raw chunks in `CopyData`, and pg reaches the same point through `pg-copy-streams`. Producing the format needs a
+  binary encoder per type, which neither driver has - see Binary encoders above, where the same gap shows up for query
+  parameters. The capability is still reachable with pg through a third package, `pg-copy-streams-binary`, which brings
+  its own encoders; postgres.js has no equivalent.
 
 
 ## Benchmarks
