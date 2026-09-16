@@ -64,6 +64,14 @@ a time — never in parallel — so CPU/connection contention on your machine
 doesn't skew the numbers. Results land in `benchmark/results/*.json`
 (gitignored raw data backing whatever `../doc/BENCHMARKS.md` currently reports).
 
+Repeats are interleaved rather than run back to back: every library gets its
+first repeat before anyone gets a second, and the order rotates by one on each
+repeat so no library is stuck in the first (coldest) or last (warmest) slot.
+Running a library's repeats consecutively puts all of its samples inside the
+same few seconds, so a burst of load on the machine lands entirely on whoever
+happens to be running then — and the median across repeats can't filter that
+out when every repeat shares the burst.
+
 ## Rigor vs. speed
 
 The default iteration/warmup/repeat counts are kept modest on purpose, so a
