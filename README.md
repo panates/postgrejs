@@ -82,7 +82,11 @@ usage.
   statement leaves the transaction usable instead of aborting the whole block. The `SAVEPOINT`/`RELEASE` pair travels
   in the statement's own round trip rather than costing one each - 36µs for the pair, against 507µs sent separately.
   `rollbackOnError: false` to opt out.
-- **Cursors:** Features fast double-link cache cursors for efficient data retrieval.
+- **Cursors:** Features fast double-link cache cursors for efficient data retrieval, iterable with `for await` a row
+  at a time and closed when the loop ends - by exhaustion, a `break`, or a throw.
+- **Scoped Transactions:** `transaction(fn)` commits when the callback returns and rolls back when it throws, on a
+  connection or straight from the pool. A call made while a transaction is already open takes a savepoint rather than
+  a second `BEGIN`, so a nested scope that fails rolls back its own work and leaves the outer transaction standing.
 - **Batch Execution:** `executeBatch()` runs one prepared statement over many parameter sets under a single `Sync`,
   reporting each set's row count - 1000 updates in 20ms where the same calls pipelined individually take 188ms.
 - **Notifications:**  High-level implementation for PostgreSQL notifications (LISTEN/NOTIFY), enabling real-time data
@@ -163,6 +167,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Parameter type casting            |           ✅           |   🟡 <sup>10</sup>    |        ✅        |
 | Prepared statements <sup>24</sup> |     ✅ automatic      |      ✅ manual       |   ✅ automatic   |
 | Statement-level rollback <sup>25</sup> |     ✅ automatic      |          ❌           |    🟡 manual     |
+| Scoped transaction helper <sup>26</sup> |     ✅ nests      |          ❌           |        ✅        |
 | Batch execution <sup>21</sup>     |           ✅           |          ❌           |        ❌        |
 | Multi-statement round trip <sup>23</sup> |     ✅     |          ❌           |        ❌        |
 | Multi-statement scripts           |           ✅           |          ✅           |        ✅        |
@@ -266,6 +271,11 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   trip for each. postgres.js has savepoints, but as a scope the caller opens around a callback (`savepoint(name, fn)`
   in `src/index.js`), so a statement is protected only where someone wrapped it; pg has no savepoint handling in
   `lib/` at all, so a failed statement leaves the block aborted until the caller rolls back themselves.
+- <sup>26</sup> Whether the library runs a callback inside a transaction for you, committing or rolling back on the way
+  out. PostgreJS has `transaction(fn)` on both a connection and the pool, and a call made inside one already open takes
+  a savepoint, so nesting needs nothing from the caller. postgres.js has `sql.begin(fn)` (`src/index.js`), where a
+  nested scope is opened explicitly with `sql.savepoint(fn)` instead. pg has no such helper in `lib/` - `BEGIN` and
+  `COMMIT` are statements the caller sends, and getting a transaction onto one connection is the caller's problem too.
 
 
 ## Benchmarks
