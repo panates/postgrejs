@@ -4,8 +4,29 @@
 
 - feat: add PreparedStatement.executeBatch() for multi-set execution
 
+#### 🚀 New Features
+
+- feat: add copyFromRows() for binary COPY bulk loading @Eray Hanoğlu 
+- feat: add Connection.pipeline() for many statements in one round trip @Eray Hanoğlu 
+- feat: reuse prepared statements for repeated queries @Eray Hanoğlu 
+
+#### 🪲 Fixes
+
+- fix: refuse values that have no numeric reading instead of storing zero @Eray Hanoğlu 
+
+#### 📖 Documentation Changes
+
+- docs: refresh the Node report and correct a stale asymmetry note @Eray Hanoğlu 
+- docs: record the prepared statement cache in the README @Eray Hanoğlu 
+- docs: list pipeline() in the feature list and comparison table @Eray Hanoğlu 
+- docs: list binary COPY in the feature list and comparison table @Eray Hanoğlu 
+- docs: list batch execution in the feature list and comparison table @Eray Hanoğlu 
+
 #### 💬 General Changes
 
+- bench: add Bulk Load scenarios for text and binary COPY @Eray Hanoğlu 
+- bench: add Unit of Work scenario for pipeline() @Eray Hanoğlu 
+- bench: stop measuring postgres.js on an unprepared path @Eray Hanoğlu 
 - ci: pin GITHUB_TOKEN to read-only in the test and qc workflows @Eray Hanoğlu 
 
 ### [v3.3.0](https://github.com/panates/postgrejs/compare/v3.2.0...v3.3.0) -  14 September 2026 
