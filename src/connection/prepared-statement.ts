@@ -118,7 +118,7 @@ export class PreparedStatement
    *   separate execute() calls, where each commits on its own.
    * - **A failing set stops the rest.** PostgreSQL discards everything
    *   between an error and the Sync, so sets after a rejected one never
-   *   run. The error carries `batchIndex` (which set was rejected) and
+   *   run. The error carries `failedIndex` (which set was rejected) and
    *   `batchResults` (the ones that had completed) so the caller can see
    *   how far it got.
    *

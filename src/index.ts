@@ -17,6 +17,7 @@ export * from './interfaces/database-connection-params.js';
 export * from './interfaces/field-info.js';
 export * from './interfaces/function-call-options.js';
 export * from './interfaces/function-call-result.js';
+export * from './interfaces/pipeline-request.js';
 export * from './interfaces/query-options.js';
 export * from './interfaces/query-result.js';
 export * from './interfaces/script-execute-options.js';

@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { expect } from 'expect';
-import { Connection, Cursor, DataFormat, RowDecoder } from 'postgrejs';
+import { Connection, Cursor, DataFormat, RowDecoder, sql } from 'postgrejs';
 
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
@@ -310,5 +310,107 @@ describe('query() (Extended Query)', () => {
     // ...but it must still carry the column's actual value, not undefined.
     expect(Object.getOwnPropertyDescriptor(row, '__proto__')?.value).toBe(42);
     expect(row.ok).toBe(7);
+  });
+
+  describe('pipeline()', () => {
+    it('should run different statements in one round trip and map results by position', async () => {
+      await connection.execute(
+        'create temp table t_pipe (id int4 primary key, a int4, b text)',
+      );
+      await connection.execute("insert into t_pipe values (1, 0, 'x')");
+      const r = await connection.pipeline([
+        { sql: 'update t_pipe set a = $1 where id = $2', params: [5, 1] },
+        { sql: 'insert into t_pipe values ($1, $2, $3)', params: [2, 1, 'y'] },
+        { sql: 'select id, b from t_pipe where id = $1', params: [1] },
+      ]);
+      expect(r.length).toStrictEqual(3);
+      expect(r[0].command).toStrictEqual('UPDATE');
+      expect(r[0].rowsAffected).toStrictEqual(1);
+      expect(r[1].command).toStrictEqual('INSERT');
+      expect(r[2].command).toStrictEqual('SELECT');
+      expect(r[2].rows?.[0]).toStrictEqual([1, 'x']);
+      expect(r[2].fields?.length).toStrictEqual(2);
+    });
+
+    it('should accept plain strings, objects and sql tag output alike', async () => {
+      const r = await connection.pipeline([
+        'select 1 as v',
+        { sql: 'select $1::int4 as v', params: [7] },
+        sql`select ${9}::int4 as v`,
+      ]);
+      expect(r.map(x => x.rows?.[0])).toStrictEqual([[1], [7], [9]]);
+    });
+
+    it('should apply options to every statement', async () => {
+      const r = await connection.pipeline(['select 1 as v', 'select 2 as v'], {
+        objectRows: true,
+      });
+      expect(r.map(x => x.rows?.[0])).toStrictEqual([{ v: 1 }, { v: 2 }]);
+    });
+
+    it('should report which statement the server rejected', async () => {
+      await connection.execute(
+        'create temp table t_pipe_err (id int4 primary key)',
+      );
+      await connection.execute('insert into t_pipe_err values (1)');
+      let error: any;
+      try {
+        await connection.pipeline([
+          { sql: 'insert into t_pipe_err values ($1)', params: [50] },
+          { sql: 'insert into t_pipe_err values ($1)', params: [1] },
+          { sql: 'insert into t_pipe_err values ($1)', params: [51] },
+        ]);
+      } catch (e: any) {
+        error = e;
+      }
+      expect(error?.code).toStrictEqual('23505');
+      expect(error?.failedIndex).toStrictEqual(1);
+      const q = await connection.query('select 1 as v');
+      expect(q.rows?.[0]).toStrictEqual([1]);
+    });
+
+    it('should roll every statement back when one fails', async () => {
+      // One Sync means one implicit transaction: statement 0 completed
+      // before the failure but must not survive it, and statement 2 never
+      // ran at all.
+      await connection.execute(
+        'create temp table t_pipe_atomic (id int4 primary key)',
+      );
+      await connection.execute('insert into t_pipe_atomic values (1)');
+      await expect(
+        connection.pipeline([
+          { sql: 'insert into t_pipe_atomic values ($1)', params: [50] },
+          { sql: 'insert into t_pipe_atomic values ($1)', params: [1] },
+          { sql: 'insert into t_pipe_atomic values ($1)', params: [51] },
+        ]),
+      ).rejects.toThrow();
+      const q = await connection.query(
+        'select count(*)::int4 as n from t_pipe_atomic where id in (50, 51)',
+      );
+      expect(q.rows?.[0]).toStrictEqual([0]);
+    });
+
+    it('should accept an empty pipeline without touching the connection', async () => {
+      expect(await connection.pipeline([])).toStrictEqual([]);
+      const q = await connection.query('select 1 as v');
+      expect(q.rows?.[0]).toStrictEqual([1]);
+    });
+
+    it('should reject a cursor request, which a pipeline cannot honour', async () => {
+      await expect(
+        connection.pipeline(['select 1 as v'], { cursor: true }),
+      ).rejects.toThrow(/cursor/);
+    });
+
+    it('should keep results aligned when only some statements return rows', async () => {
+      const r = await connection.pipeline([
+        'select 1 as v',
+        'create temp table t_pipe_norows (id int4)',
+        'select 2 as v',
+      ]);
+      expect(r[0].rows?.[0]).toStrictEqual([1]);
+      expect(r[1].rows).toBeUndefined();
+      expect(r[2].rows?.[0]).toStrictEqual([2]);
+    });
   });
 });

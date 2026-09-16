@@ -3,12 +3,13 @@ import { Protocol } from './protocol.js';
 
 export class DatabaseError extends Error {
   /**
-   * Which parameter set PreparedStatement.executeBatch() was on when the
-   * server rejected the batch - only set by that path. Sets after this
-   * index never ran: PostgreSQL discards everything between an error and
-   * the batch's single Sync.
+   * Which entry of a multi-statement submission the server rejected -
+   * PreparedStatement.executeBatch()'s parameter sets, or the statements
+   * given to Connection.pipeline(). Entries after this index never ran:
+   * PostgreSQL discards everything between an error and the single Sync
+   * that closes such a submission.
    */
-  batchIndex?: number;
+  failedIndex?: number;
   /**
    * The sets that had already completed when the batch failed, in
    * submission order - only set by PreparedStatement.executeBatch(). They

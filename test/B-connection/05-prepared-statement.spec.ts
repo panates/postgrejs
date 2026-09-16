@@ -229,7 +229,7 @@ describe('PreparedStatement', () => {
         // The duplicate key is set #1; it stays a DatabaseError so the
         // usual PostgreSQL fields still work.
         expect(error?.code).toStrictEqual('23505');
-        expect(error?.batchIndex).toStrictEqual(1);
+        expect(error?.failedIndex).toStrictEqual(1);
         expect(error?.batchResults?.length).toStrictEqual(1);
       } finally {
         await stmt.close();

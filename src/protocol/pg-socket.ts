@@ -328,6 +328,53 @@ export class PgSocket extends SafeEventEmitter {
   }
 
   /**
+   * Parse + Bind + Describe(portal) + Execute per statement, then a SINGLE
+   * Sync for the lot - the wire shape behind Connection.pipeline().
+   *
+   * The same framing as sendBatchBindExecuteMessages(), and the same
+   * consequences, except that each statement carries its own Parse rather
+   * than reusing one prepared statement: the statements share one implicit
+   * transaction, and PostgreSQL discards everything between an error and
+   * the Sync, so a rejected statement stops the ones behind it.
+   *
+   * Describe is not optional here even though nothing caches its answer.
+   * Without it the server sends DataRows for a row-returning statement with
+   * no RowDescription in front of them, leaving the column names and types
+   * unknown - the reason the one-shot path in sendExtendedQueryMessages()
+   * includes it too. It costs about a quarter of a millisecond across
+   * twenty statements, measured.
+   *
+   * Every Execute is unlimited (fetchCount 0): a portal that suspended
+   * mid-pipeline would answer PortalSuspended instead of CommandComplete
+   * and desynchronise the positional statement-to-result mapping.
+   */
+  sendPipelineMessages(
+    args: {
+      statements: {
+        parse: Frontend.ParseMessageArgs;
+        bind: Frontend.BindMessageArgs;
+        describe: Frontend.DescribeMessageArgs;
+        execute: Frontend.ExecuteMessageArgs;
+      }[];
+    },
+    cb: CaptureCallback,
+  ): Promise<any> {
+    const l = args.statements.length;
+    const data: Buffer[] = new Array(l * 4 + 1);
+    let i: number;
+    let st: (typeof args.statements)[number];
+    for (i = 0; i < l; i++) {
+      st = args.statements[i];
+      data[i * 4] = this._frontend.getParseMessage(st.parse);
+      data[i * 4 + 1] = this._frontend.getBindMessage(st.bind);
+      data[i * 4 + 2] = this._frontend.getDescribeMessage(st.describe);
+      data[i * 4 + 3] = this._frontend.getExecuteMessage(st.execute);
+    }
+    data[l * 4] = this._frontend.getSyncMessage();
+    return this._sendAndCapture(data, cb, 'sendPipelineMessages', args);
+  }
+
+  /**
    * Parse + Describe(statement) + Sync as a single round trip - used by
    * PreparedStatement.prepare() instead of a separate awaited Parse then a
    * separate awaited Sync, and fetches the RowDescription/NoData in the

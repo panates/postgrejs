@@ -889,9 +889,151 @@ export class IntlConnection extends SafeEventEmitter {
    * its own CommandComplete, and rows that arrive before one belong to the
    * set it closes. When the server rejects a set, everything behind it is
    * discarded unexecuted - the completed prefix is attached to the thrown
-   * error as `batchResults`, and the rejected set's index as `batchIndex`,
+   * error as `batchResults`, and the rejected set's index as `failedIndex`,
    * so a caller can tell how far the batch actually got.
    */
+  /**
+   * Runs several different statements as one Parse/Bind/Describe/Execute
+   * stream closed by a single Sync (see PgSocket.sendPipelineMessages() for
+   * the wire shape and what that framing implies).
+   *
+   * The counterpart to executeBatchReused(): that one runs a single
+   * prepared statement over many parameter sets, this one runs many
+   * statements once each. Results map to statements positionally - the
+   * server answers each Execute with its own CommandComplete, and any rows
+   * that arrive before one belong to the statement it closes.
+   */
+  async executePipeline(
+    requests: { sql: string; params?: any[]; paramTypes?: Maybe<OID>[] }[],
+    options: QueryOptions,
+  ): Promise<QueryResult[]> {
+    this.assertConnected();
+    this.ref();
+    try {
+      const typeMap = options.typeMap || GlobalTypeMap;
+      const timingEnabled = options.timing ?? this.config.timing ?? false;
+      const startTime = timingEnabled ? performance.now() : 0;
+      const rowDecoder = resolveRowDecoder(options);
+      const columnFormat =
+        options.columnFormat != null
+          ? options.columnFormat
+          : DEFAULT_COLUMN_FORMAT;
+
+      const results: QueryResult[] = [];
+      let pendingFields: Protocol.RowDescription[] | undefined;
+      let pendingRows: any[] | undefined;
+      let error: DatabaseError | undefined;
+
+      const statements = requests.map(r => ({
+        // Per statement, not per pipeline: the statements differ, so a
+        // single shared list of parameter OIDs could only ever be right
+        // for one of them.
+        parse: { sql: r.sql, paramTypes: r.paramTypes },
+        bind: {
+          typeMap,
+          paramTypes: r.paramTypes,
+          params: r.params,
+          queryOptions: options,
+        },
+        describe: { type: 'P' as const },
+        // Unlimited, never options.fetchCount: a suspended portal would
+        // break the positional statement-to-result mapping.
+        execute: { fetchCount: 0 },
+      }));
+
+      this.runningQueryCount++;
+      await this.socket
+        .sendPipelineMessages({ statements }, (code, msg: any, done) => {
+          switch (code) {
+            case Protocol.BackendMessageCode.ParseComplete:
+            case Protocol.BackendMessageCode.BindComplete:
+            case Protocol.BackendMessageCode.NoticeResponse:
+              break;
+            case Protocol.BackendMessageCode.NoData:
+              pendingFields = undefined;
+              break;
+            case Protocol.BackendMessageCode.RowDescription:
+              pendingFields = msg.fields;
+              break;
+            case Protocol.BackendMessageCode.DataRow:
+              (pendingRows || (pendingRows = [])).push(msg);
+              break;
+            case Protocol.BackendMessageCode.EmptyQueryResponse:
+            case Protocol.BackendMessageCode.CommandComplete: {
+              const result: QueryResult = { command: msg?.command };
+              if (pendingFields) {
+                const parsers = getParsers(typeMap, pendingFields);
+                const resultFields = wrapRowDescription(
+                  typeMap,
+                  pendingFields,
+                  columnFormat,
+                );
+                result.fields = resultFields;
+                result.rowType = resolveRowType(options);
+                if (!result.command) result.command = 'SELECT';
+                const rows = pendingRows || [];
+                const l = rows.length;
+                let i: number;
+                for (i = 0; i < l; i++) {
+                  rows[i] = rowDecoder.decode(
+                    parsers,
+                    rows[i].data,
+                    rows[i].columnCount,
+                    options,
+                    resultFields,
+                  );
+                }
+                result.rows = rows;
+              }
+              if (
+                result.command === 'DELETE' ||
+                result.command === 'INSERT' ||
+                result.command === 'UPDATE'
+              )
+                result.rowsAffected = msg.rowCount;
+              pendingFields = undefined;
+              pendingRows = undefined;
+              results.push(result);
+              break;
+            }
+            case Protocol.BackendMessageCode.ErrorResponse:
+              error = msg;
+              break;
+            case Protocol.BackendMessageCode.ReadyForQuery:
+              this.transactionStatus = msg.status;
+              done(error);
+              break;
+            default:
+              done(
+                new Error(
+                  `Server returned unexpected response message (${String.fromCharCode(code)})`,
+                ),
+              );
+          }
+        })
+        .catch((e: any) => {
+          // The rejected statement is the one right after everything that
+          // completed, since results only grow on CommandComplete.
+          if (e instanceof DatabaseError && error === e)
+            e.failedIndex = results.length;
+          throw e;
+        })
+        .finally(() => {
+          this.runningQueryCount--;
+        });
+
+      if (timingEnabled) {
+        const elapsed = performance.now() - startTime;
+        const l = results.length;
+        let i: number;
+        for (i = 0; i < l; i++) results[i].executeTime = elapsed;
+      }
+      return results;
+    } finally {
+      this.unref();
+    }
+  }
+
   async executeBatchReused(
     statementName: string,
     cachedFields: Protocol.RowDescription[] | undefined,
@@ -1000,7 +1142,7 @@ export class IntlConnection extends SafeEventEmitter {
           // The rejected set is the one right after everything that
           // completed, since results only grow on CommandComplete.
           if (e instanceof DatabaseError && error === e) {
-            e.batchIndex = results.length;
+            e.failedIndex = results.length;
             e.batchResults = results;
           }
           throw e;
