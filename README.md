@@ -74,7 +74,9 @@ usage.
   resource management.
 - **Binary Wire Protocol:** Implements the full binary wire protocol for all PostgreSQL data types, ensuring robust and
   efficient data handling.
-- **Prepared Statements:** Named prepared statements for optimized query execution.
+- **Prepared Statements:** Named prepared statements for optimized query execution, and a per-connection cache that
+  reuses one automatically for SQL the connection has run before - a repeated query costs `Bind`/`Execute` instead of
+  parsing again, worth 3.2x on fifty concurrent calls. On by default, `prepare: false` to opt out.
 - **Cursors:** Features fast double-link cache cursors for efficient data retrieval.
 - **Batch Execution:** `executeBatch()` runs one prepared statement over many parameter sets under a single `Sync`,
   reporting each set's row count - 1000 updates in 20ms where the same calls pipelined individually take 188ms.
@@ -153,7 +155,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | ***Querying***                    |                        |                       |                  |
 | Query parameters                  |           ✅           |          ✅           |        ✅        |
 | Parameter type casting            |           ✅           |   🟡 <sup>10</sup>    |        ✅        |
-| Prepared statements               |      ✅ explicit       |          ✅           |   ✅ automatic   |
+| Prepared statements <sup>24</sup> |     ✅ automatic      |      ✅ manual       |   ✅ automatic   |
 | Batch execution <sup>21</sup>     |           ✅           |          ❌           |        ❌        |
 | Multi-statement round trip <sup>23</sup> |     ✅     |          ❌           |        ❌        |
 | Multi-statement scripts           |           ✅           |          ✅           |        ✅        |
@@ -244,6 +246,13 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   (`query.js`), and postgres.js concatenates Execute and Sync into a single constant (`ExecuteUnnamed`). Atomicity on
   its own is reachable anywhere with an explicit `BEGIN`/`COMMIT`; what that cannot recover is the round trip, since
   the per-statement Syncs and two extra statements remain.
+- <sup>24</sup> Whether a repeated query is parsed again every time. PostgreJS and postgres.js both keep a per-connection
+  cache keyed on the SQL and reuse a server-side statement, so a repeat costs `Bind`/`Execute` rather than
+  `Parse`/`Bind`/`Describe`/`Execute`; pg prepares only the statements you name yourself (`query.js`: "named queries
+  must always be prepared"), with nothing caching by SQL text. The two automatic ones differ in when they start:
+  postgres.js on first sight, PostgreJS on the second use, which leaves a genuinely one-shot query at its unprepared
+  cost. Both default to on and both take `prepare: false`, which matters for PgBouncer in transaction pooling mode
+  before 1.21, where a named statement does not survive to the next call.
 
 
 ## Benchmarks
