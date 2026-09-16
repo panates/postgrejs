@@ -314,16 +314,31 @@ export class PgSocket extends SafeEventEmitter {
       bind: Frontend.BindMessageArgs;
       describe: Frontend.DescribeMessageArgs;
       execute: Frontend.ExecuteMessageArgs;
+      before?: string;
+      after?: string;
     },
     cb: CaptureCallback,
   ): Promise<any> {
-    const data = [
+    if (!args.before && !args.after) {
+      const data = [
+        this._frontend.getParseMessage(args.parse),
+        this._frontend.getBindMessage(args.bind),
+        this._frontend.getDescribeMessage(args.describe),
+        this._frontend.getExecuteMessage(args.execute),
+        this._frontend.getSyncMessage(),
+      ];
+      return this._sendAndCapture(data, cb, 'sendExtendedQueryMessages', args);
+    }
+    const data: Buffer[] = [];
+    if (args.before) this._pushUtilityStatement(data, args.before, args.bind);
+    data.push(
       this._frontend.getParseMessage(args.parse),
       this._frontend.getBindMessage(args.bind),
       this._frontend.getDescribeMessage(args.describe),
       this._frontend.getExecuteMessage(args.execute),
-      this._frontend.getSyncMessage(),
-    ];
+    );
+    if (args.after) this._pushUtilityStatement(data, args.after, args.bind);
+    data.push(this._frontend.getSyncMessage());
     return this._sendAndCapture(data, cb, 'sendExtendedQueryMessages', args);
   }
 
@@ -653,9 +668,9 @@ export class PgSocket extends SafeEventEmitter {
   /**
    * Parse + Bind + Execute for a parameterless utility statement, appended
    * to a message list that is about to be closed by one Sync - how
-   * sendBindExecuteMessages() carries its `before`/`after` SQL (today,
-   * SAVEPOINT and RELEASE) in the same round trip as the statement itself
-   * rather than as a round trip each.
+   * sendBindExecuteMessages() and sendExtendedQueryMessages() carry their
+   * `before`/`after` SQL (today, SAVEPOINT and RELEASE) in the same round
+   * trip as the statement itself rather than as a round trip each.
    *
    * Everything here goes through the unnamed statement and the unnamed
    * portal. That is safe in this order: the caller's own Bind names a

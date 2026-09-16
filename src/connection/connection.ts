@@ -728,10 +728,16 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       options?.autoCommit != null
         ? options.autoCommit
         : this._intlCon.config.autoCommit;
+    // An open transaction takes this path too: queryCached() puts the
+    // rollbackOnError savepoint in the statement's own round trip rather
+    // than leaving it to the prepare()/execute()/close() route below. The
+    // one thing it cannot express is an explicit autoCommit:true while a
+    // transaction is open - "commit once this statement is done" - which
+    // stays with PreparedStatement's own wrapper.
     if (
       !options?.cursor &&
       effectiveAutoCommit !== false &&
-      !this._intlCon.inTransaction
+      !(options?.autoCommit === true && this._intlCon.inTransaction)
     ) {
       const params: Maybe<Maybe<OID>[]> = options?.params?.map(prm =>
         prm instanceof BindParam ? prm.value : prm,

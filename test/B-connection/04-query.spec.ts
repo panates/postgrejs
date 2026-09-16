@@ -514,5 +514,115 @@ describe('query() (Extended Query)', () => {
         await c.close(0);
       }
     });
+
+    describe('inside a transaction', () => {
+      it('should reuse a cached statement rather than prepare per call', async () => {
+        const c = await open();
+        try {
+          await c.startTransaction();
+          for (let i = 0; i < 4; i++)
+            await c.query('select $1::int4 as v', { params: [i] });
+          // One named statement for the four calls. The pre-cache path
+          // prepared and closed one per call, so this counted 0.
+          expect(await serverStatements(c)).toStrictEqual(1);
+          await c.rollback();
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should recover from an invalidated plan without losing the transaction', async () => {
+        // The savepoint is what makes this recoverable at all: 0A000
+        // aborts the block like any other error, so the retry would answer
+        // 25P02 if there were nothing to roll back to.
+        const c = await open();
+        try {
+          await c.execute(
+            'create temp table t_txn_ddl (a int4); insert into t_txn_ddl values (1)',
+          );
+          await c.startTransaction();
+          await c.query('select * from t_txn_ddl');
+          await c.query('select * from t_txn_ddl');
+          await c.execute('alter table t_txn_ddl add column b text');
+          const r = await c.query('select * from t_txn_ddl');
+          expect(r.rows?.[0].length).toStrictEqual(2);
+          expect(c.inTransaction).toStrictEqual(true);
+          const again = await c.query('select * from t_txn_ddl');
+          expect(again.rows?.[0].length).toStrictEqual(2);
+          await c.rollback();
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should keep concurrent calls apart though they share one savepoint name', async () => {
+        // Every call now writes SAVEPOINT, its statement and RELEASE as
+        // one buffer, so concurrent calls queue as whole groups instead of
+        // interleaving their savepoint commands with each other.
+        const c = await open();
+        try {
+          await c.startTransaction();
+          const rows = await Promise.all(
+            Array.from({ length: 25 }, (_, i) =>
+              c.query('select $1::int4 as v', {
+                params: [i],
+                objectRows: true,
+              }),
+            ),
+          );
+          expect(rows.map(r => (r.rows?.[0] as any).v)).toStrictEqual(
+            Array.from({ length: 25 }, (_, i) => i),
+          );
+          expect(c.inTransaction).toStrictEqual(true);
+          await c.rollback();
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should still commit for an explicit autoCommit while a transaction is open', async () => {
+        // The one case the cached path does not take over.
+        const c = await open();
+        try {
+          await c.startTransaction();
+          await c.query('select 1 as v', { autoCommit: true });
+          expect(c.inTransaction).toStrictEqual(false);
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should keep a cached statement usable after the transaction rolls back', async () => {
+        // Protocol-level Parse is not undone by ROLLBACK the way SQL-level
+        // PREPARE is, so a cache entry earned inside a transaction still
+        // names something the server has afterwards. The cache would hand
+        // out a dead name otherwise.
+        const c = await open();
+        try {
+          await c.startTransaction();
+          for (let i = 0; i < 3; i++)
+            await c.query('select $1::int4 as v', { params: [i] });
+          await c.rollback();
+          const r = await c.query('select $1::int4 as v', {
+            params: [9],
+            objectRows: true,
+          });
+          expect(r.rows?.[0]).toStrictEqual({ v: 9 });
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should leave a transaction command unwrapped', async () => {
+        const c = await open();
+        try {
+          await c.startTransaction();
+          await c.query('commit');
+          expect(c.inTransaction).toStrictEqual(false);
+        } finally {
+          await c.close(0);
+        }
+      });
+    });
   });
 });

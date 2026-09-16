@@ -76,6 +76,13 @@ interface PreparedCacheEntry {
  */
 const PREPARE_AFTER_USES = 2;
 
+/**
+ * SQL that manages transaction boundaries itself, and so must never be
+ * wrapped in a savepoint or an implicit BEGIN/COMMIT of ours.
+ */
+const TRANSACTION_COMMAND_PATTERN =
+  /^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i;
+
 export class IntlConnection extends SafeEventEmitter {
   /**
    * Server-side prepared statements this connection has built, keyed by
@@ -200,9 +207,7 @@ export class IntlConnection extends SafeEventEmitter {
     cb?: (event: string, ...args: any[]) => void,
   ): Promise<ScriptResult> {
     this.assertConnected();
-    const transactionCommand = sql.match(
-      /^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i,
-    );
+    const transactionCommand = TRANSACTION_COMMAND_PATTERN.test(sql);
     let beginFirst = false;
     let commitLast = false;
     const { autoCommit } = options;
@@ -715,8 +720,52 @@ export class IntlConnection extends SafeEventEmitter {
     params: Maybe<Maybe<any>[]>,
     options: QueryOptions,
   ): Promise<QueryResult> {
+    const savepoint = this._inlineSavepointFor(sql, options);
+    try {
+      return await this._queryCached(
+        sql,
+        paramTypes,
+        params,
+        options,
+        savepoint,
+      );
+    } catch (e: any) {
+      // PostgreSQL throws away everything between a failed statement and
+      // the Sync, so an inlined RELEASE never ran and the savepoint is
+      // still standing. Rolling back to it leaves the transaction usable,
+      // which is the whole point of rollbackOnError - and it is left
+      // standing afterwards, as the separate-round-trip wrapper left it.
+      if (savepoint) await this._execute('ROLLBACK TO ' + savepoint);
+      throw e;
+    }
+  }
+
+  /**
+   * The savepoint rollbackOnError calls for, or undefined when this call
+   * needs none: outside a transaction there is nothing to roll back to,
+   * and a statement that is itself a transaction command manages its own
+   * boundaries (wrapping COMMIT in a savepoint would be nonsense).
+   */
+  protected _inlineSavepointFor(
+    sql: string,
+    options: QueryOptions,
+  ): Maybe<string> {
+    if (!this.inTransaction || TRANSACTION_COMMAND_PATTERN.test(sql))
+      return undefined;
+    const on = options.rollbackOnError ?? this.config.rollbackOnError ?? true;
+    return on ? this._onErrorSavePoint : undefined;
+  }
+
+  protected async _queryCached(
+    sql: string,
+    paramTypes: Maybe<Maybe<OID>[]>,
+    params: Maybe<Maybe<any>[]>,
+    options: QueryOptions,
+    savepoint: Maybe<string>,
+  ): Promise<QueryResult> {
     const enabled = options.prepare ?? this.config.prepare ?? true;
-    if (!enabled) return this.queryOnce(sql, paramTypes, params, options);
+    if (!enabled)
+      return this.queryOnce(sql, paramTypes, params, options, savepoint);
 
     const key = paramTypes?.length
       ? sql + '\u0000' + paramTypes.join(',')
@@ -733,29 +782,44 @@ export class IntlConnection extends SafeEventEmitter {
           paramTypes,
           params,
           options,
+          savepoint,
         );
       } catch (e: any) {
         if (e?.code !== '0A000') throw e;
         this._preparedCache.delete(key);
-        return this.queryOnce(sql, paramTypes, params, options);
+        // ROLLBACK TO leaves the savepoint itself in place, so the retry
+        // must not open a second one under the same name - it runs bare
+        // and releases the one already held.
+        if (savepoint) await this._execute('ROLLBACK TO ' + savepoint);
+        const result = await this.queryOnce(sql, paramTypes, params, options);
+        if (savepoint) await this._execute('RELEASE ' + savepoint);
+        return result;
       }
     }
 
     const uses = (this._preparedCandidates.get(key) || 0) + 1;
     if (uses < PREPARE_AFTER_USES) {
       this._preparedCandidates.set(key, uses);
-      return this.queryOnce(sql, paramTypes, params, options);
+      return this.queryOnce(sql, paramTypes, params, options, savepoint);
     }
     this._preparedCandidates.delete(key);
 
     const name = 'C_' + ++this._preparedCounter;
     // A Parse that fails caches nothing and reports itself; the statement
-    // is simply never reused.
+    // is simply never reused. It runs outside the savepoint, as the
+    // prepare() the transaction path used to do ahead of its own wrapper.
     const { fields } = await this.prepareOnce(sql, paramTypes, name);
     const entry: PreparedCacheEntry = { name, fields };
     await this._evictPreparedIfFull();
     this._preparedCache.set(key, entry);
-    return this.executeReused(name, entry.fields, paramTypes, params, options);
+    return this.executeReused(
+      name,
+      entry.fields,
+      paramTypes,
+      params,
+      options,
+      savepoint,
+    );
   }
 
   /** Closes the least recently used statement once the cache is full. */
@@ -800,6 +864,7 @@ export class IntlConnection extends SafeEventEmitter {
     paramTypes: Maybe<Maybe<OID>[]>,
     params: Maybe<Maybe<any>[]>,
     options: QueryOptions,
+    savepoint?: string,
   ): Promise<QueryResult> {
     this.assertConnected();
     this.ref();
@@ -815,6 +880,10 @@ export class IntlConnection extends SafeEventEmitter {
       let error: Error | undefined;
       const rowDecoder = resolveRowDecoder(options);
 
+      // See executeReused() for what a savepoint riding along does to the
+      // CommandComplete stream.
+      let leadingCommandTags = savepoint ? 1 : 0;
+
       this.runningQueryCount++;
       await this.socket
         .sendExtendedQueryMessages(
@@ -823,6 +892,8 @@ export class IntlConnection extends SafeEventEmitter {
             bind: { typeMap, paramTypes, params, queryOptions: options },
             describe: { type: 'P' },
             execute: { fetchCount: options.fetchCount || 100 },
+            before: savepoint ? 'SAVEPOINT ' + savepoint : undefined,
+            after: savepoint ? 'RELEASE ' + savepoint : undefined,
           },
           (
             code: Protocol.BackendMessageCode,
@@ -850,7 +921,8 @@ export class IntlConnection extends SafeEventEmitter {
                 rows.push(msg);
                 break;
               case Protocol.BackendMessageCode.CommandComplete:
-                commandTag = msg;
+                if (leadingCommandTags) leadingCommandTags--;
+                else if (!commandTag) commandTag = msg;
                 break;
               case Protocol.BackendMessageCode.ErrorResponse:
                 error = msg;
