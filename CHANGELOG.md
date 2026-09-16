@@ -18,10 +18,16 @@
 
 - docs: regenerate both benchmark reports from an interleaved run @Eray Hanoğlu 
 - docs: refresh the Node report and correct a stale asymmetry note @Eray Hanoğlu 
+- docs: record statement-level rollback in the README @Eray Hanoğlu 
 - docs: record the prepared statement cache in the README @Eray Hanoğlu 
 - docs: list pipeline() in the feature list and comparison table @Eray Hanoğlu 
 - docs: list binary COPY in the feature list and comparison table @Eray Hanoğlu 
 - docs: list batch execution in the feature list and comparison table @Eray Hanoğlu 
+
+#### ⚡️ Performance Improvments
+
+- perf: carry the rollbackOnError savepoint in the statement's own round trip @Eray Hanoğlu 
+- perf: let the prepared statement cache serve queries inside a transaction @Eray Hanoğlu 
 
 #### 💬 General Changes
 
