@@ -155,6 +155,35 @@ const RESULT_GROUPS: ResultGroup[] = [
     ],
   },
   {
+    title: 'Unit of Work',
+    description:
+      'Several different statements run as one unit, the shape a single ' +
+      'request usually has - a few writes, a few reads, none of them ' +
+      'repeating. Every library sends them without waiting between ' +
+      'replies, which all three can do; what separates them is whether ' +
+      'each statement still costs its own `Sync`, and with it a round of ' +
+      "the server's implicit-transaction bookkeeping. Distinct from the " +
+      'Concurrent Execution scenarios above, where the same query is ' +
+      'fired many times and a parsed plan can be shared.',
+    scenarios: ['unit-of-work'],
+  },
+  {
+    title: 'Bulk Load',
+    description:
+      '`COPY ... FROM STDIN`, the path PostgreSQL optimises for writing ' +
+      'many rows at once - one statement carrying a stream of rows ' +
+      'instead of an INSERT per row or a bind per row. The two scenarios ' +
+      'are the same 200,000 rows sent two ways: as CSV every library ' +
+      'formats itself, and as the binary COPY format only PostgreJS can ' +
+      'produce. Read them together - the text table is what separates the ' +
+      'drivers, and the difference between the tables is what the format ' +
+      'buys. Both scenarios truncate the destination inside the timed ' +
+      'call and start from the same materialised rows, so each library ' +
+      'pays for its own formatting rather than being handed a payload ' +
+      'someone else built.',
+    scenarios: ['copy-from-text', 'copy-from-binary'],
+  },
+  {
     title: 'Cursor Streaming',
     description:
       "A server-side cursor (postgrejs's `Connection.query(sql, " +
@@ -266,7 +295,7 @@ Some scenarios necessarily exercise each library differently. These are delibera
 
 1. **Pool concurrency** — each library's own top-level entry point is called N times at a fixed concurrency with pool max size held equal (\`pg.Pool\`'s explicit connect/release, postgres.js's implicit auto-pipelined pool, PostgreJS's \`Pool.execute()\`). postgres.js's automatic pipelining is measured as a real feature, not normalized away — and postgrejs is given the same ability, but it has to ask: pipelining is opt-in per call there (\`pipeline: true\`), not the default, so this scenario passes it. The reason it is opt-in is a real trade rather than caution: PostgreSQL runs a connection's statements one at a time, so sharing a connection speeds up bursts of short queries but lets one slow query delay whatever is queued behind it. pg has no equivalent and runs one query per connection throughout, which is most of why it trails here.
 2. **Cursor streaming** — \`pg\` has no built-in cursor API; its scenario emulates one with raw \`DECLARE CURSOR\` / \`FETCH n\` / \`CLOSE\` SQL via \`client.query()\` (no \`pg-cursor\` dependency). This is an emulation, not \`pg\`'s native path.
-3. **Prepared-statement reuse** — postgres.js auto-prepares/caches transparently, \`pg\` uses a named statement, PostgreJS uses explicit \`prepare()\`/\`execute()\`/\`close()\`. Same SQL text and iteration count across all three; the three different mechanisms are shown side by side rather than forced into one shape.
+3. **Prepared-statement reuse** — postgres.js auto-prepares/caches transparently, \`pg\` uses a named statement, PostgreJS uses explicit \`prepare()\`/\`execute()\`/\`close()\`. Same SQL text and iteration count across all three; the three different mechanisms are shown side by side rather than forced into one shape. postgres.js is reached through \`sql.unsafe(text, params, { prepare: true })\` wherever a scenario binds parameters, because that flag is what its tagged template - the path its own users take - does by default, while \`sql.unsafe()\` alone leaves preparing off. This is not a small dial: measured on Unit of Work it is worth 3.5x to postgres.js (13.1ms against 3.8ms), and earlier revisions of this suite that omitted it understated postgres.js badly - Concurrent Execution (Extended Query) had it last at 40ms where it now leads at 1.1ms.
 4. **Type decoding** — no custom type parsers/overrides for any library; each uses its own default config (e.g. \`pg\` returns \`int8\` as a string by default, postgres.js as \`BigInt\`). This is the fairest and most representative choice; differing default row shapes are an interpretation footnote, not something to fix.
 5. **Row shape** — PostgreJS's \`objectRows\` option is explicitly set \`true\` in every scenario so its output shape (object rows) matches \`pg\`'s and postgres.js's defaults; otherwise postgrejs would gain an artificial edge from skipping key-mapping work the other two always do. This is the one deliberate normalization, called out as such.
 6. **Transport** — all three connect via TCP to the same Postgres instance (no Unix-socket path is exercised).
@@ -274,6 +303,8 @@ Some scenarios necessarily exercise each library differently. These are delibera
 8. **\`pg\`'s wire pipelining** — \`pg\` 8.23+ added an opt-in \`pipeline: true\` client option (send multiple queries without waiting for each one's response before writing the next), off by default. Every \`*-concurrent\` scenario here fires N queries via \`Promise.all()\` without awaiting each individually - exactly the pattern this flag is for - so it's enabled for \`pg\`'s client here; leaving it off would benchmark its serialized fallback path instead of its real concurrent capability, understating it the same way testing PostgreJS/postgres.js without their own pipelining would. It's a no-op for every sequential (always-awaited-one-at-a-time) scenario.
 9. **Sequential Execution and Concurrent Execution (Simple Query) run 9 repeats, not the usual 3** — a single round trip here costs well under half a millisecond, small enough that one cold first-run in a fresh child process (a page fault, a scheduling hiccup) can swing a 3-repeat median by ten percent or more in either direction, as happened while chasing this exact scenario down: three repeats alone flipped which library came out ahead from one invocation to the next. Nine repeats absorbs that without pretending the noise isn't there.
 10. **Sequential Execution's warmup is 800 iterations, not the usual 50** — the actual root cause behind the point above: at 50 warmup iterations, PostgreJS's own call graph (more, smaller functions across more files than pg's more monolithic one) wasn't consistently reaching V8's fully-optimized tier before the timed window started, so some repeats measured a partially-JIT-warmed run and others didn't - the same code, genuinely different measured speed, not noise in the usual sense. Fully warming it first (verified with up to 2000 warmup iterations, where PostgreJS won every single repeat) removes that variable; 800 was the smallest budget that still did, applied to both libraries equally.
+11. **Bulk Load (binary COPY) has one row** — pg and postgres.js cannot produce PostgreSQL's binary \`COPY\` format. Both can carry a payload the caller already encoded, so this is not a missing transport, but producing the format needs a binary encoder per type and neither driver has one. That is why the comparable scenario is Bulk Load (text COPY), where all three format the same CSV and the ranking is a ranking of drivers; the binary table shows what the format is worth on the same rows rather than claiming a race was run. A third-party package, \`pg-copy-streams-binary\`, brings encoders to pg and would make a two-row binary table possible - it is left out for the same reason \`pg-native\` is, being outside the driver rather than part of it. Column values also matter more here than anywhere else in this suite, and the scenario's own description carries that measurement: widest-form values put the two scenarios 10.3x apart, single-digit numbers 2.7x, on identical row counts.
+12. **Unit of Work uses an API the others do not have** — PostgreJS runs the twenty statements through \`pipeline()\`, which closes them all with one \`Sync\`; pg and postgres.js fire them through \`Promise.all()\`. That is not a handicap imposed on them but their genuine best: both pipeline, so nothing waits on a previous reply, and neither can avoid a \`Sync\` per statement - pg sends one immediately after each Execute and postgres.js concatenates Execute and Sync into a single constant. postgres.js is reached through \`sql.unsafe(text, params, { prepare: true })\`, as it is everywhere else here - see the Prepared-statement reuse note above for why that flag is not optional: without it this workload costs postgres.js 3.5x (13.1ms against 3.8ms), and the \`$1\` form alone would have measured a path its own users have no reason to take.
 `;
 }
 

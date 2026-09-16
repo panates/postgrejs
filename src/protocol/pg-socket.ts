@@ -314,17 +314,79 @@ export class PgSocket extends SafeEventEmitter {
       bind: Frontend.BindMessageArgs;
       describe: Frontend.DescribeMessageArgs;
       execute: Frontend.ExecuteMessageArgs;
+      before?: string;
+      after?: string;
     },
     cb: CaptureCallback,
   ): Promise<any> {
-    const data = [
+    if (!args.before && !args.after) {
+      const data = [
+        this._frontend.getParseMessage(args.parse),
+        this._frontend.getBindMessage(args.bind),
+        this._frontend.getDescribeMessage(args.describe),
+        this._frontend.getExecuteMessage(args.execute),
+        this._frontend.getSyncMessage(),
+      ];
+      return this._sendAndCapture(data, cb, 'sendExtendedQueryMessages', args);
+    }
+    const data: Buffer[] = [];
+    if (args.before) this._pushUtilityStatement(data, args.before, args.bind);
+    data.push(
       this._frontend.getParseMessage(args.parse),
       this._frontend.getBindMessage(args.bind),
       this._frontend.getDescribeMessage(args.describe),
       this._frontend.getExecuteMessage(args.execute),
-      this._frontend.getSyncMessage(),
-    ];
+    );
+    if (args.after) this._pushUtilityStatement(data, args.after, args.bind);
+    data.push(this._frontend.getSyncMessage());
     return this._sendAndCapture(data, cb, 'sendExtendedQueryMessages', args);
+  }
+
+  /**
+   * Parse + Bind + Describe(portal) + Execute per statement, then a SINGLE
+   * Sync for the lot - the wire shape behind Connection.pipeline().
+   *
+   * The same framing as sendBatchBindExecuteMessages(), and the same
+   * consequences, except that each statement carries its own Parse rather
+   * than reusing one prepared statement: the statements share one implicit
+   * transaction, and PostgreSQL discards everything between an error and
+   * the Sync, so a rejected statement stops the ones behind it.
+   *
+   * Describe is not optional here even though nothing caches its answer.
+   * Without it the server sends DataRows for a row-returning statement with
+   * no RowDescription in front of them, leaving the column names and types
+   * unknown - the reason the one-shot path in sendExtendedQueryMessages()
+   * includes it too. It costs about a quarter of a millisecond across
+   * twenty statements, measured.
+   *
+   * Every Execute is unlimited (fetchCount 0): a portal that suspended
+   * mid-pipeline would answer PortalSuspended instead of CommandComplete
+   * and desynchronise the positional statement-to-result mapping.
+   */
+  sendPipelineMessages(
+    args: {
+      statements: {
+        parse: Frontend.ParseMessageArgs;
+        bind: Frontend.BindMessageArgs;
+        describe: Frontend.DescribeMessageArgs;
+        execute: Frontend.ExecuteMessageArgs;
+      }[];
+    },
+    cb: CaptureCallback,
+  ): Promise<any> {
+    const l = args.statements.length;
+    const data: Buffer[] = new Array(l * 4 + 1);
+    let i: number;
+    let st: (typeof args.statements)[number];
+    for (i = 0; i < l; i++) {
+      st = args.statements[i];
+      data[i * 4] = this._frontend.getParseMessage(st.parse);
+      data[i * 4 + 1] = this._frontend.getBindMessage(st.bind);
+      data[i * 4 + 2] = this._frontend.getDescribeMessage(st.describe);
+      data[i * 4 + 3] = this._frontend.getExecuteMessage(st.execute);
+    }
+    data[l * 4] = this._frontend.getSyncMessage();
+    return this._sendAndCapture(data, cb, 'sendPipelineMessages', args);
   }
 
   /**
@@ -362,15 +424,68 @@ export class PgSocket extends SafeEventEmitter {
     args: {
       bind: Frontend.BindMessageArgs;
       execute: Frontend.ExecuteMessageArgs;
+      before?: string;
+      after?: string;
     },
     cb: CaptureCallback,
   ): Promise<any> {
-    const data = [
+    if (!args.before && !args.after) {
+      const data = [
+        this._frontend.getBindMessage(args.bind),
+        this._frontend.getExecuteMessage(args.execute),
+        this._frontend.getSyncMessage(),
+      ];
+      return this._sendAndCapture(data, cb, 'sendBindExecuteMessages', args);
+    }
+    const data: Buffer[] = [];
+    if (args.before) this._pushUtilityStatement(data, args.before, args.bind);
+    data.push(
       this._frontend.getBindMessage(args.bind),
       this._frontend.getExecuteMessage(args.execute),
-      this._frontend.getSyncMessage(),
-    ];
+    );
+    if (args.after) this._pushUtilityStatement(data, args.after, args.bind);
+    data.push(this._frontend.getSyncMessage());
     return this._sendAndCapture(data, cb, 'sendBindExecuteMessages', args);
+  }
+
+  /**
+   * One Bind+Execute pair per parameter set against the same prepared
+   * statement, then a SINGLE Sync for the lot - the wire shape behind
+   * PreparedStatement.executeBatch().
+   *
+   * The single Sync is the whole point, and it is also what gives the
+   * batch its semantics. Sending Bind/Execute/Sync per set (what N
+   * separate execute() calls do, even pipelined) makes the server finish
+   * an implicit transaction and answer ReadyForQuery every time; one Sync
+   * at the end collapses that to one, which is where the bulk of the
+   * speedup comes from. It also means the sets share one implicit
+   * transaction, and that PostgreSQL discards everything between an error
+   * and the Sync - so a set that fails stops the ones behind it from
+   * running at all. Both of those are inherent to this framing rather
+   * than choices made above it.
+   *
+   * Every Execute here must be unlimited (fetchCount 0): a portal that
+   * suspends mid-batch would answer PortalSuspended instead of
+   * CommandComplete and desynchronise the positional set-to-result
+   * mapping the caller relies on.
+   */
+  sendBatchBindExecuteMessages(
+    args: {
+      binds: Frontend.BindMessageArgs[];
+      execute: Frontend.ExecuteMessageArgs;
+    },
+    cb: CaptureCallback,
+  ): Promise<any> {
+    const binds = args.binds;
+    const l = binds.length;
+    const data: Buffer[] = new Array(l * 2 + 1);
+    let i: number;
+    for (i = 0; i < l; i++) {
+      data[i * 2] = this._frontend.getBindMessage(binds[i]);
+      data[i * 2 + 1] = this._frontend.getExecuteMessage(args.execute);
+    }
+    data[l * 2] = this._frontend.getSyncMessage();
+    return this._sendAndCapture(data, cb, 'sendBatchBindExecuteMessages', args);
   }
 
   /**
@@ -548,6 +663,38 @@ export class PgSocket extends SafeEventEmitter {
         reject(new Error('Socket is not writable'));
       }
     });
+  }
+
+  /**
+   * Parse + Bind + Execute for a parameterless utility statement, appended
+   * to a message list that is about to be closed by one Sync - how
+   * sendBindExecuteMessages() and sendExtendedQueryMessages() carry their
+   * `before`/`after` SQL (today, SAVEPOINT and RELEASE) in the same round
+   * trip as the statement itself rather than as a round trip each.
+   *
+   * Everything here goes through the unnamed statement and the unnamed
+   * portal. That is safe in this order: the caller's own Bind names a
+   * prepared statement rather than the unnamed one, and PostgreSQL
+   * processes the messages in sequence, so each Bind only ever discards an
+   * unnamed portal whose Execute has already run.
+   *
+   * No Describe: neither statement returns rows, so there is no
+   * RowDescription worth asking for. Result formats come from the caller's
+   * own Bind args, which likewise cost nothing against no columns.
+   */
+  private _pushUtilityStatement(
+    data: Buffer[],
+    sql: string,
+    bind: Frontend.BindMessageArgs,
+  ): void {
+    data.push(
+      this._frontend.getParseMessage({ sql }),
+      this._frontend.getBindMessage({
+        typeMap: bind.typeMap,
+        queryOptions: bind.queryOptions,
+      }),
+      this._frontend.getExecuteMessage({}),
+    );
   }
 
   protected _removeListeners(): void {

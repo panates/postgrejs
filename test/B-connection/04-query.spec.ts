@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { expect } from 'expect';
-import { Connection, Cursor, DataFormat, RowDecoder } from 'postgrejs';
+import { Connection, Cursor, DataFormat, RowDecoder, sql } from 'postgrejs';
 
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
@@ -310,5 +310,319 @@ describe('query() (Extended Query)', () => {
     // ...but it must still carry the column's actual value, not undefined.
     expect(Object.getOwnPropertyDescriptor(row, '__proto__')?.value).toBe(42);
     expect(row.ok).toBe(7);
+  });
+
+  describe('pipeline()', () => {
+    it('should run different statements in one round trip and map results by position', async () => {
+      await connection.execute(
+        'create temp table t_pipe (id int4 primary key, a int4, b text)',
+      );
+      await connection.execute("insert into t_pipe values (1, 0, 'x')");
+      const r = await connection.pipeline([
+        { sql: 'update t_pipe set a = $1 where id = $2', params: [5, 1] },
+        { sql: 'insert into t_pipe values ($1, $2, $3)', params: [2, 1, 'y'] },
+        { sql: 'select id, b from t_pipe where id = $1', params: [1] },
+      ]);
+      expect(r.length).toStrictEqual(3);
+      expect(r[0].command).toStrictEqual('UPDATE');
+      expect(r[0].rowsAffected).toStrictEqual(1);
+      expect(r[1].command).toStrictEqual('INSERT');
+      expect(r[2].command).toStrictEqual('SELECT');
+      expect(r[2].rows?.[0]).toStrictEqual([1, 'x']);
+      expect(r[2].fields?.length).toStrictEqual(2);
+    });
+
+    it('should accept plain strings, objects and sql tag output alike', async () => {
+      const r = await connection.pipeline([
+        'select 1 as v',
+        { sql: 'select $1::int4 as v', params: [7] },
+        sql`select ${9}::int4 as v`,
+      ]);
+      expect(r.map(x => x.rows?.[0])).toStrictEqual([[1], [7], [9]]);
+    });
+
+    it('should apply options to every statement', async () => {
+      const r = await connection.pipeline(['select 1 as v', 'select 2 as v'], {
+        objectRows: true,
+      });
+      expect(r.map(x => x.rows?.[0])).toStrictEqual([{ v: 1 }, { v: 2 }]);
+    });
+
+    it('should report which statement the server rejected', async () => {
+      await connection.execute(
+        'create temp table t_pipe_err (id int4 primary key)',
+      );
+      await connection.execute('insert into t_pipe_err values (1)');
+      let error: any;
+      try {
+        await connection.pipeline([
+          { sql: 'insert into t_pipe_err values ($1)', params: [50] },
+          { sql: 'insert into t_pipe_err values ($1)', params: [1] },
+          { sql: 'insert into t_pipe_err values ($1)', params: [51] },
+        ]);
+      } catch (e: any) {
+        error = e;
+      }
+      expect(error?.code).toStrictEqual('23505');
+      expect(error?.failedIndex).toStrictEqual(1);
+      const q = await connection.query('select 1 as v');
+      expect(q.rows?.[0]).toStrictEqual([1]);
+    });
+
+    it('should roll every statement back when one fails', async () => {
+      // One Sync means one implicit transaction: statement 0 completed
+      // before the failure but must not survive it, and statement 2 never
+      // ran at all.
+      await connection.execute(
+        'create temp table t_pipe_atomic (id int4 primary key)',
+      );
+      await connection.execute('insert into t_pipe_atomic values (1)');
+      await expect(
+        connection.pipeline([
+          { sql: 'insert into t_pipe_atomic values ($1)', params: [50] },
+          { sql: 'insert into t_pipe_atomic values ($1)', params: [1] },
+          { sql: 'insert into t_pipe_atomic values ($1)', params: [51] },
+        ]),
+      ).rejects.toThrow();
+      const q = await connection.query(
+        'select count(*)::int4 as n from t_pipe_atomic where id in (50, 51)',
+      );
+      expect(q.rows?.[0]).toStrictEqual([0]);
+    });
+
+    it('should accept an empty pipeline without touching the connection', async () => {
+      expect(await connection.pipeline([])).toStrictEqual([]);
+      const q = await connection.query('select 1 as v');
+      expect(q.rows?.[0]).toStrictEqual([1]);
+    });
+
+    it('should reject a cursor request, which a pipeline cannot honour', async () => {
+      await expect(
+        connection.pipeline(['select 1 as v'], { cursor: true }),
+      ).rejects.toThrow(/cursor/);
+    });
+
+    it('should keep results aligned when only some statements return rows', async () => {
+      const r = await connection.pipeline([
+        'select 1 as v',
+        'create temp table t_pipe_norows (id int4)',
+        'select 2 as v',
+      ]);
+      expect(r[0].rows?.[0]).toStrictEqual([1]);
+      expect(r[1].rows).toBeUndefined();
+      expect(r[2].rows?.[0]).toStrictEqual([2]);
+    });
+  });
+
+  describe('prepared statement cache', () => {
+    const open = async (cfg?: any) => {
+      const c = new Connection(cfg);
+      await c.connect();
+      return c;
+    };
+    // prepare: false matters here rather than being tidiness - without it
+    // this helper is itself cached on its second call and starts counting
+    // its own statement alongside the one under test.
+    const serverStatements = async (c: Connection) =>
+      (
+        await c.query(
+          'select count(*)::int4 as n from pg_prepared_statements',
+          { prepare: false },
+        )
+      ).rows?.[0][0];
+
+    it('should not prepare a statement the connection has seen only once', async () => {
+      const c = await open();
+      try {
+        await c.query('select $1::int4 as cache_once', { params: [1] });
+        expect(await serverStatements(c)).toStrictEqual(0);
+      } finally {
+        await c.close(0);
+      }
+    });
+
+    it('should prepare on the second use and reuse it afterwards', async () => {
+      const c = await open();
+      try {
+        const text = 'select $1::int4 as cache_twice';
+        await c.query(text, { params: [1] });
+        await c.query(text, { params: [2] });
+        expect(await serverStatements(c)).toStrictEqual(1);
+        // Still correct, and still one statement rather than a new one per
+        // call.
+        const r = await c.query(text, { params: [42] });
+        expect(r.rows?.[0]).toStrictEqual([42]);
+        expect(await serverStatements(c)).toStrictEqual(1);
+      } finally {
+        await c.close(0);
+      }
+    });
+
+    it('should stay off when prepare is false, per call or per connection', async () => {
+      const text = 'select $1::int4 as cache_off';
+      const c = await open();
+      try {
+        await c.query(text, { params: [1], prepare: false });
+        await c.query(text, { params: [1], prepare: false });
+        expect(await serverStatements(c)).toStrictEqual(0);
+      } finally {
+        await c.close(0);
+      }
+      const c2 = await open({ prepare: false });
+      try {
+        await c2.query(text, { params: [1] });
+        await c2.query(text, { params: [1] });
+        expect(await serverStatements(c2)).toStrictEqual(0);
+      } finally {
+        await c2.close(0);
+      }
+    });
+
+    it('should recover when a schema change invalidates a cached plan', async () => {
+      // PostgreSQL answers 0A000 "cached plan must not change result type"
+      // here. Without handling it, every later call on this connection
+      // would fail the same way instead of just the first.
+      const c = await open();
+      try {
+        await c.execute(
+          'create temp table t_cache_ddl (a int4); insert into t_cache_ddl values (1)',
+        );
+        await c.query('select * from t_cache_ddl');
+        await c.query('select * from t_cache_ddl');
+        await c.execute('alter table t_cache_ddl add column b text');
+        const r = await c.query('select * from t_cache_ddl');
+        expect(r.rows?.[0].length).toStrictEqual(2);
+        const again = await c.query('select * from t_cache_ddl');
+        expect(again.rows?.[0].length).toStrictEqual(2);
+      } finally {
+        await c.close(0);
+      }
+    });
+
+    it('should close the least recently used statement once the cache is full', async () => {
+      const c = await open({ preparedStatementCacheSize: 5 });
+      try {
+        for (let i = 0; i < 20; i++) {
+          const text = `select ${i}::int4 as v, $1::int4 as p`;
+          await c.query(text, { params: [1] });
+          await c.query(text, { params: [1] });
+        }
+        // Without eviction this would be 20, and would keep growing for
+        // an application that builds SQL text dynamically.
+        expect(await serverStatements(c)).toBeLessThanOrEqual(5);
+      } finally {
+        await c.close(0);
+      }
+    });
+
+    describe('inside a transaction', () => {
+      it('should reuse a cached statement rather than prepare per call', async () => {
+        const c = await open();
+        try {
+          await c.startTransaction();
+          for (let i = 0; i < 4; i++)
+            await c.query('select $1::int4 as v', { params: [i] });
+          // One named statement for the four calls. The pre-cache path
+          // prepared and closed one per call, so this counted 0.
+          expect(await serverStatements(c)).toStrictEqual(1);
+          await c.rollback();
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should recover from an invalidated plan without losing the transaction', async () => {
+        // The savepoint is what makes this recoverable at all: 0A000
+        // aborts the block like any other error, so the retry would answer
+        // 25P02 if there were nothing to roll back to.
+        const c = await open();
+        try {
+          await c.execute(
+            'create temp table t_txn_ddl (a int4); insert into t_txn_ddl values (1)',
+          );
+          await c.startTransaction();
+          await c.query('select * from t_txn_ddl');
+          await c.query('select * from t_txn_ddl');
+          await c.execute('alter table t_txn_ddl add column b text');
+          const r = await c.query('select * from t_txn_ddl');
+          expect(r.rows?.[0].length).toStrictEqual(2);
+          expect(c.inTransaction).toStrictEqual(true);
+          const again = await c.query('select * from t_txn_ddl');
+          expect(again.rows?.[0].length).toStrictEqual(2);
+          await c.rollback();
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should keep concurrent calls apart though they share one savepoint name', async () => {
+        // Every call now writes SAVEPOINT, its statement and RELEASE as
+        // one buffer, so concurrent calls queue as whole groups instead of
+        // interleaving their savepoint commands with each other.
+        const c = await open();
+        try {
+          await c.startTransaction();
+          const rows = await Promise.all(
+            Array.from({ length: 25 }, (_, i) =>
+              c.query('select $1::int4 as v', {
+                params: [i],
+                objectRows: true,
+              }),
+            ),
+          );
+          expect(rows.map(r => (r.rows?.[0] as any).v)).toStrictEqual(
+            Array.from({ length: 25 }, (_, i) => i),
+          );
+          expect(c.inTransaction).toStrictEqual(true);
+          await c.rollback();
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should still commit for an explicit autoCommit while a transaction is open', async () => {
+        // The one case the cached path does not take over.
+        const c = await open();
+        try {
+          await c.startTransaction();
+          await c.query('select 1 as v', { autoCommit: true });
+          expect(c.inTransaction).toStrictEqual(false);
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should keep a cached statement usable after the transaction rolls back', async () => {
+        // Protocol-level Parse is not undone by ROLLBACK the way SQL-level
+        // PREPARE is, so a cache entry earned inside a transaction still
+        // names something the server has afterwards. The cache would hand
+        // out a dead name otherwise.
+        const c = await open();
+        try {
+          await c.startTransaction();
+          for (let i = 0; i < 3; i++)
+            await c.query('select $1::int4 as v', { params: [i] });
+          await c.rollback();
+          const r = await c.query('select $1::int4 as v', {
+            params: [9],
+            objectRows: true,
+          });
+          expect(r.rows?.[0]).toStrictEqual({ v: 9 });
+        } finally {
+          await c.close(0);
+        }
+      });
+
+      it('should leave a transaction command unwrapped', async () => {
+        const c = await open();
+        try {
+          await c.startTransaction();
+          await c.query('commit');
+          expect(c.inTransaction).toStrictEqual(false);
+        } finally {
+          await c.close(0);
+        }
+      });
+    });
   });
 });

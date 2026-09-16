@@ -201,4 +201,156 @@ describe('COPY support', () => {
       expect(r.rows?.[0][0]).toStrictEqual(1);
     });
   });
+
+  describe('copyFromRows()', () => {
+    const D = new Date('2020-01-01T00:00:00Z');
+    const COLS = { columns: ['id', 'name', 'amount', 'ts', 'tags', 'flag'] };
+
+    beforeEach(async () => {
+      await connection.execute(
+        'drop table if exists t_bincopy; create table t_bincopy(' +
+          'id int4, name text, amount float8, ts timestamptz, tags text[], flag bool)',
+      );
+    });
+
+    it('should copy rows in binary, including arrays and NULLs', async () => {
+      const r = await connection.copyFromRows(
+        't_bincopy',
+        [
+          [1, 'John', 10.5, D, ['a', 'b'], true],
+          [2, 'Jane', 20, D, null, false],
+        ],
+        COLS,
+      );
+      expect(r.rowCount).toStrictEqual(2);
+      const q = await connection.query(
+        'select id, name, amount, tags, flag from t_bincopy order by id',
+      );
+      expect(q.rows?.[0]).toStrictEqual([1, 'John', 10.5, ['a', 'b'], true]);
+      expect(q.rows?.[1]).toStrictEqual([2, 'Jane', 20, null, false]);
+    });
+
+    it('should read column types from the server when none are given', async () => {
+      const r = await connection.copyFromRows('t_bincopy', [
+        [7, 'probe', 1.5, D, null, true],
+      ]);
+      expect(r.rowCount).toStrictEqual(1);
+      const q = await connection.query('select id, name from t_bincopy');
+      expect(q.rows?.[0]).toStrictEqual([7, 'probe']);
+    });
+
+    it('should accept object rows keyed by column name', async () => {
+      await connection.copyFromRows('t_bincopy', [
+        { id: 5, name: 'obj', amount: 2.5, ts: D, tags: null, flag: false },
+      ]);
+      const q = await connection.query('select id, name from t_bincopy');
+      expect(q.rows?.[0]).toStrictEqual([5, 'obj']);
+    });
+
+    it('should stream from an async iterable without buffering it', async () => {
+      const rows = (async function* () {
+        for (let i = 0; i < 5000; i++)
+          yield [i, 'r' + i, i * 1.5, D, null, true];
+      })();
+      const r = await connection.copyFromRows('t_bincopy', rows, COLS);
+      expect(r.rowCount).toStrictEqual(5000);
+      const q = await connection.query(
+        'select count(*)::int4 n, max(id)::int4 m from t_bincopy',
+      );
+      expect(q.rows?.[0]).toStrictEqual([5000, 4999]);
+    });
+
+    it('should keep NaN and Infinity in a float column, not turn them into NULL', async () => {
+      // PostgreSQL stores both as values distinct from NULL on every
+      // supported version - NaN has always been valid for float and
+      // numeric, unlike numeric's infinities, which needed PG 14.
+      await connection.copyFromRows(
+        't_bincopy',
+        [
+          [1, 'nan', NaN, D, null, true],
+          [2, 'inf', Infinity, D, null, true],
+        ],
+        COLS,
+      );
+      const q = await connection.query(
+        'select amount, amount is null as isnull from t_bincopy order by id',
+      );
+      expect(Number.isNaN(q.rows?.[0][0])).toStrictEqual(true);
+      expect(q.rows?.[0][1]).toStrictEqual(false);
+      expect(q.rows?.[1][0]).toStrictEqual(Infinity);
+    });
+
+    it('should name the row and column for a value it cannot encode', async () => {
+      let error: any;
+      try {
+        await connection.copyFromRows(
+          't_bincopy',
+          [
+            [1, 'a', 1, D, null, true],
+            ['abc', 'b', 1, D, null, true],
+          ],
+          COLS,
+        );
+      } catch (e: any) {
+        error = e;
+      }
+      expect(error?.message).toMatch(/row 1/);
+      expect(error?.message).toMatch(/"id"/);
+      // The CopyFail this sends comes back as an ErrorResponse; the
+      // connection has to survive it.
+      const q = await connection.query('select 1 as v');
+      expect(q.rows?.[0]).toStrictEqual([1]);
+    });
+
+    it('should null just the offending value under onInvalidValue: null', async () => {
+      const r = await connection.copyFromRows(
+        't_bincopy',
+        [
+          [1, 'a', 1, D, null, true],
+          ['abc', 'b', 2, D, null, true],
+        ],
+        { ...COLS, onInvalidValue: 'null' },
+      );
+      expect(r.rowCount).toStrictEqual(2);
+      expect(r.nulledValues).toStrictEqual(1);
+      const q = await connection.query(
+        'select id, amount from t_bincopy order by name',
+      );
+      // The rest of the row survives - only the column that failed is NULL.
+      expect(q.rows?.[1]).toStrictEqual([null, 2]);
+    });
+
+    it('should drop the whole row under onInvalidValue: skip', async () => {
+      const r = await connection.copyFromRows(
+        't_bincopy',
+        [
+          [1, 'a', 1, D, null, true],
+          ['abc', 'b', 2, D, null, true],
+          [3, 'c', 3, D, null, true],
+        ],
+        { ...COLS, onInvalidValue: 'skip' },
+      );
+      expect(r.rowCount).toStrictEqual(2);
+      expect(r.skippedRows).toStrictEqual(1);
+      const q = await connection.query(
+        'select count(*)::int4 n from t_bincopy',
+      );
+      expect(q.rows?.[0]).toStrictEqual([2]);
+    });
+
+    it('should accept a schema-qualified table name', async () => {
+      await connection.execute(
+        'create schema if not exists s_bincopy; ' +
+          'drop table if exists s_bincopy.t1; create table s_bincopy.t1(a int4)',
+      );
+      try {
+        const r = await connection.copyFromRows('s_bincopy.t1', [[42]]);
+        expect(r.rowCount).toStrictEqual(1);
+        const q = await connection.query('select a from s_bincopy.t1');
+        expect(q.rows?.[0]).toStrictEqual([42]);
+      } finally {
+        await connection.execute('drop schema s_bincopy cascade');
+      }
+    });
+  });
 });

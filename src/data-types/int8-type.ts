@@ -1,6 +1,7 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
+import { assertBigIntSource } from '../util/assert-integer.js';
 import { readBigInt64BE } from '../util/bigint-methods.js';
 import { fastParseIntBuffer } from '../util/fast-parseint.js';
 
@@ -16,7 +17,7 @@ export const Int8Type: DataType = {
   },
 
   encodeBinary(buf: SmartBuffer, v: bigint | number): void {
-    buf.writeBigInt64BE(v);
+    buf.writeBigInt64BE(assertBigIntSource(v, 'int8') as bigint);
   },
 
   decodeBinary(buf: Buffer, offset: number = 0): bigint | number {

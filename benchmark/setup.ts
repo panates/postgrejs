@@ -54,6 +54,26 @@ CREATE TABLE ${schema}.bulk_rows (
 ${MIXED_TYPES_COLUMNS.replace(/%TABLE%/g, 'bulk_rows')}
 );
 
+-- Rows the Unit of Work scenario reads and writes. Its statements are
+-- idempotent, so it neither grows nor drifts between iterations.
+CREATE TABLE ${schema}.unit_of_work (
+    id int4 PRIMARY KEY,
+    a int4,
+    b text
+);
+INSERT INTO ${schema}.unit_of_work
+  SELECT g, 0, 'x' FROM generate_series(1, 100) g;
+
+-- Destination for the two Bulk Load scenarios. Left empty: those
+-- scenarios write into it, truncating first on every iteration.
+CREATE TABLE ${schema}.copy_target (
+    f_int4 int4,
+    f_int8 int8,
+    f_float8 float8,
+    f_varchar varchar,
+    f_timestamptz timestamptz
+);
+
 CREATE TABLE ${schema}.large_blob (
     id SERIAL NOT NULL,
     data bytea,
@@ -131,6 +151,16 @@ async function schemaIsSeeded(
   schema: string,
   rowCount: number,
 ): Promise<boolean> {
+  // Existence only - the Bulk Load scenarios truncate and refill it, so
+  // whatever it holds between runs says nothing about whether setup is
+  // current. It still has to be checked: a schema seeded before this table
+  // existed would otherwise pass every check below and leave the scenarios
+  // failing on a missing relation.
+  if (!(await regclassExists(connection, `${schema}.copy_target`)))
+    return false;
+  if (!(await regclassExists(connection, `${schema}.unit_of_work`)))
+    return false;
+
   if (!(await regclassExists(connection, `${schema}.bulk_rows`))) return false;
   const count = await connection.query(
     `SELECT count(*)::int AS n, min(f_int4)::int AS min_int4
@@ -185,8 +215,8 @@ async function schemaIsSeeded(
  * bench.large_blob already exists and holds exactly LARGE_BLOB_ROW_COUNT
  * rows each of the expected size, and bench.large_array already exists and
  * holds exactly LARGE_ARRAY_ROW_COUNT rows each of the expected element
- * count, setup is skipped so repeated `npm run bench` invocations don't
- * reseed data every time.
+ * count, and bench.copy_target exists at all, setup is skipped so repeated
+ * `npm run bench` invocations don't reseed data every time.
  */
 export async function setupBenchSchema(
   config: BenchDbConfig,

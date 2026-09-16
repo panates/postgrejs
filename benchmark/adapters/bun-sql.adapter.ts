@@ -13,6 +13,7 @@ import {
   SIMPLE_QUERY_SQL,
   simpleQueryExecuteConcurrentSql,
   simpleQueryFetchSql,
+  unitOfWorkStatements,
 } from '../scenarios/index.js';
 import type { Adapter } from './adapter.js';
 
@@ -133,6 +134,28 @@ export const bunSqlAdapter: Adapter = {
           }
         }
       });
+    },
+
+    unitOfWork(handle, bench, statementCount) {
+      const { sql, schema } = handle as BunSqlHandle;
+      const statements = unitOfWorkStatements(schema);
+      bench.add('unit-of-work', async () => {
+        const results = await Promise.all(
+          statements.map(s => sql.unsafe(s.sql, s.params)),
+        );
+        if (results.length !== statementCount) {
+          throw new Error(
+            `expected ${statementCount} results, got ${results.length}`,
+          );
+        }
+      });
+    },
+
+    copyFromText() {
+      // Bun.sql exposes no COPY API at all (see copy-from.ts's
+      // unsupportedLibs); the orchestrator skips this pair, so nothing
+      // should reach here.
+      throw new Error('Bun.sql does not support COPY');
     },
 
     mixedTypesDecode(handle, bench, rowTarget) {

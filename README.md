@@ -23,8 +23,8 @@ onto a client meant for text.
 The numbers back it up. In PostgreJS's own benchmark suite - run head-to-head against
 [`pg`](https://github.com/brianc/node-postgres) (node-postgres) and [`postgres`](https://github.com/porsager/postgres)
 (postgres.js) on identical workloads - PostgreJS opens a connection up to **3x faster** than postgres.js, pushes
-pooled queries through up to **6.6x faster** than postgres.js, and fetches large result sets nearly **5x faster**
-than pg. It's also the only one of the three Node drivers with a complete binary wire protocol across every data
+pooled queries through up to **6.5x faster** than pg, and fetches large result sets nearly **5x faster** than pg
+too. It's also the only one of the three Node drivers with a complete binary wire protocol across every data
 type, rather than falling back to text for most of them. See [`doc/BENCHMARKS.md`](doc/BENCHMARKS.md) for the full
 methodology and every scenario.
 
@@ -74,8 +74,17 @@ usage.
   resource management.
 - **Binary Wire Protocol:** Implements the full binary wire protocol for all PostgreSQL data types, ensuring robust and
   efficient data handling.
-- **Prepared Statements:** Named prepared statements for optimized query execution.
+- **Prepared Statements:** Named prepared statements for optimized query execution, and a per-connection cache that
+  reuses one automatically for SQL the connection has run before - a repeated query costs `Bind`/`Execute` instead of
+  parsing again, worth 3.2x on fifty concurrent calls and 2.9x again on a query inside an open transaction. On by
+  default, `prepare: false` to opt out.
+- **Statement-Level Rollback:** Inside a transaction each statement runs under a savepoint of its own, so a failed
+  statement leaves the transaction usable instead of aborting the whole block. The `SAVEPOINT`/`RELEASE` pair travels
+  in the statement's own round trip rather than costing one each - 36µs for the pair, against 507µs sent separately.
+  `rollbackOnError: false` to opt out.
 - **Cursors:** Features fast double-link cache cursors for efficient data retrieval.
+- **Batch Execution:** `executeBatch()` runs one prepared statement over many parameter sets under a single `Sync`,
+  reporting each set's row count - 1000 updates in 20ms where the same calls pipelined individually take 188ms.
 - **Notifications:**  High-level implementation for PostgreSQL notifications (LISTEN/NOTIFY), enabling real-time data
   updates.
 - **Extensibility:** Extensible data-types and type mapping to accommodate custom requirements.
@@ -84,8 +93,13 @@ usage.
 - **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
 - **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure
   authentication.
-- **Bulk Import/Export:** `COPY TO STDOUT` and `COPY FROM STDIN` as Node streams, with backpressure in both directions.
+- **Bulk Import/Export:** `COPY TO STDOUT` and `COPY FROM STDIN` as Node streams, with backpressure in both directions,
+  plus `copyFromRows()`, which encodes rows straight into binary `COPY` - around 4x faster than the CSV equivalent and
+  no text escaping to get wrong. Takes arrays or objects from anything iterable, so a file larger than memory streams in.
 - **Query Pipelining:** Pooled queries can share connections so a burst is not capped by pool size - opt-in per call.
+  `pipeline()` goes further for a known set of statements: several different ones travel under a single `Sync`, so they
+  cost one round trip instead of one each and commit or roll back together - around 2x faster than the same calls
+  through `Promise.all()`, which is already pipelined.
 - **Dynamic SQL:** A `sql` tag builds statements from composable fragments - values become parameters, names are quoted,
   and `sql.values()`/`sql.set()` write INSERT and UPDATE clauses from objects.
 - **Multiple Hosts:** A connection can list several servers and pick one by role
@@ -114,7 +128,7 @@ usage.
 
 How PostgreJS compares to [`pg`](https://github.com/brianc/node-postgres) (node-postgres) and
 [`postgres`](https://github.com/porsager/postgres) (postgres.js). Every row was checked against the libraries' own
-source rather than their documentation — versions compared: **PostgreJS 3.1.0, pg 8.23.0, postgres.js 3.4.9**. ✅ built
+source rather than their documentation — versions compared: **PostgreJS 3.4.0, pg 8.23.0, postgres.js 3.4.9**. ✅ built
 in · 🟡 partial or needs a separate package · ❌ not supported.
 
 | Feature                           |       PostgreJS        |          pg           |   postgres.js    |
@@ -146,10 +160,14 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | ***Querying***                    |                        |                       |                  |
 | Query parameters                  |           ✅           |          ✅           |        ✅        |
 | Parameter type casting            |           ✅           |   🟡 <sup>10</sup>    |        ✅        |
-| Prepared statements               |      ✅ explicit       |          ✅           |   ✅ automatic   |
+| Prepared statements <sup>24</sup> |     ✅ automatic      |      ✅ manual       |   ✅ automatic   |
+| Statement-level rollback <sup>25</sup> |     ✅ automatic      |          ❌           |    🟡 manual     |
+| Batch execution <sup>21</sup>     |           ✅           |          ❌           |        ❌        |
+| Multi-statement round trip <sup>23</sup> |     ✅     |          ❌           |        ❌        |
 | Multi-statement scripts           |           ✅           |          ✅           |        ✅        |
 | Server-side cursors               |           ✅           |   🟡 <sup>11</sup>    |        ✅        |
 | `COPY TO` / `COPY FROM`           |           ✅           |   🟡 <sup>12</sup>    |        ✅        |
+| Binary COPY encoding <sup>22</sup> |           ✅           |          ❌           |        ❌        |
 | Row count after a COPY            |           ✅           |          ✅           |        ❌        |
 | ***Transaction management***      |                        |                       |                  |
 | Transaction API                   |           ✅           |          ❌           |        ✅        |
@@ -215,6 +233,38 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   documentation lists what stops working with it: `pg-cursor`, `pg-query-stream` and
   `pg-copy-streams` all "operate directly on the binary stream and therefore are
   incompatible" - so server-side cursors, row streaming and COPY are what it costs.
+- <sup>21</sup> One statement executed over many parameter sets behind a single `Sync`, each set's row count reported
+  separately. pg and postgres.js both emit a `Sync` per execution (`syncBuffer` in pg's `connection.js`, the
+  concatenated `ExecuteUnnamed` in postgres.js's), so a burst of executions costs a server round of implicit-transaction
+  bookkeeping each, pipelined or not. Writing one multi-row statement by hand is a separate approach that all three
+  support, and both PostgreJS and postgres.js ship value builders for it - it is faster still where it applies, but it
+  is one statement rather than many, and PostgreSQL's 65535-parameter ceiling bounds it.
+- <sup>22</sup> Turning JavaScript rows into the binary `COPY` format, rather than carrying a payload the caller
+  formatted first. All three can carry a `COPY` stream, but only as bytes: postgres.js hands back a `Writable` that
+  wraps raw chunks in `CopyData`, and pg reaches the same point through `pg-copy-streams`. Producing the format needs a
+  binary encoder per type, which neither driver has - see Binary encoders above, where the same gap shows up for query
+  parameters. The capability is still reachable with pg through a third package, `pg-copy-streams-binary`, which brings
+  its own encoders; postgres.js has no equivalent.
+- <sup>23</sup> Several different statements sent under one `Sync`, so they cost a single round of the server's
+  transaction bookkeeping rather than one each, arrive as one implicit transaction, and come back as per-statement
+  results. Distinct from the Pipelining row above, which is about not waiting between queries: all three do that, and
+  all three still close every statement with its own `Sync` - pg sends one immediately after each Execute
+  (`query.js`), and postgres.js concatenates Execute and Sync into a single constant (`ExecuteUnnamed`). Atomicity on
+  its own is reachable anywhere with an explicit `BEGIN`/`COMMIT`; what that cannot recover is the round trip, since
+  the per-statement Syncs and two extra statements remain.
+- <sup>24</sup> Whether a repeated query is parsed again every time. PostgreJS and postgres.js both keep a per-connection
+  cache keyed on the SQL and reuse a server-side statement, so a repeat costs `Bind`/`Execute` rather than
+  `Parse`/`Bind`/`Describe`/`Execute`; pg prepares only the statements you name yourself (`query.js`: "named queries
+  must always be prepared"), with nothing caching by SQL text. The two automatic ones differ in when they start:
+  postgres.js on first sight, PostgreJS on the second use, which leaves a genuinely one-shot query at its unprepared
+  cost. Both default to on and both take `prepare: false`, which matters for PgBouncer in transaction pooling mode
+  before 1.21, where a named statement does not survive to the next call.
+- <sup>25</sup> Whether one failed statement inside a transaction leaves the rest of the block runnable. PostgreJS puts
+  every statement under a savepoint of its own by default (`rollbackOnError`), rolling back to it when the statement
+  fails, and carries the `SAVEPOINT`/`RELEASE` pair inside the statement's own round trip rather than paying a round
+  trip for each. postgres.js has savepoints, but as a scope the caller opens around a callback (`savepoint(name, fn)`
+  in `src/index.js`), so a statement is protected only where someone wrapped it; pg has no savepoint handling in
+  `lib/` at all, so a failed statement leaves the block aborted until the caller rolls back themselves.
 
 
 ## Benchmarks

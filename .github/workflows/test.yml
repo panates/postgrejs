@@ -20,6 +20,15 @@ on:
       - .c8rc.json
       - /tsconfig*.json
 
+# The workflow only ever reads the repository: it checks out, installs, and
+# runs tests. Anything it publishes goes out through a separate credential -
+# Coveralls uses its own token, and releases happen in release.yml - so the
+# GITHUB_TOKEN never needs write access here. Set explicitly rather than
+# left to the repository default, which is org-wide and can be widened
+# later without anyone editing this file (CodeQL alert #12).
+permissions:
+  contents: read
+
 # Only one run per branch at a time
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

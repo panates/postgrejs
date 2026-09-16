@@ -7,6 +7,7 @@ import { Bench } from 'tinybench';
 import { isLibId, loadAdapter } from '../adapters/registry.js';
 import { getBenchDbConfig, getBulkRowCount } from '../config.js';
 import {
+  COPY_FROM_ROW_COUNT,
   CURSOR_STREAM_BATCH_SIZE,
   EXTENDED_QUERY_EXECUTE_CONCURRENT_CONCURRENCY,
   isScenarioName,
@@ -24,6 +25,7 @@ import {
   SCENARIOS,
   SIMPLE_QUERY_EXECUTE_CONCURRENT_CONCURRENCY,
   SIMPLE_QUERY_FETCH_ROW_TARGET,
+  UNIT_OF_WORK_STATEMENTS,
 } from '../scenarios/index.js';
 import type { BenchResult, LibId, ScenarioName } from '../types.js';
 
@@ -214,6 +216,23 @@ async function main(): Promise<void> {
         MIXED_TYPES_DECODE_ROW_TARGET,
       );
       params.rowTarget = MIXED_TYPES_DECODE_ROW_TARGET;
+      break;
+    case 'unit-of-work':
+      adapter.scenarios.unitOfWork(handle, bench, UNIT_OF_WORK_STATEMENTS);
+      params.statementCount = UNIT_OF_WORK_STATEMENTS;
+      break;
+    case 'copy-from-text':
+      adapter.scenarios.copyFromText(handle, bench, COPY_FROM_ROW_COUNT);
+      params.rowCount = COPY_FROM_ROW_COUNT;
+      break;
+    case 'copy-from-binary':
+      // As above: the orchestrator already skips libs listed in this
+      // scenario's unsupportedLibs, so this guards a direct invocation.
+      if (!adapter.scenarios.copyFromBinary) {
+        throw new Error(`${lib} does not implement copy-from-binary`);
+      }
+      adapter.scenarios.copyFromBinary(handle, bench, COPY_FROM_ROW_COUNT);
+      params.rowCount = COPY_FROM_ROW_COUNT;
       break;
     case 'large-blob-fetch':
       adapter.scenarios.largeBlobFetch(

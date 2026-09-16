@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="bench:bun" type="BunRunConfiguration">
-    <option name="applicationParameters" value="-s extended-query-execute" />
+    <option name="applicationParameters" value="-s simple-query-execute-concurrent" />
     <option name="program" value="cli.ts" />
     <option name="workingDirectory" value="$PROJECT_DIR$/benchmark" />
     <method v="2" />

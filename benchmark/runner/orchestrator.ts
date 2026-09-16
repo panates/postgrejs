@@ -87,26 +87,57 @@ export async function runMatrix(options: OrchestratorOptions): Promise<void> {
   // scenario) pairs are skipped entirely rather than spawned and left to
   // fail, and the report shows the disclosed reason instead of a number.
   const pairs: { scenario: ScenarioName; lib: LibId }[] = [];
+  const libsByScenario = new Map<ScenarioName, LibId[]>();
   for (const scenario of options.scenarios) {
+    const libs: LibId[] = [];
     for (const lib of options.libs) {
       const reason = SCENARIOS[scenario].unsupportedLibs?.[lib];
       if (reason) {
         console.log(`\n=== ${scenario} / ${lib}: skipped (${reason}) ===`);
         continue;
       }
+      libs.push(lib);
       pairs.push({ scenario, lib });
     }
+    if (libs.length) libsByScenario.set(scenario, libs);
   }
 
+  // Repeats are the outer loop, and the libraries within one scenario are
+  // rotated one position on each repeat - rather than running all of a
+  // library's repeats back to back.
+  //
+  // Back-to-back repeats put every sample a library has into the same few
+  // seconds, so a burst of machine load (another process, a thermal step,
+  // autovacuum waking up) lands entirely on whoever happens to be running
+  // then - and taking the median across repeats cannot filter that out,
+  // because all three repeats share the burst. Observed live on
+  // mixed-types-decode: one scenario block slid from 4.75ms down to 2.79ms
+  // across its 8 seconds, tracking wall-clock position rather than
+  // library, and a rerun of the identical command minutes later reversed
+  // the ranking outright.
+  //
+  // Interleaving spreads each library's repeats across the whole window so
+  // a burst hits everyone. Rotating rather than simply reversing is what
+  // moves the *middle* libraries too: mirroring only ever swaps the two
+  // outermost slots, leaving anyone in the middle of a four-library matrix
+  // permanently out of both the coldest (first) and warmest (last)
+  // position, while a rotation walks every library through a different
+  // slot on every repeat.
   const total = pairs.length * options.repeats;
   let done = 0;
-  for (const { scenario, lib } of pairs) {
-    for (let run = 1; run <= options.repeats; run++) {
-      done++;
-      console.log(
-        `\n=== [${done}/${total}] ${scenario} / ${lib} / run ${run} of ${options.repeats} ===`,
-      );
-      await spawnWorker(lib, scenario, run);
+  for (let run = 1; run <= options.repeats; run++) {
+    for (const [scenario, libs] of libsByScenario) {
+      const offset = (run - 1) % libs.length;
+      const order = offset
+        ? [...libs.slice(offset), ...libs.slice(0, offset)]
+        : libs;
+      for (const lib of order) {
+        done++;
+        console.log(
+          `\n=== [${done}/${total}] ${scenario} / ${lib} / run ${run} of ${options.repeats} ===`,
+        );
+        await spawnWorker(lib, scenario, run);
+      }
     }
   }
 

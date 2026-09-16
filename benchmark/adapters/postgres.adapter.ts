@@ -1,6 +1,7 @@
 import postgres from 'postgres';
 import type { BenchDbConfig } from '../config.js';
 import {
+  copyFromRow,
   cursorStreamSql,
   EXTENDED_QUERY_EXECUTE_CONCURRENT_SQL,
   EXTENDED_QUERY_PARAM,
@@ -14,6 +15,8 @@ import {
   SIMPLE_QUERY_SQL,
   simpleQueryExecuteConcurrentSql,
   simpleQueryFetchSql,
+  toCsvLine,
+  unitOfWorkStatements,
 } from '../scenarios/index.js';
 import type { Adapter } from './adapter.js';
 import { readInstalledVersion } from './pkg-version.js';
@@ -102,9 +105,14 @@ export const postgresAdapter: Adapter = {
         // `simple: false` (see index.js's unsafe()) - a genuine Extended
         // Query, and `prepare: false` keeps it one-shot rather than a
         // cached/reused prepared statement (see Prepared Statement Reuse).
-        const rows = await sql.unsafe(EXTENDED_QUERY_SQL, [
-          EXTENDED_QUERY_PARAM,
-        ]);
+        // prepare: true - see unitOfWork() above for the measurement. Without
+        // it sql.unsafe() leaves postgres.js on an unprepared path its own
+        // tagged template never takes.
+        const rows = await sql.unsafe(
+          EXTENDED_QUERY_SQL,
+          [EXTENDED_QUERY_PARAM],
+          { prepare: true },
+        );
         const val = rows[0]?.one;
         if (Number(val) !== EXTENDED_QUERY_PARAM) {
           throw new Error(`expected one=${EXTENDED_QUERY_PARAM}, got ${val}`);
@@ -117,7 +125,9 @@ export const postgresAdapter: Adapter = {
       bench.add('extended-query-execute-concurrent', async () => {
         const results = await Promise.all(
           Array.from({ length: concurrency }, (_, i) =>
-            sql.unsafe(EXTENDED_QUERY_EXECUTE_CONCURRENT_SQL, [i]),
+            sql.unsafe(EXTENDED_QUERY_EXECUTE_CONCURRENT_SQL, [i], {
+              prepare: true,
+            }),
           ),
         );
         for (let i = 0; i < results.length; i++) {
@@ -129,11 +139,58 @@ export const postgresAdapter: Adapter = {
       });
     },
 
+    // postgres.js pipelines automatically; Promise.all() is its fastest
+    // path here, and it still emits a Sync per statement. `prepare: true`
+    // is not a tweak: sql.unsafe() leaves preparing off by default, which
+    // on this workload costs it 3.5x (13.1ms against 3.8ms), and its
+    // tagged template - the path its own users take - prepares by default.
+    // See postgres.adapter.ts's own prepared-statement scenarios, which
+    // already pass it for the same reason.
+    unitOfWork(handle, bench, statementCount) {
+      const { sql, schema } = handle as PostgresHandle;
+      const statements = unitOfWorkStatements(schema);
+      bench.add('unit-of-work', async () => {
+        const results = await Promise.all(
+          statements.map(s => sql.unsafe(s.sql, s.params, { prepare: true })),
+        );
+        if (results.length !== statementCount) {
+          throw new Error(
+            `expected ${statementCount} results, got ${results.length}`,
+          );
+        }
+      });
+    },
+
+    copyFromText(handle, bench, rowCount) {
+      const { sql, schema } = handle as PostgresHandle;
+      // Same materialised rows and same in-call formatting as every other
+      // adapter here - see postgrejs.adapter.ts's copyFromText().
+      const rows = Array.from({ length: rowCount }, (_, i) => copyFromRow(i));
+      bench.add('copy-from-text', async () => {
+        const payload = Buffer.from(rows.map(toCsvLine).join(''), 'utf8');
+        await sql.unsafe(`truncate ${schema}.copy_target`);
+        const stream = await sql
+          .unsafe(`copy ${schema}.copy_target from stdin with (format csv)`)
+          .writable();
+        await new Promise<void>((resolve, reject) => {
+          stream.once('error', reject);
+          stream.once('finish', () => resolve());
+          stream.end(payload);
+        });
+        const r = await sql.unsafe(
+          `select count(*)::int4 as n from ${schema}.copy_target`,
+        );
+        if (r[0].n !== rowCount) {
+          throw new Error(`expected ${rowCount} rows, got ${r[0].n}`);
+        }
+      });
+    },
+
     mixedTypesDecode(handle, bench, rowTarget) {
       const { sql, schema } = handle as PostgresHandle;
       const text = mixedTypesDecodeSql(schema);
       bench.add('mixed-types-decode', async () => {
-        const rows = await sql.unsafe(text, [rowTarget]);
+        const rows = await sql.unsafe(text, [rowTarget], { prepare: true });
         if (rows.length !== rowTarget) {
           throw new Error(`expected ${rowTarget} rows, got ${rows.length}`);
         }
@@ -147,7 +204,7 @@ export const postgresAdapter: Adapter = {
       const { sql, schema } = handle as PostgresHandle;
       const text = largeBlobFetchSql(schema);
       bench.add('large-blob-fetch', async () => {
-        const rows = await sql.unsafe(text, [rowCount]);
+        const rows = await sql.unsafe(text, [rowCount], { prepare: true });
         if (rows.length !== rowCount) {
           throw new Error(`expected ${rowCount} rows, got ${rows.length}`);
         }
@@ -169,7 +226,7 @@ export const postgresAdapter: Adapter = {
       const { sql, schema } = handle as PostgresHandle;
       const text = largeArrayFetchSql(schema);
       bench.add('large-array-fetch', async () => {
-        const rows = await sql.unsafe(text, [rowCount]);
+        const rows = await sql.unsafe(text, [rowCount], { prepare: true });
         if (rows.length !== rowCount) {
           throw new Error(`expected ${rowCount} rows, got ${rows.length}`);
         }
@@ -259,7 +316,9 @@ export const postgresAdapter: Adapter = {
         async () => {
           await Promise.all(
             Array.from({ length: concurrency }, () =>
-              sql.unsafe(EXTENDED_QUERY_SQL, [EXTENDED_QUERY_PARAM]),
+              sql.unsafe(EXTENDED_QUERY_SQL, [EXTENDED_QUERY_PARAM], {
+                prepare: true,
+              }),
             ),
           );
         },

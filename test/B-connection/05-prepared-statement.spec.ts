@@ -150,4 +150,247 @@ describe('PreparedStatement', () => {
       await stmt.close();
     }
   });
+
+  describe('executeBatch()', () => {
+    it('should run one execution per parameter set and report each count', async () => {
+      await connection.execute(
+        'create temp table t_batch_counts (id int4 primary key, v text)',
+      );
+      await connection.execute(
+        "insert into t_batch_counts values (1, 'a'), (2, 'b')",
+      );
+      const stmt = await connection.prepare(
+        'update t_batch_counts set v = $1 where id = $2',
+      );
+      try {
+        const r = await stmt.executeBatch([
+          ['x', 1],
+          ['y', 2],
+          ['z', 99],
+        ]);
+        // The third set matches no row - the shape from the original
+        // feature request, where a batch reports per-set counts rather
+        // than one total.
+        expect(r.results.map(x => x.rowsAffected)).toStrictEqual([1, 1, 0]);
+        expect(r.results.map(x => x.command)).toStrictEqual([
+          'UPDATE',
+          'UPDATE',
+          'UPDATE',
+        ]);
+        expect(r.totalRowsAffected).toStrictEqual(2);
+      } finally {
+        await stmt.close();
+      }
+    });
+
+    it('should decode rows per set when the statement returns them', async () => {
+      const stmt = await connection.prepare('select $1::int4 as v');
+      try {
+        const r = await stmt.executeBatch([[7], [8]], { objectRows: true });
+        expect(r.results.map(x => x.rows?.[0])).toStrictEqual([
+          { v: 7 },
+          { v: 8 },
+        ]);
+        expect(r.fields?.length).toStrictEqual(1);
+      } finally {
+        await stmt.close();
+      }
+    });
+
+    it('should leave rows undefined for a statement that returns none', async () => {
+      await connection.execute('create temp table t_batch_norows (id int4)');
+      const stmt = await connection.prepare(
+        'insert into t_batch_norows values ($1)',
+      );
+      try {
+        const r = await stmt.executeBatch([[1], [2]]);
+        expect(r.results.every(x => x.rows === undefined)).toStrictEqual(true);
+        expect(r.fields).toBeUndefined();
+      } finally {
+        await stmt.close();
+      }
+    });
+
+    it('should report which set the server rejected, and what completed', async () => {
+      await connection.execute(
+        'create temp table t_batch_err (id int4 primary key)',
+      );
+      await connection.execute('insert into t_batch_err values (1)');
+      const stmt = await connection.prepare(
+        'insert into t_batch_err values ($1)',
+      );
+      try {
+        let error: any;
+        try {
+          await stmt.executeBatch([[10], [1], [11]]);
+        } catch (e: any) {
+          error = e;
+        }
+        // The duplicate key is set #1; it stays a DatabaseError so the
+        // usual PostgreSQL fields still work.
+        expect(error?.code).toStrictEqual('23505');
+        expect(error?.failedIndex).toStrictEqual(1);
+        expect(error?.batchResults?.length).toStrictEqual(1);
+      } finally {
+        await stmt.close();
+      }
+    });
+
+    it('should roll back every set when one fails', async () => {
+      // A batch is a single Sync and therefore a single implicit
+      // transaction: set #0 completed before the failure, but must not
+      // survive it. Sets after the failure never ran at all.
+      await connection.execute(
+        'create temp table t_batch_atomic (id int4 primary key)',
+      );
+      await connection.execute('insert into t_batch_atomic values (1)');
+      const stmt = await connection.prepare(
+        'insert into t_batch_atomic values ($1)',
+      );
+      try {
+        await expect(stmt.executeBatch([[10], [1], [11]])).rejects.toThrow();
+        const r = await connection.query(
+          'select count(*)::int4 as n from t_batch_atomic where id in (10, 11)',
+        );
+        expect(r.rows?.[0]).toStrictEqual([0]);
+      } finally {
+        await stmt.close();
+      }
+    });
+
+    it('should accept an empty batch without touching the connection', async () => {
+      const stmt = await connection.prepare('select $1::int4 as v');
+      try {
+        const r = await stmt.executeBatch([]);
+        expect(r.results).toStrictEqual([]);
+        expect(r.totalRowsAffected).toStrictEqual(0);
+        // Connection still usable - nothing was sent.
+        const q = await connection.query('select 1 as v');
+        expect(q.rows?.[0]).toStrictEqual([1]);
+      } finally {
+        await stmt.close();
+      }
+    });
+
+    it('should reject a cursor request, which a batch cannot honour', async () => {
+      const stmt = await connection.prepare('select $1::int4 as v');
+      try {
+        await expect(
+          stmt.executeBatch([[1]], { cursor: true }),
+        ).rejects.toThrow(/cursor/);
+      } finally {
+        await stmt.close();
+      }
+    });
+
+    it('should keep set-to-result mapping over a batch larger than one read', async () => {
+      // fetchCount is deliberately ignored by executeBatch(); this also
+      // covers a batch whose responses span many socket reads.
+      const stmt = await connection.prepare('select $1::int4 as v');
+      try {
+        const sets = Array.from({ length: 500 }, (_, i) => [i]);
+        const r = await stmt.executeBatch(sets, { fetchCount: 1 });
+        expect(r.results.length).toStrictEqual(500);
+        expect(r.results[0].rows?.[0]).toStrictEqual([0]);
+        expect(r.results[499].rows?.[0]).toStrictEqual([499]);
+      } finally {
+        await stmt.close();
+      }
+    });
+  });
+
+  describe('rollbackOnError savepoint inside a transaction', () => {
+    // The SAVEPOINT/RELEASE pair rides in the statement's own Sync rather
+    // than costing a round trip each, which puts two extra CommandComplete
+    // responses in front of and behind the caller's own.
+
+    afterEach(async () => {
+      if (connection.inTransaction) await connection.rollback();
+    });
+
+    it("should report the statement's own command tag, not RELEASE's", async () => {
+      await connection.startTransaction();
+      const r = await connection.query('select $1::int4 as v', {
+        params: [7],
+        objectRows: true,
+      });
+      expect(r.command).toStrictEqual('SELECT');
+      expect(r.rows?.[0]).toStrictEqual({ v: 7 });
+    });
+
+    it("should report the statement's own rowsAffected", async () => {
+      await connection.startTransaction();
+      await connection.execute(
+        'create temp table sp_rows (id int4 primary key) on commit drop',
+      );
+      const r = await connection.query(
+        'insert into sp_rows (id) values ($1), ($2)',
+        { params: [1, 2] },
+      );
+      expect(r.command).toStrictEqual('INSERT');
+      expect(r.rowsAffected).toStrictEqual(2);
+    });
+
+    it('should roll back to the savepoint and leave the transaction usable', async () => {
+      await connection.startTransaction();
+      await connection.execute(
+        'create temp table sp_err (id int4 primary key) on commit drop',
+      );
+      await connection.query('insert into sp_err (id) values ($1)', {
+        params: [1],
+      });
+      await expect(
+        connection.query('insert into sp_err (id) values ($1)', {
+          params: [1],
+        }),
+      ).rejects.toThrow(/duplicate key/);
+      // Without the savepoint the failed statement would have aborted the
+      // whole block and this would answer 25P02 instead.
+      const r = await connection.query(
+        'select count(*)::int4 as n from sp_err',
+        {
+          objectRows: true,
+        },
+      );
+      expect(r.rows?.[0]).toStrictEqual({ n: 1 });
+      expect(connection.inTransaction).toStrictEqual(true);
+    });
+
+    it('should leave the wire untouched when rollbackOnError is off', async () => {
+      await connection.startTransaction();
+      const r = await connection.query('select $1::int4 as v', {
+        params: [9],
+        objectRows: true,
+        rollbackOnError: false,
+      });
+      expect(r.command).toStrictEqual('SELECT');
+      expect(r.rows?.[0]).toStrictEqual({ v: 9 });
+    });
+
+    it('should keep the cursor path on its own savepoint', async () => {
+      // A cursor outlives the round trip that opened it, so its savepoint
+      // cannot ride along with a single statement - that path still sends
+      // SAVEPOINT and RELEASE of its own.
+      await connection.startTransaction();
+      const r = await connection.query(
+        'select i from generate_series(1, 20) i',
+        { cursor: true },
+      );
+      try {
+        const rows = await r.cursor!.fetch(5);
+        expect(rows?.length).toStrictEqual(5);
+      } finally {
+        await r.cursor!.close();
+      }
+    });
+
+    it('should return a first page for a statement whose portal suspends', async () => {
+      await connection.startTransaction();
+      const r = await connection.query(
+        'select i from generate_series(1, 100) i',
+        { fetchCount: 10 },
+      );
+      expect(r.rows?.length).toStrictEqual(10);
+    });
+  });
 });

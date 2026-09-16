@@ -82,6 +82,31 @@ export interface DatabaseConnectionParams {
    */
   autoCommit?: boolean;
   /**
+   * Reuse a server-side prepared statement for SQL this connection has run
+   * before, instead of parsing it again every time.
+   *
+   * On by default. A repeated query then costs Bind/Execute rather than
+   * Parse/Bind/Describe/Execute, which on fifty concurrent calls of one
+   * statement measured 0.97ms against 3.13ms.
+   *
+   * Turn it off when named prepared statements cannot survive between
+   * calls - the usual case being PgBouncer in transaction pooling mode
+   * before 1.21, which hands each transaction a different backend, so a
+   * statement prepared on one is missing on the next.
+   *
+   * @default true
+   */
+  prepare?: boolean;
+  /**
+   * How many prepared statements one connection keeps. The least recently
+   * used is closed when the limit is reached, so an application that
+   * builds SQL text dynamically cannot accumulate statements on the server
+   * without bound.
+   *
+   * @default 64
+   */
+  preparedStatementCacheSize?: number;
+  /**
    * When on, if a statement in a transaction block generates an error,
    * the error is ignored and the transaction continues.
    * When off (the default), a statement in a transaction block that generates an error aborts the entire transaction

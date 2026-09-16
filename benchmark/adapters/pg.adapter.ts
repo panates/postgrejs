@@ -1,6 +1,8 @@
 import { Client, Pool } from 'pg';
+import { from as copyFrom } from 'pg-copy-streams';
 import type { BenchDbConfig } from '../config.js';
 import {
+  copyFromRow,
   cursorStreamSql,
   EXTENDED_QUERY_EXECUTE_CONCURRENT_SQL,
   EXTENDED_QUERY_PARAM,
@@ -14,6 +16,8 @@ import {
   SIMPLE_QUERY_SQL,
   simpleQueryExecuteConcurrentSql,
   simpleQueryFetchSql,
+  toCsvLine,
+  unitOfWorkStatements,
 } from '../scenarios/index.js';
 import type { Adapter } from './adapter.js';
 import { readInstalledVersion } from './pkg-version.js';
@@ -128,6 +132,50 @@ export const pgAdapter: Adapter = {
           if (Number(val) !== i) {
             throw new Error(`call ${i}: expected val=${i}, got ${val}`);
           }
+        }
+      });
+    },
+
+    // pg has no single-Sync equivalent; Promise.all() over its
+    // pipeline:true client is its fastest path for this.
+    unitOfWork(handle, bench, statementCount) {
+      const { client, schema } = handle as PgHandle;
+      const statements = unitOfWorkStatements(schema);
+      bench.add('unit-of-work', async () => {
+        const results = await Promise.all(
+          statements.map(s => client.query(s.sql, s.params)),
+        );
+        if (results.length !== statementCount) {
+          throw new Error(
+            `expected ${statementCount} results, got ${results.length}`,
+          );
+        }
+      });
+    },
+
+    copyFromText(handle, bench, rowCount) {
+      const { client, schema } = handle as PgHandle;
+      // Same materialised rows and same in-call formatting as every other
+      // adapter here - see postgrejs.adapter.ts's copyFromText().
+      const rows = Array.from({ length: rowCount }, (_, i) => copyFromRow(i));
+      bench.add('copy-from-text', async () => {
+        const payload = Buffer.from(rows.map(toCsvLine).join(''), 'utf8');
+        await client.query(`truncate ${schema}.copy_target`);
+        // pg's core Query refuses COPY IN; pg-copy-streams is its own
+        // ecosystem's answer and is what a pg user would reach for.
+        const stream = client.query(
+          copyFrom(`copy ${schema}.copy_target from stdin with (format csv)`),
+        );
+        await new Promise<void>((resolve, reject) => {
+          stream.once('error', reject);
+          stream.once('finish', () => resolve());
+          stream.end(payload);
+        });
+        const r = await client.query(
+          `select count(*)::int4 as n from ${schema}.copy_target`,
+        );
+        if (r.rows[0].n !== rowCount) {
+          throw new Error(`expected ${rowCount} rows, got ${r.rows[0].n}`);
         }
       });
     },
