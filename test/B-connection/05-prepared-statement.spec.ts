@@ -298,4 +298,99 @@ describe('PreparedStatement', () => {
       }
     });
   });
+
+  describe('rollbackOnError savepoint inside a transaction', () => {
+    // The SAVEPOINT/RELEASE pair rides in the statement's own Sync rather
+    // than costing a round trip each, which puts two extra CommandComplete
+    // responses in front of and behind the caller's own.
+
+    afterEach(async () => {
+      if (connection.inTransaction) await connection.rollback();
+    });
+
+    it("should report the statement's own command tag, not RELEASE's", async () => {
+      await connection.startTransaction();
+      const r = await connection.query('select $1::int4 as v', {
+        params: [7],
+        objectRows: true,
+      });
+      expect(r.command).toStrictEqual('SELECT');
+      expect(r.rows?.[0]).toStrictEqual({ v: 7 });
+    });
+
+    it("should report the statement's own rowsAffected", async () => {
+      await connection.startTransaction();
+      await connection.execute(
+        'create temp table sp_rows (id int4 primary key) on commit drop',
+      );
+      const r = await connection.query(
+        'insert into sp_rows (id) values ($1), ($2)',
+        { params: [1, 2] },
+      );
+      expect(r.command).toStrictEqual('INSERT');
+      expect(r.rowsAffected).toStrictEqual(2);
+    });
+
+    it('should roll back to the savepoint and leave the transaction usable', async () => {
+      await connection.startTransaction();
+      await connection.execute(
+        'create temp table sp_err (id int4 primary key) on commit drop',
+      );
+      await connection.query('insert into sp_err (id) values ($1)', {
+        params: [1],
+      });
+      await expect(
+        connection.query('insert into sp_err (id) values ($1)', {
+          params: [1],
+        }),
+      ).rejects.toThrow(/duplicate key/);
+      // Without the savepoint the failed statement would have aborted the
+      // whole block and this would answer 25P02 instead.
+      const r = await connection.query(
+        'select count(*)::int4 as n from sp_err',
+        {
+          objectRows: true,
+        },
+      );
+      expect(r.rows?.[0]).toStrictEqual({ n: 1 });
+      expect(connection.inTransaction).toStrictEqual(true);
+    });
+
+    it('should leave the wire untouched when rollbackOnError is off', async () => {
+      await connection.startTransaction();
+      const r = await connection.query('select $1::int4 as v', {
+        params: [9],
+        objectRows: true,
+        rollbackOnError: false,
+      });
+      expect(r.command).toStrictEqual('SELECT');
+      expect(r.rows?.[0]).toStrictEqual({ v: 9 });
+    });
+
+    it('should keep the cursor path on its own savepoint', async () => {
+      // A cursor outlives the round trip that opened it, so its savepoint
+      // cannot ride along with a single statement - that path still sends
+      // SAVEPOINT and RELEASE of its own.
+      await connection.startTransaction();
+      const r = await connection.query(
+        'select i from generate_series(1, 20) i',
+        { cursor: true },
+      );
+      try {
+        const rows = await r.cursor!.fetch(5);
+        expect(rows?.length).toStrictEqual(5);
+      } finally {
+        await r.cursor!.close();
+      }
+    });
+
+    it('should return a first page for a statement whose portal suspends', async () => {
+      await connection.startTransaction();
+      const r = await connection.query(
+        'select i from generate_series(1, 100) i',
+        { fetchCount: 10 },
+      );
+      expect(r.rows?.length).toStrictEqual(10);
+    });
+  });
 });

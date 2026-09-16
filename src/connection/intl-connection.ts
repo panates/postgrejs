@@ -1306,6 +1306,7 @@ export class IntlConnection extends SafeEventEmitter {
     paramTypes: Maybe<Maybe<OID>[]>,
     params: Maybe<Maybe<any>[]>,
     options: QueryOptions,
+    savepoint?: string,
   ): Promise<QueryResult> {
     this.assertConnected();
     this.ref();
@@ -1333,6 +1334,12 @@ export class IntlConnection extends SafeEventEmitter {
         result.rowType = resolveRowType(options);
       }
 
+      // The SAVEPOINT/RELEASE pair rollbackOnError needs travels with the
+      // statement instead of costing a round trip each - see
+      // PreparedStatement._withTransaction(), which hands the name down
+      // rather than sending them itself.
+      let leadingCommandTags = savepoint ? 1 : 0;
+
       this.runningQueryCount++;
       await this.socket
         .sendBindExecuteMessages(
@@ -1345,6 +1352,8 @@ export class IntlConnection extends SafeEventEmitter {
               queryOptions: options,
             },
             execute: { fetchCount: options.fetchCount || 100 },
+            before: savepoint ? 'SAVEPOINT ' + savepoint : undefined,
+            after: savepoint ? 'RELEASE ' + savepoint : undefined,
           },
           (
             code: Protocol.BackendMessageCode,
@@ -1352,6 +1361,7 @@ export class IntlConnection extends SafeEventEmitter {
             done: (err?: Error, result?: any) => void,
           ) => {
             switch (code) {
+              case Protocol.BackendMessageCode.ParseComplete:
               case Protocol.BackendMessageCode.BindComplete:
               case Protocol.BackendMessageCode.NoticeResponse:
               case Protocol.BackendMessageCode.PortalSuspended:
@@ -1360,7 +1370,12 @@ export class IntlConnection extends SafeEventEmitter {
                 rows.push(msg);
                 break;
               case Protocol.BackendMessageCode.CommandComplete:
-                commandTag = msg;
+                // Three statements can answer here when a savepoint rides
+                // along: SAVEPOINT's tag, then the caller's own, then
+                // RELEASE's. Only the middle one describes what the caller
+                // asked for.
+                if (leadingCommandTags) leadingCommandTags--;
+                else if (!commandTag) commandTag = msg;
                 break;
               case Protocol.BackendMessageCode.ErrorResponse:
                 error = msg;

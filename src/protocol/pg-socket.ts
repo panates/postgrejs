@@ -409,14 +409,27 @@ export class PgSocket extends SafeEventEmitter {
     args: {
       bind: Frontend.BindMessageArgs;
       execute: Frontend.ExecuteMessageArgs;
+      before?: string;
+      after?: string;
     },
     cb: CaptureCallback,
   ): Promise<any> {
-    const data = [
+    if (!args.before && !args.after) {
+      const data = [
+        this._frontend.getBindMessage(args.bind),
+        this._frontend.getExecuteMessage(args.execute),
+        this._frontend.getSyncMessage(),
+      ];
+      return this._sendAndCapture(data, cb, 'sendBindExecuteMessages', args);
+    }
+    const data: Buffer[] = [];
+    if (args.before) this._pushUtilityStatement(data, args.before, args.bind);
+    data.push(
       this._frontend.getBindMessage(args.bind),
       this._frontend.getExecuteMessage(args.execute),
-      this._frontend.getSyncMessage(),
-    ];
+    );
+    if (args.after) this._pushUtilityStatement(data, args.after, args.bind);
+    data.push(this._frontend.getSyncMessage());
     return this._sendAndCapture(data, cb, 'sendBindExecuteMessages', args);
   }
 
@@ -635,6 +648,38 @@ export class PgSocket extends SafeEventEmitter {
         reject(new Error('Socket is not writable'));
       }
     });
+  }
+
+  /**
+   * Parse + Bind + Execute for a parameterless utility statement, appended
+   * to a message list that is about to be closed by one Sync - how
+   * sendBindExecuteMessages() carries its `before`/`after` SQL (today,
+   * SAVEPOINT and RELEASE) in the same round trip as the statement itself
+   * rather than as a round trip each.
+   *
+   * Everything here goes through the unnamed statement and the unnamed
+   * portal. That is safe in this order: the caller's own Bind names a
+   * prepared statement rather than the unnamed one, and PostgreSQL
+   * processes the messages in sequence, so each Bind only ever discards an
+   * unnamed portal whose Execute has already run.
+   *
+   * No Describe: neither statement returns rows, so there is no
+   * RowDescription worth asking for. Result formats come from the caller's
+   * own Bind args, which likewise cost nothing against no columns.
+   */
+  private _pushUtilityStatement(
+    data: Buffer[],
+    sql: string,
+    bind: Frontend.BindMessageArgs,
+  ): void {
+    data.push(
+      this._frontend.getParseMessage({ sql }),
+      this._frontend.getBindMessage({
+        typeMap: bind.typeMap,
+        queryOptions: bind.queryOptions,
+      }),
+      this._frontend.getExecuteMessage({}),
+    );
   }
 
   protected _removeListeners(): void {
