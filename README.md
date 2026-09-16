@@ -76,7 +76,12 @@ usage.
   efficient data handling.
 - **Prepared Statements:** Named prepared statements for optimized query execution, and a per-connection cache that
   reuses one automatically for SQL the connection has run before - a repeated query costs `Bind`/`Execute` instead of
-  parsing again, worth 3.2x on fifty concurrent calls. On by default, `prepare: false` to opt out.
+  parsing again, worth 3.2x on fifty concurrent calls and 2.9x again on a query inside an open transaction. On by
+  default, `prepare: false` to opt out.
+- **Statement-Level Rollback:** Inside a transaction each statement runs under a savepoint of its own, so a failed
+  statement leaves the transaction usable instead of aborting the whole block. The `SAVEPOINT`/`RELEASE` pair travels
+  in the statement's own round trip rather than costing one each - 36µs for the pair, against 507µs sent separately.
+  `rollbackOnError: false` to opt out.
 - **Cursors:** Features fast double-link cache cursors for efficient data retrieval.
 - **Batch Execution:** `executeBatch()` runs one prepared statement over many parameter sets under a single `Sync`,
   reporting each set's row count - 1000 updates in 20ms where the same calls pipelined individually take 188ms.
@@ -156,6 +161,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Query parameters                  |           ✅           |          ✅           |        ✅        |
 | Parameter type casting            |           ✅           |   🟡 <sup>10</sup>    |        ✅        |
 | Prepared statements <sup>24</sup> |     ✅ automatic      |      ✅ manual       |   ✅ automatic   |
+| Statement-level rollback <sup>25</sup> |     ✅ automatic      |          ❌           |    🟡 manual     |
 | Batch execution <sup>21</sup>     |           ✅           |          ❌           |        ❌        |
 | Multi-statement round trip <sup>23</sup> |     ✅     |          ❌           |        ❌        |
 | Multi-statement scripts           |           ✅           |          ✅           |        ✅        |
@@ -253,6 +259,12 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   postgres.js on first sight, PostgreJS on the second use, which leaves a genuinely one-shot query at its unprepared
   cost. Both default to on and both take `prepare: false`, which matters for PgBouncer in transaction pooling mode
   before 1.21, where a named statement does not survive to the next call.
+- <sup>25</sup> Whether one failed statement inside a transaction leaves the rest of the block runnable. PostgreJS puts
+  every statement under a savepoint of its own by default (`rollbackOnError`), rolling back to it when the statement
+  fails, and carries the `SAVEPOINT`/`RELEASE` pair inside the statement's own round trip rather than paying a round
+  trip for each. postgres.js has savepoints, but as a scope the caller opens around a callback (`savepoint(name, fn)`
+  in `src/index.js`), so a statement is protected only where someone wrapped it; pg has no savepoint handling in
+  `lib/` at all, so a failed statement leaves the block aborted until the caller rolls back themselves.
 
 
 ## Benchmarks
