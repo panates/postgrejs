@@ -18,6 +18,12 @@ export interface QueryOptions extends DataMappingOptions {
    */
   objectRows?: boolean;
   /**
+   * Overrides the connection's `prepare` setting for this call - `false`
+   * to keep a one-off statement out of the cache, `true` to use it on a
+   * connection that has caching off.
+   */
+  prepare?: boolean;
+  /**
    * Controls how each row's raw column data is turned into the value handed back to the
    * caller. `'array'` and `'object'` select the built-in decoders (the same output
    * `objectRows` has always produced); pass an instance of your own `RowDecoder` subclass

@@ -413,4 +413,106 @@ describe('query() (Extended Query)', () => {
       expect(r[2].rows?.[0]).toStrictEqual([2]);
     });
   });
+
+  describe('prepared statement cache', () => {
+    const open = async (cfg?: any) => {
+      const c = new Connection(cfg);
+      await c.connect();
+      return c;
+    };
+    // prepare: false matters here rather than being tidiness - without it
+    // this helper is itself cached on its second call and starts counting
+    // its own statement alongside the one under test.
+    const serverStatements = async (c: Connection) =>
+      (
+        await c.query(
+          'select count(*)::int4 as n from pg_prepared_statements',
+          { prepare: false },
+        )
+      ).rows?.[0][0];
+
+    it('should not prepare a statement the connection has seen only once', async () => {
+      const c = await open();
+      try {
+        await c.query('select $1::int4 as cache_once', { params: [1] });
+        expect(await serverStatements(c)).toStrictEqual(0);
+      } finally {
+        await c.close(0);
+      }
+    });
+
+    it('should prepare on the second use and reuse it afterwards', async () => {
+      const c = await open();
+      try {
+        const text = 'select $1::int4 as cache_twice';
+        await c.query(text, { params: [1] });
+        await c.query(text, { params: [2] });
+        expect(await serverStatements(c)).toStrictEqual(1);
+        // Still correct, and still one statement rather than a new one per
+        // call.
+        const r = await c.query(text, { params: [42] });
+        expect(r.rows?.[0]).toStrictEqual([42]);
+        expect(await serverStatements(c)).toStrictEqual(1);
+      } finally {
+        await c.close(0);
+      }
+    });
+
+    it('should stay off when prepare is false, per call or per connection', async () => {
+      const text = 'select $1::int4 as cache_off';
+      const c = await open();
+      try {
+        await c.query(text, { params: [1], prepare: false });
+        await c.query(text, { params: [1], prepare: false });
+        expect(await serverStatements(c)).toStrictEqual(0);
+      } finally {
+        await c.close(0);
+      }
+      const c2 = await open({ prepare: false });
+      try {
+        await c2.query(text, { params: [1] });
+        await c2.query(text, { params: [1] });
+        expect(await serverStatements(c2)).toStrictEqual(0);
+      } finally {
+        await c2.close(0);
+      }
+    });
+
+    it('should recover when a schema change invalidates a cached plan', async () => {
+      // PostgreSQL answers 0A000 "cached plan must not change result type"
+      // here. Without handling it, every later call on this connection
+      // would fail the same way instead of just the first.
+      const c = await open();
+      try {
+        await c.execute(
+          'create temp table t_cache_ddl (a int4); insert into t_cache_ddl values (1)',
+        );
+        await c.query('select * from t_cache_ddl');
+        await c.query('select * from t_cache_ddl');
+        await c.execute('alter table t_cache_ddl add column b text');
+        const r = await c.query('select * from t_cache_ddl');
+        expect(r.rows?.[0].length).toStrictEqual(2);
+        const again = await c.query('select * from t_cache_ddl');
+        expect(again.rows?.[0].length).toStrictEqual(2);
+      } finally {
+        await c.close(0);
+      }
+    });
+
+    it('should close the least recently used statement once the cache is full', async () => {
+      const c = await open({ preparedStatementCacheSize: 5 });
+      try {
+        for (let i = 0; i < 20; i++) {
+          const text = `select ${i}::int4 as v, $1::int4 as p`;
+          await c.query(text, { params: [1] });
+          await c.query(text, { params: [1] });
+        }
+        // Without eviction this would be 20, and would keep growing for
+        // an application that builds SQL text dynamically.
+        expect(await serverStatements(c)).toBeLessThanOrEqual(5);
+      } finally {
+        await c.close(0);
+      }
+    });
+  });
 });

@@ -737,7 +737,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         prm instanceof BindParam ? prm.value : prm,
       );
       return await this._captureErrorStack(
-        this._intlCon.queryOnce(sql, paramTypes, params, options || {}),
+        this._intlCon.queryCached(sql, paramTypes, params, options || {}),
         this.query,
         options?.asyncErrorHandling,
       ).catch((e: DatabaseError) => {
