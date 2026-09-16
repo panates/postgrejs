@@ -16,6 +16,7 @@
 
 #### 📖 Documentation Changes
 
+- docs: regenerate both benchmark reports from an interleaved run @Eray Hanoğlu 
 - docs: refresh the Node report and correct a stale asymmetry note @Eray Hanoğlu 
 - docs: record the prepared statement cache in the README @Eray Hanoğlu 
 - docs: list pipeline() in the feature list and comparison table @Eray Hanoğlu 
@@ -27,6 +28,7 @@
 - bench: add Bulk Load scenarios for text and binary COPY @Eray Hanoğlu 
 - bench: add Unit of Work scenario for pipeline() @Eray Hanoğlu 
 - bench: stop measuring postgres.js on an unprepared path @Eray Hanoğlu 
+- bench: interleave repeats instead of running them back to back @Eray Hanoğlu 
 - ci: pin GITHUB_TOKEN to read-only in the test and qc workflows @Eray Hanoğlu 
 
 ### [v3.3.0](https://github.com/panates/postgrejs/compare/v3.2.0...v3.3.0) -  14 September 2026 
