@@ -99,7 +99,8 @@ usage.
 - **Query Pipelining:** Pooled queries can share connections so a burst is not capped by pool size - opt-in per call.
   `pipeline()` goes further for a known set of statements: several different ones travel under a single `Sync`, so they
   cost one round trip instead of one each and commit or roll back together - around 2x faster than the same calls
-  through `Promise.all()`, which is already pipelined.
+  through `Promise.all()`, which is already pipelined. Statements the connection has run before bind to their cached
+  prepared names, so a repeated set sends no `Parse` at all - worth 2.5x on twenty statements.
 - **Dynamic SQL:** A `sql` tag builds statements from composable fragments - values become parameters, names are quoted,
   and `sql.values()`/`sql.set()` write INSERT and UPDATE clauses from objects.
 - **Multiple Hosts:** A connection can list several servers and pick one by role
