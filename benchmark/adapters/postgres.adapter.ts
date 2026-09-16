@@ -1,6 +1,7 @@
 import postgres from 'postgres';
 import type { BenchDbConfig } from '../config.js';
 import {
+  copyFromRow,
   cursorStreamSql,
   EXTENDED_QUERY_EXECUTE_CONCURRENT_SQL,
   EXTENDED_QUERY_PARAM,
@@ -14,6 +15,7 @@ import {
   SIMPLE_QUERY_SQL,
   simpleQueryExecuteConcurrentSql,
   simpleQueryFetchSql,
+  toCsvLine,
 } from '../scenarios/index.js';
 import type { Adapter } from './adapter.js';
 import { readInstalledVersion } from './pkg-version.js';
@@ -125,6 +127,31 @@ export const postgresAdapter: Adapter = {
           if (Number(val) !== i) {
             throw new Error(`call ${i}: expected val=${i}, got ${val}`);
           }
+        }
+      });
+    },
+
+    copyFromText(handle, bench, rowCount) {
+      const { sql, schema } = handle as PostgresHandle;
+      // Same materialised rows and same in-call formatting as every other
+      // adapter here - see postgrejs.adapter.ts's copyFromText().
+      const rows = Array.from({ length: rowCount }, (_, i) => copyFromRow(i));
+      bench.add('copy-from-text', async () => {
+        const payload = Buffer.from(rows.map(toCsvLine).join(''), 'utf8');
+        await sql.unsafe(`truncate ${schema}.copy_target`);
+        const stream = await sql
+          .unsafe(`copy ${schema}.copy_target from stdin with (format csv)`)
+          .writable();
+        await new Promise<void>((resolve, reject) => {
+          stream.once('error', reject);
+          stream.once('finish', () => resolve());
+          stream.end(payload);
+        });
+        const r = await sql.unsafe(
+          `select count(*)::int4 as n from ${schema}.copy_target`,
+        );
+        if (r[0].n !== rowCount) {
+          throw new Error(`expected ${rowCount} rows, got ${r[0].n}`);
         }
       });
     },

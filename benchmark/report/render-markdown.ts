@@ -155,6 +155,22 @@ const RESULT_GROUPS: ResultGroup[] = [
     ],
   },
   {
+    title: 'Bulk Load',
+    description:
+      '`COPY ... FROM STDIN`, the path PostgreSQL optimises for writing ' +
+      'many rows at once - one statement carrying a stream of rows ' +
+      'instead of an INSERT per row or a bind per row. The two scenarios ' +
+      'are the same 200,000 rows sent two ways: as CSV every library ' +
+      'formats itself, and as the binary COPY format only PostgreJS can ' +
+      'produce. Read them together - the text table is what separates the ' +
+      'drivers, and the difference between the tables is what the format ' +
+      'buys. Both scenarios truncate the destination inside the timed ' +
+      'call and start from the same materialised rows, so each library ' +
+      'pays for its own formatting rather than being handed a payload ' +
+      'someone else built.',
+    scenarios: ['copy-from-text', 'copy-from-binary'],
+  },
+  {
     title: 'Cursor Streaming',
     description:
       "A server-side cursor (postgrejs's `Connection.query(sql, " +
@@ -274,6 +290,7 @@ Some scenarios necessarily exercise each library differently. These are delibera
 8. **\`pg\`'s wire pipelining** — \`pg\` 8.23+ added an opt-in \`pipeline: true\` client option (send multiple queries without waiting for each one's response before writing the next), off by default. Every \`*-concurrent\` scenario here fires N queries via \`Promise.all()\` without awaiting each individually - exactly the pattern this flag is for - so it's enabled for \`pg\`'s client here; leaving it off would benchmark its serialized fallback path instead of its real concurrent capability, understating it the same way testing PostgreJS/postgres.js without their own pipelining would. It's a no-op for every sequential (always-awaited-one-at-a-time) scenario.
 9. **Sequential Execution and Concurrent Execution (Simple Query) run 9 repeats, not the usual 3** — a single round trip here costs well under half a millisecond, small enough that one cold first-run in a fresh child process (a page fault, a scheduling hiccup) can swing a 3-repeat median by ten percent or more in either direction, as happened while chasing this exact scenario down: three repeats alone flipped which library came out ahead from one invocation to the next. Nine repeats absorbs that without pretending the noise isn't there.
 10. **Sequential Execution's warmup is 800 iterations, not the usual 50** — the actual root cause behind the point above: at 50 warmup iterations, PostgreJS's own call graph (more, smaller functions across more files than pg's more monolithic one) wasn't consistently reaching V8's fully-optimized tier before the timed window started, so some repeats measured a partially-JIT-warmed run and others didn't - the same code, genuinely different measured speed, not noise in the usual sense. Fully warming it first (verified with up to 2000 warmup iterations, where PostgreJS won every single repeat) removes that variable; 800 was the smallest budget that still did, applied to both libraries equally.
+11. **Bulk Load (binary COPY) has one row** — pg and postgres.js cannot produce PostgreSQL's binary \`COPY\` format. Both can carry a payload the caller already encoded, so this is not a missing transport, but producing the format needs a binary encoder per type and neither driver has one. That is why the comparable scenario is Bulk Load (text COPY), where all three format the same CSV and the ranking is a ranking of drivers; the binary table shows what the format is worth on the same rows rather than claiming a race was run. A third-party package, \`pg-copy-streams-binary\`, brings encoders to pg and would make a two-row binary table possible - it is left out for the same reason \`pg-native\` is, being outside the driver rather than part of it. Column values also matter more here than anywhere else in this suite, and the scenario's own description carries that measurement: widest-form values put the two scenarios 10.3x apart, single-digit numbers 2.7x, on identical row counts.
 `;
 }
 

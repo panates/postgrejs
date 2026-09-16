@@ -1,5 +1,9 @@
 import type { ScenarioMeta, ScenarioName } from '../types.js';
 import { CONNECT_SCENARIO } from './connect/connect.js';
+import {
+  COPY_FROM_BINARY_SCENARIO,
+  COPY_FROM_TEXT_SCENARIO,
+} from './copy/copy-from.js';
 import { CURSOR_STREAM_SCENARIO } from './cursor/cursor-stream.js';
 import { EXTENDED_QUERY_EXECUTE_SCENARIO } from './extended-query/extended-query-execute.js';
 import { EXTENDED_QUERY_EXECUTE_CONCURRENT_SCENARIO } from './extended-query/extended-query-execute-concurrent.js';
@@ -15,6 +19,8 @@ import { SIMPLE_QUERY_EXECUTE_SCENARIO } from './simple-query/simple-query-execu
 import { SIMPLE_QUERY_EXECUTE_CONCURRENT_SCENARIO } from './simple-query/simple-query-execute-concurrent.js';
 import { SIMPLE_QUERY_FETCH_SCENARIO } from './simple-query/simple-query-fetch.js';
 
+export * from './copy/copy-from.js';
+
 export const SCENARIOS: Record<ScenarioName, ScenarioMeta> = {
   connect: CONNECT_SCENARIO,
   'simple-query-execute': SIMPLE_QUERY_EXECUTE_SCENARIO,
@@ -25,6 +31,8 @@ export const SCENARIOS: Record<ScenarioName, ScenarioMeta> = {
     EXTENDED_QUERY_EXECUTE_CONCURRENT_SCENARIO,
   'mixed-types-decode': MIXED_TYPES_DECODE_SCENARIO,
   'mixed-types-decode-binary': MIXED_TYPES_DECODE_BINARY_SCENARIO,
+  'copy-from-text': COPY_FROM_TEXT_SCENARIO,
+  'copy-from-binary': COPY_FROM_BINARY_SCENARIO,
   'large-blob-fetch': LARGE_BLOB_FETCH_SCENARIO,
   'large-array-fetch': LARGE_ARRAY_FETCH_SCENARIO,
   'cursor-stream': CURSOR_STREAM_SCENARIO,

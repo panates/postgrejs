@@ -2,6 +2,8 @@ import type { PreparedStatement } from 'postgrejs';
 import { Connection, DataFormat, Pool } from 'postgrejs';
 import type { BenchDbConfig } from '../config.js';
 import {
+  COPY_TARGET_COLUMNS,
+  copyFromRow,
   cursorStreamSql,
   EXTENDED_QUERY_EXECUTE_CONCURRENT_SQL,
   EXTENDED_QUERY_PARAM,
@@ -15,6 +17,7 @@ import {
   SIMPLE_QUERY_SQL,
   simpleQueryExecuteConcurrentSql,
   simpleQueryFetchSql,
+  toCsvLine,
 } from '../scenarios/index.js';
 import type { Adapter } from './adapter.js';
 import { readOwnPackageVersion } from './pkg-version.js';
@@ -145,6 +148,45 @@ export const postgrejsAdapter: Adapter = {
           if (Number(val) !== i) {
             throw new Error(`call ${i}: expected val=${i}, got ${val}`);
           }
+        }
+      });
+    },
+
+    copyFromText(handle, bench, rowCount) {
+      const { connection, schema } = handle as PostgrejsHandle;
+      // Both Bulk Load scenarios start from the same materialised rows and
+      // do their own formatting inside the timed call - that is the work a
+      // caller actually has: it holds rows and has to get them onto the
+      // wire. Pre-building the CSV outside would hide exactly the cost the
+      // binary scenario is paying for, and materialising rows for only one
+      // of the two would charge that one for memory the other also needs.
+      const rows = Array.from({ length: rowCount }, (_, i) => copyFromRow(i));
+      bench.add('copy-from-text', async () => {
+        await connection.execute(`truncate ${schema}.copy_target`);
+        const payload = Buffer.from(rows.map(toCsvLine).join(''), 'utf8');
+        const stream = await connection.copyFrom(
+          `copy ${schema}.copy_target from stdin with (format csv)`,
+        );
+        await new Promise<void>((resolve, reject) => {
+          stream.once('error', reject);
+          stream.end(payload, () => resolve());
+        });
+        if (stream.rowCount !== rowCount) {
+          throw new Error(`expected ${rowCount} rows, got ${stream.rowCount}`);
+        }
+      });
+    },
+
+    copyFromBinary(handle, bench, rowCount) {
+      const { connection, schema } = handle as PostgrejsHandle;
+      const rows = Array.from({ length: rowCount }, (_, i) => copyFromRow(i));
+      bench.add('copy-from-binary', async () => {
+        await connection.execute(`truncate ${schema}.copy_target`);
+        const r = await connection.copyFromRows(`${schema}.copy_target`, rows, {
+          columns: [...COPY_TARGET_COLUMNS],
+        });
+        if (r.rowCount !== rowCount) {
+          throw new Error(`expected ${rowCount} rows, got ${r.rowCount}`);
         }
       });
     },

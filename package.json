@@ -35,6 +35,7 @@
     "husky": "^9.1.7",
     "mocha": "^12.0.1",
     "pg": "^8.23.0",
+    "pg-copy-streams": "^7.0.0",
     "postgres": "^3.4.9",
     "prettier": "^3.9.4",
     "rimraf": "^6.1.3",

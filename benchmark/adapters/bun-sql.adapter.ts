@@ -135,6 +135,13 @@ export const bunSqlAdapter: Adapter = {
       });
     },
 
+    copyFromText() {
+      // Bun.sql exposes no COPY API at all (see copy-from.ts's
+      // unsupportedLibs); the orchestrator skips this pair, so nothing
+      // should reach here.
+      throw new Error('Bun.sql does not support COPY');
+    },
+
     mixedTypesDecode(handle, bench, rowTarget) {
       const { sql, schema } = handle as BunSqlHandle;
       const text = mixedTypesDecodeSql(schema);

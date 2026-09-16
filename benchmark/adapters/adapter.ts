@@ -94,6 +94,22 @@ export interface Adapter {
       elementCount: number,
       rowCount: number,
     ): void;
+    /**
+     * Bulk-loads `rowCount` identical rows into an empty table over
+     * `COPY ... FROM STDIN`, each library formatting the same CSV payload
+     * and streaming it as bytes. Truncates first, inside the timed call,
+     * so every iteration loads into an empty table at the same cost.
+     */
+    copyFromText(handle: unknown, bench: Bench, rowCount: number): void;
+    /**
+     * The same rows, encoded into PostgreSQL's binary COPY format by the
+     * driver rather than formatted as CSV by the caller. Optional: only
+     * PostgreJS can produce the format (see copy-from.ts's
+     * COPY_FROM_BINARY_SCENARIO for why pg and postgres.js are excluded
+     * rather than given a number from a third-party package) - the
+     * orchestrator never calls this for a lib not implementing it.
+     */
+    copyFromBinary?(handle: unknown, bench: Bench, rowCount: number): void;
     simpleQueryFetch(handle: unknown, bench: Bench, rowTarget: number): void;
     /**
      * Optional: not every library exposes a cursor/streaming API (see
