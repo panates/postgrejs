@@ -8,6 +8,7 @@ export type ScenarioName =
   | 'extended-query-execute-concurrent'
   | 'mixed-types-decode'
   | 'mixed-types-decode-binary'
+  | 'unit-of-work'
   | 'copy-from-text'
   | 'copy-from-binary'
   | 'large-blob-fetch'

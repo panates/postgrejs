@@ -54,6 +54,16 @@ CREATE TABLE ${schema}.bulk_rows (
 ${MIXED_TYPES_COLUMNS.replace(/%TABLE%/g, 'bulk_rows')}
 );
 
+-- Rows the Unit of Work scenario reads and writes. Its statements are
+-- idempotent, so it neither grows nor drifts between iterations.
+CREATE TABLE ${schema}.unit_of_work (
+    id int4 PRIMARY KEY,
+    a int4,
+    b text
+);
+INSERT INTO ${schema}.unit_of_work
+  SELECT g, 0, 'x' FROM generate_series(1, 100) g;
+
 -- Destination for the two Bulk Load scenarios. Left empty: those
 -- scenarios write into it, truncating first on every iteration.
 CREATE TABLE ${schema}.copy_target (
@@ -147,6 +157,8 @@ async function schemaIsSeeded(
   // existed would otherwise pass every check below and leave the scenarios
   // failing on a missing relation.
   if (!(await regclassExists(connection, `${schema}.copy_target`)))
+    return false;
+  if (!(await regclassExists(connection, `${schema}.unit_of_work`)))
     return false;
 
   if (!(await regclassExists(connection, `${schema}.bulk_rows`))) return false;

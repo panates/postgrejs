@@ -13,6 +13,7 @@ import {
   SIMPLE_QUERY_SQL,
   simpleQueryExecuteConcurrentSql,
   simpleQueryFetchSql,
+  unitOfWorkStatements,
 } from '../scenarios/index.js';
 import type { Adapter } from './adapter.js';
 
@@ -131,6 +132,21 @@ export const bunSqlAdapter: Adapter = {
           if (Number(val) !== i) {
             throw new Error(`call ${i}: expected val=${i}, got ${val}`);
           }
+        }
+      });
+    },
+
+    unitOfWork(handle, bench, statementCount) {
+      const { sql, schema } = handle as BunSqlHandle;
+      const statements = unitOfWorkStatements(schema);
+      bench.add('unit-of-work', async () => {
+        const results = await Promise.all(
+          statements.map(s => sql.unsafe(s.sql, s.params)),
+        );
+        if (results.length !== statementCount) {
+          throw new Error(
+            `expected ${statementCount} results, got ${results.length}`,
+          );
         }
       });
     },

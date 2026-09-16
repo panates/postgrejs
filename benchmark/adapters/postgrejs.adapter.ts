@@ -18,6 +18,7 @@ import {
   simpleQueryExecuteConcurrentSql,
   simpleQueryFetchSql,
   toCsvLine,
+  unitOfWorkStatements,
 } from '../scenarios/index.js';
 import type { Adapter } from './adapter.js';
 import { readOwnPackageVersion } from './pkg-version.js';
@@ -148,6 +149,23 @@ export const postgrejsAdapter: Adapter = {
           if (Number(val) !== i) {
             throw new Error(`call ${i}: expected val=${i}, got ${val}`);
           }
+        }
+      });
+    },
+
+    // postgrejs's pipeline(): every statement's Parse/Bind/Describe/Execute
+    // goes out before any reply, closed by one Sync rather than twenty.
+    unitOfWork(handle, bench, statementCount) {
+      const { connection, schema } = handle as PostgrejsHandle;
+      const statements = unitOfWorkStatements(schema);
+      bench.add('unit-of-work', async () => {
+        const results = await connection.pipeline(statements, {
+          objectRows: true,
+        });
+        if (results.length !== statementCount) {
+          throw new Error(
+            `expected ${statementCount} results, got ${results.length}`,
+          );
         }
       });
     },

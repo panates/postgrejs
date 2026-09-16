@@ -155,6 +155,19 @@ const RESULT_GROUPS: ResultGroup[] = [
     ],
   },
   {
+    title: 'Unit of Work',
+    description:
+      'Several different statements run as one unit, the shape a single ' +
+      'request usually has - a few writes, a few reads, none of them ' +
+      'repeating. Every library sends them without waiting between ' +
+      'replies, which all three can do; what separates them is whether ' +
+      'each statement still costs its own `Sync`, and with it a round of ' +
+      "the server's implicit-transaction bookkeeping. Distinct from the " +
+      'Concurrent Execution scenarios above, where the same query is ' +
+      'fired many times and a parsed plan can be shared.',
+    scenarios: ['unit-of-work'],
+  },
+  {
     title: 'Bulk Load',
     description:
       '`COPY ... FROM STDIN`, the path PostgreSQL optimises for writing ' +
@@ -291,6 +304,7 @@ Some scenarios necessarily exercise each library differently. These are delibera
 9. **Sequential Execution and Concurrent Execution (Simple Query) run 9 repeats, not the usual 3** — a single round trip here costs well under half a millisecond, small enough that one cold first-run in a fresh child process (a page fault, a scheduling hiccup) can swing a 3-repeat median by ten percent or more in either direction, as happened while chasing this exact scenario down: three repeats alone flipped which library came out ahead from one invocation to the next. Nine repeats absorbs that without pretending the noise isn't there.
 10. **Sequential Execution's warmup is 800 iterations, not the usual 50** — the actual root cause behind the point above: at 50 warmup iterations, PostgreJS's own call graph (more, smaller functions across more files than pg's more monolithic one) wasn't consistently reaching V8's fully-optimized tier before the timed window started, so some repeats measured a partially-JIT-warmed run and others didn't - the same code, genuinely different measured speed, not noise in the usual sense. Fully warming it first (verified with up to 2000 warmup iterations, where PostgreJS won every single repeat) removes that variable; 800 was the smallest budget that still did, applied to both libraries equally.
 11. **Bulk Load (binary COPY) has one row** — pg and postgres.js cannot produce PostgreSQL's binary \`COPY\` format. Both can carry a payload the caller already encoded, so this is not a missing transport, but producing the format needs a binary encoder per type and neither driver has one. That is why the comparable scenario is Bulk Load (text COPY), where all three format the same CSV and the ranking is a ranking of drivers; the binary table shows what the format is worth on the same rows rather than claiming a race was run. A third-party package, \`pg-copy-streams-binary\`, brings encoders to pg and would make a two-row binary table possible - it is left out for the same reason \`pg-native\` is, being outside the driver rather than part of it. Column values also matter more here than anywhere else in this suite, and the scenario's own description carries that measurement: widest-form values put the two scenarios 10.3x apart, single-digit numbers 2.7x, on identical row counts.
+12. **Unit of Work uses an API the others do not have** — PostgreJS runs the twenty statements through \`pipeline()\`, which closes them all with one \`Sync\`; pg and postgres.js fire them through \`Promise.all()\`. That is not a handicap imposed on them but their genuine best: both pipeline, so nothing waits on a previous reply, and neither can avoid a \`Sync\` per statement - pg sends one immediately after each Execute and postgres.js concatenates Execute and Sync into a single constant. postgres.js is given its tagged template rather than \`sql.unsafe()\`, which matters more than it looks: measured on this workload the tag is 3.5x faster for it (4.4ms against 15.5ms), so the \`$1\` form would have measured a path its own users have no reason to take.
 `;
 }
 

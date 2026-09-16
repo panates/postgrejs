@@ -17,6 +17,7 @@ import {
   simpleQueryExecuteConcurrentSql,
   simpleQueryFetchSql,
   toCsvLine,
+  unitOfWorkStatements,
 } from '../scenarios/index.js';
 import type { Adapter } from './adapter.js';
 import { readInstalledVersion } from './pkg-version.js';
@@ -131,6 +132,23 @@ export const pgAdapter: Adapter = {
           if (Number(val) !== i) {
             throw new Error(`call ${i}: expected val=${i}, got ${val}`);
           }
+        }
+      });
+    },
+
+    // pg has no single-Sync equivalent; Promise.all() over its
+    // pipeline:true client is its fastest path for this.
+    unitOfWork(handle, bench, statementCount) {
+      const { client, schema } = handle as PgHandle;
+      const statements = unitOfWorkStatements(schema);
+      bench.add('unit-of-work', async () => {
+        const results = await Promise.all(
+          statements.map(s => client.query(s.sql, s.params)),
+        );
+        if (results.length !== statementCount) {
+          throw new Error(
+            `expected ${statementCount} results, got ${results.length}`,
+          );
         }
       });
     },

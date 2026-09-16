@@ -16,6 +16,9 @@ import {
   simpleQueryExecuteConcurrentSql,
   simpleQueryFetchSql,
   toCsvLine,
+  UNIT_OF_WORK_READS,
+  UNIT_OF_WORK_SET_A,
+  UNIT_OF_WORK_SET_B,
 } from '../scenarios/index.js';
 import type { Adapter } from './adapter.js';
 import { readInstalledVersion } from './pkg-version.js';
@@ -127,6 +130,34 @@ export const postgresAdapter: Adapter = {
           if (Number(val) !== i) {
             throw new Error(`call ${i}: expected val=${i}, got ${val}`);
           }
+        }
+      });
+    },
+
+    // postgres.js pipelines automatically; Promise.all() is its fastest
+    // path here, and it still emits a Sync per statement. Built from its
+    // tagged template, not sql.unsafe() - see unit-of-work.ts for the
+    // measurement behind that choice. The SQL text is identical either
+    // way; the tag is simply the path postgres.js optimises.
+    unitOfWork(handle, bench, statementCount) {
+      const { sql, schema } = handle as PostgresHandle;
+      const t = sql(`${schema}.unit_of_work`);
+      bench.add('unit-of-work', async () => {
+        const results = await Promise.all([
+          ...UNIT_OF_WORK_SET_A.map(
+            x => sql`update ${t} set a = ${x.a} where id = ${x.id}`,
+          ),
+          ...UNIT_OF_WORK_READS.map(
+            x => sql`select id, a, b from ${t} where id = ${x.id}`,
+          ),
+          ...UNIT_OF_WORK_SET_B.map(
+            x => sql`update ${t} set b = ${x.b} where id = ${x.id}`,
+          ),
+        ]);
+        if (results.length !== statementCount) {
+          throw new Error(
+            `expected ${statementCount} results, got ${results.length}`,
+          );
         }
       });
     },

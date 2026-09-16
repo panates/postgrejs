@@ -100,6 +100,14 @@ export interface Adapter {
      * and streaming it as bytes. Truncates first, inside the timed call,
      * so every iteration loads into an empty table at the same cost.
      */
+    /**
+     * Runs `statementCount` different statements as one unit of work, each
+     * library using the fastest path it has: PostgreJS's pipeline(), which
+     * closes them all with a single Sync, and Promise.all() for the others,
+     * which pipeline but cannot avoid a Sync per statement (see
+     * unit-of-work.ts's description).
+     */
+    unitOfWork(handle: unknown, bench: Bench, statementCount: number): void;
     copyFromText(handle: unknown, bench: Bench, rowCount: number): void;
     /**
      * The same rows, encoded into PostgreSQL's binary COPY format by the
