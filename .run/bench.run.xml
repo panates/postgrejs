@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="bench" type="NodeJSConfigurationType" application-parameters="-s prepared-statement-reuse-concurrent" node-parameters="--import @swc-node/register/esm-register" path-to-js-file="cli.ts" working-dir="$PROJECT_DIR$/benchmark">
+  <configuration default="false" name="bench" type="NodeJSConfigurationType" application-parameters="-s unit-of-work" node-parameters="--import @swc-node/register/esm-register" path-to-js-file="cli.ts" working-dir="$PROJECT_DIR$/benchmark">
     <method v="2" />
   </configuration>
 </component>
