@@ -90,6 +90,9 @@ usage.
   plus `copyFromRows()`, which encodes rows straight into binary `COPY` - around 4x faster than the CSV equivalent and
   no text escaping to get wrong. Takes arrays or objects from anything iterable, so a file larger than memory streams in.
 - **Query Pipelining:** Pooled queries can share connections so a burst is not capped by pool size - opt-in per call.
+  `pipeline()` goes further for a known set of statements: several different ones travel under a single `Sync`, so they
+  cost one round trip instead of one each and commit or roll back together - around 2x faster than the same calls
+  through `Promise.all()`, which is already pipelined.
 - **Dynamic SQL:** A `sql` tag builds statements from composable fragments - values become parameters, names are quoted,
   and `sql.values()`/`sql.set()` write INSERT and UPDATE clauses from objects.
 - **Multiple Hosts:** A connection can list several servers and pick one by role
@@ -152,6 +155,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Parameter type casting            |           ✅           |   🟡 <sup>10</sup>    |        ✅        |
 | Prepared statements               |      ✅ explicit       |          ✅           |   ✅ automatic   |
 | Batch execution <sup>21</sup>     |           ✅           |          ❌           |        ❌        |
+| Multi-statement round trip <sup>23</sup> |     ✅     |          ❌           |        ❌        |
 | Multi-statement scripts           |           ✅           |          ✅           |        ✅        |
 | Server-side cursors               |           ✅           |   🟡 <sup>11</sup>    |        ✅        |
 | `COPY TO` / `COPY FROM`           |           ✅           |   🟡 <sup>12</sup>    |        ✅        |
@@ -233,6 +237,13 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   binary encoder per type, which neither driver has - see Binary encoders above, where the same gap shows up for query
   parameters. The capability is still reachable with pg through a third package, `pg-copy-streams-binary`, which brings
   its own encoders; postgres.js has no equivalent.
+- <sup>23</sup> Several different statements sent under one `Sync`, so they cost a single round of the server's
+  transaction bookkeeping rather than one each, arrive as one implicit transaction, and come back as per-statement
+  results. Distinct from the Pipelining row above, which is about not waiting between queries: all three do that, and
+  all three still close every statement with its own `Sync` - pg sends one immediately after each Execute
+  (`query.js`), and postgres.js concatenates Execute and Sync into a single constant (`ExecuteUnnamed`). Atomicity on
+  its own is reachable anywhere with an explicit `BEGIN`/`COMMIT`; what that cannot recover is the round trip, since
+  the per-statement Syncs and two extra statements remain.
 
 
 ## Benchmarks
