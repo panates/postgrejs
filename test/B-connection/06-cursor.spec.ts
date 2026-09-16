@@ -13,6 +13,47 @@ describe('Cursor support', () => {
     await connection.close(0);
   });
 
+  it('should iterate every row with for await', async () => {
+    const result = await connection.query(
+      'select i from generate_series(1, 25) i',
+      { cursor: true, fetchCount: 10 },
+    );
+    const seen: number[] = [];
+    for await (const row of result.cursor!) seen.push((row as any)[0]);
+    expect(seen.length).toStrictEqual(25);
+    expect(seen[0]).toStrictEqual(1);
+    expect(seen[24]).toStrictEqual(25);
+    expect(result.cursor!.isClosed).toStrictEqual(true);
+  });
+
+  it('should close the cursor when the loop breaks early', async () => {
+    const result = await connection.query(
+      'select i from generate_series(1, 25) i',
+      { cursor: true, fetchCount: 10 },
+    );
+    const seen: number[] = [];
+    for await (const row of result.cursor!) {
+      seen.push((row as any)[0]);
+      if (seen.length === 3) break;
+    }
+    expect(seen).toStrictEqual([1, 2, 3]);
+    expect(result.cursor!.isClosed).toStrictEqual(true);
+  });
+
+  it('should close the cursor when the loop body throws', async () => {
+    const result = await connection.query(
+      'select i from generate_series(1, 25) i',
+      { cursor: true, fetchCount: 10 },
+    );
+    await expect(
+      (async () => {
+        for await (const row of result.cursor!)
+          throw new Error('boom at ' + (row as any)[0]);
+      })(),
+    ).rejects.toThrow('boom at 1');
+    expect(result.cursor!.isClosed).toStrictEqual(true);
+  });
+
   it('should next() fetch next row', async () => {
     const result = await connection.query(
       `select * from customers order by id`,
