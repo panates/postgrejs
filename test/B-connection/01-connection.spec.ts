@@ -162,6 +162,122 @@ describe('Connection', () => {
     await connection.close();
   });
 
+  describe('transaction()', () => {
+    const open = async () => {
+      const c = new Connection();
+      await c.connect();
+      await c.execute(
+        'create temp table t_tx (id int4 primary key) on commit preserve rows',
+      );
+      return c;
+    };
+    const ids = async (c: Connection) =>
+      (await c.query('select id from t_tx order by id')).rows?.map(
+        (r: any) => r[0],
+      );
+
+    it('should commit and hand back what the callback returned', async () => {
+      const c = await open();
+      try {
+        const v = await c.transaction(async tx => {
+          await tx.query('insert into t_tx values ($1)', { params: [1] });
+          return 'done';
+        });
+        expect(v).toStrictEqual('done');
+        expect(await ids(c)).toStrictEqual([1]);
+        expect(c.inTransaction).toStrictEqual(false);
+      } finally {
+        await c.close(0);
+      }
+    });
+
+    it('should roll back and rethrow when the callback throws', async () => {
+      const c = await open();
+      try {
+        await expect(
+          c.transaction(async tx => {
+            await tx.query('insert into t_tx values ($1)', { params: [1] });
+            throw new Error('nope');
+          }),
+        ).rejects.toThrow('nope');
+        expect(await ids(c)).toStrictEqual([]);
+        expect(c.inTransaction).toStrictEqual(false);
+      } finally {
+        await c.close(0);
+      }
+    });
+
+    it('should roll back only its own work when nested', async () => {
+      // The nested call takes a savepoint rather than a second BEGIN, so
+      // the outer transaction survives the inner one failing.
+      const c = await open();
+      try {
+        await c.transaction(async tx => {
+          await tx.query('insert into t_tx values ($1)', { params: [1] });
+          await expect(
+            tx.transaction(async inner => {
+              await inner.query('insert into t_tx values ($1)', {
+                params: [2],
+              });
+              throw new Error('inner');
+            }),
+          ).rejects.toThrow('inner');
+          await tx.query('insert into t_tx values ($1)', { params: [3] });
+        });
+        expect(await ids(c)).toStrictEqual([1, 3]);
+      } finally {
+        await c.close(0);
+      }
+    });
+
+    it('should commit a nested scope along with the outer one', async () => {
+      const c = await open();
+      try {
+        await c.transaction(async tx => {
+          await tx.transaction(async inner => {
+            await inner.query('insert into t_tx values ($1)', { params: [1] });
+          });
+        });
+        expect(await ids(c)).toStrictEqual([1]);
+      } finally {
+        await c.close(0);
+      }
+    });
+
+    it('should discard a nested scope when the outer one rolls back', async () => {
+      const c = await open();
+      try {
+        await expect(
+          c.transaction(async tx => {
+            await tx.transaction(async inner => {
+              await inner.query('insert into t_tx values ($1)', {
+                params: [1],
+              });
+            });
+            throw new Error('outer');
+          }),
+        ).rejects.toThrow('outer');
+        expect(await ids(c)).toStrictEqual([]);
+      } finally {
+        await c.close(0);
+      }
+    });
+
+    it('should tolerate a callback that ends the transaction itself', async () => {
+      const c = await open();
+      try {
+        await c.transaction(async tx => {
+          await tx.query('insert into t_tx values ($1)', { params: [1] });
+          await tx.commit();
+        });
+        expect(await ids(c)).toStrictEqual([1]);
+        expect(c.inTransaction).toStrictEqual(false);
+      } finally {
+        await c.close(0);
+      }
+    });
+  });
+
   it('should start/rollback transaction', async () => {
     connection = new Connection();
     await connection.connect();

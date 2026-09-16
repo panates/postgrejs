@@ -221,6 +221,54 @@ describe('Pool', () => {
     }
   });
 
+  describe('transaction()', () => {
+    // A temp table would go with whichever connection the pool handed out,
+    // so this one is real and dropped afterwards.
+    before(() => pool.execute('create table t_pool_tx (id int4 primary key)'));
+    after(() => pool.execute('drop table t_pool_tx'));
+    afterEach(() => pool.execute('truncate t_pool_tx'));
+
+    const ids = async () =>
+      (await pool.query('select id from t_pool_tx order by id')).rows?.map(
+        (r: any) => r[0],
+      );
+
+    it('should commit and release the connection afterwards', async () => {
+      const acquired = pool.acquiredConnections;
+      const v = await pool.transaction(async tx => {
+        await tx.query('insert into t_pool_tx values ($1)', { params: [1] });
+        return 'done';
+      });
+      expect(v).toStrictEqual('done');
+      expect(await ids()).toStrictEqual([1]);
+      expect(pool.acquiredConnections).toStrictEqual(acquired);
+    });
+
+    it('should roll back and still release the connection', async () => {
+      const acquired = pool.acquiredConnections;
+      await expect(
+        pool.transaction(async tx => {
+          await tx.query('insert into t_pool_tx values ($1)', { params: [1] });
+          throw new Error('nope');
+        }),
+      ).rejects.toThrow('nope');
+      expect(await ids()).toStrictEqual([]);
+      expect(pool.acquiredConnections).toStrictEqual(acquired);
+    });
+
+    it('should keep every statement on the one connection it took', async () => {
+      await pool.transaction(async tx => {
+        await tx.query('insert into t_pool_tx values ($1)', { params: [1] });
+        // Visible inside the transaction, on that same connection...
+        const inside = await tx.query(
+          'select count(*)::int4 as n from t_pool_tx',
+        );
+        expect(inside.rows?.[0][0]).toStrictEqual(1);
+      });
+      expect(await ids()).toStrictEqual([1]);
+    });
+  });
+
   it('start() should be safe to call even though acquire() already starts the pool lazily', async () => {
     const p = new Pool();
     try {

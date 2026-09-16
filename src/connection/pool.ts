@@ -292,6 +292,30 @@ export class Pool extends SafeEventEmitter {
     }
   }
 
+  /**
+   * Takes a connection out of the pool, runs `fn` inside a transaction on
+   * it, and gives the connection back however that ends.
+   *
+   * ```ts
+   * await pool.transaction(async tx => {
+   *   await tx.query('insert into orders (total) values ($1)', { params: [total] });
+   *   await tx.query('update stock set n = n - 1 where sku = $1', { params: [sku] });
+   * });
+   * ```
+   *
+   * A transaction cannot be spread over pool.query() calls - each of those
+   * is free to pick a different connection, and a transaction lives on
+   * one. This is the way to get several statements onto the same one.
+   */
+  async transaction<T>(fn: (connection: Connection) => Promise<T>): Promise<T> {
+    const connection = await this.acquire();
+    try {
+      return await connection.transaction(fn);
+    } finally {
+      await this.release(connection);
+    }
+  }
+
   async prepare(
     sql: string,
     options?: StatementPrepareOptions,

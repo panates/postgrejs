@@ -56,6 +56,8 @@ contributor workflow (lint/compile/test commands, commit message convention, PR 
   already sitting in the index, so an unrelated in-progress change can end up folded into your commit if you
   don't check first.
 - Don't run the full benchmark suite (`npm run bench`) unless asked.
+- Don't sign commits or pull requests on the assistant's behalf - no `Co-Authored-By: Claude` trailer, no
+  "Generated with Claude Code" line. The commit message ends with its own last paragraph.
 
 ## Code style
 

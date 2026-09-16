@@ -69,13 +69,13 @@ Some scenarios necessarily exercise each library differently. These are delibera
 
 ## Environment
 
-- Run date: 2026-09-16T14:14:05.530Z
+- Run date: 2026-09-16T18:36:39.004Z
 - Runtime: Node.js v24.15.0
 - OS: Darwin 25.6.0 (darwin/arm64)
 - CPU: Apple M1 Pro (10 logical cores)
 - RAM: 16.0 GB total
 - PostgreSQL: PostgreSQL 18.4 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
-- Library versions (installed, not this repo's semver range): pg (node-postgres) 8.23.0, PostgreJS 3.4.0, postgres (postgres.js) 3.4.9
+- Library versions (installed, not this repo's semver range): pg (node-postgres) 8.23.0, PostgreJS 3.5.0, postgres (postgres.js) 3.4.9
 
 ## Connection
 
@@ -87,7 +87,7 @@ Open a fresh connection/session and close it, repeated per sample
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***3.959*** | ***4.056*** | ***5.550*** | ***254.9*** | ***3.94x*** | ***0.0284*** | 4205.30 |
+| PostgreJS (3.5.0) | ***3.959*** | ***4.056*** | ***5.550*** | ***254.9*** | ***3.94x*** | ***0.0284*** | 4205.30 |
 | pg (node-postgres) (8.23.0) | 5.991 | 6.096 | 9.060 | 168.7 | 2.60x | 0.0351 | ***2310.38*** |
 | postgres (postgres.js) (3.4.9) | 15.605 | 16.097 | 19.795 | 64.5 | 1.00x | 0.3295 | 8411.20 |
 
@@ -160,7 +160,7 @@ connection buys each library.
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***0.213*** | ***0.226*** | ***0.368*** | ***4819.4*** | ***1.11x*** | ***0.0010*** | ***5805.98*** |
+| PostgreJS (3.5.0) | ***0.213*** | ***0.226*** | ***0.368*** | ***4819.4*** | ***1.11x*** | ***0.0010*** | ***5805.98*** |
 | pg (node-postgres) (8.23.0) | 0.236 | 0.246 | 0.561 | 4508.8 | 1.00x | 0.0017 | 14017.48 |
 | postgres (postgres.js) (3.4.9) | 0.216 | ***0.226*** | ***0.356*** | 4762.8 | 1.09x | 0.0017 | 14150.83 |
 
@@ -244,7 +244,7 @@ the text where the Extended Query counterpart varies a parameter. (concurrency=1
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***4.668*** | ***4.807*** | ***5.623*** | ***215.2*** | ***1.01x*** | ***0.0431*** | ***9443.27*** |
+| PostgreJS (3.5.0) | ***4.668*** | ***4.807*** | ***5.623*** | ***215.2*** | ***1.01x*** | ***0.0431*** | ***9443.27*** |
 | pg (node-postgres) (8.23.0) | ***4.711*** | ***4.822*** | 6.888 | ***214.0*** | ***1.00x*** | 0.0443 | 20519.77 |
 | postgres (postgres.js) (3.4.9) | ***4.727*** | 4.890 | ***5.609*** | 212.5 | ***1.00x*** | 0.0871 | 30362.96 |
 
@@ -311,7 +311,7 @@ that column would measure type-conversion choice, not decode speed. (rowTarget=1
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***1.857*** | ***1.915*** | ***2.550*** | ***542.2*** | ***2.00x*** | ***0.0559*** | ***14867.22*** |
+| PostgreJS (3.5.0) | ***1.857*** | ***1.915*** | ***2.550*** | ***542.2*** | ***2.00x*** | ***0.0559*** | ***14867.22*** |
 | pg (node-postgres) (8.23.0) | 3.720 | 3.805 | 7.799 | 289.9 | 1.00x | 0.2841 | 59310.44 |
 | postgres (postgres.js) (3.4.9) | 3.053 | 2.817 | 7.614 | 358.9 | 1.22x | 0.2769 | 53013.88 |
 
@@ -400,7 +400,7 @@ the cast's target the same.
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***0.189*** | ***0.199*** | ***0.335*** | ***5442.9*** | ***1.33x*** | ***0.0008*** | ***6262.69*** |
+| PostgreJS (3.5.0) | ***0.189*** | ***0.199*** | ***0.335*** | ***5442.9*** | ***1.33x*** | ***0.0008*** | ***6262.69*** |
 | pg (node-postgres) (8.23.0) | 0.252 | 0.267 | 0.524 | 4177.1 | 1.00x | 0.0017 | 11494.95 |
 | postgres (postgres.js) (3.4.9) | ***0.188*** | ***0.197*** | ***0.328*** | ***5465.2*** | ***1.34x*** | 0.0014 | 14028.02 |
 
@@ -486,7 +486,7 @@ the cast's target the same. (concurrency=50)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***0.955*** | ***1.007*** | ***1.633*** | ***1065.1*** | ***2.77x*** | ***0.0160*** | ***20250.82*** |
+| PostgreJS (3.5.0) | ***0.955*** | ***1.007*** | ***1.633*** | ***1065.1*** | ***2.77x*** | ***0.0160*** | ***20250.82*** |
 | pg (node-postgres) (8.23.0) | 2.643 | 2.794 | 3.450 | 381.6 | 1.00x | 0.0277 | ***20026.54*** |
 | postgres (postgres.js) (3.4.9) | ***0.942*** | ***0.981*** | 1.747 | ***1088.6*** | ***2.80x*** | 0.0215 | 41711.84 |
 
@@ -566,7 +566,7 @@ speed. (rowTarget=1000)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***2.663*** | ***2.643*** | ***5.312*** | ***382.1*** | ***1.33x*** | ***0.0581*** | ***10174.56*** |
+| PostgreJS (3.5.0) | ***2.663*** | ***2.643*** | ***5.312*** | ***382.1*** | ***1.33x*** | ***0.0581*** | ***10174.56*** |
 | pg (node-postgres) (8.23.0) | 3.547 | 3.422 | 6.811 | 295.8 | 1.00x | 0.2637 | 60234.25 |
 | postgres (postgres.js) (3.4.9) | 2.964 | ***2.766*** | 8.143 | ***365.7*** | 1.20x | 0.2804 | 53472.05 |
 
@@ -653,7 +653,7 @@ Only PostgreJS's own result is shown. (rowTarget=1000)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | 2.338 | 2.172 | 5.113 | 454.7 | 1.00x | 0.0467 | 9147.77 |
+| PostgreJS (3.5.0) | 2.338 | 2.172 | 5.113 | 454.7 | 1.00x | 0.0467 | 9147.77 |
 | pg (node-postgres) | Not Fully Supported | — | — | — | — | — | — |
 | postgres (postgres.js) | Not Supported | — | — | — | — | — | — |
 | Bun.sql | Not Controllable | — | — | — | — | — | — |
@@ -738,7 +738,7 @@ what PostgreJS does here. (sizeBytes=1048576, rowCount=10)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) | Network (KB/op) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***68.553*** | ***68.321*** | ***75.136*** | ***14.6*** | ***1.98x*** | 1.1775 | ***1796.82*** | ***12800.16*** |
+| PostgreJS (3.5.0) | ***68.553*** | ***68.321*** | ***75.136*** | ***14.6*** | ***1.98x*** | 1.1775 | ***1796.82*** | ***12800.16*** |
 | pg (node-postgres) (8.23.0) | 135.693 | 136.814 | 139.265 | 7.4 | 1.00x | ***0.9317*** | 2083.76 | 25600.23 |
 | postgres (postgres.js) (3.4.9) | 134.410 | 135.792 | 140.340 | 7.4 | 1.01x | 1.0436 | 2069.02 | 25600.19 |
 
@@ -841,7 +841,7 @@ as that parser being safe to use. (elementCount=50000, rowCount=10)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) | Network (KB/op) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***34.884*** | ***36.261*** | ***37.404*** | ***28.8*** | ***4.68x*** | ***0.8959*** | ***9325.09*** | ***4849.54*** |
+| PostgreJS (3.5.0) | ***34.884*** | ***36.261*** | ***37.404*** | ***28.8*** | ***4.68x*** | ***0.8959*** | ***9325.09*** | ***4849.54*** |
 | pg (node-postgres) (8.23.0) | 163.153 | 166.409 | 172.336 | 6.1 | 1.00x | 3.6590 | 102746.15 | 7019.26 |
 | postgres (postgres.js) (3.4.9) | 63.421 | 64.562 | 68.243 | 15.8 | 2.57x | 1.8765 | 102618.23 | 7019.22 |
 
@@ -922,7 +922,7 @@ timing it would measure type-conversion choice, not reuse cost. (iterations=50)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***10.897*** | 11.574 | 16.543 | ***92.7*** | ***1.09x*** | ***0.0351*** | ***4843.69*** |
+| PostgreJS (3.5.0) | ***10.897*** | 11.574 | 16.543 | ***92.7*** | ***1.09x*** | ***0.0351*** | ***4843.69*** |
 | pg (node-postgres) (8.23.0) | 11.878 | 11.672 | 18.207 | 85.6 | 1.00x | 0.1127 | 20612.35 |
 | postgres (postgres.js) (3.4.9) | ***10.995*** | ***11.194*** | ***13.850*** | ***91.5*** | ***1.08x*** | 0.0661 | 16854.45 |
 
@@ -992,7 +992,7 @@ timing it would measure type-conversion choice, not reuse cost. (concurrency=50)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***2.290*** | ***2.390*** | ***2.982*** | ***439.5*** | ***1.04x*** | ***0.0211*** | ***8869.70*** |
+| PostgreJS (3.5.0) | ***2.290*** | ***2.390*** | ***2.982*** | ***439.5*** | ***1.04x*** | ***0.0211*** | ***8869.70*** |
 | pg (node-postgres) (8.23.0) | ***2.386*** | 2.475 | 3.558 | ***423.5*** | ***1.00x*** | 0.0279 | 27567.95 |
 | postgres (postgres.js) (3.4.9) | ***2.304*** | ***2.376*** | 3.270 | ***438.5*** | ***1.04x*** | 0.0409 | 47230.57 |
 
@@ -1078,9 +1078,9 @@ when the statements are identical rather than different. (statementCount=20)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***2.004*** | ***2.079*** | ***3.377*** | ***508.4*** | ***2.04x*** | ***0.0116*** | ***4775.91*** |
-| pg (node-postgres) (8.23.0) | 4.088 | 4.164 | 5.160 | 245.9 | 1.00x | 0.0252 | 10790.48 |
-| postgres (postgres.js) (3.4.9) | 2.961 | 2.992 | 4.445 | 345.5 | 1.38x | 0.0209 | 14414.43 |
+| PostgreJS (3.5.0) | ***0.755*** | ***0.749*** | ***1.749*** | ***1461.8*** | ***5.47x*** | ***0.0045*** | ***5435.38*** |
+| pg (node-postgres) (8.23.0) | 4.127 | 4.133 | 6.166 | 244.4 | 1.00x | 0.0259 | 10800.91 |
+| postgres (postgres.js) (3.4.9) | 3.405 | 3.327 | 12.683 | 315.2 | 1.21x | 0.0332 | 14027.90 |
 
 <div style="display:inline-block;width:430px;vertical-align:top;margin:4px;">
 
@@ -1089,8 +1089,8 @@ when the statements are identical rather than different. (statementCount=20)
 xychart-beta
     title "Mean latency (ms, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms" 0.0000 --> 6.1325
-    bar [2.0036, 4.0883, 2.9610]
+    y-axis "ms" 0.0000 --> 6.1909
+    bar [0.7550, 4.1273, 3.4047]
 ```
 
 </div>
@@ -1101,8 +1101,8 @@ xychart-beta
 xychart-beta
     title "Throughput (ops/sec, higher is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ops/sec" 0.0000 --> 762.6417
-    bar [508.4278, 245.9445, 345.5427]
+    y-axis "ops/sec" 0.0000 --> 2192.6985
+    bar [1461.7990, 244.4020, 315.2493]
 ```
 
 </div>
@@ -1113,8 +1113,8 @@ xychart-beta
 xychart-beta
     title "GC time (ms/op, lower is better)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "ms/op" 0.0000 --> 0.0378
-    bar [0.0116, 0.0252, 0.0209]
+    y-axis "ms/op" 0.0000 --> 0.0498
+    bar [0.0045, 0.0259, 0.0332]
 ```
 
 </div>
@@ -1125,8 +1125,8 @@ xychart-beta
 xychart-beta
     title "Peak heap growth (KB, max memory reached)"
     x-axis ["PostgreJS", "pg", "postgres"]
-    y-axis "KB" 0.0000 --> 21621.6445
-    bar [4775.9063, 10790.4844, 14414.4297]
+    y-axis "KB" 0.0000 --> 21041.8477
+    bar [5435.3750, 10800.9141, 14027.8984]
 ```
 
 </div>
@@ -1171,7 +1171,7 @@ being marked unsupported. (rowCount=200000)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***2379.356*** | ***2414.765*** | 2624.171 | ***0.4*** | ***1.00x*** | 47.0915 | ***177028.46*** |
+| PostgreJS (3.5.0) | ***2379.356*** | ***2414.765*** | 2624.171 | ***0.4*** | ***1.00x*** | 47.0915 | ***177028.46*** |
 | pg (node-postgres) (8.23.0) | ***2346.825*** | ***2363.504*** | ***2459.940*** | ***0.4*** | ***1.01x*** | 46.5329 | ***177572.63*** |
 | postgres (postgres.js) (3.4.9) | ***2356.594*** | ***2383.904*** | ***2450.380*** | ***0.4*** | ***1.01x*** | ***43.8574*** | ***176986.83*** |
 | Bun.sql | No COPY API | — | — | — | — | — | — |
@@ -1265,7 +1265,7 @@ part of it. (rowCount=200000)
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | 218.822 | 228.954 | 241.114 | 4.6 | 1.00x | 3.2289 | 67657.71 |
+| PostgreJS (3.5.0) | 218.822 | 228.954 | 241.114 | 4.6 | 1.00x | 3.2289 | 67657.71 |
 | pg (node-postgres) | No binary COPY encoding | — | — | — | — | — | — |
 | postgres (postgres.js) | No binary COPY encoding | — | — | — | — | — | — |
 | Bun.sql | No COPY API | — | — | — | — | — | — |
@@ -1335,7 +1335,7 @@ own type declarations and empirically). It isn't benchmarked here. (rowTarget=50
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***164.833*** | ***177.446*** | ***182.582*** | ***6.1*** | ***1.25x*** | ***3.5676*** | ***9838.98*** |
+| PostgreJS (3.5.0) | ***164.833*** | ***177.446*** | ***182.582*** | ***6.1*** | ***1.25x*** | ***3.5676*** | ***9838.98*** |
 | pg (node-postgres) (8.23.0) | 203.896 | 204.245 | 216.831 | 4.9 | 1.01x | 10.2301 | 69423.29 |
 | postgres (postgres.js) (3.4.9) | 205.921 | 215.357 | 218.670 | 4.9 | 1.00x | 12.6442 | 54760.66 |
 | Bun.sql | Not Supported | — | — | — | — | — | — |
@@ -1403,7 +1403,7 @@ using each library's own top-level pooled entry point. (concurrency=1000, poolSi
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***14.026*** | ***15.534*** | ***23.483*** | ***74.5*** | ***3.73x*** | ***0.7831*** | 42595.97 |
+| PostgreJS (3.5.0) | ***14.026*** | ***15.534*** | ***23.483*** | ***74.5*** | ***3.73x*** | ***0.7831*** | 42595.97 |
 | pg (node-postgres) (8.23.0) | 52.297 | 53.647 | 63.865 | 19.3 | 1.00x | 0.8508 | ***15837.20*** |
 | postgres (postgres.js) (3.4.9) | 16.416 | 18.702 | 26.849 | 64.5 | 3.19x | 1.0579 | 63471.34 |
 
@@ -1479,7 +1479,7 @@ entirely, which is what Prepared Statement Reuse below covers. (concurrency=1000
 
 | Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| PostgreJS (3.4.0) | ***11.827*** | ***11.919*** | ***25.270*** | ***88.1*** | ***4.32x*** | ***0.6247*** | 67612.11 |
+| PostgreJS (3.5.0) | ***11.827*** | ***11.919*** | ***25.270*** | ***88.1*** | ***4.32x*** | ***0.6247*** | 67612.11 |
 | pg (node-postgres) (8.23.0) | 51.145 | 51.759 | 63.664 | 19.7 | 1.00x | 1.0022 | ***16214.59*** |
 | postgres (postgres.js) (3.4.9) | 13.590 | 15.721 | ***24.171*** | 78.2 | 3.76x | 0.7056 | 76046.56 |
 

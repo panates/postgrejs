@@ -112,6 +112,22 @@ export class Cursor extends SafeEventEmitter implements AsyncDisposable {
       .toPromise();
   }
 
+  /**
+   * Iterates the remaining rows, fetching a batch at a time, and closes
+   * the cursor when the loop ends - whether it ran out of rows, broke
+   * early, or the body threw. Nothing is decoded ahead of what is asked
+   * for, so this streams a result larger than memory the same way next()
+   * does one row at a time.
+   */
+  async *[Symbol.asyncIterator](): AsyncIterableIterator<Row> {
+    try {
+      let row: Maybe<Row>;
+      while ((row = await this.next()) !== undefined) yield row;
+    } finally {
+      await this.close();
+    }
+  }
+
   [Symbol.asyncDispose](): Promise<void> {
     return this.close();
   }

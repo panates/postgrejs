@@ -66,6 +66,20 @@ interface PreparedCacheEntry {
 }
 
 /**
+ * How one statement of a pipeline is being run. `name` is set when it
+ * binds to a prepared statement - one the cache already held, or one this
+ * pipeline is preparing for the first time - and `fields` is its
+ * RowDescription once known, which is what lets a cached statement skip
+ * Describe as well as Parse. Repeats of the same SQL inside one pipeline
+ * share a plan object, so the second occurrence reads the first one's
+ * RowDescription instead of asking for its own.
+ */
+interface PipelinePlan {
+  name?: string;
+  fields?: Protocol.RowDescription[];
+}
+
+/**
  * Uses of the same SQL before it is worth preparing.
  *
  * Preparing on first sight, as postgres.js does, pays Parse plus Describe
@@ -80,6 +94,18 @@ const PREPARE_AFTER_USES = 2;
  * SQL that manages transaction boundaries itself, and so must never be
  * wrapped in a savepoint or an implicit BEGIN/COMMIT of ours.
  */
+/**
+ * What the prepared statement cache is keyed on. The parameter OIDs are
+ * part of it because the server fixes them at Parse: the same SQL bound
+ * with different types is a different plan.
+ */
+function preparedCacheKey(
+  sql: string,
+  paramTypes: Maybe<Maybe<OID>[]>,
+): string {
+  return paramTypes?.length ? sql + '\u0000' + paramTypes.join(',') : sql;
+}
+
 const TRANSACTION_COMMAND_PATTERN =
   /^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i;
 
@@ -767,9 +793,7 @@ export class IntlConnection extends SafeEventEmitter {
     if (!enabled)
       return this.queryOnce(sql, paramTypes, params, options, savepoint);
 
-    const key = paramTypes?.length
-      ? sql + '\u0000' + paramTypes.join(',')
-      : sql;
+    const key = preparedCacheKey(sql, paramTypes);
     const cached = this._preparedCache.get(key);
     if (cached) {
       // Re-insert to mark it most recently used.
@@ -797,12 +821,8 @@ export class IntlConnection extends SafeEventEmitter {
       }
     }
 
-    const uses = (this._preparedCandidates.get(key) || 0) + 1;
-    if (uses < PREPARE_AFTER_USES) {
-      this._preparedCandidates.set(key, uses);
+    if (!this._earnsAName(key))
       return this.queryOnce(sql, paramTypes, params, options, savepoint);
-    }
-    this._preparedCandidates.delete(key);
 
     const name = 'C_' + ++this._preparedCounter;
     // A Parse that fails caches nothing and reports itself; the statement
@@ -820,6 +840,20 @@ export class IntlConnection extends SafeEventEmitter {
       options,
       savepoint,
     );
+  }
+
+  /**
+   * Counts one more use of this SQL and says whether it has now been seen
+   * often enough to be worth preparing under a name.
+   */
+  protected _earnsAName(key: string): boolean {
+    const uses = (this._preparedCandidates.get(key) || 0) + 1;
+    if (uses < PREPARE_AFTER_USES) {
+      this._preparedCandidates.set(key, uses);
+      return false;
+    }
+    this._preparedCandidates.delete(key);
+    return true;
   }
 
   /** Closes the least recently used statement once the cache is full. */
@@ -1122,113 +1156,190 @@ export class IntlConnection extends SafeEventEmitter {
       const timingEnabled = options.timing ?? this.config.timing ?? false;
       const startTime = timingEnabled ? performance.now() : 0;
       const rowDecoder = resolveRowDecoder(options);
-      const columnFormat =
-        options.columnFormat != null
-          ? options.columnFormat
-          : DEFAULT_COLUMN_FORMAT;
 
       const results: QueryResult[] = [];
       let pendingFields: Protocol.RowDescription[] | undefined;
       let pendingRows: any[] | undefined;
       let error: DatabaseError | undefined;
 
-      const statements = requests.map(r => ({
-        // Per statement, not per pipeline: the statements differ, so a
-        // single shared list of parameter OIDs could only ever be right
-        // for one of them.
-        parse: { sql: r.sql, paramTypes: r.paramTypes },
-        bind: {
-          typeMap,
-          paramTypes: r.paramTypes,
-          params: r.params,
-          queryOptions: options,
-        },
-        describe: { type: 'P' as const },
-        // Unlimited, never options.fetchCount: a suspended portal would
-        // break the positional statement-to-result mapping.
-        execute: { fetchCount: 0 },
-      }));
+      // Plan every statement against the prepared statement cache before
+      // writing anything: one that is already prepared binds to its name
+      // and skips both Parse and Describe, one seen often enough earns a
+      // name here, and the rest go out unnamed exactly as before.
+      const prepareEnabled = options.prepare ?? this.config.prepare ?? true;
+      const plans: PipelinePlan[] = [];
+      const promotions: { key: string; plan: PipelinePlan }[] = [];
+      const cachedKeys: string[] = [];
+      const named = new Map<string, PipelinePlan>();
+      const statements: {
+        parse?: { sql: string; paramTypes?: Maybe<OID>[]; statement?: string };
+        bind: any;
+        describe?: { type: 'P' };
+        execute: { fetchCount: number };
+      }[] = [];
+      for (const r of requests) {
+        const key = prepareEnabled
+          ? preparedCacheKey(r.sql, r.paramTypes)
+          : undefined;
+        // A repeat can only skip its own Parse if the statement it binds
+        // to has a name. An unnamed one would be gone by now: any later
+        // statement's Parse replaces it.
+        let plan = key != null ? named.get(key) : undefined;
+        let sendParse = !plan;
+        let sendDescribe = !plan;
+        if (!plan) {
+          const cached = key != null ? this._preparedCache.get(key) : undefined;
+          if (cached && key != null) {
+            // Re-insert to mark it most recently used.
+            this._preparedCache.delete(key);
+            this._preparedCache.set(key, cached);
+            cachedKeys.push(key);
+            plan = { name: cached.name, fields: cached.fields };
+            sendParse = false;
+            sendDescribe = false;
+          } else if (key != null && this._earnsAName(key)) {
+            plan = { name: 'C_' + ++this._preparedCounter };
+            promotions.push({ key, plan });
+          } else {
+            plan = {};
+          }
+          if (key != null && plan.name) named.set(key, plan);
+        }
+        plans.push(plan);
+        statements.push({
+          // Per statement, not per pipeline: the statements differ, so a
+          // single shared list of parameter OIDs could only ever be right
+          // for one of them.
+          parse: sendParse
+            ? { sql: r.sql, paramTypes: r.paramTypes, statement: plan.name }
+            : undefined,
+          bind: {
+            typeMap,
+            statement: plan.name,
+            paramTypes: r.paramTypes,
+            params: r.params,
+            queryOptions: options,
+          },
+          describe: sendDescribe ? { type: 'P' as const } : undefined,
+          // Unlimited, never options.fetchCount: a suspended portal would
+          // break the positional statement-to-result mapping.
+          execute: { fetchCount: 0 },
+        });
+      }
 
       this.runningQueryCount++;
-      await this.socket
-        .sendPipelineMessages({ statements }, (code, msg: any, done) => {
-          switch (code) {
-            case Protocol.BackendMessageCode.ParseComplete:
-            case Protocol.BackendMessageCode.BindComplete:
-            case Protocol.BackendMessageCode.NoticeResponse:
-              break;
-            case Protocol.BackendMessageCode.NoData:
-              pendingFields = undefined;
-              break;
-            case Protocol.BackendMessageCode.RowDescription:
-              pendingFields = msg.fields;
-              break;
-            case Protocol.BackendMessageCode.DataRow:
-              (pendingRows || (pendingRows = [])).push(msg);
-              break;
-            case Protocol.BackendMessageCode.EmptyQueryResponse:
-            case Protocol.BackendMessageCode.CommandComplete: {
-              const result: QueryResult = { command: msg?.command };
-              if (pendingFields) {
-                const parsers = getParsers(typeMap, pendingFields);
-                const resultFields = wrapRowDescription(
-                  typeMap,
-                  pendingFields,
-                  columnFormat,
-                );
-                result.fields = resultFields;
-                result.rowType = resolveRowType(options);
-                if (!result.command) result.command = 'SELECT';
-                const rows = pendingRows || [];
-                const l = rows.length;
-                let i: number;
-                for (i = 0; i < l; i++) {
-                  rows[i] = rowDecoder.decode(
-                    parsers,
-                    rows[i].data,
-                    rows[i].columnCount,
+      try {
+        await this.socket
+          .sendPipelineMessages({ statements }, (code, msg: any, done) => {
+            switch (code) {
+              case Protocol.BackendMessageCode.ParseComplete:
+              case Protocol.BackendMessageCode.BindComplete:
+              case Protocol.BackendMessageCode.NoticeResponse:
+                break;
+              case Protocol.BackendMessageCode.NoData:
+                pendingFields = undefined;
+                break;
+              case Protocol.BackendMessageCode.RowDescription:
+                pendingFields = msg.fields;
+                break;
+              case Protocol.BackendMessageCode.DataRow:
+                (pendingRows || (pendingRows = [])).push(msg);
+                break;
+              case Protocol.BackendMessageCode.EmptyQueryResponse:
+              case Protocol.BackendMessageCode.CommandComplete: {
+                const plan = plans[results.length];
+                // A statement bound to a cached name sent no Describe, so
+                // its columns come from the cache entry instead; one being
+                // prepared here records its RowDescription for the entry it
+                // is about to become, and for any repeat behind it.
+                if (pendingFields) plan.fields = pendingFields;
+                const fields = pendingFields || plan.fields;
+                const result: QueryResult = { command: msg?.command };
+                if (fields) {
+                  const { parsers, resultFields } = this._resolveReusedParsers(
+                    fields,
+                    typeMap,
                     options,
-                    resultFields,
                   );
+                  result.fields = resultFields;
+                  result.rowType = resolveRowType(options);
+                  if (!result.command) result.command = 'SELECT';
+                  const rows = pendingRows || [];
+                  const l = rows.length;
+                  let i: number;
+                  for (i = 0; i < l; i++) {
+                    rows[i] = rowDecoder.decode(
+                      parsers,
+                      rows[i].data,
+                      rows[i].columnCount,
+                      options,
+                      resultFields,
+                    );
+                  }
+                  result.rows = rows;
                 }
-                result.rows = rows;
+                if (
+                  result.command === 'DELETE' ||
+                  result.command === 'INSERT' ||
+                  result.command === 'UPDATE'
+                )
+                  result.rowsAffected = msg.rowCount;
+                pendingFields = undefined;
+                pendingRows = undefined;
+                results.push(result);
+                break;
               }
-              if (
-                result.command === 'DELETE' ||
-                result.command === 'INSERT' ||
-                result.command === 'UPDATE'
-              )
-                result.rowsAffected = msg.rowCount;
-              pendingFields = undefined;
-              pendingRows = undefined;
-              results.push(result);
-              break;
+              case Protocol.BackendMessageCode.ErrorResponse:
+                error = msg;
+                break;
+              case Protocol.BackendMessageCode.ReadyForQuery:
+                this.transactionStatus = msg.status;
+                done(error);
+                break;
+              default:
+                done(
+                  new Error(
+                    `Server returned unexpected response message (${String.fromCharCode(code)})`,
+                  ),
+                );
             }
-            case Protocol.BackendMessageCode.ErrorResponse:
-              error = msg;
-              break;
-            case Protocol.BackendMessageCode.ReadyForQuery:
-              this.transactionStatus = msg.status;
-              done(error);
-              break;
-            default:
-              done(
-                new Error(
-                  `Server returned unexpected response message (${String.fromCharCode(code)})`,
-                ),
-              );
-          }
-        })
-        .catch((e: any) => {
-          // The rejected statement is the one right after everything that
-          // completed, since results only grow on CommandComplete.
-          if (e instanceof DatabaseError && error === e)
-            e.failedIndex = results.length;
-          throw e;
-        })
-        .finally(() => {
-          this.runningQueryCount--;
+          })
+          .catch((e: any) => {
+            // The rejected statement is the one right after everything
+            // that completed, since results only grow on CommandComplete.
+            if (e instanceof DatabaseError && error === e)
+              e.failedIndex = results.length;
+            throw e;
+          })
+          .finally(() => {
+            this.runningQueryCount--;
+          });
+      } catch (e: any) {
+        // A cached statement can be invalidated between two pipelines the
+        // same way a cached single query can (0A000, "cached plan must not
+        // change result type"). Drop what this pipeline reused and run it
+        // again unprepared - once, since the second attempt has nothing
+        // cached left to reuse.
+        if (e?.code !== '0A000' || !cachedKeys.length) throw e;
+        for (const k of cachedKeys) this._preparedCache.delete(k);
+        // Inside an explicit transaction there is nothing to retry into:
+        // the failed statement has already aborted the block.
+        if (this.inTransaction) throw e;
+        return await this.executePipeline(requests, options);
+      }
+
+      // Only now, with every Parse answered, are the new names real.
+      let promo: (typeof promotions)[number];
+      let p: number;
+      const promotionCount = promotions.length;
+      for (p = 0; p < promotionCount; p++) {
+        promo = promotions[p];
+        await this._evictPreparedIfFull();
+        this._preparedCache.set(promo.key, {
+          name: promo.plan.name!,
+          fields: promo.plan.fields,
         });
+      }
 
       if (timingEnabled) {
         const elapsed = performance.now() - startTime;

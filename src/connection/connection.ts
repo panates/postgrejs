@@ -32,6 +32,9 @@ export type NotificationCallback = (msg: NotificationMessage) => any;
 
 const CAPTURE_STACK_TRACE_LIMIT = 5;
 
+/** Names the savepoint a nested transaction() scope takes. */
+let transactionScopeCounter = 0;
+
 export class Connection extends SafeEventEmitter implements AsyncDisposable {
   protected _pool?: Pool;
   protected _intlCon: IntlConnection;
@@ -595,6 +598,49 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   /**
+   * Runs `fn` inside a transaction and commits when it returns, or rolls
+   * back and rethrows when it throws - the try/catch every caller of
+   * startTransaction()/commit()/rollback() ends up writing by hand.
+   *
+   * ```ts
+   * const id = await connection.transaction(async tx => {
+   *   const r = await tx.query(
+   *     'insert into orders (total) values ($1) returning id',
+   *     { params: [total] },
+   *   );
+   *   await tx.query('update stock set n = n - 1 where sku = $1', {
+   *     params: [sku],
+   *   });
+   *   return r.rows![0][0];
+   * });
+   * ```
+   *
+   * A call made while a transaction is already open becomes a savepoint
+   * rather than a second BEGIN, so an inner scope that fails rolls back
+   * its own work and leaves the outer transaction to decide what to do -
+   * instead of taking everything down with it, which is what a shared
+   * BEGIN/ROLLBACK pair would do.
+   *
+   * `fn` is handed this same connection: every statement it runs on it is
+   * inside the transaction, and one it runs on another connection is not.
+   */
+  async transaction<T>(fn: (connection: this) => Promise<T>): Promise<T> {
+    if (this._intlCon.inTransaction) return await this._savepointScope(fn);
+    await this.startTransaction();
+    try {
+      const result = await fn(this);
+      await this.commit();
+      return result;
+    } catch (e) {
+      // A rollback that fails in turn must not replace the error that
+      // caused it: the connection is already in trouble, and the original
+      // is what the caller needs to see.
+      await this.rollback().catch(() => undefined);
+      throw e;
+    }
+  }
+
+  /**
    * Commits current transaction.
    * @param immediate - Commits right away, ignoring how many nested
    *   startTransaction() calls are still unmatched by a commit().
@@ -861,6 +907,36 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * microtask tick on top of the one `promise`/`.catch()` already goes
    * through - paid on every single query this wraps, disabled or not.
    */
+  /**
+   * The nested half of transaction(): a savepoint of its own, released on
+   * success and rolled back to on failure.
+   *
+   * The `inTransaction` checks are re-read rather than assumed - `fn` is
+   * free to commit or roll back the outer transaction itself, and there is
+   * no savepoint left to release once it has.
+   */
+  private async _savepointScope<T>(
+    fn: (connection: this) => Promise<T>,
+  ): Promise<T> {
+    const name = 'txscope' + ++transactionScopeCounter;
+    await this._captureErrorStack(this._intlCon.execute('SAVEPOINT ' + name));
+    try {
+      const result = await fn(this);
+      if (this._intlCon.inTransaction)
+        await this._intlCon.execute('RELEASE SAVEPOINT ' + name);
+      return result;
+    } catch (e) {
+      if (this._intlCon.inTransaction) {
+        await this._intlCon
+          .execute(
+            'ROLLBACK TO SAVEPOINT ' + name + '; RELEASE SAVEPOINT ' + name,
+          )
+          .catch(() => undefined);
+      }
+      throw e;
+    }
+  }
+
   protected _captureErrorStack<T>(
     promise: Promise<T>,
     entry?: (...args: any[]) => any,

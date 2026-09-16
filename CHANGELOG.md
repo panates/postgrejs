@@ -1,6 +1,23 @@
 ## Changelog
 
-### [v3.4.0](https://github.com/panates/postgrejs/compare/v3.3.0...v3.4.0) - 
+### [v3.5.0](https://github.com/panates/postgrejs/compare/v3.4.0...v3.5.0) - 
+
+#### 🚀 New Features
+
+- feat: add transaction(fn) and let a Cursor be iterated with for await @Eray Hanoğlu 
+
+#### 📖 Documentation Changes
+
+- docs: refresh Unit of Work after pipeline() started reusing statements @Eray Hanoğlu 
+- docs: record scoped transactions and cursor iteration in the README @Eray Hanoğlu 
+- docs: stop signing commits on the assistant's behalf @Eray Hanoğlu 
+- docs: note that pipeline() reuses cached prepared statements @Eray Hanoğlu 
+
+#### ⚡️ Performance Improvments
+
+- perf: let pipeline() bind to the connection's cached statements @Eray Hanoğlu 
+
+### [v3.4.0](https://github.com/panates/postgrejs/compare/v3.3.0...v3.4.0) -  16 September 2026 
 
 - feat: add PreparedStatement.executeBatch() for multi-set execution
 
