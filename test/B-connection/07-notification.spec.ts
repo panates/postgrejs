@@ -29,6 +29,26 @@ describe('notification', () => {
         .catch(done);
     });
 
+    it("should emit 'notification' once per NOTIFY, not once per path", async () => {
+      // IntlConnection.emit() forwards every event to its owner, and
+      // listen() used to wire a second forwarder of its own - so the raw
+      // event arrived twice, but only after listen() had been called.
+      let events = 0;
+      let callbacks = 0;
+      connection.on('notification', () => events++);
+      await connection.listen('event_once', () => callbacks++);
+      const other = new Connection();
+      await other.connect();
+      try {
+        await other.query(`NOTIFY event_once, 'x'`);
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } finally {
+        await other.close(0);
+      }
+      expect(events).toStrictEqual(1);
+      expect(callbacks).toStrictEqual(1);
+    });
+
     it("should listen events using 'listen' feature", done => {
       Promise.resolve()
         .then(async () => {

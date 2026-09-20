@@ -848,7 +848,13 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   protected _handleNotification(msg: NotificationMessage) {
-    this.emit('notification', msg);
+    // Deliberately no `this.emit('notification', msg)` here:
+    // IntlConnection.emit() re-emits every event on its owner, which is
+    // this Connection, so the raw event has already been delivered by the
+    // time this runs. Emitting it again fired 'notification' twice for one
+    // NOTIFY - but only once listen() had been called, since that is what
+    // installs this handler, so the same listener saw one event or two
+    // depending on whether anything else had subscribed.
     this._notificationListeners?.emit(msg.channel, msg);
   }
 
