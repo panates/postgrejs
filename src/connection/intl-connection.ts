@@ -68,6 +68,24 @@ function columnFormatsEqual(
   return true;
 }
 
+/**
+ * Whether a command tag's row count describes rows the statement changed,
+ * rather than rows it returned or moved. SELECT, FETCH, MOVE and COPY all
+ * carry a count of their own that would be misleading as `rowsAffected`.
+ *
+ * MERGE has reported its own total (inserted + updated + deleted) since
+ * PostgreSQL 15; _handleCommandComplete() has always parsed it, and this
+ * is what stops it being dropped on the floor.
+ */
+function reportsRowsAffected(command: Maybe<string>): boolean {
+  return (
+    command === 'INSERT' ||
+    command === 'UPDATE' ||
+    command === 'DELETE' ||
+    command === 'MERGE'
+  );
+}
+
 interface PreparedCacheEntry {
   name: string;
   fields?: Protocol.RowDescription[];
@@ -691,13 +709,8 @@ export class IntlConnection extends SafeEventEmitter {
             case Protocol.BackendMessageCode.CommandComplete:
               // Ignore BEGIN command that we added to sql
               current.command = msg.command;
-              if (
-                current.command === 'DELETE' ||
-                current.command === 'INSERT' ||
-                current.command === 'UPDATE'
-              ) {
+              if (reportsRowsAffected(current.command))
                 current.rowsAffected = msg.rowCount;
-              }
               if (timingEnabled)
                 current.executeTime = performance.now() - currentStart;
               if (current.rows) current.rowType = resolveRowType(options);
@@ -1039,13 +1052,8 @@ export class IntlConnection extends SafeEventEmitter {
           );
         }
       }
-      if (
-        result.command === 'DELETE' ||
-        result.command === 'INSERT' ||
-        result.command === 'UPDATE'
-      ) {
+      if (reportsRowsAffected(result.command))
         result.rowsAffected = commandTag?.rowCount;
-      }
       if (timingEnabled) result.executeTime = performance.now() - startTime;
       return result;
     } finally {
@@ -1339,11 +1347,7 @@ export class IntlConnection extends SafeEventEmitter {
                   }
                   result.rows = rows;
                 }
-                if (
-                  result.command === 'DELETE' ||
-                  result.command === 'INSERT' ||
-                  result.command === 'UPDATE'
-                )
+                if (reportsRowsAffected(result.command))
                   result.rowsAffected = msg.rowCount;
                 pendingFields = undefined;
                 pendingRows = undefined;
@@ -1480,11 +1484,7 @@ export class IntlConnection extends SafeEventEmitter {
               case Protocol.BackendMessageCode.CommandComplete: {
                 const item: BatchCommandResult = {};
                 if (msg?.command) item.command = msg.command;
-                if (
-                  item.command === 'DELETE' ||
-                  item.command === 'INSERT' ||
-                  item.command === 'UPDATE'
-                )
+                if (reportsRowsAffected(item.command))
                   item.rowsAffected = msg.rowCount;
                 if (pendingRows && parsers && resultFields) {
                   const l = pendingRows.length;
@@ -1668,13 +1668,8 @@ export class IntlConnection extends SafeEventEmitter {
           );
         }
       }
-      if (
-        result.command === 'DELETE' ||
-        result.command === 'INSERT' ||
-        result.command === 'UPDATE'
-      ) {
+      if (reportsRowsAffected(result.command))
         result.rowsAffected = commandTag?.rowCount;
-      }
       if (timingEnabled) result.executeTime = performance.now() - startTime;
       return result;
     } finally {

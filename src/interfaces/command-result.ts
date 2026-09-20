@@ -25,7 +25,11 @@ export interface CommandResult {
    */
   executeTime?: number;
   /**
-   * How many rows affected
+   * How many rows the statement changed, for INSERT/UPDATE/DELETE/MERGE
+   * (MERGE reports its own total of inserted, updated and deleted rows,
+   * and needs PostgreSQL 15+). Left undefined for every other command,
+   * including SELECT - the count those report describes rows returned or
+   * moved, not rows affected.
    */
   rowsAffected?: number;
 }
