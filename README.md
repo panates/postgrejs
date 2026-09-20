@@ -56,8 +56,7 @@ $ npm install postgrejs --save
 
 ## Documentation
 
-Please read :small_orange_diamond: [DOCUMENTATION](https://www.postgrejs.com/) :small_orange_diamond: for detailed
-usage.
+### Please read 🔸 [DOCUMENTATION](https://www.postgrejs.com/) 🔸 for detailed usage
 
 Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3.6.md) - `query()` no longer stops at
 100 rows, and `fetchAsString` now returns the server's own text.
