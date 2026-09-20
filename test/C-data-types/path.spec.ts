@@ -1,15 +1,8 @@
 import { Connection, DataFormat, DataTypeOIDs, Path, Point } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
-// See line.spec.ts: the parse tests are given the literal and check the
-// class that comes back.
+// See line.spec.ts: classes on both sides.
 const input = [
-  '((1,2),(3,4))',
-  '[(1,2),(3,4)]',
-  '((1,2))',
-  '[(-1.5,2.25),(3,4),(5,6)]',
-];
-const output = [
   new Path([new Point(1, 2), new Point(3, 4)]),
   new Path([new Point(1, 2), new Point(3, 4)], false),
   new Path([new Point(1, 2)]),
@@ -22,35 +15,35 @@ describe('DataType: path', () => {
   after(() => conn.close(0));
 
   it('should parse "path" field (text)', async () => {
-    await testParse(conn, DataTypeOIDs.path, input, output, {
+    await testParse(conn, DataTypeOIDs.path, input, input, {
       columnFormat: DataFormat.text,
     });
   });
 
   it('should parse "path" field (binary)', async () => {
-    await testParse(conn, DataTypeOIDs.path, input, output, {
+    await testParse(conn, DataTypeOIDs.path, input, input, {
       columnFormat: DataFormat.binary,
     });
   });
 
   it('should parse "path" array field (text)', async () => {
-    await testParse(conn, DataTypeOIDs._path, input, output, {
+    await testParse(conn, DataTypeOIDs._path, input, input, {
       columnFormat: DataFormat.text,
     });
   });
 
   it('should parse "path" array field (binary)', async () => {
-    await testParse(conn, DataTypeOIDs._path, input, output, {
+    await testParse(conn, DataTypeOIDs._path, input, input, {
       columnFormat: DataFormat.binary,
     });
   });
 
   it('should encode "path" param', async () => {
-    await testEncode(conn, DataTypeOIDs.path, output, output);
+    await testEncode(conn, DataTypeOIDs.path, input, input);
   });
 
   it('should encode "path" array param', async () => {
-    await testEncode(conn, DataTypeOIDs._path, output, output);
+    await testEncode(conn, DataTypeOIDs._path, input, input);
   });
 
   it('should keep open and closed apart through the server', async () => {
