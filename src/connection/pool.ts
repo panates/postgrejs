@@ -51,6 +51,14 @@ export class Pool extends SafeEventEmitter {
   protected readonly _notificationListeners = new SafeEventEmitter();
   protected _notificationConnection?: Connection;
   protected readonly _pipelineSlots: PipelineSlot[] = [];
+  /**
+   * Why a connection is about to be destroyed, for the ones that were not
+   * destroyed on purpose. lightning-pool's own 'destroy' carries the
+   * resource and nothing else, so the reason is recorded on the way in -
+   * when the connection reports its close - and read back out when the
+   * pool reports the removal.
+   */
+  protected readonly _destroyReasons = new WeakMap<IntlConnection, Error>();
   protected _pipelineMaxQueries: number;
   protected _pipelineMaxConnections: number;
   readonly config: PoolConfiguration;
@@ -91,7 +99,9 @@ export class Pool extends SafeEventEmitter {
         /* c8 ignore stop */
         const intlCon = new IntlConnection(cfg);
         await intlCon.connect();
-        intlCon.on('close', () => this._pool.destroy(intlCon));
+        intlCon.on('close', (reason?: Error) =>
+          this._onConnectionClosed(intlCon, reason),
+        );
         /* c8 ignore start */
         if (this.listenerCount('debug')) {
           this.emit('debug', {
@@ -127,7 +137,9 @@ export class Pool extends SafeEventEmitter {
         /* c8 ignore stop */
         intlCon.owner = undefined;
         intlCon.removeAllListeners();
-        intlCon.once('close', () => this._pool.destroy(intlCon));
+        intlCon.once('close', (reason?: Error) =>
+          this._onConnectionClosed(intlCon, reason),
+        );
         (intlCon as any)._refCount = 0;
       },
       validate: async (intlCon: IntlConnection) => {
@@ -150,7 +162,9 @@ export class Pool extends SafeEventEmitter {
     this._pool.on('return', (...args) => this.emit('release', ...args));
     this._pool.on('error', (...args) => this.emit('error', ...args));
     this._pool.on('acquire', (...args) => this.emit('acquire', ...args));
-    this._pool.on('destroy', (...args) => this.emit('destroy', ...args));
+    this._pool.on('destroy', (intlCon: IntlConnection) =>
+      this._onConnectionDestroyed(intlCon),
+    );
   }
 
   /**
@@ -390,6 +404,39 @@ export class Pool extends SafeEventEmitter {
       this._notificationConnection = undefined;
       await conn.close();
     }
+  }
+
+  /**
+   * A pooled connection reported that its socket closed. `reason` is set
+   * only when that was not asked for - see PgSocket._handleClose().
+   */
+  protected _onConnectionClosed(intlCon: IntlConnection, reason?: Error) {
+    if (reason) this._destroyReasons.set(intlCon, reason);
+    this._pool.destroy(intlCon);
+  }
+
+  /**
+   * The pool has removed a connection. `destroy` fires the same way for an
+   * ordinary eviction (idle timeout, close(), a failed validate) as for a
+   * connection that died, so the reason is what tells them apart - an
+   * admin kill, a failover and a network fault were otherwise
+   * indistinguishable from a timeout, with nothing at all reported when
+   * the connection had no query in flight to reject.
+   */
+  protected _onConnectionDestroyed(intlCon: IntlConnection) {
+    const reason = this._destroyReasons.get(intlCon);
+    if (reason) this._destroyReasons.delete(intlCon);
+    this.emit('destroy', intlCon, reason);
+    if (!reason) return;
+    // Reported on 'error' as well, which is where pg puts a pooled
+    // connection dying and where code ported from it listens. Safe to do
+    // unconditionally here: SafeEventEmitter drops an 'error' that has no
+    // listener instead of throwing, so this cannot turn a recovery the
+    // pool already made into a crashed process. The error names the pid
+    // and carries the socket error as its cause; no second argument, so
+    // the existing `(err, meta)` shape lightning-pool emits for a
+    // connection that could not be created stays unambiguous.
+    this.emit('error', reason);
   }
 
   protected _canPipeline(
