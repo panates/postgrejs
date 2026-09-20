@@ -1,4 +1,3 @@
-import { DEFAULT_COLUMN_FORMAT } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import type { BatchResult } from '../interfaces/batch-result.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
@@ -10,6 +9,7 @@ import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { AnyParseFunction, Maybe, OID } from '../types.js';
 import { withAbortSignal } from '../util/abort-signal.js';
 import { getParsers } from '../util/get-parsers.js';
+import { resolveColumnFormats } from '../util/resolve-column-formats.js';
 import { resolveRowType } from '../util/row-decoder.js';
 import { wrapRowDescription } from '../util/wrap-row-description.js';
 import type { Connection } from './connection.js';
@@ -287,16 +287,26 @@ export class PreparedStatement
       intlCon.ref();
       let portal: Maybe<Portal> = new Portal(this, 'P_' + ++portalCounter);
       try {
+        // prepare() already fetched this statement's RowDescription, so
+        // fetchAsString's OID list can become per-column result format
+        // codes on the Bind below with no round trip of its own.
+        const columnFormat = resolveColumnFormats(this._fields, options);
         const fields = await portal.bindAndRetrieveFields(
           options.params,
           options,
+          columnFormat,
         );
         const typeMap = options.typeMap || GlobalTypeMap;
-        const parsers: AnyParseFunction[] = getParsers(typeMap, fields);
+        const parsers: AnyParseFunction[] = getParsers(
+          typeMap,
+          fields,
+          options,
+        );
         const resultFields: FieldInfo[] = wrapRowDescription(
           typeMap,
           fields,
-          options.columnFormat || DEFAULT_COLUMN_FORMAT,
+          columnFormat,
+          options,
         );
         const result: QueryResult = {
           command: undefined,

@@ -44,21 +44,18 @@ export const DateType: DataType = {
     offset: number = 0,
     _len: number,
     options: DataMappingOptions,
-  ): Date | number | string {
-    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.date);
+  ): Date | number {
     const t = v.readInt32BE(offset);
-    if (t === 0x7fffffff) return fetchAsString ? 'infinity' : Infinity;
-    if (t === -0x80000000) return fetchAsString ? '-infinity' : -Infinity;
+    if (t === 0x7fffffff) return Infinity;
+    if (t === -0x80000000) return -Infinity;
     // Shift from 2000 to 1970
     let d = new Date(t * 1000 * 86400 + timeShift);
-    if (fetchAsString || !options.utcDates)
+    if (!options.utcDates)
       d = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-    return fetchAsString ? dateToDateString(d) : d;
+    return d;
   },
 
-  decodeText(v: string, options: DataMappingOptions): Date | number | string {
-    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.date);
-    if (fetchAsString) return v;
+  decodeText(v: string, options: DataMappingOptions): Date | number {
     return parseDate(v, options.utcDates);
   },
 
@@ -67,7 +64,7 @@ export const DateType: DataType = {
     offset: number,
     len: number,
     options: DataMappingOptions,
-  ): Date | number | string {
+  ): Date | number {
     return DateType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,
@@ -84,20 +81,6 @@ export const DateType: DataType = {
     );
   },
 };
-
-function padZero(v: number): string {
-  return v < 9 ? '0' + v : '' + v;
-}
-
-function dateToDateString(d: Date): string {
-  return (
-    d.getFullYear() +
-    '-' +
-    padZero(d.getMonth() + 1) +
-    '-' +
-    padZero(d.getDate())
-  );
-}
 
 export const ArrayDateType: DataType = {
   ...DateType,

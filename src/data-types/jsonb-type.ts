@@ -1,5 +1,4 @@
 import { DataTypeOIDs } from '../constants.js';
-import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
@@ -24,42 +23,31 @@ export const JsonbType: DataType = {
     v: Buffer,
     offset: number = 0,
     len: number,
-    options: DataMappingOptions,
-  ): object | string | null | undefined {
+  ): object | null | undefined {
     // jsonb's binary form is a one-byte version followed by the JSON text,
     // which carries no terminator of its own - so its end is whatever
     // `len` says, not the end of the buffer it happens to sit in.
     if (v[offset] !== 1)
       throw new Error('Unexpected Jsonb version value in header');
     const content = v.toString('utf8', offset + 1, offset + len);
-    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.jsonb);
-    if (fetchAsString) return content;
     return content ? JSON.parse(content) : undefined;
   },
 
-  decodeText(v: string, options: DataMappingOptions): object | string | null {
-    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.jsonb);
-    if (fetchAsString) return v;
-    return v ? JSON.parse(v) : null;
-  },
+  decodeText: decodeJsonbText,
 
   // See json-type.ts's decodeTextBuffer comment - same rationale.
-  decodeTextBuffer(
-    buf: Buffer,
-    offset: number,
-    len: number,
-    options: DataMappingOptions,
-  ): object | string | null {
-    return JsonbType.decodeText(
-      buf.toString('utf8', offset, offset + len),
-      options,
-    );
+  decodeTextBuffer(buf: Buffer, offset: number, len: number): object | null {
+    return decodeJsonbText(buf.toString('utf8', offset, offset + len));
   },
 
   isType(v: any): boolean {
     return v && typeof v === 'object';
   },
 };
+
+function decodeJsonbText(v: string): object | null {
+  return v ? JSON.parse(v) : null;
+}
 
 export const ArrayJsonbType: DataType = {
   ...JsonbType,

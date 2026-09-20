@@ -1,5 +1,6 @@
 import { DataFormat, DataTypeNames } from '../constants.js';
 import type { DataTypeMap } from '../data-type-map.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
 import type { Protocol } from '../protocol/protocol.js';
 
@@ -18,7 +19,9 @@ export function wrapRowDescription(
   typeMap: DataTypeMap,
   fields: Protocol.RowDescription[],
   columnFormat: DataFormat | DataFormat[],
+  mappingOptions?: DataMappingOptions,
 ): FieldInfo[] {
+  const asString = mappingOptions?.fetchAsString;
   return fields.map((f, idx) => {
     const cf = Array.isArray(columnFormat) ? columnFormat[idx] : columnFormat;
     const x: FieldInfo = {
@@ -41,6 +44,10 @@ export function wrapRowDescription(
     if (reg) {
       x.jsType = reg.jsType;
     }
+    // A column the caller asked for as a string is handed back exactly as
+    // the server rendered it, whatever the registered type would otherwise
+    // have produced - including an array, which comes back as the literal.
+    if (asString && asString.includes(x.dataTypeId)) x.jsType = 'string';
     return x;
   });
 }

@@ -51,20 +51,15 @@ export const TimestampType: DataType = {
     offset: number = 0,
     _len: number,
     options: DataMappingOptions,
-  ): Date | number | string {
-    const fetchAsString = options.fetchAsString?.includes(
-      DataTypeOIDs.timestamp,
-    );
+  ): Date | number {
     const hi = v.readInt32BE(offset);
     const lo = v.readUInt32BE(offset + 4);
-    if (lo === 0xffffffff && hi === 0x7fffffff)
-      return fetchAsString ? 'infinity' : Infinity;
-    if (lo === 0x00000000 && hi === -0x80000000)
-      return fetchAsString ? '-infinity' : -Infinity;
+    if (lo === 0xffffffff && hi === 0x7fffffff) return Infinity;
+    if (lo === 0x00000000 && hi === -0x80000000) return -Infinity;
 
     // Shift from 2000 to 1970
     let d = new Date((lo + hi * timeMul) / 1000 + timeShift);
-    if (fetchAsString || !options.utcDates) {
+    if (!options.utcDates) {
       d = new Date(
         d.getUTCFullYear(),
         d.getUTCMonth(),
@@ -75,28 +70,23 @@ export const TimestampType: DataType = {
         d.getUTCMilliseconds(),
       );
     }
-    return fetchAsString ? dateToTimestampString(d) : d;
+    return d;
   },
-  decodeText(v: string, options: DataMappingOptions): Date | number | string {
-    if (options.fetchAsString?.includes(DataTypeOIDs.timestamp)) return v;
+  decodeText(v: string, options: DataMappingOptions): Date | number {
     return parseDateTime(v, options.utcDates);
   },
 
   // Reads PostgreSQL's own timestamp shape straight from the wire bytes -
-  // see timestamptz-type.ts's decodeTextBuffer for why. The two guards are
-  // what decodeText()/parseDateTime() would have applied anyway: with
-  // fetchAsString the raw string is the answer, and with utcDates the
-  // string has to go through the regex path that reads it as UTC.
+  // see timestamptz-type.ts's decodeTextBuffer for why. The guard is what
+  // decodeText()/parseDateTime() would have applied anyway: with utcDates
+  // the string has to go through the regex path that reads it as UTC.
   decodeTextBuffer(
     buf: Buffer,
     offset: number,
     len: number,
     options: DataMappingOptions,
-  ): Date | number | string {
-    if (
-      !options.utcDates &&
-      !options.fetchAsString?.includes(DataTypeOIDs.timestamp)
-    ) {
+  ): Date | number {
+    if (!options.utcDates) {
       const d = parsePgTimestampBuffer(buf, offset, offset + len);
       if (d !== undefined) return d;
     }
@@ -117,26 +107,6 @@ export const TimestampType: DataType = {
     );
   },
 };
-
-function padZero(v: number): string {
-  return v < 9 ? '0' + v : '' + v;
-}
-
-function dateToTimestampString(d: Date): string {
-  return (
-    d.getFullYear() +
-    '-' +
-    padZero(d.getMonth() + 1) +
-    '-' +
-    padZero(d.getDate()) +
-    ' ' +
-    padZero(d.getHours()) +
-    ':' +
-    padZero(d.getMinutes()) +
-    ':' +
-    padZero(d.getSeconds())
-  );
-}
 
 export const ArrayTimestampType: DataType = {
   ...TimestampType,

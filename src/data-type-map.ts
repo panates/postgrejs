@@ -42,8 +42,22 @@ export class DataTypeMap {
   private _itemsByOID: Record<OID, DataType> = {};
   private _items: DataType[] = [];
 
+  /**
+   * Copies another map, so a connection can start from GlobalTypeMap and
+   * override a type or two without touching the global one.
+   *
+   * Both indexes have to be copied. `_items` alone is what `determine()`
+   * walks, but every decode goes through `get()`, which reads
+   * `_itemsByOID` - a copy carrying only the first one answers `undefined`
+   * for every OID, and get-parsers.ts then falls back to its default
+   * parser, handing the caller raw Buffers instead of decoded values with
+   * nothing reported.
+   */
   constructor(other?: DataTypeMap) {
-    if (other instanceof DataTypeMap) Object.assign(this._items, other._items);
+    if (other instanceof DataTypeMap) {
+      this._items = [...other._items];
+      this._itemsByOID = { ...other._itemsByOID };
+    }
   }
 
   get(oid: OID): DataType {
@@ -67,6 +81,10 @@ export class DataTypeMap {
     let t: DataType;
     for (i = this._items.length - 1; i >= 0; i--) {
       t = this._items[i];
+      // Walked newest-registered first, so a later registration of the
+      // same OID wins - and a type marked `inferrable: false` is never
+      // picked here at all, however well `isType` matches.
+      if (t.inferrable === false) continue;
       if (valueIsArray) {
         if (t.elementsOID && t.isType(value[0])) return t.oid;
       } else if (!t.elementsOID && t.isType(value)) return t.oid;

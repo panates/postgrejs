@@ -41,6 +41,7 @@ export class Portal {
   async bindAndRetrieveFields(
     params: Maybe<any[]>,
     queryOptions: QueryOptions,
+    columnFormat?: Protocol.DataFormat | Protocol.DataFormat[],
   ): Promise<Protocol.RowDescription[]> {
     const intoCon = getIntlConnection(this.connection);
     intoCon.ref();
@@ -55,6 +56,7 @@ export class Portal {
             paramTypes: this._statement.paramTypes,
             params,
             queryOptions,
+            columnFormat,
           },
           describe: { type: 'P', name: this.name },
         },
@@ -99,7 +101,7 @@ export class Portal {
       const executePromise = socket.sendExecuteMessage(
         {
           portal: this.name,
-          fetchCount: fetchCount || 100,
+          fetchCount: fetchCount ?? 100,
         },
         (
           code: Protocol.BackendMessageCode,

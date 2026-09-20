@@ -18,7 +18,9 @@ import type { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { Maybe, OID } from '../types.js';
 import { withAbortSignal } from '../util/abort-signal.js';
+import { normalizeChannelName } from '../util/channel-name.js';
 import type { CopyRowSource } from '../util/copy-from-rows.js';
+import { escapeIdentifier } from '../util/escape-identifier.js';
 import { QueryRequest } from '../util/sql-tag.js';
 import { BindParam } from './bind-param.js';
 import type { CopyFromStream, CopyToStream } from './copy-stream.js';
@@ -725,8 +727,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   async listen(channel: string, callback: NotificationCallback) {
-    if (!/^[A-Z]\w+$/i.test(channel))
-      throw new TypeError(`Invalid channel name`);
+    channel = normalizeChannelName(channel);
     if (!this._notificationListeners) {
       this._notificationListeners = new SafeEventEmitter();
       this._intlCon.on('notification', (msg: NotificationMessage) =>
@@ -742,15 +743,18 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       !!this._notificationListeners.listenerCount(channel);
     this._notificationListeners.on(channel, callback);
     if (!alreadyListening)
-      await this._captureErrorStack(this.query('LISTEN ' + channel));
+      await this._captureErrorStack(
+        this.query('LISTEN ' + escapeIdentifier(channel)),
+      );
   }
 
   async unListen(channel: string) {
-    if (!/^[A-Z]\w+$/i.test(channel))
-      throw new TypeError(`Invalid channel name`);
+    channel = normalizeChannelName(channel);
     if (this._notificationListeners?.listenerCount(channel)) {
       this._notificationListeners?.removeAllListeners(channel);
-      await this._captureErrorStack(this.query('UNLISTEN ' + channel));
+      await this._captureErrorStack(
+        this.query('UNLISTEN ' + escapeIdentifier(channel)),
+      );
     }
   }
 
@@ -848,7 +852,13 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   protected _handleNotification(msg: NotificationMessage) {
-    this.emit('notification', msg);
+    // Deliberately no `this.emit('notification', msg)` here:
+    // IntlConnection.emit() re-emits every event on its owner, which is
+    // this Connection, so the raw event has already been delivered by the
+    // time this runs. Emitting it again fired 'notification' twice for one
+    // NOTIFY - but only once listen() had been called, since that is what
+    // installs this handler, so the same listener saw one event or two
+    // depending on whether anything else had subscribed.
     this._notificationListeners?.emit(msg.channel, msg);
   }
 

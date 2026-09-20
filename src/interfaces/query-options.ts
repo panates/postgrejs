@@ -38,7 +38,15 @@ export interface QueryOptions extends DataMappingOptions {
    */
   typeMap?: DataTypeMap;
   /**
-   * If true, returns Cursor instance instead of rows
+   * If true, returns Cursor instance instead of rows.
+   *
+   * The cursor reads through a portal, and a portal lives only as long as
+   * the transaction that created it. Outside an explicit transaction that
+   * is the implicit one, which any other statement on the same connection
+   * ends - so running another query on that connection while the cursor is
+   * open destroys it. Open the cursor inside a transaction, or give it a
+   * connection of its own; `Pool.query()` does the latter for you and
+   * keeps the connection out of the pool until the cursor closes.
    */
   cursor?: boolean;
   /**
@@ -51,8 +59,22 @@ export interface QueryOptions extends DataMappingOptions {
    */
   columnFormat?: DataFormat | DataFormat[];
   /**
-   * Specifies how many rows will be fetched. For Cursor, this value specifies how many rows will be fetched in a batch
-   * @default 100
+   * Maximum number of rows to fetch.
+   *
+   * `query()` fetches every row by default. Giving an explicit limit stops
+   * the server at that many rows and leaves the rest unfetched: `rows` is
+   * then a prefix and `suspended` is set on the result to say so. There is
+   * no way to ask for the remainder afterwards - the portal is discarded
+   * by the Sync that closes the call - so use a Cursor when the point is
+   * to read a large result a piece at a time.
+   *
+   * For a Cursor this is the batch size instead: how many rows each fetch
+   * asks for, defaulting to 100, with the cursor itself walking the whole
+   * result.
+   *
+   * 0 means unlimited, as it does in the protocol.
+   *
+   * @default 0 for query(), 100 for a Cursor's batches
    */
   fetchCount?: number;
   /**

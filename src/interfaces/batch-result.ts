@@ -9,7 +9,7 @@ import type { FieldInfo } from './field-info.js';
 export interface BatchCommandResult {
   /** The command tag PostgreSQL reported for this set (INSERT/UPDATE/...). */
   command?: string;
-  /** Rows affected, for INSERT/UPDATE/DELETE - as in QueryResult. */
+  /** Rows affected, for INSERT/UPDATE/DELETE/MERGE - as in QueryResult. */
   rowsAffected?: number;
   /**
    * Rows this set returned, decoded the same way `execute()` decodes them

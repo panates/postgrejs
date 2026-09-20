@@ -1,6 +1,31 @@
 ## Changelog
 
-### [v3.5.0](https://github.com/panates/postgrejs/compare/v3.4.0...v3.5.0) - 
+### [v3.6.0](https://github.com/panates/postgrejs/compare/v3.5.0...v3.6.0) - 
+
+#### 🚀 New Features
+
+- feat: make fetchAsString request text from the server @Eray Hanoğlu 
+
+#### 🪲 Fixes
+
+- fix: decode float4 as the number the server would print @Eray Hanoğlu 
+- fix: report rowsAffected for MERGE @Eray Hanoğlu 
+- fix: quote LISTEN channel names instead of restricting them @Eray Hanoğlu 
+- fix: stop a pooled cursor's connection going back into the pool @Eray Hanoğlu 
+- fix: stop inferring "char" for one-character strings @Eray Hanoğlu 
+- fix: copy both indexes when a DataTypeMap is built from another @Eray Hanoğlu 
+- fix: emit 'notification' once per NOTIFY @Eray Hanoğlu 
+- fix: accept single-character savepoint names @Eray Hanoğlu 
+
+#### 📖 Documentation Changes
+
+- docs: record what 3.6 changes for existing code @Eray Hanoğlu 
+
+#### 💬 General Changes
+
+- feat!: fetch every row by default instead of the first 100 @Eray Hanoğlu 
+
+### [v3.5.0](https://github.com/panates/postgrejs/compare/v3.4.0...v3.5.0) -  16 September 2026 
 
 #### 🚀 New Features
 

@@ -51,31 +51,6 @@ describe('DataType: timestamptz', () => {
     );
   });
 
-  it('should parse "timestamptz" field (text, fetchAsString)', async () => {
-    const input = [
-      '2020-10-22T23:45:12.123Z',
-      '2020-10-22T23:45:00+01:00',
-      'epoch',
-      'infinity',
-      '-infinity',
-    ];
-    const output = [
-      '2020-10-22 23:45:12.123Z',
-      '2020-10-22 22:45:00.000Z',
-      '1970-01-01 00:00:00.000Z',
-      'infinity',
-      '-infinity',
-    ];
-    await testParse(
-      conn,
-      DataTypeOIDs.timestamptz,
-      input,
-      output,
-      { columnFormat: DataFormat.text },
-      { fetchAsString: [DataTypeOIDs.timestamptz] },
-    );
-  });
-
   it('should parse "timestamptz" field (binary)', async () => {
     const input = [
       '2020-10-22T23:45:00Z',
@@ -94,31 +69,6 @@ describe('DataType: timestamptz', () => {
     await testParse(conn, DataTypeOIDs.timestamptz, input, output, {
       columnFormat: DataFormat.binary,
     });
-  });
-
-  it('should parse "timestamptz" field (binary, fetchAsString)', async () => {
-    const input = [
-      '2020-10-22T23:45:12.123Z',
-      '2020-10-22T23:45:00+01:00',
-      'epoch',
-      'infinity',
-      '-infinity',
-    ];
-    const output = [
-      '2020-10-22 23:45:12.123Z',
-      '2020-10-22 22:45:00.000Z',
-      '1970-01-01 00:00:00.000Z',
-      'infinity',
-      '-infinity',
-    ];
-    await testParse(
-      conn,
-      DataTypeOIDs.timestamptz,
-      input,
-      output,
-      { columnFormat: DataFormat.binary },
-      { fetchAsString: [DataTypeOIDs.timestamptz] },
-    );
   });
 
   it('should parse "timestamptz" field (binary, utcDates)', async () => {
@@ -144,6 +94,75 @@ describe('DataType: timestamptz', () => {
       { columnFormat: DataFormat.binary },
       { utcDates: true },
     );
+  });
+
+  // fetchAsString hands back the server's own rendering, and for
+  // timestamptz that rendering is relative to the session's TimeZone - so
+  // these pin it rather than inheriting whatever ran before them
+  // (date.spec.ts sets PGTZ process-wide, which every Connection built
+  // after it picks up).
+  describe('fetchAsString', () => {
+    let previousZone: string;
+
+    before(async () => {
+      const r = await conn.query("select current_setting('TimeZone') as tz");
+      previousZone = r.rows?.[0][0];
+      await conn.execute("SET SESSION timezone TO 'UTC'");
+    });
+
+    after(() =>
+      conn.execute('SET SESSION timezone TO ' + "'" + previousZone + "'"),
+    );
+
+    it('should parse "timestamptz" field (text, fetchAsString)', async () => {
+      const input = [
+        '2020-10-22T23:45:12.123Z',
+        '2020-10-22T23:45:00+01:00',
+        'epoch',
+        'infinity',
+        '-infinity',
+      ];
+      const output = [
+        '2020-10-22 23:45:12.123+00',
+        '2020-10-22 22:45:00+00',
+        '1970-01-01 00:00:00+00',
+        'infinity',
+        '-infinity',
+      ];
+      await testParse(
+        conn,
+        DataTypeOIDs.timestamptz,
+        input,
+        output,
+        { columnFormat: DataFormat.text },
+        { fetchAsString: [DataTypeOIDs.timestamptz] },
+      );
+    });
+
+    it('should parse "timestamptz" field (binary, fetchAsString)', async () => {
+      const input = [
+        '2020-10-22T23:45:12.123Z',
+        '2020-10-22T23:45:00+01:00',
+        'epoch',
+        'infinity',
+        '-infinity',
+      ];
+      const output = [
+        '2020-10-22 23:45:12.123+00',
+        '2020-10-22 22:45:00+00',
+        '1970-01-01 00:00:00+00',
+        'infinity',
+        '-infinity',
+      ];
+      await testParse(
+        conn,
+        DataTypeOIDs.timestamptz,
+        input,
+        output,
+        { columnFormat: DataFormat.binary },
+        { fetchAsString: [DataTypeOIDs.timestamptz] },
+      );
+    });
   });
 
   it('should parse "timestamptz" array field (text)', async () => {

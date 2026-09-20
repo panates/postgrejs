@@ -134,17 +134,36 @@ describe('GlobalTypeMap', () => {
     );
   });
 
-  it('should determine char oid from "String"', async () => {
-    expect(GlobalTypeMap.determine('y')).toStrictEqual(DataTypeOIDs.char);
+  it('should never determine char oid, whatever the string', async () => {
+    // 18 is PostgreSQL's internal single-byte "char". A one-character
+    // string fits it, but nobody passing 'y' means that type, and
+    // declaring the parameter as one broke concatenation outright:
+    // `operator is not unique: character varying || "char"`.
+    for (const v of ['y', '1', 'é', '中', '', 'hello world']) {
+      expect(GlobalTypeMap.determine(v)).toStrictEqual(DataTypeOIDs.varchar);
+    }
   });
 
-  it('should not determine char oid for a single multi-byte character', async () => {
-    // Regression test: isType() used to check JS string .length (UTF-16
-    // code units) instead of UTF-8 byte length, so any single non-ASCII
-    // character (e.g. 'é', '中') was wrongly auto-detected as PostgreSQL's
-    // 1-byte "char" type, whose encoder then wrote 2-3 bytes for it,
-    // causing the server to reject the bind parameter outright.
-    expect(GlobalTypeMap.determine('é')).toStrictEqual(DataTypeOIDs.varchar);
-    expect(GlobalTypeMap.determine('中')).toStrictEqual(DataTypeOIDs.varchar);
+  it('should never determine _char oid for an array of strings', async () => {
+    // determine() types an array from its first element, so a leading
+    // one-character string used to make the whole array "char"[] - and
+    // every later element came back cut to one byte, silently.
+    expect(GlobalTypeMap.determine(['A', 'BB', 'CCC'])).toStrictEqual(
+      DataTypeOIDs._varchar,
+    );
+  });
+
+  it('should keep CharType.isType() answering truthfully', async () => {
+    // Inference skips the type through `inferrable`, not by having its
+    // predicate lie - anyone asking it directly still gets a real answer.
+    // Regression test for that predicate: it used to check JS string
+    // .length (UTF-16 code units) rather than UTF-8 byte length, so a
+    // single non-ASCII character counted as one byte.
+    const charType = GlobalTypeMap.get(DataTypeOIDs.char);
+    expect(charType.inferrable).toStrictEqual(false);
+    expect(charType.isType('y')).toStrictEqual(true);
+    expect(charType.isType('é')).toStrictEqual(false);
+    expect(charType.isType('中')).toStrictEqual(false);
+    expect(charType.isType('yy')).toStrictEqual(false);
   });
 });

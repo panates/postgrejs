@@ -1,5 +1,6 @@
 import { DataFormat } from '../constants.js';
 import type { DataTypeMap } from '../data-type-map.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { Protocol } from '../protocol/protocol.js';
 import type { AnyParseFunction } from '../types.js';
 import { decodeBinaryArray } from './decode-binaryarray.js';
@@ -13,13 +14,31 @@ const DefaultTextColumnParser: AnyParseFunction = (data, offset, len) =>
 export function getParsers(
   typeMap: DataTypeMap,
   fields: Protocol.RowDescription[],
+  mappingOptions?: DataMappingOptions,
 ): AnyParseFunction[] {
   const parsers: AnyParseFunction[] = new Array(fields.length);
+  const asString = mappingOptions?.fetchAsString;
   const l = fields.length;
   let f: Protocol.RowDescription;
   let i;
   for (i = 0; i < l; i++) {
     f = fields[i];
+    // fetchAsString asks for the value exactly as the server renders it,
+    // and resolveColumnFormats() has already asked the server to send this
+    // column as text - so there is nothing left to do but hand the bytes
+    // back. An array column only reaches here when its own array OID was
+    // listed, and then the whole literal is the string that comes back.
+    // The format check is not redundant: a column can still arrive binary
+    // when its types were unknown at Bind time (a pipelined one-shot), and
+    // then the registered decoder is the only thing that can read it.
+    if (
+      asString &&
+      f.format === DataFormat.text &&
+      asString.includes(f.dataTypeId)
+    ) {
+      parsers[i] = DefaultTextColumnParser;
+      continue;
+    }
     const dataTypeReg = typeMap.get(f.dataTypeId);
     if (dataTypeReg) {
       const isArray = !!dataTypeReg.elementsOID;
