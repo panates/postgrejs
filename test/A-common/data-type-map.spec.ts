@@ -12,6 +12,20 @@ describe('DataTypeMap', () => {
     decodeText: () => 'fake',
   };
 
+  describe('determine()', () => {
+    it('should pass over a type marked not inferrable, however well it matches', () => {
+      const map = new DataTypeMap();
+      map.register({ ...fakeType, isType: (v: any) => typeof v === 'string' });
+      expect(map.determine('anything')).toStrictEqual(fakeType.oid);
+      map.register({
+        ...fakeType,
+        isType: (v: any) => typeof v === 'string',
+        inferrable: false,
+      });
+      expect(map.determine('anything')).toStrictEqual(DataTypeOIDs.unknown);
+    });
+  });
+
   describe('copy constructor', () => {
     it('should answer get() for every type the source held', () => {
       // The regression this pins: only `_items` was copied, so `get()` -
@@ -56,6 +70,11 @@ describe('DataTypeMap', () => {
       copy.register(override);
       expect(copy.get(DataTypeOIDs.int4)).toStrictEqual(override);
       expect(GlobalTypeMap.get(DataTypeOIDs.int4)).not.toStrictEqual(override);
+    });
+
+    it('should carry the inferrable flag across', () => {
+      const copy = new DataTypeMap(GlobalTypeMap);
+      expect(copy.get(DataTypeOIDs.char).inferrable).toStrictEqual(false);
     });
 
     it('should produce an empty map when given nothing', () => {

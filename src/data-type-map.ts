@@ -81,6 +81,10 @@ export class DataTypeMap {
     let t: DataType;
     for (i = this._items.length - 1; i >= 0; i--) {
       t = this._items[i];
+      // Walked newest-registered first, so a later registration of the
+      // same OID wins - and a type marked `inferrable: false` is never
+      // picked here at all, however well `isType` matches.
+      if (t.inferrable === false) continue;
       if (valueIsArray) {
         if (t.elementsOID && t.isType(value[0])) return t.oid;
       } else if (!t.elementsOID && t.isType(value)) return t.oid;

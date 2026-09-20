@@ -17,6 +17,17 @@ export interface DataType {
   jsType: string;
   arraySeparator?: string;
   isType: (v: any) => boolean;
+  /**
+   * Whether DataTypeMap.determine() may pick this type for a value, which
+   * it does by asking `isType`. Defaults to true.
+   *
+   * `false` is for a type that can genuinely hold the value - so `isType`
+   * answers truthfully for anyone who asks it directly - but that no
+   * caller means when they pass a plain JavaScript value. Inference then
+   * passes it by and the type is reached only by asking for it, with
+   * `new BindParam(oid, value)`.
+   */
+  inferrable?: boolean;
   decodeBinary: DecodeBinaryFunction;
   decodeText: DecodeTextFunction;
   // Optional fast path: decodes straight from the raw wire Buffer instead
