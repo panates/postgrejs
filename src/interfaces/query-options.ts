@@ -38,7 +38,15 @@ export interface QueryOptions extends DataMappingOptions {
    */
   typeMap?: DataTypeMap;
   /**
-   * If true, returns Cursor instance instead of rows
+   * If true, returns Cursor instance instead of rows.
+   *
+   * The cursor reads through a portal, and a portal lives only as long as
+   * the transaction that created it. Outside an explicit transaction that
+   * is the implicit one, which any other statement on the same connection
+   * ends - so running another query on that connection while the cursor is
+   * open destroys it. Open the cursor inside a transaction, or give it a
+   * connection of its own; `Pool.query()` does the latter for you and
+   * keeps the connection out of the pool until the cursor closes.
    */
   cursor?: boolean;
   /**

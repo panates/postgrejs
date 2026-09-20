@@ -1,5 +1,5 @@
 import { expect } from 'expect';
-import { Connection, RowDecoder } from 'postgrejs';
+import { Connection, Pool, RowDecoder } from 'postgrejs';
 
 describe('Cursor support', () => {
   let connection: Connection;
@@ -353,5 +353,96 @@ describe('Cursor support', () => {
     await cursor.close();
     expect(await cursor.next()).toStrictEqual(undefined);
     expect(await cursor.fetch(5)).toStrictEqual([]);
+  });
+
+  describe('portal lifetime', () => {
+    // A portal lives only as long as the transaction that created it, and
+    // outside an explicit one that is the implicit transaction any other
+    // statement's Sync ends. These pin both halves of that, and the fact
+    // that the resulting error explains itself.
+
+    it('should die when another statement runs on the same connection', async () => {
+      const r = await connection.query(
+        'select i from generate_series(1, 1000) i',
+        { cursor: true, fetchCount: 100 },
+      );
+      const cursor = r.cursor!;
+      expect(await cursor.next()).toStrictEqual([1]);
+      await connection.query('select 1');
+      let err: any;
+      try {
+        // The first batch is still buffered; the 101st row is what needs
+        // a second Execute against the portal that is now gone.
+        for (let i = 0; i < 100; i++) await cursor.next();
+      } catch (e) {
+        err = e;
+      }
+      expect(err).toBeDefined();
+      expect(err.code).toStrictEqual('34000');
+      expect(err.message).toMatch(/destroyed by another statement/);
+      // And it closed itself rather than leaving the statement behind.
+      expect(cursor.isClosed).toStrictEqual(true);
+    });
+
+    it('should survive another statement inside an explicit transaction', async () => {
+      await connection.startTransaction();
+      try {
+        const r = await connection.query(
+          'select i from generate_series(1, 1000) i',
+          { cursor: true, fetchCount: 100 },
+        );
+        const cursor = r.cursor!;
+        expect(await cursor.next()).toStrictEqual([1]);
+        await connection.query('select 1');
+        for (let i = 0; i < 100; i++) await cursor.next();
+        expect(await cursor.next()).toStrictEqual([102]);
+        await cursor.close();
+      } finally {
+        await connection.rollback();
+      }
+    });
+
+    it('should keep a pooled cursor safe by holding its connection', async () => {
+      // Pool.query() used to release the connection as soon as it
+      // returned, so the next caller could get the very connection the
+      // cursor was reading from and destroy its portal - and which
+      // connection that was depended on the pool's state, so it failed
+      // only sometimes.
+      const pool = new Pool({ max: 2, min: 0 });
+      try {
+        const r = await pool.query('select i from generate_series(1, 1000) i', {
+          cursor: true,
+          fetchCount: 100,
+        });
+        const cursor = r.cursor!;
+        expect(await cursor.next()).toStrictEqual([1]);
+        expect(pool.acquiredConnections).toStrictEqual(1);
+        expect(pool.idleConnections).toStrictEqual(0);
+        await pool.query('select 1');
+        for (let i = 0; i < 100; i++) await cursor.next();
+        expect(await cursor.next()).toStrictEqual([102]);
+        await cursor.close();
+        expect(pool.acquiredConnections).toStrictEqual(0);
+      } finally {
+        await pool.close(0);
+      }
+    });
+
+    it('should give a pooled cursor connection back when the loop ends', async () => {
+      const pool = new Pool({ max: 2, min: 0 });
+      try {
+        const r = await pool.query('select i from generate_series(1, 25) i', {
+          cursor: true,
+          fetchCount: 10,
+        });
+        const seen: number[] = [];
+        for await (const row of r.cursor!) seen.push((row as any)[0]);
+        expect(seen.length).toStrictEqual(25);
+        expect(pool.acquiredConnections).toStrictEqual(0);
+        expect(pool.idleConnections).toStrictEqual(1);
+      } finally {
+        await pool.close(0);
+      }
+    });
   });
 });

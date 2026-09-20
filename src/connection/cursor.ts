@@ -6,7 +6,7 @@ import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { AnyParseFunction, Maybe, Row } from '../types.js';
 import type { RowDecoder } from '../util/row-decoder.js';
 import { resolveRowDecoder, resolveRowType } from '../util/row-decoder.js';
-import type { Portal } from './portal.js';
+import type { Portal, PortalExecuteResult } from './portal.js';
 import type { PreparedStatement } from './prepared-statement.js';
 
 export class Cursor extends SafeEventEmitter implements AsyncDisposable {
@@ -83,7 +83,27 @@ export class Cursor extends SafeEventEmitter implements AsyncDisposable {
     await this._taskQueue
       .enqueue(async () => {
         const queryOptions = this._queryOptions;
-        const r = await portal.execute(queryOptions.fetchCount ?? 100);
+        let r: Maybe<PortalExecuteResult>;
+        try {
+          r = await portal.execute(queryOptions.fetchCount ?? 100);
+        } catch (e: any) {
+          // 34000 here means the portal is gone, and the only thing that
+          // takes a portal away mid-cursor is another statement on this
+          // connection: its Sync ends the implicit transaction the portal
+          // lives in. The server's own message says nothing about why, and
+          // a caller cannot act on it without knowing. Closing first keeps
+          // the statement from leaking and lets whoever is holding the
+          // connection for this cursor (Pool.query()) have it back.
+          if (e?.code === '34000') {
+            await this.close().catch(() => undefined);
+            e.message +=
+              ' - the portal was destroyed by another statement running on' +
+              ' the same connection, which ends the implicit transaction it' +
+              ' lives in. Open the cursor inside an explicit transaction, or' +
+              ' give it a connection of its own.';
+          }
+          throw e;
+        }
         if (r && r.rows && r.rows.length) {
           const rows: any[] = r.rows;
           if (this._parsers) {

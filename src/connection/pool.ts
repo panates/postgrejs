@@ -276,11 +276,31 @@ export class Pool extends SafeEventEmitter {
         : undefined;
     if (!slot) {
       const connection = await this.acquire();
+      let result: QueryResult;
       try {
-        return await connection.query(sql, options);
-      } finally {
+        result = await connection.query(sql, options);
+      } catch (e) {
         await this.release(connection);
+        throw e;
       }
+      // A portal lives only as long as the transaction it was created in,
+      // and outside an explicit one that is the implicit transaction any
+      // other statement's Sync ends. So a connection carrying an open
+      // cursor cannot go back in the pool when this call returns - handing
+      // it to the next caller would destroy the cursor's portal, and did
+      // ("portal ... does not exist", nondeterministically, depending on
+      // which connection that caller happened to get). It goes back when
+      // the cursor closes instead, which for-await and `await using` both
+      // do on their own; a cursor that is never closed holds its
+      // connection until the pool itself is closed.
+      if (result.cursor) {
+        result.cursor.once('close', () => {
+          this.release(connection).catch(e => this.emit('error', e));
+        });
+        return result;
+      }
+      await this.release(connection);
+      return result;
     }
     try {
       const shared = slot.connection || (await slot.promise);
