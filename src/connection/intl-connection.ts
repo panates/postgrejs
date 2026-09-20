@@ -69,6 +69,31 @@ function columnFormatsEqual(
 }
 
 /**
+ * Whether the server is saying that a statement this connection had under
+ * a name can no longer be executed as it stands, so the cache entry is
+ * stale and the query is worth running again unprepared.
+ *
+ * Two SQLSTATEs say it. `0A000` is the documented one - "cached plan must
+ * not change result type", after an `alter table`. `XX000` is what a
+ * dropped and recreated *type* produces ("cache lookup failed for type
+ * <oid>"): it is the server's catch-all internal_error rather than
+ * something specific, but it is rare enough in ordinary operation that
+ * retrying it costs nothing, and the alternative - matching the English
+ * message - breaks under a different `lc_messages` or a server version
+ * that rewords it.
+ *
+ * Deliberately narrow. Dropping the entry on *any* failure would also
+ * self-heal, but it would retire a perfectly good prepared statement
+ * every time an ordinary error came back - a unique violation on a hot
+ * upsert would keep costing the statement its name - and re-running a
+ * statement that failed for its own reasons buys nothing.
+ */
+function isStaleCachedPlan(e: unknown): boolean {
+  const code = (e as { code?: unknown } | undefined)?.code;
+  return code === '0A000' || code === 'XX000';
+}
+
+/**
  * Whether a command tag's row count describes rows the statement changed,
  * rather than rows it returned or moved. SELECT, FETCH, MOVE and COPY all
  * carry a count of their own that would be misleading as `rowsAffected`.
@@ -766,9 +791,11 @@ export class IntlConnection extends SafeEventEmitter {
    *
    * A cached statement can be invalidated under us - `alter table` between
    * two calls makes PostgreSQL answer 0A000, "cached plan must not change
-   * result type". That is caught here: the entry is dropped and the query
-   * runs again unprepared, so a migration against a live connection
-   * recovers instead of failing every call from then on.
+   * result type", and a dropped and recreated type makes it answer XX000,
+   * "cache lookup failed for type". Both are caught here (see
+   * isStaleCachedPlan): the entry is dropped and the query runs again
+   * unprepared, so a migration against a live connection recovers instead
+   * of failing every call from then on.
    */
   async queryCached(
     sql: string,
@@ -839,7 +866,7 @@ export class IntlConnection extends SafeEventEmitter {
           savepoint,
         );
       } catch (e: any) {
-        if (e?.code !== '0A000') throw e;
+        if (!isStaleCachedPlan(e)) throw e;
         this._preparedCache.delete(key);
         // ROLLBACK TO leaves the savepoint itself in place, so the retry
         // must not open a second one under the same name - it runs bare
@@ -1391,11 +1418,10 @@ export class IntlConnection extends SafeEventEmitter {
           });
       } catch (e: any) {
         // A cached statement can be invalidated between two pipelines the
-        // same way a cached single query can (0A000, "cached plan must not
-        // change result type"). Drop what this pipeline reused and run it
-        // again unprepared - once, since the second attempt has nothing
-        // cached left to reuse.
-        if (e?.code !== '0A000' || !cachedKeys.length) throw e;
+        // same way a cached single query can - see isStaleCachedPlan().
+        // Drop what this pipeline reused and run it again unprepared -
+        // once, since the second attempt has nothing cached left to reuse.
+        if (!isStaleCachedPlan(e) || !cachedKeys.length) throw e;
         for (const k of cachedKeys) this._preparedCache.delete(k);
         // Inside an explicit transaction there is nothing to retry into:
         // the failed statement has already aborted the block.
