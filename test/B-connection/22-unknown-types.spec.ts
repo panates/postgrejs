@@ -1,10 +1,16 @@
 import { expect } from 'expect';
 import { Connection } from 'postgrejs';
 
+// Every undecodable column here has to stay undecodable for the test to
+// mean anything, and the examples keep being overtaken as decoders land -
+// `interval`, then `int4range`, then `inet`. `pg_lsn` and `tsvector` are
+// the current pick: the first is a catalog type a string already serves
+// (see .claude/missing-builtin-decoders.md), the second has a binary
+// layout involved enough that it may never get one.
 const SQL =
   "select 'happy'::t_unk_mood as en," +
   " array['happy','sad']::t_unk_mood[] as enarr," +
-  " inet '192.168.0.1' as ip," +
+  " pg_lsn '16/B374D848' as lsn," +
   " tsvector 'a b' as tsv," +
   ' 42::int4 as n,' +
   ' array[1,2]::int4[] as ia';
@@ -32,7 +38,7 @@ describe('unknownTypesAsString', () => {
     const r = await conn.query(SQL, { objectRows: true });
     const row = r.rows?.[0] as any;
     expect(Buffer.isBuffer(row.en)).toStrictEqual(true);
-    expect(Buffer.isBuffer(row.ip)).toStrictEqual(true);
+    expect(Buffer.isBuffer(row.lsn)).toStrictEqual(true);
   });
 
   it('should read every undecodable column as the server printed it', async () => {
@@ -52,7 +58,7 @@ describe('unknownTypesAsString', () => {
         // literal - there is no telling it is an array without reading
         // the catalog, and `pg` answers the same way.
         enarr: '{happy,sad}',
-        ip: '192.168.0.1',
+        lsn: '16/B374D848',
         tsv: "'a' 'b'",
         n: 42,
         ia: [1, 2],
@@ -70,7 +76,7 @@ describe('unknownTypesAsString', () => {
     });
     const row = r.rows?.[0] as any;
     expect(row.en).toStrictEqual('happy');
-    expect(row.ip).toStrictEqual('192.168.0.1');
+    expect(row.lsn).toStrictEqual('16/B374D848');
     expect(row.n).toStrictEqual(42);
     expect(row.ia).toStrictEqual([1, 2]);
   });
@@ -95,7 +101,7 @@ describe('unknownTypesAsString', () => {
     const byName: Record<string, string> = {};
     for (const f of r.fields!) byName[f.fieldName] = f.jsType;
     expect(byName.en).toStrictEqual('string');
-    expect(byName.ip).toStrictEqual('string');
+    expect(byName.lsn).toStrictEqual('string');
     expect(byName.n).toStrictEqual('number');
     // dataTypeName stays empty: there is no OID-to-name mapping here
     // without reading the catalog, which this option deliberately does

@@ -11,6 +11,12 @@ import {
 import { ArrayDateType, DateType } from './data-types/date-type.js';
 import { ArrayFloat4Type, Float4Type } from './data-types/float4-type.js';
 import { ArrayFloat8Type, Float8Type } from './data-types/float8-type.js';
+import {
+  ArrayCidrType,
+  ArrayInetType,
+  CidrType,
+  InetType,
+} from './data-types/inet-type.js';
 import { ArrayInt2Type, Int2Type } from './data-types/int2-type.js';
 import {
   ArrayInt2VectorType,
@@ -22,6 +28,12 @@ import { ArrayIntervalType, IntervalType } from './data-types/interval-type.js';
 import { ArrayJsonType, JsonType } from './data-types/json-type.js';
 import { ArrayJsonbType, JsonbType } from './data-types/jsonb-type.js';
 import { ArrayLsegType, LsegType } from './data-types/lseg-type.js';
+import {
+  ArrayMacaddr8Type,
+  ArrayMacaddrType,
+  Macaddr8Type,
+  MacaddrType,
+} from './data-types/macaddr-type.js';
 import { ArrayNumericType, NumericType } from './data-types/numeric-type.js';
 import { ArrayOidType, OidType } from './data-types/oid-type.js';
 import {
@@ -194,3 +206,8 @@ GlobalTypeMap.register([DateType, ArrayDateType]);
 GlobalTypeMap.register([TimestampType, ArrayTimestampType]);
 GlobalTypeMap.register([IntervalType, ArrayIntervalType]);
 GlobalTypeMap.register(RangeTypes);
+
+GlobalTypeMap.register([InetType, ArrayInetType]);
+GlobalTypeMap.register([CidrType, ArrayCidrType]);
+GlobalTypeMap.register([MacaddrType, ArrayMacaddrType]);
+GlobalTypeMap.register([Macaddr8Type, ArrayMacaddr8Type]);

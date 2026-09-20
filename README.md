@@ -123,6 +123,11 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
   range remembers which of the six types it came from, so reading one and writing it back needs no `BindParam`; one
   built by hand takes the OID as its last argument, and passing one that carries neither is an error rather than a
   guess.
+- **Network Types:** `inet`, `cidr`, `macaddr` and `macaddr8` decode to the string PostgreSQL itself would print -
+  including the `::` collapsing and embedded-IPv4 rules its own formatter follows, so `0:0:0:0:0:0:1.2.3.4` comes back
+  as `::1.2.3.4` from the binary format just as it does from the text one. A string, because JavaScript has no address
+  type and every Node API that takes one takes a string. They stay out of parameter inference: an address is an
+  ordinary string, and stealing it would send `inet` where `text` was meant - name the type to use it.
 - **Array Handling:** Supports multidimensional arrays with fast binary encoding/decoding.
 - **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
 - **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure
