@@ -1,6 +1,7 @@
 import { expect } from 'expect';
 import {
   expandExponential,
+  numberBytesToString,
   NumericType,
 } from '../../src/data-types/numeric-type.js';
 import { SmartBuffer } from '../../src/protocol/smart-buffer.js';
@@ -64,6 +65,54 @@ describe('NumericType', () => {
 
     it('should round-trip a plain (non-string) number', () => {
       expect(roundTrip(7)).toStrictEqual(7);
+    });
+  });
+
+  describe('numberBytesToString()', () => {
+    // The digits are base-10000 groups, the weight is the first group's
+    // position, and the scale is how many decimals to print. Every
+    // expectation here was produced by the live server for the same
+    // value - numeric.spec.ts checks four thousand more of them against
+    // it character for character.
+    const build = (digits: number[], scale: number, weight: number, sign = 0) =>
+      numberBytesToString(digits, scale, weight, sign);
+
+    it('should suppress leading zeroes in the first group only', () => {
+      // 19.99 is [19, 9900] - the first group prints as `19`, the second
+      // must keep its trailing zeroes until the scale trims them.
+      expect(build([19, 9900], 2, 0)).toStrictEqual('19.99');
+      // 1_0000 is [1] at weight 1: `1` then a full `0000`.
+      expect(build([1], 0, 1)).toStrictEqual('10000');
+      expect(build([1, 2], 0, 1)).toStrictEqual('10002');
+    });
+
+    it('should write a bare zero for a value below one', () => {
+      expect(build([1000], 1, -1)).toStrictEqual('0.1');
+      expect(build([5000], 4, -1)).toStrictEqual('0.5000');
+      // Reachable only by calling this directly - the old arithmetic
+      // trimmed its overshoot from the whole string rather than from the
+      // fraction, and with no fraction it took the `0` with it.
+      expect(build([], 0, -1)).toStrictEqual('0');
+      expect(build([5000], 0, -1)).toStrictEqual('0');
+    });
+
+    it('should trim the last group down to the display scale', () => {
+      // The fraction is written in whole groups of four, so a scale of
+      // 1, 2 or 3 overshoots and the extra digits come off.
+      expect(build([1234], 1, -1)).toStrictEqual('0.1');
+      expect(build([1234], 2, -1)).toStrictEqual('0.12');
+      expect(build([1234], 3, -1)).toStrictEqual('0.123');
+      expect(build([1234], 4, -1)).toStrictEqual('0.1234');
+    });
+
+    it('should pad a group the digit array does not reach', () => {
+      // A trailing all-zero group is not sent; the scale still asks for it.
+      expect(build([1], 8, 0)).toStrictEqual('1.00000000');
+      expect(build([], 0, 0)).toStrictEqual('0');
+    });
+
+    it('should write the sign', () => {
+      expect(build([19, 9900], 2, 0, 0x4000)).toStrictEqual('-19.99');
     });
   });
 
