@@ -115,7 +115,10 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
   so only the server can add one to a timestamp.
 - **Ranges:** The six range types and their multiranges decode to a `Range` - the bounds as the element type's own
   JavaScript values, each end knowing whether it is included and each able to be absent, with `empty` kept distinct
-  from the unbounded `(,)`. A multirange is a `Range[]`. `pg` hands all of these back as their literal text.
+  from the unbounded `(,)`. A multirange is a `Range[]`. `pg` hands all of these back as their literal text. A decoded
+  range remembers which of the six types it came from, so reading one and writing it back needs no `BindParam`; one
+  built by hand takes the OID as its last argument, and passing one that carries neither is an error rather than a
+  guess.
 - **Array Handling:** Supports multidimensional arrays with fast binary encoding/decoding.
 - **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
 - **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure

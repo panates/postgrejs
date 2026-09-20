@@ -1,3 +1,6 @@
+import type { OID } from '../../types.js';
+import { REQUIRES_TYPE_OID, setTypeOid } from './type-oid.js';
+
 /** Which ends of a range include their bound, written as PostgreSQL writes it. */
 export type RangeBounds = '[)' | '[]' | '()' | '(]';
 
@@ -58,6 +61,12 @@ function formatBound(v: unknown): string {
  * as a parameter, where the element type's own renderer is in reach.
  */
 export class Range<T = any> {
+  /**
+   * All six range types answer `instanceof Range`, so one has to be named
+   * rather than guessed - see REQUIRES_TYPE_OID.
+   */
+  static readonly [REQUIRES_TYPE_OID] = true;
+
   /** The lower bound, or null when the range runs to negative infinity. */
   lower: T | null;
   /** The upper bound, or null when the range runs to infinity. */
@@ -67,10 +76,17 @@ export class Range<T = any> {
   /** True for `empty`, which contains no values - not the same as `(,)`. */
   isEmpty: boolean;
 
+  /**
+   * @param oid Which range type this is - `DataTypeOIDs.int4range` and so
+   *   on. A Range that came from a query already carries the one it was
+   *   decoded from; give it here when building one to send, or name it at
+   *   the call site with `new BindParam(oid, range)`.
+   */
   constructor(
     lower: T | null = null,
     upper: T | null = null,
     bounds: RangeBounds = '[)',
+    oid?: OID,
   ) {
     this.lower = lower;
     this.upper = upper;
@@ -79,11 +95,12 @@ export class Range<T = any> {
     this.lowerInclusive = bounds.charAt(0) === '[' && lower !== null;
     this.upperInclusive = bounds.charAt(1) === ']' && upper !== null;
     this.isEmpty = false;
+    if (oid !== undefined) setTypeOid(this, oid);
   }
 
   /** The empty range, which contains no values. */
-  static empty<T = any>(): Range<T> {
-    const r = new Range<T>();
+  static empty<T = any>(oid?: OID): Range<T> {
+    const r = new Range<T>(null, null, '[)', oid);
     r.isEmpty = true;
     return r;
   }

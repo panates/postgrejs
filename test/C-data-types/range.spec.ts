@@ -116,22 +116,40 @@ describe('DataType: range', () => {
 
   it('should not infer which range type a Range is', async () => {
     // All six answer `instanceof Range` and nothing about the value says
-    // which: numbers fit int4range, int8range and numrange alike. Left
-    // inferrable, `new Range(1, 10)` went out as a tstzrange and came
-    // back as `[1970-01-01T00:00:00.001Z,...)`. It has to be asked for.
-    const r = await conn.query('select $1::text as t', {
-      params: [new BindParam(DataTypeOIDs.int4range, new Range(1, 10))],
+    // which: numbers fit int4range, int8range and numrange alike. Left to
+    // inference, `new Range(1, 10)` went out as a tstzrange and came back
+    // as `[1970-01-01T00:00:00.001Z,...)`; once the range types stopped
+    // being inferrable it went out as `json` instead, which comes back
+    // looking right. Now it says so.
+    await expect(
+      conn.query('select $1 as v', { params: [new Range(1, 10)] }),
+    ).rejects.toThrow(/carries no type OID/);
+  });
+
+  it('should send a Range that knows its own type without being told', async () => {
+    // Either given at construction, or carried back from a query - a
+    // decoded Range is stamped with the type it came from, so reading one
+    // and writing it back needs no BindParam.
+    const built = await conn.query('select $1::text as t', {
+      params: [new Range(1, 10, '[)', DataTypeOIDs.int4range)],
       objectRows: true,
     });
-    expect((r.rows?.[0] as any).t).toStrictEqual('[1,10)');
-    // And what an untyped one does instead, pinned so it is visible: with
-    // no range type claiming it, JsonType does - its isType() takes any
-    // object - so the value goes out declared `json`. It comes back
-    // looking right, which is exactly why this is worth a test.
-    const untyped = await conn.query('select $1 as v', {
-      params: [new Range(1, 10)],
+    expect((built.rows?.[0] as any).t).toStrictEqual('[1,10)');
+
+    const read = await conn.query(
+      "select tstzrange('2020-01-01T00:00:00Z','2020-02-01T00:00:00Z') as v," +
+        ' int4multirange(int4range(1,5)) as m',
+      { objectRows: true },
+    );
+    const row = read.rows?.[0] as any;
+    const back = await conn.query('select $1::text as t, $2::text as u', {
+      params: [row.v, row.m],
+      objectRows: true,
     });
-    expect(untyped.fields?.[0].dataTypeName).toStrictEqual('json');
+    expect(back.rows?.[0]).toStrictEqual({
+      t: '["2020-01-01 00:00:00+00","2020-02-01 00:00:00+00")',
+      u: '{[1,5)}',
+    });
   });
 
   describe('multirange', () => {

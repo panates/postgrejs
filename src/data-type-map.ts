@@ -4,6 +4,10 @@ import { ArrayBoxType, BoxType } from './data-types/box-type.js';
 import { ArrayByteaType, ByteaType } from './data-types/bytea-type.js';
 import { ArrayCharType, CharType } from './data-types/char-type.js';
 import { ArrayCircleType, CircleType } from './data-types/circle-type.js';
+import {
+  getTypeOid,
+  REQUIRES_TYPE_OID,
+} from './data-types/classes/type-oid.js';
 import { ArrayDateType, DateType } from './data-types/date-type.js';
 import { ArrayFloat4Type, Float4Type } from './data-types/float4-type.js';
 import { ArrayFloat8Type, Float8Type } from './data-types/float8-type.js';
@@ -78,6 +82,26 @@ export class DataTypeMap {
 
   determine(value: any): OID {
     if (value == null) return DataTypeOIDs.unknown;
+    if (typeof value === 'object') {
+      // A value that already knows which type it came from says so,
+      // rather than being matched by shape - which is the only thing
+      // that can work when several types share one JavaScript class.
+      const carried = getTypeOid(value);
+      if (carried !== undefined) return carried;
+      const ctor = (value as { constructor?: Record<symbol, unknown> })
+        .constructor;
+      if (ctor && ctor[REQUIRES_TYPE_OID]) {
+        // Checked before the walk below rather than after it: JsonType
+        // takes any object, so left to the walk this value would quietly
+        // go out declared `json` and come back looking right.
+        throw new TypeError(
+          `A ${(ctor as { name?: string }).name} carries no type OID, and ` +
+            'which PostgreSQL type it is cannot be told from the value - ' +
+            'give it one (`new Range(lower, upper, bounds, oid)`) or name ' +
+            'it at the call site (`new BindParam(oid, value)`)',
+        );
+      }
+    }
     const valueIsArray = Array.isArray(value);
     let i: number;
     let t: DataType;

@@ -4,6 +4,7 @@ import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import type { OID } from '../types.js';
 import { Range, type RangeBounds } from './classes/range.js';
+import { setTypeOid } from './classes/type-oid.js';
 import { DateType } from './date-type.js';
 import { Int4Type } from './int4-type.js';
 import { Int8Type } from './int8-type.js';
@@ -102,7 +103,10 @@ export function createRangeType(
       options: DataMappingOptions,
     ): Range {
       const flags = v[offset];
-      if (flags & RANGE_EMPTY) return Range.empty();
+      // Stamped with the type it came from, so it can go back as that
+      // type without being named again - which nothing about a Range
+      // could otherwise tell.
+      if (flags & RANGE_EMPTY) return Range.empty(oid);
       let p = offset + 1;
       let lower: any = null;
       let upper: any = null;
@@ -123,6 +127,7 @@ export function createRangeType(
         upper,
         ((flags & RANGE_LB_INC ? '[' : '(') +
           (flags & RANGE_UB_INC ? ']' : ')')) as RangeBounds,
+        oid,
       );
     },
 
@@ -154,13 +159,14 @@ export function createRangeType(
     },
 
     decodeText(v: string, options: DataMappingOptions): Range {
-      if (v.trim() === 'empty') return Range.empty();
+      if (v.trim() === 'empty') return Range.empty(oid);
       const m = RANGE_PATTERN.exec(v);
       if (!m) throw new Error(`"${v}" is not a ${name} literal`);
       return new Range(
         parseBound(m[2], element.decodeText, options),
         parseBound(m[3], element.decodeText, options),
         (m[1] + m[4]) as RangeBounds,
+        oid,
       );
     },
 
@@ -240,7 +246,9 @@ export function createMultiRangeType(
         out[i] = range.decodeBinary(v, p, l, options);
         p += l;
       }
-      return out;
+      // The array carries the multirange's own OID; its elements already
+      // carry the range type's.
+      return setTypeOid(out, oid);
     },
 
     encodeBinary(buf: SmartBuffer, v: any, options: DataMappingOptions): void {
@@ -261,7 +269,7 @@ export function createMultiRangeType(
       if (!s.startsWith('{') || !s.endsWith('}'))
         throw new Error(`"${v}" is not a ${name} literal`);
       const body = s.substring(1, s.length - 1).trim();
-      if (!body) return [];
+      if (!body) return setTypeOid([], oid);
       // Ranges are split on the comma that follows a closing bracket, so
       // the comma between a range's own two bounds is left alone.
       const out: Range[] = [];
@@ -286,7 +294,7 @@ export function createMultiRangeType(
         }
       }
       out.push(range.decodeText(body.substring(start), options));
-      return out;
+      return setTypeOid(out, oid);
     },
 
     encodeText(v: any, options: DataMappingOptions): string {
