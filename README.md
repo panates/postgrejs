@@ -133,6 +133,12 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
   `rollbackPrepared()`, from any connection.
 - **Cancellation:** Any call takes an `AbortSignal`, which also gives per-query timeouts via `AbortSignal.timeout()`.
 - **Flexible Data Retrieval:**  Can return both array and object rows to suit different data processing needs.
+- **Unknown Types:** Result columns are requested in binary, which is what makes the built-in types decode as fast as
+  they do - but a type with no decoder registered (an enum, a composite, an extension type, or one of the built-ins
+  without one yet) would arrive as a `Buffer` nothing can read. `unknownTypesAsString: true` asks the server for text
+  on exactly those columns, so they arrive as the string PostgreSQL would have printed while everything registered
+  keeps decoding as before. Off by default; `columnFormat` is the blunter instrument that sets the format for every
+  column at once.
 - **Values as Text:** `fetchAsString: [DataTypeOIDs.int8]` asks the server for those columns in its own text format
   and hands the bytes back unparsed - so `count(*)` arrives as `'3'`, one consistent type where a decoded `int8` is a
   `number` or a `BigInt` depending on magnitude. Any OID, arrays included. The string is PostgreSQL's own rendering

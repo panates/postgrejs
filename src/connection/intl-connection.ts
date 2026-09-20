@@ -884,7 +884,11 @@ export class IntlConnection extends SafeEventEmitter {
     // Parse+Describe round trip per connection instead of leaving every
     // call until the statement earns a name asking for the whole row as
     // text (what queryOnce() falls back to).
-    if (!options.fetchAsString?.length && !this._earnsAName(key))
+    // unknownTypesAsString needs the columns known before the Bind for
+    // the same reason fetchAsString does, so it earns a name the same way.
+    const needsFields =
+      !!options.fetchAsString?.length || !!options.unknownTypesAsString;
+    if (!needsFields && !this._earnsAName(key))
       return this.queryOnce(sql, paramTypes, params, options, savepoint);
 
     const name = 'C_' + ++this._preparedCounter;
@@ -989,11 +993,12 @@ export class IntlConnection extends SafeEventEmitter {
       // _queryCached() prepares a fetchAsString query on first sight
       // precisely so it can send per-column codes from the second call on
       // (from the first, for every connection that has seen the SQL).
-      const columnFormat = options.fetchAsString?.length
-        ? DataFormat.text
-        : options.columnFormat != null
-          ? options.columnFormat
-          : DEFAULT_COLUMN_FORMAT;
+      const columnFormat =
+        options.fetchAsString?.length || options.unknownTypesAsString
+          ? DataFormat.text
+          : options.columnFormat != null
+            ? options.columnFormat
+            : DEFAULT_COLUMN_FORMAT;
 
       // See executeReused() for what a savepoint riding along does to the
       // CommandComplete stream.
@@ -1303,8 +1308,8 @@ export class IntlConnection extends SafeEventEmitter {
         // per-column codes; the rest fall back to asking for the whole row
         // as text, exactly as queryOnce() does and for the same reason.
         plan.columnFormat = plan.fields
-          ? resolveColumnFormats(plan.fields, options)
-          : options.fetchAsString?.length
+          ? resolveColumnFormats(plan.fields, options, typeMap)
+          : options.fetchAsString?.length || options.unknownTypesAsString
             ? DataFormat.text
             : options.columnFormat != null
               ? options.columnFormat
@@ -1470,7 +1475,7 @@ export class IntlConnection extends SafeEventEmitter {
       const rowDecoder = resolveRowDecoder(options);
       let parsers: AnyParseFunction[] | undefined;
       let resultFields: FieldInfo[] | undefined;
-      const columnFormat = resolveColumnFormats(cachedFields, options);
+      const columnFormat = resolveColumnFormats(cachedFields, options, typeMap);
       if (cachedFields) {
         const resolved = this._resolveReusedParsers(
           cachedFields,
@@ -1610,7 +1615,7 @@ export class IntlConnection extends SafeEventEmitter {
       // RowDescription is already in hand, so fetchAsString's OID list can
       // become the per-column result format codes this Bind carries, with
       // no extra round trip to find out what the columns are.
-      const columnFormat = resolveColumnFormats(cachedFields, options);
+      const columnFormat = resolveColumnFormats(cachedFields, options, typeMap);
 
       if (cachedFields) {
         const resolved = this._resolveReusedParsers(

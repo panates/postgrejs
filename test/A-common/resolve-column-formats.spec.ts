@@ -1,5 +1,5 @@
 import { expect } from 'expect';
-import { DataFormat, DataTypeOIDs } from 'postgrejs';
+import { DataFormat, DataTypeOIDs, GlobalTypeMap } from 'postgrejs';
 import type { Protocol } from '../../src/protocol/protocol.js';
 import {
   fetchAsStringEqual,
@@ -96,6 +96,88 @@ describe('resolveColumnFormats()', () => {
         fetchAsString: [DataTypeOIDs.timestamptz],
       }),
     ).toStrictEqual(DataFormat.binary);
+  });
+});
+
+describe('resolveColumnFormats() with unknownTypesAsString', () => {
+  // 999999 stands in for an enum, a composite or an extension type: an
+  // OID the type map has never heard of, whose binary bytes nothing here
+  // can read.
+  const UNKNOWN = 999999;
+  const fields = [
+    field(DataTypeOIDs.int4),
+    field(UNKNOWN),
+    field(DataTypeOIDs.text),
+  ];
+
+  it('should ask for text only on the columns it cannot decode', () => {
+    expect(
+      resolveColumnFormats(
+        fields,
+        { unknownTypesAsString: true },
+        GlobalTypeMap,
+      ),
+    ).toStrictEqual([DataFormat.binary, DataFormat.text, DataFormat.binary]);
+  });
+
+  it('should leave columnFormat alone when every column is decodable', () => {
+    // The no-op case allocates nothing and keeps sending a single code.
+    expect(
+      resolveColumnFormats(
+        [field(DataTypeOIDs.int4), field(DataTypeOIDs.text)],
+        { unknownTypesAsString: true },
+        GlobalTypeMap,
+      ),
+    ).toStrictEqual(DataFormat.binary);
+  });
+
+  it('should do nothing when the base format is already text', () => {
+    // Nothing to rescue: a column with no registered type decodes as the
+    // string the server printed either way.
+    expect(
+      resolveColumnFormats(
+        fields,
+        { columnFormat: DataFormat.text, unknownTypesAsString: true },
+        GlobalTypeMap,
+      ),
+    ).toStrictEqual(DataFormat.text);
+  });
+
+  it('should be inert without a type map', () => {
+    // It cannot answer "could this be decoded" without one, and the call
+    // sites that have no map in hand have no fields either.
+    expect(
+      resolveColumnFormats(fields, { unknownTypesAsString: true }),
+    ).toStrictEqual(DataFormat.binary);
+  });
+
+  it('should do nothing when the option is off', () => {
+    expect(resolveColumnFormats(fields, {}, GlobalTypeMap)).toStrictEqual(
+      DataFormat.binary,
+    );
+  });
+
+  it('should combine with fetchAsString rather than fight it', () => {
+    expect(
+      resolveColumnFormats(
+        fields,
+        {
+          unknownTypesAsString: true,
+          fetchAsString: [DataTypeOIDs.int4],
+        },
+        GlobalTypeMap,
+      ),
+    ).toStrictEqual([DataFormat.text, DataFormat.text, DataFormat.binary]);
+  });
+
+  it('should fill in a columnFormat array shorter than the row', () => {
+    expect(
+      resolveColumnFormats(
+        fields,
+        { columnFormat: [DataFormat.text], unknownTypesAsString: true },
+        GlobalTypeMap,
+      ),
+    ).toStrictEqual([DataFormat.text, DataFormat.text, DataFormat.binary]);
   });
 });
 

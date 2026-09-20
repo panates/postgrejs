@@ -24,4 +24,31 @@ export interface DataMappingOptions {
    * that comes back.
    */
   fetchAsString?: OID[];
+
+  /**
+   * Ask the server for text on any column this client has no way to
+   * decode, instead of taking bytes it cannot read.
+   *
+   * Result columns are requested in binary, and there is a decoder only
+   * for the types registered in the type map - so an enum, a composite,
+   * an extension type, and 54 of PostgreSQL's own built-ins (`interval`,
+   * `inet`, the range family, `tsvector`, `money`, ...) arrive as a raw
+   * `Buffer` that nothing can interpret. With this on they arrive as the
+   * string PostgreSQL would have printed, which is what `pg` gives for
+   * the same column.
+   *
+   * Off by default, and it is not free: the column types have to be known
+   * before the Bind that asks for them, so a query that has not been
+   * prepared yet is prepared on first sight (one extra round trip per
+   * distinct statement per connection, measured at 233µs -> 447µs on
+   * loopback), and one run with `prepare: false` asks for the whole row
+   * as text.
+   *
+   * A registered type is untouched, so nothing that decodes today starts
+   * arriving as a string. An array whose own OID is unregistered comes
+   * back as the array literal rather than a JS array - there is no way to
+   * know it is an array without reading the catalog, and `pg` answers the
+   * same way. `fields[i].dataTypeName` stays empty for the same reason.
+   */
+  unknownTypesAsString?: boolean;
 }
