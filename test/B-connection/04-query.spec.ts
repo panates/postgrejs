@@ -1,6 +1,14 @@
 import assert from 'assert';
 import { expect } from 'expect';
-import { Connection, Cursor, DataFormat, RowDecoder, sql } from 'postgrejs';
+import {
+  Connection,
+  Cursor,
+  DataFormat,
+  DataTypeMap,
+  GlobalTypeMap,
+  RowDecoder,
+  sql,
+} from 'postgrejs';
 
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
@@ -310,6 +318,18 @@ describe('query() (Extended Query)', () => {
     // ...but it must still carry the column's actual value, not undefined.
     expect(Object.getOwnPropertyDescriptor(row, '__proto__')?.value).toBe(42);
     expect(row.ok).toBe(7);
+  });
+
+  it('should decode normally through a typeMap copied from the global one', async () => {
+    // A copy that lost the OID index leaves get-parsers.ts with no parser
+    // for any column, so every value came back as a raw Buffer with
+    // nothing reported - the shape a per-connection type override takes.
+    const typeMap = new DataTypeMap(GlobalTypeMap);
+    const r = await connection.query(
+      'select 1::int4 as a, 2::int8 as b, $1::text as c',
+      { params: ['x'], typeMap, objectRows: true },
+    );
+    expect(r.rows?.[0]).toStrictEqual({ a: 1, b: 2, c: 'x' });
   });
 
   describe('pipeline()', () => {
