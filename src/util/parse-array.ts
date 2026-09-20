@@ -31,11 +31,26 @@ export function parsePostgresArray(
         }
 
         if (c === '}' || c === sep) {
-          if (token) {
+          // An element is present when it had content OR when it was
+          // quoted: `""` is a real empty string, and testing the token
+          // alone dropped it - `{"",b}` came back as one element, with
+          // every later index shifted.
+          //
+          // An unquoted empty token is still skipped. PostgreSQL never
+          // emits one (a null prints as the bare word NULL, an empty
+          // string always as `""`), so `{a,,b}` is not output this has to
+          // read - and skipping it is what keeps the separator that
+          // follows a nested array from pushing an element of its own.
+          if (token || exactlyValue) {
             if (token === 'NULL' && !exactlyValue) arr.push(null);
             else arr.push(transform ? transform(token) : token);
-            exactlyValue = false;
           }
+          // Reset per element rather than only when one was pushed.
+          // Leaving it set carried "this one was quoted" into the next
+          // element - and that flag is what tells a real NULL apart from
+          // the string "NULL", so a null following an empty string
+          // decoded as four characters of text.
+          exactlyValue = false;
           token = '';
           if (c === '}') return;
           continue;
