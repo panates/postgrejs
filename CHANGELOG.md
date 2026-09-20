@@ -1,6 +1,44 @@
 ## Changelog
 
-### [v3.6.1](https://github.com/panates/postgrejs/compare/v3.6.0...v3.6.1) - 
+### [v3.7.0](https://github.com/panates/postgrejs/compare/v3.6.1...v3.7.0) - 
+
+#### Breaking Changes :warning:
+
+- feat!: decode a numeric that a double cannot hold into a Numeric @Eray Hanoğlu  
+- build: let the changelog template see a breaking change @Eray Hanoğlu  
+
+#### 🚀 New Features
+
+- feat: decode the network types @Eray Hanoğlu 
+- feat: decode line, path and polygon @Eray Hanoğlu 
+- feat: decode the system columns, and name the types that cannot be @Eray Hanoğlu 
+- feat: decode the range and multirange types @Eray Hanoğlu 
+- feat: decode the geometric types into classes of their own @Eray Hanoğlu 
+- feat: decode tsvector and tsquery @Eray Hanoğlu 
+- feat: decode interval @Eray Hanoğlu 
+- feat: decode bit, varbit and jsonpath @Eray Hanoğlu 
+- feat: decode timetz @Eray Hanoğlu 
+- feat: decode refcursor, pg_node_tree and the snapshot types @Eray Hanoğlu 
+- feat: add unknownTypesAsString @Eray Hanoğlu 
+- feat: let a decoded value carry the type it came from @Eray Hanoğlu 
+- feat: reject the in-flight query with ConnectionLostError too @Eray Hanoğlu 
+
+#### 🪲 Fixes
+
+- fix: write an object as its own SQL literal, not as json @Eray Hanoğlu 
+- fix: complete the type OID table, and check it against the catalog @Eray Hanoğlu 
+- fix: recover when a recreated type invalidates a cached statement @Eray Hanoğlu 
+- fix: keep a quoted empty element when parsing an array literal @Eray Hanoğlu 
+
+#### 📖 Documentation Changes
+
+- docs: bring the data type counts up to what is registered @Eray Hanoğlu 
+
+#### ⚡️ Performance Improvments
+
+- perf: build a numeric's digits without a concatenation per digit @Eray Hanoğlu 
+
+### [v3.6.1](https://github.com/panates/postgrejs/compare/v3.6.0...v3.6.1) -  20 September 2026 
 
 #### 🚀 New Features
 
@@ -15,6 +53,10 @@
 - ci: pin the runner image and stop naming the PostgreSQL it ships @Eray Hanoğlu 
 
 ### [v3.6.0](https://github.com/panates/postgrejs/compare/v3.5.0...v3.6.0) -  20 September 2026 
+
+#### Breaking Changes :warning:
+
+- feat!: fetch every row by default instead of the first 100 @Eray Hanoğlu  
 
 #### 🚀 New Features
 
@@ -34,10 +76,6 @@
 #### 📖 Documentation Changes
 
 - docs: record what 3.6 changes for existing code @Eray Hanoğlu 
-
-#### 💬 General Changes
-
-- feat!: fetch every row by default instead of the first 100 @Eray Hanoğlu 
 
 ### [v3.5.0](https://github.com/panates/postgrejs/compare/v3.4.0...v3.5.0) -  16 September 2026 
 
@@ -95,6 +133,10 @@
 
 ### [v3.3.0](https://github.com/panates/postgrejs/compare/v3.2.0...v3.3.0) -  14 September 2026 
 
+#### Breaking Changes :warning:
+
+- feat!: give decodeBinary the value's length, not a slice of it @Eray Hanoğlu  
+
 #### 🚀 New Features
 
 - feat: add first-class Bun support with dedicated benchmark suite @Eray Hanoğlu 
@@ -123,7 +165,6 @@
 #### 💬 General Changes
 
 - bench: report near-ties as ties instead of ranking them @Eray Hanoğlu 
-- feat!: give decodeBinary the value's length, not a slice of it @Eray Hanoğlu 
 - bench: stop measuring type-declaration policy in the Extended Query scenarios @Eray Hanoğlu 
 - bench: stop one stalled repeat from making every result a tie @Eray Hanoğlu 
 - bench: document why concurrent Simple Query varies its literal @Eray Hanoğlu 
