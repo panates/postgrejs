@@ -1,5 +1,5 @@
 import { expect } from 'expect';
-import { Connection, Pool } from 'postgrejs';
+import { Connection, ConnectionLostError, Pool } from 'postgrejs';
 
 /** Resolves with the first emission of `event`, or rejects on a timeout. */
 function once(emitter: any, event: string, ms = 5000): Promise<any[]> {
@@ -45,10 +45,17 @@ describe('lost connection', () => {
       await kill(pid);
       expect((await rejected).message).toStrictEqual('Connection closed');
       const [, reason] = await destroyed;
-      expect(reason?.message).toMatch(/terminated unexpectedly/);
-      expect(reason?.message).toMatch(new RegExp(`pid ${pid}`));
+      // The message is exactly what other drivers report for this, so
+      // anything matching on it keeps working; what happened to this
+      // connection is on the object instead.
+      expect(reason).toBeInstanceOf(ConnectionLostError);
+      expect(reason.message).toStrictEqual(
+        'Connection terminated unexpectedly',
+      );
+      expect(reason.code).toStrictEqual('08006');
+      expect(reason.processID).toStrictEqual(pid);
       const [err] = await errored;
-      expect(err).toStrictEqual(reason);
+      expect(err).toBe(reason);
     } finally {
       await pool.close(0);
     }
@@ -69,8 +76,9 @@ describe('lost connection', () => {
       const errored = once(pool, 'error');
       await kill(pid);
       const [, reason] = await destroyed;
-      expect(reason?.message).toMatch(new RegExp(`pid ${pid}`));
-      expect((await errored)[0]).toStrictEqual(reason);
+      expect(reason.code).toStrictEqual('08006');
+      expect(reason.processID).toStrictEqual(pid);
+      expect((await errored)[0]).toBe(reason);
       // And the pool healed, as it always did.
       const r2 = await pool.query('select pg_backend_pid() as p', {
         objectRows: true,
@@ -126,8 +134,9 @@ describe('lost connection', () => {
       const closed = once(connection, 'close');
       await kill(pid);
       const [reason] = await closed;
-      expect(reason?.message).toMatch(/terminated unexpectedly/);
-      expect(reason?.message).toMatch(new RegExp(`pid ${pid}`));
+      expect(reason).toBeInstanceOf(ConnectionLostError);
+      expect(reason.code).toStrictEqual('08006');
+      expect(reason.processID).toStrictEqual(pid);
     });
 
     it("should leave 'close' without a reason when it was asked for", async () => {

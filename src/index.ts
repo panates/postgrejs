@@ -23,6 +23,7 @@ export * from './interfaces/query-result.js';
 export * from './interfaces/script-execute-options.js';
 export * from './interfaces/script-result.js';
 export * from './interfaces/statement-prepare-options.js';
+export * from './protocol/connection-lost-error.js';
 export * from './protocol/database-error.js';
 export * from './protocol/smart-buffer.js';
 export * from './types.js';

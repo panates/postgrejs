@@ -10,6 +10,7 @@ import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { Callback, Maybe } from '../types.js';
 import { Backend } from './backend.js';
 import { signatureHashOfCertificate } from './cert-signature.js';
+import { ConnectionLostError } from './connection-lost-error.js';
 import { DatabaseError } from './database-error.js';
 import { Frontend } from './frontend.js';
 import { Protocol } from './protocol.js';
@@ -856,21 +857,8 @@ export class PgSocket extends SafeEventEmitter {
     this.emit('close', reason);
   }
 
-  private _buildCloseReason(): Error {
-    const err = new Error(
-      'Connection terminated unexpectedly' +
-        (this._processID ? ` (pid ${this._processID})` : ''),
-    );
-    // Assigned rather than passed to the constructor, as abortError() does
-    // - same reason, the option is newer than this package's floor.
-    if (this._closeReason !== undefined) {
-      try {
-        (err as { cause?: unknown }).cause = this._closeReason;
-      } catch {
-        /* c8 ignore next */
-      }
-    }
-    return err;
+  private _buildCloseReason(): ConnectionLostError {
+    return new ConnectionLostError(this._processID, this._closeReason);
   }
 
   protected _handleError(err: unknown): void {
