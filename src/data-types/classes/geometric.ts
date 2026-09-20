@@ -133,4 +133,110 @@ export class LineSegment extends TwoPoints {
   }
 }
 
-export { TwoPoints };
+/**
+ * A `line`: the infinite line Ax + By + C = 0.
+ *
+ * PostgreSQL stores and prints the three coefficients whatever form the
+ * literal took - `line '((0,0),(1,1))'` comes back as `{1,-1,0}` - so
+ * that is what this carries. A pair of points would be a second, lossy
+ * spelling of the same thing, since a line through them is not the
+ * points.
+ */
+export class Line {
+  a: number;
+  b: number;
+  c: number;
+
+  constructor(a: number = 0, b: number = 0, c: number = 0) {
+    this.a = a;
+    this.b = b;
+    this.c = c;
+  }
+
+  /** As PostgreSQL prints it, so it casts back through `::line`. */
+  toString(): string {
+    return `{${this.a},${this.b},${this.c}}`;
+  }
+
+  toJSON(): string {
+    return this.toString();
+  }
+
+  static isLineLike(v: any): boolean {
+    return (
+      isPlainObject(v) &&
+      Object.keys(v).length === 3 &&
+      isNum(v.a) &&
+      isNum(v.b) &&
+      isNum(v.c)
+    );
+  }
+}
+
+/**
+ * The list of points `path` and `polygon` share. They are two classes
+ * rather than one for the same reason `Box` and `LineSegment` are: the
+ * values are indistinguishable by shape, so only the class can say which
+ * type a parameter is meant for.
+ */
+abstract class PointList {
+  points: Point[];
+
+  /** Plain `{x, y}` objects are accepted and kept as Points. */
+  constructor(points: (Point | { x: number; y: number })[] = []) {
+    this.points = points.map(p =>
+      p instanceof Point ? p : new Point(p.x, p.y),
+    );
+  }
+
+  toJSON(): string {
+    return this.toString();
+  }
+
+  protected join(): string {
+    let out = '';
+    const l = this.points.length;
+    let i: number;
+    for (i = 0; i < l; i++) {
+      if (i) out += ',';
+      out += this.points[i].toString();
+    }
+    return out;
+  }
+}
+
+/**
+ * A `path`: a series of points, open or closed.
+ *
+ * Closed is the default because it is PostgreSQL's - a literal written
+ * without brackets, `path '1,2,3,4'`, comes back closed. The flag is
+ * part of the value and not a formatting choice: the server stores it
+ * and prints `[...]` for an open path against `(...)` for a closed one.
+ */
+export class Path extends PointList {
+  isClosed: boolean;
+
+  constructor(
+    points: (Point | { x: number; y: number })[] = [],
+    isClosed: boolean = true,
+  ) {
+    super(points);
+    this.isClosed = isClosed;
+  }
+
+  /** As PostgreSQL prints it, so it casts back through `::path`. */
+  toString(): string {
+    const inner = this.join();
+    return this.isClosed ? `(${inner})` : `[${inner}]`;
+  }
+}
+
+/** A `polygon`: a closed series of points. */
+export class Polygon extends PointList {
+  /** As PostgreSQL prints it, so it casts back through `::polygon`. */
+  toString(): string {
+    return `(${this.join()})`;
+  }
+}
+
+export { PointList, TwoPoints };

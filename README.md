@@ -118,10 +118,12 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
   `12:00:00+03` and `09:00:00+00` the same value and change it on the way back. A `Date` is still accepted as a
   parameter, its own zone being its offset. A string without one is refused rather than resolved against the Node
   process's zone, which is not the session's.
-- **Geometric Types:** `point`, `circle`, `box` and `lseg` decode to `Point`, `Circle`, `Box` and `LineSegment`, each
-  printing what PostgreSQL prints. Two classes for `box` and `lseg` rather than one shape, because that is what tells
-  them apart: both carried `{x1, y1, x2, y2}` before, so an `lseg` parameter was read as a `box` and could not be
-  expressed at all. The plain object each type used to return is still accepted.
+- **Geometric Types:** all seven - `point`, `circle`, `box`, `lseg`, `line`, `path` and `polygon` - decode to a class
+  of their own, each printing what PostgreSQL prints. A class rather than a shared shape is what tells the pairs apart:
+  `box` and `lseg` both carried `{x1, y1, x2, y2}` before, so an `lseg` parameter was read as a `box` and could not be
+  expressed at all, and `Path` and `Polygon` are the same list of points. A `Path` also carries whether it is closed,
+  which is part of the value and not a formatting choice. The plain object each of the older types used to return is
+  still accepted, and `Line`, `Path` and `Polygon` take `{a, b, c}` and plain point arrays as parameters too.
 - **Ranges:** The six range types and their multiranges decode to a `Range` - the bounds as the element type's own
   JavaScript values, each end knowing whether it is included and each able to be absent, with `empty` kept distinct
   from the unbounded `(,)`. A multirange is a `Range[]`. `pg` hands all of these back as their literal text. A decoded

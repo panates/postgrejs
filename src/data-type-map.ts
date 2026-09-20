@@ -34,6 +34,7 @@ import { ArrayIntervalType, IntervalType } from './data-types/interval-type.js';
 import { ArrayJsonType, JsonType } from './data-types/json-type.js';
 import { ArrayJsonbType, JsonbType } from './data-types/jsonb-type.js';
 import { ArrayJsonPathType, JsonPathType } from './data-types/jsonpath-type.js';
+import { ArrayLineType, LineType } from './data-types/line-type.js';
 import { ArrayLsegType, LsegType } from './data-types/lseg-type.js';
 import {
   ArrayMacaddr8Type,
@@ -47,6 +48,12 @@ import {
   ArrayOidVectorType,
   OidVectorType,
 } from './data-types/oid-vector-type.js';
+import {
+  ArrayPathType,
+  ArrayPolygonType,
+  PathType,
+  PolygonType,
+} from './data-types/path-type.js';
 import { ArrayPointType, PointType } from './data-types/point-type.js';
 import { RangeTypes } from './data-types/range-type.js';
 import { ArrayTimeType, TimeType } from './data-types/time-type.js';
@@ -165,6 +172,9 @@ GlobalTypeMap.register([CircleType, ArrayCircleType]);
 GlobalTypeMap.register([PointType, ArrayPointType]);
 GlobalTypeMap.register([LsegType, ArrayLsegType]);
 GlobalTypeMap.register([BoxType, ArrayBoxType]);
+GlobalTypeMap.register([LineType, ArrayLineType]);
+GlobalTypeMap.register([PathType, ArrayPathType]);
+GlobalTypeMap.register([PolygonType, ArrayPolygonType]);
 
 GlobalTypeMap.register([Int2VectorType, ArrayInt2VectorType]);
 
