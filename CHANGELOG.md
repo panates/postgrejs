@@ -1,6 +1,6 @@
 ## Changelog
 
-### [v3.7.0](https://github.com/panates/postgrejs/compare/v3.6.1...v3.7.0) - 
+### [v3.7.0](https://github.com/panates/postgrejs/compare/v3.6.1...v3.7.0) -  20 September 2026 
 
 #### Breaking Changes :warning:
 
@@ -32,7 +32,10 @@
 
 #### 📖 Documentation Changes
 
+- docs: cut the Features list back down @Eray Hanoğlu 
+- docs: drop the Features section @Eray Hanoğlu 
 - docs: bring the data type counts up to what is registered @Eray Hanoğlu 
+- docs: give the documentation link its own heading @Eray Hanoğlu 
 
 #### ⚡️ Performance Improvments
 
