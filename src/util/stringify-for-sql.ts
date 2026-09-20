@@ -4,6 +4,7 @@ import { UuidType } from '../data-types/uuid-type.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { EncodeTextFunction } from '../types.js';
 import { escapeLiteral } from './escape-literal.js';
+import { formatDateParam } from './format-datetime.js';
 
 export function stringifyArrayForSQL(
   v: any[],
@@ -65,6 +66,11 @@ export function stringifyValueForSQL(
   if (typeof v === 'bigint') return v.toString();
   if (typeof v === 'string' && UuidType.isType(v))
     return escapeLiteral('' + v) + '::uuid';
+  // A Date is written bare, with its offset and no cast, so that it
+  // means the same inlined as it does bound - the server resolves it
+  // from the column either way. See format-datetime.ts's
+  // formatDateParam().
+  if (v instanceof Date) return escapeLiteral(formatDateParam(v, options));
   if (typeof v === 'object') return stringifyObjectForSQL(v, options);
   // A string is deliberately written bare. determine() would answer
   // varchar, but an unadorned literal is `unknown` and takes the type of

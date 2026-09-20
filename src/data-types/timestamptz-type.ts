@@ -85,6 +85,15 @@ export const TimestamptzType: DataType = {
     );
   },
 
+  /**
+   * Unreachable through `determine()`: TimestampType, TimeType and
+   * DateType are all consulted before this one and every Date is claimed
+   * by one of them. Nothing depends on it - a Date parameter goes out
+   * unspecified and the column decides what it means (see
+   * format-datetime.ts's formatDateParam) - so this stays as the
+   * truthful answer to a direct call rather than being narrowed to
+   * describe a walk it never wins.
+   */
   isType(v: any): boolean {
     return v instanceof Date;
   },

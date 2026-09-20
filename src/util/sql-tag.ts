@@ -3,6 +3,7 @@ import { DataTypeMap, GlobalTypeMap } from '../data-type-map.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import { escapeIdentifier } from './escape-identifier.js';
 import { escapeLiteral } from './escape-literal.js';
+import { formatDateParam } from './format-datetime.js';
 
 /**
  * A statement built by the `sql` tag: its text with the values pulled out.
@@ -187,6 +188,10 @@ function encodeLiteral(
     v = v.value;
   }
   if (v == null) return 'null';
+  // See stringify-for-sql.ts: a Date goes in bare, with its offset and
+  // no cast, so an inlined one means what a bound one means.
+  if (oid == null && v instanceof Date)
+    return escapeLiteral(formatDateParam(v, options));
   oid = oid ?? typeMap.determine(v);
   /* c8 ignore start - typeMap.determine() always falls back to the
      "unknown" oid rather than returning null/undefined, so this can't

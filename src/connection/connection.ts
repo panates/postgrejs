@@ -37,6 +37,14 @@ const CAPTURE_STACK_TRACE_LIMIT = 5;
 /** Names the savepoint a nested transaction() scope takes. */
 let transactionScopeCounter = 0;
 
+/**
+ * A value the Bind path sends as unspecified text rather than as a
+ * declared type - a `Date`, or an array of them. See `_query()`.
+ */
+function isDateParam(v: any): boolean {
+  return v instanceof Date || (Array.isArray(v) && v[0] instanceof Date);
+}
+
 export class Connection extends SafeEventEmitter implements AsyncDisposable {
   protected _pool?: Pool;
   protected _intlCon: IntlConnection;
@@ -771,7 +779,20 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   ): Promise<QueryResult> {
     const typeMap = options?.typeMap || GlobalTypeMap;
     const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
-      prm instanceof BindParam ? prm.oid : typeMap.determine(prm),
+      prm instanceof BindParam
+        ? prm.oid
+        : // A Date goes out unspecified, so the column decides what it
+          // means. Declaring `timestamp` for it - which determine() does,
+          // since TimestamptzType.isType is unreachable behind it - moved
+          // the instant by the client's offset on the way into a
+          // `timestamptz` column, and declaring `timestamptz` would have
+          // moved the wall clock by it on the way into a `timestamp` one.
+          // One Date cannot say which it is; the server can, and `pg`
+          // sends them this way for the same reason. The text that goes
+          // with it is formatDateParam()'s, in getBindMessage().
+          isDateParam(prm)
+          ? 0
+          : typeMap.determine(prm),
     );
 
     const effectiveAutoCommit =
