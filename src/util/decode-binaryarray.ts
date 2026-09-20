@@ -45,7 +45,14 @@ export function decodeBinaryArray<T = any>(
 
   for (let d = 0; d < ndims; d++) {
     dims[d] = io.readInt32BE();
-    io.readInt32BE(); // LBound
+    // The lower bound is read and dropped, deliberately. A server-side
+    // array really can have a non-default one, and a JavaScript array is
+    // always 0-based, so carrying it would mean deciding what a decoded
+    // array is supposed to represent - a wider change than the encoder's.
+    // Note that this is also what hid the encoder writing 0: a value
+    // written and read back through this client looked right, and only
+    // SQL against the stored value saw the difference.
+    io.readInt32BE();
   }
   return readDim(0);
 }
