@@ -21,6 +21,12 @@ export async function testParse(
   const reg = GlobalTypeMap.get(dataTypeId);
   if (!reg) throw new Error(`Data type "${dataTypeId}" is not registered.`);
   const typeName = reg.name;
+  // A column named by fetchAsString comes back exactly as the server
+  // rendered it, so its declared jsType is 'string' whatever the type
+  // would otherwise have produced.
+  const expectedJsType = mappingOptions?.fetchAsString?.includes(reg.oid)
+    ? 'string'
+    : reg.jsType;
   let sql;
   if (reg.elementsOID) {
     const s = stringifyValueForSQL(input, mappingOptions);
@@ -42,7 +48,7 @@ export async function testParse(
 
   if (reg.elementsOID) {
     expect(resp.fields?.[0].dataTypeId).toStrictEqual(reg.oid);
-    expect(resp.fields?.[0].jsType).toStrictEqual(reg.jsType);
+    expect(resp.fields?.[0].jsType).toStrictEqual(expectedJsType);
     if (reg.oid !== DataTypeOIDs.char)
       expect(resp.fields?.[0].elementDataTypeId).toStrictEqual(reg.elementsOID);
     expect(resp.rows?.[0][0]).toStrictEqual(output);
@@ -50,7 +56,7 @@ export async function testParse(
     let i: number;
     let v: any;
     for ([i, v] of output.entries()) {
-      expect(resp.fields?.[i].jsType).toStrictEqual(reg.jsType);
+      expect(resp.fields?.[i].jsType).toStrictEqual(expectedJsType);
       if (reg.oid !== DataTypeOIDs.char)
         expect(resp.fields?.[i].dataTypeId).toStrictEqual(reg.oid);
       let n = resp.rows?.[0][i];
@@ -74,6 +80,10 @@ export async function testEncode(
     throw new Error(
       `Data type "0x${dataTypeId.toString(16)}" is not registered.`,
     );
+  // See testParse().
+  const expectedJsType = mappingOptions?.fetchAsString?.includes(reg.oid)
+    ? 'string'
+    : reg.jsType;
   let sql;
   let params;
   if (reg.elementsOID) {
@@ -92,13 +102,13 @@ export async function testEncode(
   output = output === undefined ? input : output;
   if (reg.elementsOID) {
     expect(resp.fields?.[0].dataTypeId).toStrictEqual(reg.oid);
-    expect(resp.fields?.[0].jsType).toStrictEqual(reg.jsType);
+    expect(resp.fields?.[0].jsType).toStrictEqual(expectedJsType);
     if (reg.oid !== DataTypeOIDs.char)
       expect(resp.fields?.[0].elementDataTypeId).toStrictEqual(reg.elementsOID);
     expect(resp.rows?.[0][0]).toStrictEqual(output);
   } else {
     for (const [i, v] of output.entries()) {
-      expect(resp.fields?.[i].jsType).toStrictEqual(reg.jsType);
+      expect(resp.fields?.[i].jsType).toStrictEqual(expectedJsType);
       if (reg.oid !== DataTypeOIDs.char)
         expect(resp.fields?.[i].dataTypeId).toStrictEqual(reg.oid);
       expect(resp.rows?.[0][i]).toStrictEqual(v);

@@ -39,13 +39,12 @@ export const TimeType: DataType = {
     offset: number = 0,
     _len: number,
     options: DataMappingOptions,
-  ): Date | number | string {
-    const fetchAsString = options.fetchAsString?.includes(DataTypeOIDs.time);
+  ): Date | number {
     const hi = v.readInt32BE(offset);
     const lo = v.readUInt32BE(offset + 4);
 
     let d = new Date((lo + hi * timeMul) / 1000);
-    if (fetchAsString || !options.utcDates) {
+    if (!options.utcDates) {
       d = new Date(
         d.getUTCFullYear(),
         d.getUTCMonth(),
@@ -56,11 +55,10 @@ export const TimeType: DataType = {
         d.getUTCMilliseconds(),
       );
     }
-    return fetchAsString ? dateToTimeString(d) : d;
+    return d;
   },
 
-  decodeText(v: string, options: DataMappingOptions): Date | number | string {
-    if (options.fetchAsString?.includes(DataTypeOIDs.time)) return v;
+  decodeText(v: string, options: DataMappingOptions): Date | number {
     return parseTime(v, false, options.utcDates);
   },
 
@@ -70,7 +68,7 @@ export const TimeType: DataType = {
     offset: number,
     len: number,
     options: DataMappingOptions,
-  ): Date | number | string {
+  ): Date | number {
     return TimeType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,
@@ -87,20 +85,6 @@ export const TimeType: DataType = {
     );
   },
 };
-
-function padZero(v: number): string {
-  return v < 9 ? '0' + v : '' + v;
-}
-
-function dateToTimeString(d: Date): string {
-  return (
-    padZero(d.getHours()) +
-    ':' +
-    padZero(d.getMinutes()) +
-    ':' +
-    padZero(d.getSeconds())
-  );
-}
 
 export const ArrayTimeType: DataType = {
   ...TimeType,

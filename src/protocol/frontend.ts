@@ -57,6 +57,13 @@ export namespace Frontend {
     paramTypes?: Maybe<OID>[];
     params?: any[];
     queryOptions: QueryOptions;
+    /**
+     * Result format codes to write, overriding queryOptions.columnFormat.
+     * Set by callers that know the statement's column types and have
+     * turned fetchAsString's OID list into positional codes - see
+     * resolveColumnFormats().
+     */
+    columnFormat?: Protocol.DataFormat | Protocol.DataFormat[];
   }
 
   export interface ParseMessageArgs {
@@ -219,9 +226,11 @@ export class Frontend {
     io.writeCString(args.statement || '', 'utf8');
     const { params, paramTypes, queryOptions } = args;
     const columnFormat =
-      queryOptions.columnFormat != null
-        ? queryOptions.columnFormat
-        : DEFAULT_COLUMN_FORMAT;
+      args.columnFormat != null
+        ? args.columnFormat
+        : queryOptions.columnFormat != null
+          ? queryOptions.columnFormat
+          : DEFAULT_COLUMN_FORMAT;
 
     if (params && params.length) {
       io.writeInt16BE(params.length);

@@ -33,6 +33,10 @@ import {
 } from '../util/copy-from-rows.js';
 import { escapeLiteral } from '../util/escape-literal.js';
 import { getParsers } from '../util/get-parsers.js';
+import {
+  fetchAsStringEqual,
+  resolveColumnFormats,
+} from '../util/resolve-column-formats.js';
 import { resolveRowDecoder, resolveRowType } from '../util/row-decoder.js';
 import { wrapRowDescription } from '../util/wrap-row-description.js';
 import type { Connection } from './connection.js';
@@ -43,6 +47,10 @@ const DataFormat = Protocol.DataFormat;
 interface ExecuteReusedParserCacheEntry {
   typeMap: DataTypeMap;
   columnFormat: Protocol.DataFormat | Protocol.DataFormat[];
+  // Not implied by columnFormat: a column the caller made text explicitly
+  // and one fetchAsString turned text carry the same format code but get
+  // different parsers, so the list has to be compared in its own right.
+  fetchAsString: Maybe<OID[]>;
   parsers: AnyParseFunction[];
   resultFields: FieldInfo[];
 }
@@ -77,6 +85,9 @@ interface PreparedCacheEntry {
 interface PipelinePlan {
   name?: string;
   fields?: Protocol.RowDescription[];
+  // The result format codes this statement's Bind actually carried, so the
+  // parsers built when its rows come back agree with what was asked for.
+  columnFormat?: Protocol.DataFormat | Protocol.DataFormat[];
 }
 
 /**
@@ -651,11 +662,15 @@ export class IntlConnection extends SafeEventEmitter {
               break;
             case Protocol.BackendMessageCode.RowDescription:
               fields = msg.fields;
-              parsers = getParsers(typeMap, fields);
+              // Simple Query has no Bind at all, so every column is
+              // already text - a fetchAsString column simply comes back
+              // unparsed.
+              parsers = getParsers(typeMap, fields, options);
               current.fields = wrapRowDescription(
                 typeMap,
                 fields,
                 DataFormat.text,
+                options,
               );
               current.rows = [];
               break;
@@ -821,7 +836,13 @@ export class IntlConnection extends SafeEventEmitter {
       }
     }
 
-    if (!this._earnsAName(key))
+    // A fetchAsString query needs its RowDescription before the Bind that
+    // asks for those columns as text, and only a named statement has one
+    // in hand ahead of time. Preparing on first sight pays a single
+    // Parse+Describe round trip per connection instead of leaving every
+    // call until the statement earns a name asking for the whole row as
+    // text (what queryOnce() falls back to).
+    if (!options.fetchAsString?.length && !this._earnsAName(key))
       return this.queryOnce(sql, paramTypes, params, options, savepoint);
 
     const name = 'C_' + ++this._preparedCounter;
@@ -914,6 +935,23 @@ export class IntlConnection extends SafeEventEmitter {
       let error: Error | undefined;
       const rowDecoder = resolveRowDecoder(options);
 
+      // fetchAsString names OIDs, but Bind's result format codes are
+      // positional - and this path's Describe answers only after the Bind
+      // that would have to carry them. With no column types to map the
+      // list onto, the whole row is asked for as text instead: the listed
+      // columns then arrive exactly as the server renders them, which is
+      // what was asked for, and the rest cost a text decode.
+      //
+      // Only `prepare: false` normally reaches here with a list set -
+      // _queryCached() prepares a fetchAsString query on first sight
+      // precisely so it can send per-column codes from the second call on
+      // (from the first, for every connection that has seen the SQL).
+      const columnFormat = options.fetchAsString?.length
+        ? DataFormat.text
+        : options.columnFormat != null
+          ? options.columnFormat
+          : DEFAULT_COLUMN_FORMAT;
+
       // See executeReused() for what a savepoint riding along does to the
       // CommandComplete stream.
       let leadingCommandTags = savepoint ? 1 : 0;
@@ -923,7 +961,13 @@ export class IntlConnection extends SafeEventEmitter {
         .sendExtendedQueryMessages(
           {
             parse: { sql, paramTypes },
-            bind: { typeMap, paramTypes, params, queryOptions: options },
+            bind: {
+              typeMap,
+              paramTypes,
+              params,
+              queryOptions: options,
+              columnFormat,
+            },
             describe: { type: 'P' },
             execute: { fetchCount: options.fetchCount || 100 },
             before: savepoint ? 'SAVEPOINT ' + savepoint : undefined,
@@ -942,11 +986,12 @@ export class IntlConnection extends SafeEventEmitter {
               case Protocol.BackendMessageCode.PortalSuspended:
                 break;
               case Protocol.BackendMessageCode.RowDescription:
-                parsers = getParsers(typeMap, msg.fields);
+                parsers = getParsers(typeMap, msg.fields, options);
                 resultFields = wrapRowDescription(
                   typeMap,
                   msg.fields,
-                  options.columnFormat || DEFAULT_COLUMN_FORMAT,
+                  columnFormat,
+                  options,
                 );
                 result.fields = resultFields;
                 result.rowType = resolveRowType(options);
@@ -1093,16 +1138,14 @@ export class IntlConnection extends SafeEventEmitter {
     cachedFields: Protocol.RowDescription[],
     typeMap: DataTypeMap,
     options: QueryOptions,
+    columnFormat: Protocol.DataFormat | Protocol.DataFormat[],
   ): { parsers: AnyParseFunction[]; resultFields: FieldInfo[] } {
-    const columnFormat =
-      options.columnFormat != null
-        ? options.columnFormat
-        : DEFAULT_COLUMN_FORMAT;
     const cached = this._executeReusedParserCache.get(cachedFields);
     if (
       cached &&
       cached.typeMap === typeMap &&
-      columnFormatsEqual(cached.columnFormat, columnFormat)
+      columnFormatsEqual(cached.columnFormat, columnFormat) &&
+      fetchAsStringEqual(cached.fetchAsString, options.fetchAsString)
     ) {
       return { parsers: cached.parsers, resultFields: cached.resultFields };
     }
@@ -1110,11 +1153,17 @@ export class IntlConnection extends SafeEventEmitter {
       ...f,
       format: Array.isArray(columnFormat) ? columnFormat[i] : columnFormat,
     }));
-    const parsers = getParsers(typeMap, fields);
-    const resultFields = wrapRowDescription(typeMap, fields, columnFormat);
+    const parsers = getParsers(typeMap, fields, options);
+    const resultFields = wrapRowDescription(
+      typeMap,
+      fields,
+      columnFormat,
+      options,
+    );
     this._executeReusedParserCache.set(cachedFields, {
       typeMap,
       columnFormat,
+      fetchAsString: options.fetchAsString,
       parsers,
       resultFields,
     });
@@ -1205,6 +1254,16 @@ export class IntlConnection extends SafeEventEmitter {
           }
           if (key != null && plan.name) named.set(key, plan);
         }
+        // Only a statement whose columns are already known can carry
+        // per-column codes; the rest fall back to asking for the whole row
+        // as text, exactly as queryOnce() does and for the same reason.
+        plan.columnFormat = plan.fields
+          ? resolveColumnFormats(plan.fields, options)
+          : options.fetchAsString?.length
+            ? DataFormat.text
+            : options.columnFormat != null
+              ? options.columnFormat
+              : DEFAULT_COLUMN_FORMAT;
         plans.push(plan);
         statements.push({
           // Per statement, not per pipeline: the statements differ, so a
@@ -1219,6 +1278,7 @@ export class IntlConnection extends SafeEventEmitter {
             paramTypes: r.paramTypes,
             params: r.params,
             queryOptions: options,
+            columnFormat: plan.columnFormat,
           },
           describe: sendDescribe ? { type: 'P' as const } : undefined,
           // Unlimited, never options.fetchCount: a suspended portal would
@@ -1260,6 +1320,7 @@ export class IntlConnection extends SafeEventEmitter {
                     fields,
                     typeMap,
                     options,
+                    plan.columnFormat ?? DEFAULT_COLUMN_FORMAT,
                   );
                   result.fields = resultFields;
                   result.rowType = resolveRowType(options);
@@ -1369,11 +1430,13 @@ export class IntlConnection extends SafeEventEmitter {
       const rowDecoder = resolveRowDecoder(options);
       let parsers: AnyParseFunction[] | undefined;
       let resultFields: FieldInfo[] | undefined;
+      const columnFormat = resolveColumnFormats(cachedFields, options);
       if (cachedFields) {
         const resolved = this._resolveReusedParsers(
           cachedFields,
           typeMap,
           options,
+          columnFormat,
         );
         parsers = resolved.parsers;
         resultFields = resolved.resultFields;
@@ -1389,6 +1452,7 @@ export class IntlConnection extends SafeEventEmitter {
         paramTypes,
         params,
         queryOptions: options,
+        columnFormat,
       }));
 
       this.runningQueryCount++;
@@ -1505,11 +1569,18 @@ export class IntlConnection extends SafeEventEmitter {
       let error: Error | undefined;
       const rowDecoder = resolveRowDecoder(options);
 
+      // The whole point of reusing a prepared statement here: its
+      // RowDescription is already in hand, so fetchAsString's OID list can
+      // become the per-column result format codes this Bind carries, with
+      // no extra round trip to find out what the columns are.
+      const columnFormat = resolveColumnFormats(cachedFields, options);
+
       if (cachedFields) {
         const resolved = this._resolveReusedParsers(
           cachedFields,
           typeMap,
           options,
+          columnFormat,
         );
         parsers = resolved.parsers;
         resultFields = resolved.resultFields;
@@ -1533,6 +1604,7 @@ export class IntlConnection extends SafeEventEmitter {
               paramTypes,
               params,
               queryOptions: options,
+              columnFormat,
             },
             execute: { fetchCount: options.fetchCount || 100 },
             before: savepoint ? 'SAVEPOINT ' + savepoint : undefined,

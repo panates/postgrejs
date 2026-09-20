@@ -43,21 +43,11 @@ export const TimestamptzType: DataType = {
     buf.writeUInt32BE(lo);
   },
 
-  decodeBinary(
-    v: Buffer,
-    offset: number = 0,
-    _len: number,
-    options: DataMappingOptions,
-  ): Date | number | string {
-    const fetchAsString = options.fetchAsString?.includes(
-      DataTypeOIDs.timestamptz,
-    );
+  decodeBinary(v: Buffer, offset: number = 0): Date | number {
     const hi = v.readInt32BE(offset);
     const lo = v.readUInt32BE(offset + 4);
-    if (lo === 0xffffffff && hi === 0x7fffffff)
-      return fetchAsString ? 'infinity' : Infinity;
-    if (lo === 0x00000000 && hi === -0x80000000)
-      return fetchAsString ? '-infinity' : -Infinity;
+    if (lo === 0xffffffff && hi === 0x7fffffff) return Infinity;
+    if (lo === 0x00000000 && hi === -0x80000000) return -Infinity;
 
     // Shift from 2000 to 1970. A timestamptz is an absolute instant, so
     // this is already the value - there is nothing to reinterpret against
@@ -68,21 +58,11 @@ export const TimestamptzType: DataType = {
     // ambiguous read as wall-clock, so the rebuild silently picked the
     // other one and moved the value an hour. The text path never did that,
     // so the same row decoded binary and text disagreed.
-    const d = new Date((lo + hi * timeMul) / 1000 + timeShift);
-    return fetchAsString ? dateToTimestamptzString(d) : d;
+    return new Date((lo + hi * timeMul) / 1000 + timeShift);
   },
 
-  decodeText(v: string, options: DataMappingOptions): Date | number | string {
-    const d = parseDateTimeTz(v, options.utcDates);
-    if (options.fetchAsString?.includes(DataTypeOIDs.timestamptz)) {
-      if (d instanceof Date) return dateToTimestamptzString(d);
-      if (d === Infinity) return 'infinity';
-      if (d === -Infinity) return '-infinity';
-      // parseDateTimeTz() only ever returns a Date, Infinity or -Infinity,
-      // never anything else, so this is unreachable.
-      return '';
-    }
-    return d;
+  decodeText(v: string, options: DataMappingOptions): Date | number {
+    return parseDateTimeTz(v, options.utcDates);
   },
 
   // Reads PostgreSQL's own timestamp shape straight from the wire bytes.
@@ -91,22 +71,14 @@ export const TimestamptzType: DataType = {
   // scanned a character at a time. Anything not in that exact shape
   // (infinity, a BC suffix, an LMT-style offset) has no Date to give back
   // and takes the original path, which still needs the string.
-  //
-  // Note this type's decodeText always parses first and only branches on
-  // fetchAsString afterward (unlike date/time/timestamp, which early-return
-  // the raw string), so the same order is kept here.
   decodeTextBuffer(
     buf: Buffer,
     offset: number,
     len: number,
     options: DataMappingOptions,
-  ): Date | number | string {
+  ): Date | number {
     const d = parsePgTimestampBuffer(buf, offset, offset + len);
-    if (d !== undefined) {
-      return options.fetchAsString?.includes(DataTypeOIDs.timestamptz)
-        ? dateToTimestamptzString(d)
-        : d;
-    }
+    if (d !== undefined) return d;
     return TimestamptzType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,
@@ -117,10 +89,6 @@ export const TimestamptzType: DataType = {
     return v instanceof Date;
   },
 };
-
-function dateToTimestamptzString(d: Date): string {
-  return d.toISOString().replace('T', ' ');
-}
 
 export const ArrayTimestamptzType: DataType = {
   ...TimestamptzType,
