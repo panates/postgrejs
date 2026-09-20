@@ -1,8 +1,9 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
-import type { Circle, DataType } from '../interfaces/data-type.js';
+import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import type { Maybe } from '../types.js';
+import { Circle } from './classes/geometric.js';
 
 const CIRCLE_PATTERN1 =
   /^< *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *(-?\d+\.?\d*) *>$/;
@@ -15,7 +16,7 @@ const CIRCLE_PATTERN4 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 export const CircleType: DataType = {
   name: 'circle',
   oid: DataTypeOIDs.circle,
-  jsType: 'object',
+  jsType: 'Circle',
 
   encodeText(v: Circle): string {
     return `<(${v.x},${v.y}),${v.r}>`;
@@ -28,11 +29,11 @@ export const CircleType: DataType = {
   },
 
   decodeBinary(v: Buffer, offset: number = 0): Circle {
-    return {
-      x: v.readDoubleBE(offset),
-      y: v.readDoubleBE(offset + 8),
-      r: v.readDoubleBE(offset + 16),
-    } as Circle;
+    return new Circle(
+      v.readDoubleBE(offset),
+      v.readDoubleBE(offset + 8),
+      v.readDoubleBE(offset + 16),
+    );
   },
 
   decodeText(v: string): Maybe<Circle> {
@@ -42,11 +43,7 @@ export const CircleType: DataType = {
       v.match(CIRCLE_PATTERN3) ||
       v.match(CIRCLE_PATTERN4);
     if (!m) return undefined;
-    return {
-      x: parseFloat(m[1]),
-      y: parseFloat(m[2]),
-      r: parseFloat(m[3]),
-    } as Circle;
+    return new Circle(parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3]));
   },
 
   // See box-type.ts's decodeTextBuffer comment - same rationale.
@@ -62,14 +59,9 @@ export const CircleType: DataType = {
     );
   },
 
+  // See point-type.ts: the plain object shape is still accepted.
   isType(v: any): boolean {
-    return (
-      typeof v === 'object' &&
-      Object.keys(v).length === 3 &&
-      typeof v.x === 'number' &&
-      typeof v.y === 'number' &&
-      typeof v.r === 'number'
-    );
+    return v instanceof Circle || Circle.isCircleLike(v);
   },
 };
 

@@ -1,6 +1,8 @@
 import * as net from 'node:net';
 import * as tls from 'node:tls';
 import { expect } from 'expect';
+import { ConnectionState } from '../../src/constants.js';
+import { ConnectionLostError } from '../../src/protocol/connection-lost-error.js';
 import { PgSocket } from '../../src/protocol/pg-socket.js';
 
 describe('PgSocket', () => {
@@ -119,6 +121,57 @@ describe('PgSocket', () => {
       });
       socket._handleAuthenticationMessage();
       expect(fired).toStrictEqual(true);
+    });
+  });
+
+  describe('_handleError()', () => {
+    // A socket error is reachable live only by breaking the network, so
+    // this drives the handler directly - the close that Node always sends
+    // after an 'error' is what the live tests in
+    // test/B-connection/21-connection-lost.spec.ts cover.
+    const capture = (socket: any) => {
+      let rejected: any;
+      socket._captureQueue.push({
+        callback: () => undefined,
+        resolve: () => undefined,
+        reject: (e: any) => (rejected = e),
+      });
+      return () => rejected;
+    };
+
+    it('should reject what is in flight with a ConnectionLostError', () => {
+      // Rather than a raw ECONNRESET, whose `code` is a Node errno where
+      // a caller branching on `code` expects a SQLSTATE. The socket error
+      // is kept as the cause.
+      const socket: any = new PgSocket({});
+      socket._state = ConnectionState.READY;
+      socket._processID = 4242;
+      const rejected = capture(socket);
+      const cause = new Error('read ECONNRESET');
+      socket._handleError(cause);
+      const err = rejected();
+      expect(err).toBeInstanceOf(ConnectionLostError);
+      expect(err.code).toStrictEqual('08006');
+      expect(err.processID).toStrictEqual(4242);
+      expect((err as { cause?: unknown }).cause).toBe(cause);
+    });
+
+    it('should hand over the error itself when there was no connection yet', () => {
+      // Nothing was lost before READY - the failure to connect is the
+      // useful thing, and calling it a lost connection would be a lie.
+      const socket: any = new PgSocket({});
+      const rejected = capture(socket);
+      const cause = new Error('connect ECONNREFUSED');
+      socket._handleError(cause);
+      expect(rejected()).toBe(cause);
+    });
+
+    it('should wrap a non-Error the same way', () => {
+      const socket: any = new PgSocket({});
+      const rejected = capture(socket);
+      socket._handleError('something odd');
+      expect(rejected()).toBeInstanceOf(Error);
+      expect(rejected().message).toStrictEqual('something odd');
     });
   });
 

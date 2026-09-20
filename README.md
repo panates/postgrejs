@@ -56,8 +56,7 @@ $ npm install postgrejs --save
 
 ## Documentation
 
-Please read :small_orange_diamond: [DOCUMENTATION](https://www.postgrejs.com/) :small_orange_diamond: for detailed
-usage.
+### Please read 🔸 [DOCUMENTATION](https://www.postgrejs.com/) 🔸 for detailed usage
 
 Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3.6.md) - `query()` no longer stops at
 100 rows, and `fetchAsString` now returns the server's own text.
@@ -70,82 +69,6 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
 - **Promise-based API:** Every asynchronous operation returns a promise - no callbacks to wrangle.
 - **Rigorously tested:** A test suite covering the wire protocol, every data type, and connection-handling edge case,
   run on every push against PostgreSQL 12 through 18.
-
-## Features
-
-- **Connection Management:** Supports both single connection and advanced pooling, providing scalability and efficient
-  resource management. A connection that dies rather than being closed says so: `'close'` carries the reason, and a
-  pooled one is reported on the pool's `'destroy'` and `'error'` events - so an admin kill or a failover is
-  distinguishable from an ordinary eviction, including when the connection was sitting idle with no query to reject.
-  The reason is a `ConnectionLostError` carrying the backend's `processID`, and `code` `'08006'` so branching on it
-  needs no `instanceof`.
-- **Binary Wire Protocol:** Implements the full binary wire protocol for all PostgreSQL data types, ensuring robust and
-  efficient data handling.
-- **Prepared Statements:** Named prepared statements for optimized query execution, and a per-connection cache that
-  reuses one automatically for SQL the connection has run before - a repeated query costs `Bind`/`Execute` instead of
-  parsing again, worth 3.2x on fifty concurrent calls and 2.9x again on a query inside an open transaction. On by
-  default, `prepare: false` to opt out.
-- **Statement-Level Rollback:** Inside a transaction each statement runs under a savepoint of its own, so a failed
-  statement leaves the transaction usable instead of aborting the whole block. The `SAVEPOINT`/`RELEASE` pair travels
-  in the statement's own round trip rather than costing one each - 36µs for the pair, against 507µs sent separately.
-  `rollbackOnError: false` to opt out.
-- **Complete Results:** `query()` returns every row the statement produced. A `fetchCount` limit is a limit rather
-  than a silent cap: the result carries `suspended: true` when the server stopped at it, so a prefix can never be
-  mistaken for the whole answer. `0` means unlimited, as it does in the protocol.
-- **Cursors:** Features fast double-link cache cursors for efficient data retrieval, iterable with `for await` a row
-  at a time and closed when the loop ends - by exhaustion, a `break`, or a throw. A cursor reads through a portal, and
-  a portal lives as long as the transaction that created it - `Pool.query()` keeps its connection out of the pool
-  until the cursor closes, and on a bare `Connection` open the cursor inside a transaction if anything else will run
-  on that connection meanwhile.
-- **Scoped Transactions:** `transaction(fn)` commits when the callback returns and rolls back when it throws, on a
-  connection or straight from the pool. A call made while a transaction is already open takes a savepoint rather than
-  a second `BEGIN`, so a nested scope that fails rolls back its own work and leaves the outer transaction standing.
-- **Batch Execution:** `executeBatch()` runs one prepared statement over many parameter sets under a single `Sync`,
-  reporting each set's row count - 1000 updates in 20ms where the same calls pipelined individually take 188ms.
-- **Notifications:**  High-level implementation for PostgreSQL notifications (LISTEN/NOTIFY), enabling real-time data
-  updates. Channel names are quoted rather than pattern-matched, so any name PostgreSQL accepts works.
-- **Extensibility:** Extensible data-types and type mapping to accommodate custom requirements. A type can set
-  `inferrable: false` to stay out of parameter type inference while still decoding its own columns.
-- **Parameter Binding:**  Bind parameters with OID mappings for precise and efficient query execution.
-- **Array Handling:** Supports multidimensional arrays with fast binary encoding/decoding.
-- **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
-- **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure
-  authentication.
-- **Bulk Import/Export:** `COPY TO STDOUT` and `COPY FROM STDIN` as Node streams, with backpressure in both directions,
-  plus `copyFromRows()`, which encodes rows straight into binary `COPY` - around 4x faster than the CSV equivalent and
-  no text escaping to get wrong. Takes arrays or objects from anything iterable, so a file larger than memory streams in.
-- **Query Pipelining:** Pooled queries can share connections so a burst is not capped by pool size - opt-in per call.
-  `pipeline()` goes further for a known set of statements: several different ones travel under a single `Sync`, so they
-  cost one round trip instead of one each and commit or roll back together - around 2x faster than the same calls
-  through `Promise.all()`, which is already pipelined. Statements the connection has run before bind to their cached
-  prepared names, so a repeated set sends no `Parse` at all - worth 2.5x on twenty statements.
-- **Dynamic SQL:** A `sql` tag builds statements from composable fragments - values become parameters, names are quoted,
-  and `sql.values()`/`sql.set()` write INSERT and UPDATE clauses from objects.
-- **Multiple Hosts:** A connection can list several servers and pick one by role
-  (`target_session_attrs`), so a cluster that has failed over is found on the next connect.
-- **Large Objects:** File-like access to binary data stored outside the row - seek, partial reads, streams - for
-  values past what a `bytea` column can hold.
-- **Logical Replication:** `LogicalReplication` streams committed row changes as an async iterable, decoding
-  `pgoutput` itself, with client-side filtering and positions confirmed as you consume.
-- **Channel Binding:** SCRAM authentication binds itself to the TLS channel when the server offers it, the way libpq
-  does by default, so a relayed login is detected even where the certificate is not verified.
-- **Two-phase commit:** `prepareTransaction()` leaves a transaction waiting under a name for `commitPrepared()`/
-  `rollbackPrepared()`, from any connection.
-- **Cancellation:** Any call takes an `AbortSignal`, which also gives per-query timeouts via `AbortSignal.timeout()`.
-- **Flexible Data Retrieval:**  Can return both array and object rows to suit different data processing needs.
-- **Values as Text:** `fetchAsString: [DataTypeOIDs.int8]` asks the server for those columns in its own text format
-  and hands the bytes back unparsed - so `count(*)` arrives as `'3'`, one consistent type where a decoded `int8` is a
-  `number` or a `BigInt` depending on magnitude. Any OID, arrays included. The string is PostgreSQL's own rendering
-  rather than one reconstructed from the binary value, so it cannot drift from what the server would print.
-- **Resource Management:** Auto disposal of resources with the "using" syntax
-  ([TC39 Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management)), ensuring
-  efficient resource cleanup.
-- **Long Cancel Key:** Opt in to protocol 3.2 (PostgreSQL 18+) with `longCancelKey`, so a `cancel()` in progress can't
-  be forged by an attacker guessing a short secret key.
-- **Legacy Function Call Protocol:** `callFunction()` calls a function by OID directly over the wire, bypassing SQL
-  entirely - kept for protocol completeness even though `SELECT func(...)` covers the same ground.
-- **Graceful Protocol Renegotiation:** A server that doesn't recognize a requested protocol version or startup option
-  reports back instead of erroring out, surfaced on `Connection.protocolNegotiation`.
 
 ## Feature Comparison
 
@@ -204,10 +127,10 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Multiple hosts                    |           ✅           |          ❌           |        ✅        |
 | LISTEN/NOTIFY                     |           ✅           |   🟡 <sup>15</sup>    |        ✅        |
 | ***Data types***                  |                        |                       |                  |
-| Text encoders                     |           56           | generic <sup>16</sup> |        14        |
-| Text decoders                     |           56           |          44           | 12 <sup>17</sup> |
-| Binary encoders                   |           56           |          ❌           |        ❌        |
-| Binary decoders                   |           56           |          16           |        ❌        |
+| Text encoders                     |          125           | generic <sup>16</sup> |        14        |
+| Text decoders                     |          125           |          44           | 12 <sup>17</sup> |
+| Binary encoders                   |   121 <sup>27</sup>    |          ❌           |        ❌        |
+| Binary decoders                   |          125           |          16           |        ❌        |
 | Multidimensional arrays           |       ✅ binary        | 🟡 text <sup>18</sup> |     🟡 text      |
 | ***Security***                    |                        |                       |                  |
 | SSL/TLS                           |           ✅           |          ✅           |        ✅        |
@@ -294,7 +217,10 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   a savepoint, so nesting needs nothing from the caller. postgres.js has `sql.begin(fn)` (`src/index.js`), where a
   nested scope is opened explicitly with `sql.savepoint(fn)` instead. pg has no such helper in `lib/` - `BEGIN` and
   `COMMIT` are statements the caller sends, and getting a transaction onto one connection is the caller's problem too.
-
+- <sup>27</sup> Every registered type but `tsvector` and `tsquery`, which have none deliberately: the server's own
+  input parser is what sorts and deduplicates a vector and what defines a query's grammar, so encoding either here
+  would make the same text mean one thing written as a literal and another bound as a parameter. They are sent as
+  text instead, which is exact.
 
 ## Benchmarks
 

@@ -2,9 +2,11 @@
  * A connection whose socket closed without anyone asking it to - the
  * backend terminated by an administrator, a failover, a network fault.
  *
- * Reported on `Connection`'s `'close'` event as its reason, and for a
- * pooled connection on `Pool`'s `'destroy'` (as the second argument) and
- * `'error'`. `Pool` emits `'error'` for this and for a connection that
+ * Reported on `Connection`'s `'close'` event as its reason, for a pooled
+ * connection on `Pool`'s `'destroy'` (as the second argument) and
+ * `'error'`, and as the rejection of whatever query was in flight when it
+ * happened - one object for all of them, so a caller that needs both can
+ * pair them by identity. `Pool` emits `'error'` for this and for a connection that
  * could not be created in the first place, and those want different
  * handling - this class is how a listener tells them apart:
  *

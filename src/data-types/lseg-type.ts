@@ -1,8 +1,9 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
-import type { DataType, Rectangle } from '../interfaces/data-type.js';
+import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import type { Maybe } from '../types.js';
+import { LineSegment, TwoPoints } from './classes/geometric.js';
 
 const LSEG_PATTERN1 =
   /^\[ *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *]$/;
@@ -16,41 +17,41 @@ const LSEG_PATTERN4 =
 export const LsegType: DataType = {
   name: 'lseg',
   oid: DataTypeOIDs.lseg,
-  jsType: 'object',
+  jsType: 'LineSegment',
 
-  encodeText(v: Rectangle): string {
+  encodeText(v: LineSegment): string {
     return `[(${v.x1},${v.y1}),(${v.x2},${v.y2})]`;
   },
 
-  encodeBinary(buf: SmartBuffer, v: Rectangle): void {
+  encodeBinary(buf: SmartBuffer, v: LineSegment): void {
     buf.writeDoubleBE(v.x1);
     buf.writeDoubleBE(v.y1);
     buf.writeDoubleBE(v.x2);
     buf.writeDoubleBE(v.y2);
   },
 
-  decodeBinary(v: Buffer, offset: number = 0): Rectangle {
-    return {
-      x1: v.readDoubleBE(offset),
-      y1: v.readDoubleBE(offset + 8),
-      x2: v.readDoubleBE(offset + 16),
-      y2: v.readDoubleBE(offset + 24),
-    };
+  decodeBinary(v: Buffer, offset: number = 0): LineSegment {
+    return new LineSegment(
+      v.readDoubleBE(offset),
+      v.readDoubleBE(offset + 8),
+      v.readDoubleBE(offset + 16),
+      v.readDoubleBE(offset + 24),
+    );
   },
 
-  decodeText(v: string): Maybe<Rectangle> {
+  decodeText(v: string): Maybe<LineSegment> {
     const m =
       v.match(LSEG_PATTERN1) ||
       v.match(LSEG_PATTERN2) ||
       v.match(LSEG_PATTERN3) ||
       v.match(LSEG_PATTERN4);
     if (!m) return undefined;
-    return {
-      x1: parseFloat(m[1]),
-      y1: parseFloat(m[2]),
-      x2: parseFloat(m[3]),
-      y2: parseFloat(m[4]),
-    };
+    return new LineSegment(
+      parseFloat(m[1]),
+      parseFloat(m[2]),
+      parseFloat(m[3]),
+      parseFloat(m[4]),
+    );
   },
 
   // See box-type.ts's decodeTextBuffer comment - same rationale.
@@ -59,22 +60,19 @@ export const LsegType: DataType = {
     offset: number,
     len: number,
     options: DataMappingOptions,
-  ): Maybe<Rectangle> {
+  ): Maybe<LineSegment> {
     return LsegType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,
     );
   },
 
+  // A plain object of the four numbers is still accepted - it is what
+  // this type returned before these classes existed - but only a plain
+  // one: box and lseg carry the same four, so an instance of the other
+  // must not be claimed here.
   isType(v: any): boolean {
-    return (
-      typeof v === 'object' &&
-      Object.keys(v).length === 4 &&
-      typeof v.x1 === 'number' &&
-      typeof v.y1 === 'number' &&
-      typeof v.x2 === 'number' &&
-      typeof v.y2 === 'number'
-    );
+    return v instanceof LineSegment || TwoPoints.isTwoPointsLike(v);
   },
 };
 

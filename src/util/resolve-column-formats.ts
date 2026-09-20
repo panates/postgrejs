@@ -1,4 +1,5 @@
 import { DEFAULT_COLUMN_FORMAT } from '../constants.js';
+import type { DataTypeMap } from '../data-type-map.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import { Protocol } from '../protocol/protocol.js';
 import type { Maybe, OID } from '../types.js';
@@ -7,6 +8,22 @@ const DataFormat = Protocol.DataFormat;
 
 export interface ColumnFormatOptions extends DataMappingOptions {
   columnFormat?: Protocol.DataFormat | Protocol.DataFormat[];
+}
+
+/**
+ * Whether this client could read the column if it arrived in `format`.
+ * Only ever answers no for binary: a column with no registered type at
+ * all still decodes as text, into the string the server printed, which is
+ * the whole point of asking for it that way.
+ */
+function canDecode(
+  typeMap: DataTypeMap,
+  oid: OID,
+  format: Protocol.DataFormat,
+): boolean {
+  if (format !== DataFormat.binary) return true;
+  const reg = typeMap.get(oid);
+  return !!reg && typeof reg.decodeBinary === 'function';
 }
 
 /**
@@ -31,27 +48,43 @@ export interface ColumnFormatOptions extends DataMappingOptions {
 export function resolveColumnFormats(
   fields: Maybe<Protocol.RowDescription[]>,
   options: ColumnFormatOptions,
+  typeMap?: DataTypeMap,
 ): Protocol.DataFormat | Protocol.DataFormat[] {
   const base =
     options.columnFormat != null ? options.columnFormat : DEFAULT_COLUMN_FORMAT;
   const asString = options.fetchAsString;
-  if (!fields || !asString || !asString.length) return base;
+  // unknownTypesAsString needs the type map to answer "could this be
+  // decoded", so it is inert without one - the call sites that have no
+  // map in hand are the ones that have no fields either.
+  const unknownAsString = !!options.unknownTypesAsString && !!typeMap;
+  const named = !!asString && asString.length > 0;
+  if (!fields || (!named && !unknownAsString)) return base;
   const l = fields.length;
   const baseIsArray = Array.isArray(base);
   const out: Protocol.DataFormat[] = new Array(l);
   let hit = false;
   let i: number;
+  let oid: OID;
+  let format: Protocol.DataFormat;
   for (i = 0; i < l; i++) {
-    if (asString.includes(fields[i].dataTypeId)) {
+    oid = fields[i].dataTypeId;
+    format = baseIsArray
+      ? ((base as Protocol.DataFormat[])[i] ?? DEFAULT_COLUMN_FORMAT)
+      : (base as Protocol.DataFormat);
+    if (named && asString!.includes(oid)) {
       // fetchAsString names the value the caller wants verbatim, so it
       // overrides an explicit columnFormat for its own columns - the two
       // cannot both be honored and the OID list is the more specific ask.
-      out[i] = DataFormat.text;
+      format = DataFormat.text;
       hit = true;
-    } else
-      out[i] = baseIsArray
-        ? ((base as Protocol.DataFormat[])[i] ?? DEFAULT_COLUMN_FORMAT)
-        : (base as Protocol.DataFormat);
+    } else if (unknownAsString && !canDecode(typeMap!, oid, format)) {
+      // Nothing here could read the binary, so the bytes would reach the
+      // caller as a Buffer. Text at least arrives as what the server
+      // printed.
+      format = DataFormat.text;
+      hit = true;
+    }
+    out[i] = format;
   }
   return hit ? out : base;
 }

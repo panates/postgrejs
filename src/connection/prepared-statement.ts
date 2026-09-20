@@ -290,13 +290,17 @@ export class PreparedStatement
         // prepare() already fetched this statement's RowDescription, so
         // fetchAsString's OID list can become per-column result format
         // codes on the Bind below with no round trip of its own.
-        const columnFormat = resolveColumnFormats(this._fields, options);
+        const typeMap = options.typeMap || GlobalTypeMap;
+        const columnFormat = resolveColumnFormats(
+          this._fields,
+          options,
+          typeMap,
+        );
         const fields = await portal.bindAndRetrieveFields(
           options.params,
           options,
           columnFormat,
         );
-        const typeMap = options.typeMap || GlobalTypeMap;
         const parsers: AnyParseFunction[] = getParsers(
           typeMap,
           fields,

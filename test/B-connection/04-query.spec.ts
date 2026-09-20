@@ -1,11 +1,16 @@
 import assert from 'assert';
 import { expect } from 'expect';
 import {
+  BindParam,
+  Box,
+  Circle,
   Connection,
   Cursor,
   DataFormat,
   DataTypeMap,
   GlobalTypeMap,
+  LineSegment,
+  Point,
   RowDecoder,
   sql,
 } from 'postgrejs';
@@ -294,10 +299,10 @@ describe('query() (Extended Query)', () => {
       new Date('2005-07-01T01:21:11.123+03:00'),
     );
     expect(row.f_bytea).toStrictEqual(Buffer.from([65, 66, 67, 68, 69]));
-    expect(row.f_point).toStrictEqual({ x: -1.2, y: 3.5 });
-    expect(row.f_circle).toStrictEqual({ x: -1.2, y: 3.5, r: 4.6 });
-    expect(row.f_lseg).toStrictEqual({ x1: 1.2, y1: 3.5, x2: 4.6, y2: 5.2 });
-    expect(row.f_box).toStrictEqual({ x1: 4.6, y1: 3, x2: -1.6, y2: 0.1 });
+    expect(row.f_point).toStrictEqual(new Point(-1.2, 3.5));
+    expect(row.f_circle).toStrictEqual(new Circle(-1.2, 3.5, 4.6));
+    expect(row.f_lseg).toStrictEqual(new LineSegment(1.2, 3.5, 4.6, 5.2));
+    expect(row.f_box).toStrictEqual(new Box(4.6, 3, -1.6, 0.1));
   });
 
   it('should not crash protocol on invalid query ', async () => {
@@ -638,6 +643,69 @@ describe('query() (Extended Query)', () => {
         expect(r.rows?.[0].length).toStrictEqual(2);
         const again = await c.query('select * from t_cache_ddl');
         expect(again.rows?.[0].length).toStrictEqual(2);
+      } finally {
+        await c.close(0);
+      }
+    });
+
+    it('should recover when a type a cached plan refers to is recreated', async () => {
+      // PostgreSQL answers XX000 "cache lookup failed for type <oid>"
+      // here, not 0A000, so the recovery that catches a schema change
+      // used to miss it - and because the entry stayed in the cache, the
+      // connection failed that way for every later call, not just the
+      // first.
+      const c = await open();
+      try {
+        const setup = () =>
+          c.execute(
+            'drop table if exists t_cache_type;' +
+              ' drop type if exists t_cache_mood cascade;' +
+              " create type t_cache_mood as enum ('sad','happy');" +
+              ' create table t_cache_type (id serial primary key,' +
+              ' m t_cache_mood)',
+          );
+        await setup();
+        const stmt = 'insert into t_cache_type (m) values ($1) returning id';
+        const opts = () => ({ params: [new BindParam(0, 'happy')] });
+        // Past PREPARE_AFTER_USES, so the statement is bound to a name.
+        for (let i = 0; i < 4; i++) await c.query(stmt, opts());
+        await setup();
+        const r = await c.query(stmt, opts());
+        expect(r.rows?.[0][0]).toStrictEqual(1);
+        // The second call is what proves the entry was dropped rather
+        // than the first one getting lucky.
+        const again = await c.query(stmt, opts());
+        expect(again.rows?.[0][0]).toStrictEqual(2);
+      } finally {
+        await c
+          .execute(
+            'drop table if exists t_cache_type;' +
+              ' drop type if exists t_cache_mood cascade',
+          )
+          .catch(() => undefined);
+        await c.close(0);
+      }
+    });
+
+    it('should keep the cached statement when a query fails for its own reasons', async () => {
+      // The other half of the same decision: only a stale plan retires an
+      // entry. Dropping one on every failure would self-heal too, but a
+      // unique violation on a hot upsert would keep costing the statement
+      // its name - and re-running something that failed on its own merits
+      // buys nothing.
+      const c = await open();
+      try {
+        await c.execute('create temp table t_cache_err (id int4 primary key)');
+        const stmt = 'insert into t_cache_err (id) values ($1)';
+        for (let i = 0; i < 4; i++) await c.query(stmt, { params: [i] });
+        const before = await serverStatements(c);
+        await expect(c.query(stmt, { params: [1] })).rejects.toThrow(
+          /duplicate key/,
+        );
+        expect(await serverStatements(c)).toStrictEqual(before);
+        // And it is still usable, rather than having been quietly retired.
+        await c.query(stmt, { params: [99] });
+        expect(await serverStatements(c)).toStrictEqual(before);
       } finally {
         await c.close(0);
       }

@@ -7,7 +7,12 @@ Introduction
 • It also uses the replaceText function in package.json to remove the commit type text from the message, because the headers are shown instead.
 
 • The text 'Breaking:' or 'Breaking changes:' can be located anywhere in the commit.
-• The types feat:, fix:, chore:, docs:, refactor:, test:, style:, perf: must be at the beginning of the commit subject with an : on end.
+• So can conventional commits' own marker, a ! before the colon - feat!: or feat(scope)!: - which is
+  what this repo uses. A commit marked either way is listed under Breaking Changes and nowhere else;
+  without the ! in these patterns a feat!: matched no heading at all and fell through to General
+  Changes, the least prominent one, which is where v3.6.0's breaking change ended up.
+• The types feat:, fix:, chore:, docs:, refactor:, test:, style:, perf: must be at the beginning of a line
+  in the commit message, with an : on the end.
    • They can optionally have a scope set to outline the module or component that is affected eg feat(bldAssess):
 • There is a short hash on the end of every commit that is currently commented out so that change log did not grow too long (due to some system's file size limitations).  You can uncomment if you wish [`{{shorthash}}`]({{href}})
 
@@ -90,40 +95,40 @@ Example Definitions
 
 
   {{! List commits with 'breaking:' or 'Breaking change:' anywhere in the message under a heading}}
-  {{#commit-list commits heading='#### Breaking Changes :warning:' message='[bB]reaking [cC]hange:|[bB]reaking:' }}
+  {{#commit-list commits heading='#### Breaking Changes :warning:' message='[bB]reaking [cC]hange:|[bB]reaking:|^[a-zA-Z]+(\([^)]*\))?!:' }}
     - {{subject}} @{{author}}  {{!--[`{{shorthash}}`]({{href}}) --}}
   {{/commit-list}}
 
   {{! List commits organised under a heading, but not those already listed in the breaking section }}
-      {{#commit-list commits heading='#### 🚀 New Features' message='^[fF]eat:|[fF]eat\(' exclude='[bB]reaking [cC]hange:|[bB]reaking:'}}
+      {{#commit-list commits heading='#### 🚀 New Features' message='^[fF]eat(\([^)]*\))?!?:' exclude='[bB]reaking [cC]hange:|[bB]reaking:|^[a-zA-Z]+(\([^)]*\))?!:'}}
         - {{subject}} @{{author}} {{!--[`{{shorthash}}`]({{href}}) --}}
       {{/commit-list}}
 
-      {{#commit-list commits heading='#### 🪲 Fixes' message='^[fF]ix:|^[fF]ix\(' exclude='[bB]reaking [cC]hange:|[bB]reaking:'}}
+      {{#commit-list commits heading='#### 🪲 Fixes' message='^[fF]ix(\([^)]*\))?!?:' exclude='[bB]reaking [cC]hange:|[bB]reaking:|^[a-zA-Z]+(\([^)]*\))?!:'}}
         - {{subject}} @{{author}} {{!--[`{{shorthash}}`]({{href}}) --}}
       {{/commit-list}}
 
-      {{#commit-list commits heading='#### 📖 Documentation Changes' message='^[dD]ocs:|^[dD]ocs\(' exclude='[bB]reaking [cC]hange:|[bB]reaking:'}}
+      {{#commit-list commits heading='#### 📖 Documentation Changes' message='^[dD]ocs(\([^)]*\))?!?:' exclude='[bB]reaking [cC]hange:|[bB]reaking:|^[a-zA-Z]+(\([^)]*\))?!:'}}
         - {{subject}} @{{author}} {{!--[`{{shorthash}}`]({{href}}) --}}
       {{/commit-list}}
 
-      {{#commit-list commits heading='#### 🛠 Refactoring and Updates' message='^[rR]efactor:|^[rR]efactor\(' exclude='[bB]reaking [cC]hange:|[bB]reaking:'}}
+      {{#commit-list commits heading='#### 🛠 Refactoring and Updates' message='^[rR]efactor(\([^)]*\))?!?:' exclude='[bB]reaking [cC]hange:|[bB]reaking:|^[a-zA-Z]+(\([^)]*\))?!:'}}
         - {{subject}} @{{author}} {{!--[`{{shorthash}}`]({{href}}) --}}
       {{/commit-list}}
 
-      {{#commit-list commits heading='#### 🧪 Changes to Test Assests' message='^[tT]est:|^[tT]est\(' exclude='[bB]reaking [cC]hange:|[bB]reaking:'}}
+      {{#commit-list commits heading='#### 🧪 Changes to Test Assests' message='^[tT]est(\([^)]*\))?!?:' exclude='[bB]reaking [cC]hange:|[bB]reaking:|^[a-zA-Z]+(\([^)]*\))?!:'}}
         - {{subject}} @{{author}} {{!--[`{{shorthash}}`]({{href}}) --}}
       {{/commit-list}}
 
-      {{#commit-list commits heading='#### 🌸 Tidying of Code eg Whitespace' message='^[sS]tyle:|^[sS]tyle\(' exclude='[bB]reaking [cC]hange:|[bB]reaking:'}}
+      {{#commit-list commits heading='#### 🌸 Tidying of Code eg Whitespace' message='^[sS]tyle(\([^)]*\))?!?:' exclude='[bB]reaking [cC]hange:|[bB]reaking:|^[a-zA-Z]+(\([^)]*\))?!:'}}
         - {{subject}} @{{author}} {{!--[`{{shorthash}}`]({{href}}) --}}
       {{/commit-list}}
 
-      {{#commit-list commits heading='#### ⚡️ Performance Improvments' message='^[pP]erf:|^[pP]erf\(' exclude='[bB]reaking [cC]hange:|[bB]reaking:'}}
+      {{#commit-list commits heading='#### ⚡️ Performance Improvments' message='^[pP]erf(\([^)]*\))?!?:' exclude='[bB]reaking [cC]hange:|[bB]reaking:|^[a-zA-Z]+(\([^)]*\))?!:'}}
         - {{subject}} @{{author}} {{!--[`{{shorthash}}`]({{href}}) --}}
       {{/commit-list}}
 
-      {{#commit-list commits heading='#### 💬 General Changes' exclude='[bB]reaking [cC]hange:|[bB]reaking:|^[fF]eat:|^[fF]eat\(|^[fF]ix:|^[fF]ix\(|^[cC]hore:|^[cC]hore\(|^[dD]ocs:|^[dD]ocs\(|^[rR]efactor:|^[rR]efactor\(|^[tT]est:|^[tT]est\(|^[sS]tyle:|^[sS]tyle\(|^[pP]erf:|^[pP]erf\('}}
+      {{#commit-list commits heading='#### 💬 General Changes' exclude='[bB]reaking [cC]hange:|[bB]reaking:|^[a-zA-Z]+(\([^)]*\))?!:|^[fF]eat(\([^)]*\))?!?:|^[fF]ix(\([^)]*\))?!?:|^[dD]ocs(\([^)]*\))?!?:|^[rR]efactor(\([^)]*\))?!?:|^[tT]est(\([^)]*\))?!?:|^[sS]tyle(\([^)]*\))?!?:|^[pP]erf(\([^)]*\))?!?:|^[cC]hore(\([^)]*\))?!?:'}}
         - {{subject}} @{{author}} {{!--[`{{shorthash}}`]({{href}}) --}}
       {{/commit-list}}
 

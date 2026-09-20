@@ -1,12 +1,28 @@
 import { DataTypeOIDs } from './constants.js';
+import {
+  ArrayBitType,
+  ArrayVarbitType,
+  BitType,
+  VarbitType,
+} from './data-types/bit-type.js';
 import { ArrayBoolType, BoolType } from './data-types/bool-type.js';
 import { ArrayBoxType, BoxType } from './data-types/box-type.js';
 import { ArrayByteaType, ByteaType } from './data-types/bytea-type.js';
 import { ArrayCharType, CharType } from './data-types/char-type.js';
 import { ArrayCircleType, CircleType } from './data-types/circle-type.js';
+import {
+  getTypeOid,
+  REQUIRES_TYPE_OID,
+} from './data-types/classes/type-oid.js';
 import { ArrayDateType, DateType } from './data-types/date-type.js';
 import { ArrayFloat4Type, Float4Type } from './data-types/float4-type.js';
 import { ArrayFloat8Type, Float8Type } from './data-types/float8-type.js';
+import {
+  ArrayCidrType,
+  ArrayInetType,
+  CidrType,
+  InetType,
+} from './data-types/inet-type.js';
 import { ArrayInt2Type, Int2Type } from './data-types/int2-type.js';
 import {
   ArrayInt2VectorType,
@@ -14,16 +30,40 @@ import {
 } from './data-types/int2-vector-type.js';
 import { ArrayInt4Type, Int4Type } from './data-types/int4-type.js';
 import { ArrayInt8Type, Int8Type } from './data-types/int8-type.js';
+import { ArrayIntervalType, IntervalType } from './data-types/interval-type.js';
 import { ArrayJsonType, JsonType } from './data-types/json-type.js';
 import { ArrayJsonbType, JsonbType } from './data-types/jsonb-type.js';
+import { ArrayJsonPathType, JsonPathType } from './data-types/jsonpath-type.js';
+import { ArrayLineType, LineType } from './data-types/line-type.js';
 import { ArrayLsegType, LsegType } from './data-types/lseg-type.js';
+import {
+  ArrayMacaddr8Type,
+  ArrayMacaddrType,
+  Macaddr8Type,
+  MacaddrType,
+} from './data-types/macaddr-type.js';
 import { ArrayNumericType, NumericType } from './data-types/numeric-type.js';
 import { ArrayOidType, OidType } from './data-types/oid-type.js';
 import {
   ArrayOidVectorType,
   OidVectorType,
 } from './data-types/oid-vector-type.js';
+import {
+  ArrayPathType,
+  ArrayPolygonType,
+  PathType,
+  PolygonType,
+} from './data-types/path-type.js';
+import { ArrayPgLsnType, PgLsnType } from './data-types/pg-lsn-type.js';
 import { ArrayPointType, PointType } from './data-types/point-type.js';
+import { RangeTypes } from './data-types/range-type.js';
+import {
+  ArrayPgSnapshotType,
+  ArrayTxidSnapshotType,
+  PgSnapshotType,
+  TxidSnapshotType,
+} from './data-types/snapshot-type.js';
+import { ArrayTidType, TidType } from './data-types/tid-type.js';
 import { ArrayTimeType, TimeType } from './data-types/time-type.js';
 import {
   ArrayTimestampType,
@@ -33,8 +73,23 @@ import {
   ArrayTimestamptzType,
   TimestamptzType,
 } from './data-types/timestamptz-type.js';
+import { ArrayTimeTzType, TimeTzType } from './data-types/timetz-type.js';
+import {
+  ArrayTsQueryType,
+  ArrayTsVectorType,
+  TsQueryType,
+  TsVectorType,
+} from './data-types/tsvector-type.js';
 import { ArrayUuidType, UuidType } from './data-types/uuid-type.js';
 import { ArrayVarcharType, VarcharType } from './data-types/varchar-type.js';
+import {
+  ArrayCidType,
+  ArrayXid8Type,
+  ArrayXidType,
+  CidType,
+  Xid8Type,
+  XidType,
+} from './data-types/xid-type.js';
 import type { DataType } from './interfaces/data-type.js';
 import type { OID } from './types.js';
 
@@ -76,6 +131,26 @@ export class DataTypeMap {
 
   determine(value: any): OID {
     if (value == null) return DataTypeOIDs.unknown;
+    if (typeof value === 'object') {
+      // A value that already knows which type it came from says so,
+      // rather than being matched by shape - which is the only thing
+      // that can work when several types share one JavaScript class.
+      const carried = getTypeOid(value);
+      if (carried !== undefined) return carried;
+      const ctor = (value as { constructor?: Record<symbol, unknown> })
+        .constructor;
+      if (ctor && ctor[REQUIRES_TYPE_OID]) {
+        // Checked before the walk below rather than after it: JsonType
+        // takes any object, so left to the walk this value would quietly
+        // go out declared `json` and come back looking right.
+        throw new TypeError(
+          `A ${(ctor as { name?: string }).name} carries no type OID, and ` +
+            'which PostgreSQL type it is cannot be told from the value - ' +
+            'give it one (`new Range(lower, upper, bounds, oid)`) or name ' +
+            'it at the call site (`new BindParam(oid, value)`)',
+        );
+      }
+    }
     const valueIsArray = Array.isArray(value);
     let i: number;
     let t: DataType;
@@ -113,6 +188,9 @@ GlobalTypeMap.register([CircleType, ArrayCircleType]);
 GlobalTypeMap.register([PointType, ArrayPointType]);
 GlobalTypeMap.register([LsegType, ArrayLsegType]);
 GlobalTypeMap.register([BoxType, ArrayBoxType]);
+GlobalTypeMap.register([LineType, ArrayLineType]);
+GlobalTypeMap.register([PathType, ArrayPathType]);
+GlobalTypeMap.register([PolygonType, ArrayPolygonType]);
 
 GlobalTypeMap.register([Int2VectorType, ArrayInt2VectorType]);
 
@@ -158,11 +236,58 @@ GlobalTypeMap.register({
   oid: DataTypeOIDs._xml,
   elementsOID: DataTypeOIDs.xml,
 });
+// `refcursor` is a cursor's name and `pg_node_tree` a catalog blob, and
+// both are literally text on the wire - `refcursor`'s own typsend is
+// textsend. Registered before varchar the way bpchar and the rest are,
+// and marked uninferrable on top of that: a plain string is not evidence
+// of either, and sending one declared `refcursor` where `text` was meant
+// would be refused by the server.
+GlobalTypeMap.register({
+  ...VarcharType,
+  name: 'refcursor',
+  oid: DataTypeOIDs.refcursor,
+  inferrable: false,
+});
+GlobalTypeMap.register({
+  ...ArrayVarcharType,
+  name: '_refcursor',
+  oid: DataTypeOIDs._refcursor,
+  elementsOID: DataTypeOIDs.refcursor,
+  inferrable: false,
+});
+// pg_node_tree has no array type of its own.
+GlobalTypeMap.register({
+  ...VarcharType,
+  name: 'pg_node_tree',
+  oid: DataTypeOIDs.pg_node_tree,
+  inferrable: false,
+});
+
 GlobalTypeMap.register([VarcharType, ArrayVarcharType]);
 GlobalTypeMap.register([UuidType, ArrayUuidType]);
 GlobalTypeMap.register([CharType, ArrayCharType]);
 
 GlobalTypeMap.register([TimestamptzType, ArrayTimestamptzType]);
 GlobalTypeMap.register([TimeType, ArrayTimeType]);
+GlobalTypeMap.register([TimeTzType, ArrayTimeTzType]);
 GlobalTypeMap.register([DateType, ArrayDateType]);
 GlobalTypeMap.register([TimestampType, ArrayTimestampType]);
+GlobalTypeMap.register([IntervalType, ArrayIntervalType]);
+GlobalTypeMap.register(RangeTypes);
+
+GlobalTypeMap.register([InetType, ArrayInetType]);
+GlobalTypeMap.register([CidrType, ArrayCidrType]);
+GlobalTypeMap.register([BitType, ArrayBitType]);
+GlobalTypeMap.register([VarbitType, ArrayVarbitType]);
+GlobalTypeMap.register([JsonPathType, ArrayJsonPathType]);
+GlobalTypeMap.register([TsVectorType, ArrayTsVectorType]);
+GlobalTypeMap.register([TsQueryType, ArrayTsQueryType]);
+GlobalTypeMap.register([XidType, ArrayXidType]);
+GlobalTypeMap.register([Xid8Type, ArrayXid8Type]);
+GlobalTypeMap.register([CidType, ArrayCidType]);
+GlobalTypeMap.register([TidType, ArrayTidType]);
+GlobalTypeMap.register([PgLsnType, ArrayPgLsnType]);
+GlobalTypeMap.register([PgSnapshotType, ArrayPgSnapshotType]);
+GlobalTypeMap.register([TxidSnapshotType, ArrayTxidSnapshotType]);
+GlobalTypeMap.register([MacaddrType, ArrayMacaddrType]);
+GlobalTypeMap.register([Macaddr8Type, ArrayMacaddr8Type]);

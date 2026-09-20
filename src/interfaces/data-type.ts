@@ -40,17 +40,14 @@ export interface DataType {
   encodeCalculateDim?: EncodeCalculateDimFunction;
 }
 
-export interface Point {
-  x: number;
-  y: number;
-}
-
-export interface Circle {
-  x: number;
-  y: number;
-  r: number;
-}
-
+/**
+ * The shape `box` and `lseg` share.
+ *
+ * @deprecated Both types now decode to a class of their own - `Box` and
+ *   `LineSegment` - which is what tells them apart; they were
+ *   indistinguishable while both were only this. Kept because a plain
+ *   object of these four numbers is still accepted as a parameter.
+ */
 export interface Rectangle {
   x1: number;
   y1: number;

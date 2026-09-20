@@ -1,20 +1,59 @@
 import { DataTypeOIDs } from '../constants.js';
+import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import { assertCoercedNumber } from '../util/assert-integer.js';
 import { fastParseFloatBuffer } from '../util/fast-parsefloat.js';
+import { Numeric } from './classes/numeric.js';
 
 const NUMERIC_NEG = 0x4000;
 const NUMERIC_NAN = 0xc000;
 const NUMERIC_PINF = 0xd000;
 const NUMERIC_NINF = 0xf000;
 const DEC_DIGITS = 4;
-const ROUND_POWERS = [0, 1000, 100, 10];
+/**
+ * Every two-digit string, so a base-10000 group is written with two
+ * lookups and one join instead of four divisions and four number-to-
+ * string conversions. Built once; 100 short strings.
+ */
+const PAIRS: string[] = new Array(100);
+for (let i = 0; i < 100; i++) PAIRS[i] = i < 10 ? '0' + i : '' + i;
+
+/** The decimal without the zeroes a declared scale pads it out to. */
+function trimTrailingZeros(s: string): string {
+  const dot = s.indexOf('.');
+  if (dot < 0) return s;
+  let end = s.length;
+  while (end > dot + 1 && s.charCodeAt(end - 1) === 48 /* 0 */) end--;
+  return s.substring(0, end === dot + 1 ? dot : end);
+}
+
+/**
+ * A number when a double carries the decimal faithfully, a Numeric when
+ * it does not.
+ *
+ * Faithfully means printing back the same digits, which is the only
+ * thing a caller can observe - so the test is the round trip itself
+ * rather than a rule about magnitude. It catches both ways of losing a
+ * value: digits a double cannot hold (`12345678901234567.89` comes back
+ * as `...68`) and a magnitude JavaScript prints in exponential notation
+ * (`-0.00000000000000001` as `-1e-17`), which PostgreSQL never writes.
+ *
+ * The padding a declared scale adds is not a difference - a
+ * `numeric(40,6)` holding 19.99 arrives as `19.990000` - so it comes off
+ * before the comparison.
+ */
+function toNumberOrNumeric(s: string): number | Numeric {
+  const n = parseFloat(s);
+  return String(n) === trimTrailingZeros(s) ? n : new Numeric(s);
+}
 
 export const NumericType: DataType = {
   name: 'numeric',
   oid: DataTypeOIDs.numeric,
-  jsType: 'number',
+  // A number while one carries the value, a Numeric after that - the
+  // widened type is named here the way int8 names BigInt.
+  jsType: 'Numeric',
 
   /**
    * numeric on the wire is a base-10000 number: a digit count, the weight
@@ -105,7 +144,7 @@ export const NumericType: DataType = {
     }
   },
 
-  decodeBinary(v: Buffer, offset: number = 0): number {
+  decodeBinary(v: Buffer, offset: number = 0): number | Numeric {
     const len = v.readInt16BE(offset);
     const weight = v.readInt16BE(offset + 2);
     // sign is a bitmask (0x0000/0x4000/0xC000/0xD000/0xF000), not a two's
@@ -124,20 +163,56 @@ export const NumericType: DataType = {
     }
 
     const numString = numberBytesToString(digits, scale, weight, sign);
-    return parseFloat(numString);
+    // The header bounds the value before the digits are even looked at,
+    // so the ordinary column never pays for the round-trip check below.
+    // A double carries about fifteen significant decimal digits and
+    // prints in plain notation while its exponent stays inside
+    // (-7, 21); `weight` is the first group's position counted in fours
+    // and `scale` the digits after the point, which is enough to rule
+    // both out. `weight === -1` is a value in [0.0001, 1), far from the
+    // exponent that would make JavaScript switch notation.
+    if (
+      (weight >= 0 && weight <= 4 && (weight + 1) * DEC_DIGITS + scale <= 15) ||
+      (weight === -1 && scale <= 15)
+    )
+      return parseFloat(numString);
+    return toNumberOrNumeric(numString);
   },
 
   encodeText(v: any): string {
-    const n = typeof v === 'number' ? v : parseFloat(v);
-    return '' + n;
+    // Handed over as written. Going through a double here would undo
+    // exactly what encodeBinary is careful to preserve, and the server
+    // accepts every spelling this could normalize to anyway - including
+    // the exponent form a JavaScript number stringifies to.
+    return typeof v === 'string' ? v.trim() : String(v);
   },
 
-  decodeText: parseFloat,
+  decodeText(v: string): number | Numeric {
+    // NaN and the infinities arrive as those words and stay numbers.
+    const n = parseFloat(v);
+    if (!Number.isFinite(n)) return n;
+    return String(n) === trimTrailingZeros(v) ? n : new Numeric(v);
+  },
 
-  decodeTextBuffer: fastParseFloatBuffer,
+  decodeTextBuffer(
+    buf: Buffer,
+    offset: number,
+    len: number,
+    options: DataMappingOptions,
+  ): number | Numeric {
+    // Eight characters hold at most eight digits, cannot reach 1e21 -
+    // which needs twenty-two - and cannot reach 1e-7, which needs `0.`
+    // and seven more. So a value this short is carried faithfully by
+    // definition and keeps the parser that never builds a string.
+    if (len <= 8) return fastParseFloatBuffer(buf, offset, len);
+    return NumericType.decodeText(
+      buf.toString('latin1', offset, offset + len),
+      options,
+    );
+  },
 
   isType(v: any): boolean {
-    return typeof v === 'number';
+    return typeof v === 'number' || v instanceof Numeric;
   },
 };
 
@@ -182,86 +257,39 @@ export function numberBytesToString(
   weight: number,
   sign: number,
 ): string {
-  let i: number;
-  let d: number;
-
-  /*
-   * Allocate space for the result.
-   *
-   * i is set to the # of decimal digits before decimal point.
-   * dscale is the # of decimal digits we will print after decimal point.
-   * We may generate as many as DEC_DIGITS-1 excess digits at the end, and in addition we
-   * need room for sign, decimal point, null terminator.
-   */
-  i = (weight + 1) * DEC_DIGITS;
-  if (i <= 0) i = 1;
-
-  /*
-   * Output a dash for negative values
-   */
+  const l = digits.length;
   let out = sign === NUMERIC_NEG ? '-' : '';
-
-  /*
-   * Output all digits before the decimal point
-   */
+  let d: number;
+  let g: number;
   if (weight < 0) {
+    // The value is below 1, so the integer part is a bare zero and the
+    // first digit group belongs after the point.
     d = weight + 1;
     out += '0';
   } else {
-    for (d = 0; d <= weight; d++) {
-      /* In the first digit, suppress extra leading decimal zeroes */
-      out += digitToString(d, digits, d !== 0);
+    // Leading zeroes are suppressed in the first group only - it is the
+    // most significant one - and every group after it is four digits.
+    out += l > 0 ? '' + digits[0] : '0';
+    for (d = 1; d <= weight; d++) {
+      g = d < l ? digits[d] : 0;
+      out += PAIRS[(g / 100) | 0] + PAIRS[g % 100];
     }
   }
-
-  /*
-   * If requested, output a decimal point and all the digits that follow it.
-   * We initially put out a multiple of DEC_DIGITS digits, then truncate if
-   * needed.
-   */
   if (scale > 0) {
-    out += '.';
+    let frac = '';
+    let i: number;
     for (i = 0; i < scale; d++, i += DEC_DIGITS) {
-      out += digitToString(d, digits, true);
+      g = d >= 0 && d < l ? digits[d] : 0;
+      frac += PAIRS[(g / 100) | 0] + PAIRS[g % 100];
     }
+    // Whole groups are written, so the last one can overshoot the
+    // display scale by up to three digits. Trimmed from the fraction
+    // rather than from the whole string: the two are the same thing
+    // whenever there is a fraction, and when there is not - a value
+    // below 1 with a scale of 0 - trimming the whole string took the
+    // bare `0` with it.
+    out +=
+      '.' + (i > scale ? frac.substring(0, frac.length - (i - scale)) : frac);
   }
-
-  const extra = (i - scale) % DEC_DIGITS;
-  return out.substring(0, out.length - extra);
-}
-
-/* https://github.com/pgjdbc/pgjdbc/blob/3eca3a76aa4a04cb28cb960ed674cb67db30b5e3/pgjdbc/src/main/java/org/postgresql/util/ByteConverter.java */
-/**
- * Convert a number from binary representation to text representation.
- * @param idx index of the digit to be converted in the digits array
- * @param digits array of shorts that can be decoded as the number String
- * @param alwaysPutIt a flag that indicate whether or not to put the digit char even if it is zero
- * @return String the number as String
- */
-function digitToString(
-  idx: number,
-  digits: number[],
-  alwaysPutIt: boolean,
-): string {
-  let out = '';
-  let dig = idx >= 0 && idx < digits.length ? digits[idx] : 0;
-  // Each dig represents 4 decimal digits (e.g. 9999)
-  // If we continue the number, then we need to print 0 as 0000 (alwaysPutIt parameter is true)
-  const l = ROUND_POWERS.length;
-  let p: number;
-  for (p = 1; p < l; p++) {
-    const pow = ROUND_POWERS[p];
-    const d1 = Math.trunc(dig / pow);
-    dig -= d1 * pow;
-    const putit = d1 > 0;
-    if (putit || alwaysPutIt) {
-      out += d1;
-      // We printed a character, so we need to print the rest of the current digits in dig
-      // For instance, we need to keep printing 000 from 1000 even if idx==0 (== it is the very
-      // beginning)
-      alwaysPutIt = true;
-    }
-  }
-  out += dig;
   return out;
 }

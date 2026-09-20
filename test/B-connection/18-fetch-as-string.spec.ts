@@ -149,6 +149,23 @@ describe('fetchAsString', () => {
     expect(r.results?.[0].rows?.[0]).toStrictEqual(EXPECTED);
   });
 
+  it('should decode an array column correctly on the all-text fallback', async () => {
+    // `prepare: false` with a fetchAsString list is the one combination
+    // that asks for the whole row as text, so every array column takes
+    // the text parser - which used to drop quoted empty elements and turn
+    // the NULL after one into the string "NULL". Asserted against the
+    // same query on the default path rather than against a literal.
+    const sql = "select array['','b',null,'NULL']::text[] as a";
+    const asText = await conn.query(sql, {
+      objectRows: true,
+      prepare: false,
+      fetchAsString: AS_STRING,
+    });
+    const asBinary = await conn.query(sql, { objectRows: true });
+    expect(asText.rows?.[0]).toStrictEqual({ a: ['', 'b', null, 'NULL'] });
+    expect(asText.rows?.[0]).toStrictEqual(asBinary.rows?.[0]);
+  });
+
   it('should not change anything for a query that lists nothing', async () => {
     const r = await conn.query(SQL, { objectRows: true });
     expect(r.rows?.[0]).toStrictEqual({

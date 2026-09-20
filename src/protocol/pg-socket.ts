@@ -850,7 +850,13 @@ export class PgSocket extends SafeEventEmitter {
       this._state === ConnectionState.CLOSING
         ? undefined
         : this._buildCloseReason();
-    this._failPendingCaptures(new Error('Connection closed'));
+    // Whatever was in flight is rejected with the same object the 'close'
+    // event carries, so `err.code === '08006'` works in a caller's catch
+    // exactly as it does in a Pool listener - the generic message it used
+    // to get named no cause and carried no code at all. A close that was
+    // asked for keeps that message: nothing went wrong, the caller simply
+    // raced the shutdown.
+    this._failPendingCaptures(reason ?? new Error('Connection closed'));
     this._reset();
     this._socket = undefined;
     this._state = ConnectionState.CLOSED;
@@ -866,7 +872,17 @@ export class PgSocket extends SafeEventEmitter {
     // here and the fact of closing separately, and only the pair together
     // says what actually happened.
     this._closeReason = err instanceof Error ? err : new Error(String(err));
-    this._failPendingCaptures(this._closeReason);
+    // An error on a live connection is that connection going away - Node
+    // always follows 'error' with 'close' - so the caller gets the same
+    // ConnectionLostError the close will carry, with this as its cause,
+    // rather than a raw ECONNRESET whose `code` is a Node errno where a
+    // SQLSTATE is expected. Before READY there is no connection to have
+    // lost, and the error itself is the useful thing.
+    this._failPendingCaptures(
+      this._state === ConnectionState.READY
+        ? this._buildCloseReason()
+        : this._closeReason,
+    );
     if (this._state !== ConnectionState.READY) {
       this._socket?.end();
     }
