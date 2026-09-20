@@ -6,7 +6,20 @@ const input = ['10:20:', '10:20:12,15', '1:1:', '10:20:10,11,12,13,14'];
 
 describe('DataType: pg_snapshot', () => {
   const conn = new Connection();
-  before(() => conn.connect());
+  // pg_snapshot and pg_current_snapshot() arrived in PostgreSQL 13, and
+  // CI runs 12 as well - where txid_snapshot, the older name for the
+  // same thing, covers the codec. See xid8.spec.ts on asking the server.
+  let supported = false;
+  before(async () => {
+    await conn.connect();
+    const r = await conn.query(
+      "select to_regtype('pg_snapshot') is not null as f",
+    );
+    supported = !!r.rows?.[0][0];
+  });
+  beforeEach(function () {
+    if (!supported) this.skip();
+  });
   after(() => conn.close(0));
 
   it('should parse "pg_snapshot" field (text)', async () => {

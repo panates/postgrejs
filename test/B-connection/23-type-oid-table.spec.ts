@@ -11,7 +11,9 @@ import { Connection, DataTypeNames, DataTypeOIDs } from 'postgrejs';
  */
 describe('DataTypeOIDs', () => {
   const conn = new Connection();
-  const catalog = new Map<number, { typname: string; typarray: number }>();
+  type Row = { oid: number; typname: string; typarray: number };
+  const byOid = new Map<number, Row>();
+  const byName = new Map<string, Row>();
   // `rstzrange` is a deliberate misspelled alias of `tstzrange`, kept so
   // it keeps resolving - it is the one key that does not name itself.
   const entries = Object.entries(DataTypeOIDs).filter(
@@ -20,22 +22,40 @@ describe('DataTypeOIDs', () => {
 
   before(async () => {
     await conn.connect();
-    const r = await conn.query(
-      'select oid, typname, typarray from pg_type where oid = any($1::oid[])',
-      { params: [entries.map(([, v]) => v)], objectRows: true },
-    );
-    for (const row of r.rows as any[])
-      catalog.set(row.oid, { typname: row.typname, typarray: row.typarray });
+    // Indexed both ways. The OID index is what checks a name; the name
+    // index is what still catches a mistyped OID on a server too old to
+    // have the type at all - CI runs PostgreSQL 12, where `xid8`,
+    // `pg_snapshot`, `regcollation` and the multiranges do not exist.
+    const r = await conn.query('select oid, typname, typarray from pg_type', {
+      objectRows: true,
+    });
+    for (const row of r.rows as any[]) {
+      byOid.set(row.oid, row);
+      byName.set(row.typname, row);
+    }
   });
   after(() => conn.close(0));
+
+  it('should have read the catalog at all', () => {
+    // So that a query returning nothing cannot make every check below
+    // pass by having nothing to check.
+    expect(byOid.size).toBeGreaterThan(100);
+  });
 
   it('should name every OID the way the catalog names it', () => {
     const wrong: string[] = [];
     for (const [key, oid] of entries) {
-      const t = catalog.get(oid);
-      if (!t) wrong.push(`${key} = ${oid} is not a type at all`);
-      else if (t.typname !== key)
-        wrong.push(`${key} = ${oid} is really "${t.typname}"`);
+      const t = byOid.get(oid);
+      if (t) {
+        if (t.typname !== key)
+          wrong.push(`${key} = ${oid} is really "${t.typname}"`);
+        continue;
+      }
+      const named = byName.get(key);
+      if (named)
+        wrong.push(`${key} is ${named.oid} on this server, not ${oid}`);
+      // Neither the OID nor the name is here, so this server predates
+      // the type. Nothing to check, and nothing wrong.
     }
     expect(wrong).toStrictEqual([]);
   });
@@ -49,7 +69,7 @@ describe('DataTypeOIDs', () => {
         wrong.push(`${key} has no scalar key`);
         continue;
       }
-      const t = catalog.get(scalar);
+      const t = byOid.get(scalar);
       if (t && t.typarray !== oid)
         wrong.push(
           `${key} = ${oid} but ${key.slice(1)}'s array is ${t.typarray}`,
@@ -66,7 +86,7 @@ describe('DataTypeOIDs', () => {
     const missing: string[] = [];
     for (const [key, oid] of entries) {
       if (key.startsWith('_')) continue;
-      const t = catalog.get(oid);
+      const t = byOid.get(oid);
       if (
         t &&
         t.typarray !== 0 &&

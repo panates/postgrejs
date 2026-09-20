@@ -10,8 +10,16 @@ import { testParse } from './_testers.js';
 
 describe('DataType: range', () => {
   const conn = new Connection();
+  // Multiranges arrived in PostgreSQL 14 and CI runs 12 as well; the
+  // range types themselves go back to 9.2 and stay ungated. Asked of the
+  // server rather than read off a version number - see xid8.spec.ts.
+  let supportsMultirange = false;
   before(async () => {
     await conn.connect();
+    const r = await conn.query(
+      "select to_regtype('int4multirange') is not null as f",
+    );
+    supportsMultirange = !!r.rows?.[0][0];
     // A tstzrange is printed against the session's zone, and date.spec.ts
     // sets PGTZ process-wide, so every Connection built after it inherits
     // that. Pinned rather than inherited.
@@ -137,22 +145,36 @@ describe('DataType: range', () => {
     expect((built.rows?.[0] as any).t).toStrictEqual('[1,10)');
 
     const read = await conn.query(
-      "select tstzrange('2020-01-01T00:00:00Z','2020-02-01T00:00:00Z') as v," +
-        ' int4multirange(int4range(1,5)) as m',
+      "select tstzrange('2020-01-01T00:00:00Z','2020-02-01T00:00:00Z') as v",
       { objectRows: true },
     );
-    const row = read.rows?.[0] as any;
-    const back = await conn.query('select $1::text as t, $2::text as u', {
-      params: [row.v, row.m],
+    const back = await conn.query('select $1::text as t', {
+      params: [(read.rows?.[0] as any).v],
       objectRows: true,
     });
-    expect(back.rows?.[0]).toStrictEqual({
-      t: '["2020-01-01 00:00:00+00","2020-02-01 00:00:00+00")',
-      u: '{[1,5)}',
-    });
+    expect((back.rows?.[0] as any).t).toStrictEqual(
+      '["2020-01-01 00:00:00+00","2020-02-01 00:00:00+00")',
+    );
   });
 
   describe('multirange', () => {
+    beforeEach(function () {
+      if (!supportsMultirange) this.skip();
+    });
+
+    it('should carry its own type back as a parameter', async () => {
+      // The same stamp the range test above checks, on a multirange.
+      const read = await conn.query(
+        'select int4multirange(int4range(1,5)) as m',
+        { objectRows: true },
+      );
+      const back = await conn.query('select $1::text as u', {
+        params: [(read.rows?.[0] as any).m],
+        objectRows: true,
+      });
+      expect((back.rows?.[0] as any).u).toStrictEqual('{[1,5)}');
+    });
+
     it('should decode as an array of ranges', async () => {
       for (const format of [DataFormat.binary, DataFormat.text]) {
         const r = await conn.query(

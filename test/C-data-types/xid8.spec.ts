@@ -19,7 +19,18 @@ const output = [
 
 describe('DataType: xid8', () => {
   const conn = new Connection();
-  before(() => conn.connect());
+  // xid8 arrived in PostgreSQL 13 and CI runs 12 as well. Asked of the
+  // server rather than worked out from a version number, which is both
+  // exact and one less thing to keep in step with the release notes.
+  let supported = false;
+  before(async () => {
+    await conn.connect();
+    const r = await conn.query("select to_regtype('xid8') is not null as f");
+    supported = !!r.rows?.[0][0];
+  });
+  beforeEach(function () {
+    if (!supported) this.skip();
+  });
   after(() => conn.close(0));
 
   it('should parse "xid8" field (text)', async () => {
