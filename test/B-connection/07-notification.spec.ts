@@ -49,6 +49,75 @@ describe('notification', () => {
       expect(callbacks).toStrictEqual(1);
     });
 
+    describe('channel names', () => {
+      // The name is an identifier written straight into LISTEN, so it is
+      // quoted rather than restricted to a pattern - any name PostgreSQL
+      // accepts works, and the quoting is what keeps the injection door
+      // shut.
+      const notifier = new Connection();
+      before(() => notifier.connect());
+      after(() => notifier.close(0));
+
+      const roundTrip = async (channel: string, notifySql: string) => {
+        const seen: any[] = [];
+        await connection.listen(channel, (msg: any) => seen.push(msg));
+        try {
+          await notifier.query(notifySql);
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } finally {
+          await connection.unListen(channel);
+        }
+        return seen;
+      };
+
+      it('should listen on a one-character channel', async () => {
+        const seen = await roundTrip('a', "NOTIFY a, 'p1'");
+        expect(seen.length).toStrictEqual(1);
+        expect(seen[0].channel).toStrictEqual('a');
+        expect(seen[0].payload).toStrictEqual('p1');
+      });
+
+      it('should listen on a channel whose name starts with an underscore', async () => {
+        const seen = await roundTrip('_private', "NOTIFY _private, 'p2'");
+        expect(seen.length).toStrictEqual(1);
+        expect(seen[0].payload).toStrictEqual('p2');
+      });
+
+      it('should deliver to a mixed-case channel name', async () => {
+        // This was silently dead: LISTEN Foo folds to foo on the server,
+        // notifications came back as foo, and the callback was registered
+        // under Foo - so it never fired at all.
+        const seen = await roundTrip('Foo', "NOTIFY Foo, 'p3'");
+        expect(seen.length).toStrictEqual(1);
+        expect(seen[0].channel).toStrictEqual('foo');
+        expect(seen[0].payload).toStrictEqual('p3');
+      });
+
+      it('should treat a folded name and its lower case form as one channel', async () => {
+        const seen = await roundTrip('Foo', "NOTIFY foo, 'p4'");
+        expect(seen.length).toStrictEqual(1);
+        expect(seen[0].payload).toStrictEqual('p4');
+      });
+
+      it('should listen on a channel whose name needs quoting', async () => {
+        const seen = await roundTrip('my chan', `NOTIFY "my chan", 'p5'`);
+        expect(seen.length).toStrictEqual(1);
+        expect(seen[0].channel).toStrictEqual('my chan');
+      });
+
+      it('should refuse a name the server could not round-trip', async () => {
+        await expect(connection.listen('', () => {})).rejects.toThrow(
+          'non-empty',
+        );
+        await expect(
+          connection.listen('c'.repeat(64), () => {}),
+        ).rejects.toThrow('63 bytes');
+        await expect(connection.listen('a\0b', () => {})).rejects.toThrow(
+          'NUL',
+        );
+      });
+    });
+
     it("should listen events using 'listen' feature", done => {
       Promise.resolve()
         .then(async () => {

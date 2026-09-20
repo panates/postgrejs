@@ -12,6 +12,7 @@ import type { ScriptExecuteOptions } from '../interfaces/script-execute-options.
 import type { ScriptResult } from '../interfaces/script-result.js';
 import type { StatementPrepareOptions } from '../interfaces/statement-prepare-options.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
+import { normalizeChannelName } from '../util/channel-name.js';
 import { getConnectionConfig } from '../util/connection-config.js';
 import { QueryRequest } from '../util/sql-tag.js';
 import { startsCopy, startsTransaction } from '../util/starts-transaction.js';
@@ -353,8 +354,10 @@ export class Pool extends SafeEventEmitter {
   }
 
   async listen(channel: string, callback: NotificationCallback) {
-    if (!/^[A-Z]\w+$/i.test(channel))
-      throw new TypeError(`Invalid channel name`);
+    // Folded here as well as in Connection.listen(): this emitter's keys
+    // have to be the same strings the inner connection registers, or
+    // unListen() would miss them.
+    channel = normalizeChannelName(channel);
     // Bug: _initNotificationConnection() only ever bootstraps the shared
     // connection and registers every channel known at that moment - it
     // returns immediately once that connection already exists, so a second,
@@ -372,8 +375,7 @@ export class Pool extends SafeEventEmitter {
   }
 
   async unListen(channel: string) {
-    if (!/^[A-Z]\w+$/i.test(channel))
-      throw new TypeError(`Invalid channel name`);
+    channel = normalizeChannelName(channel);
     this._notificationListeners.removeAllListeners(channel);
     if (!this._notificationListeners.eventNames().length) {
       await this.unListenAll();
