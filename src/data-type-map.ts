@@ -57,6 +57,12 @@ import {
 import { ArrayPgLsnType, PgLsnType } from './data-types/pg-lsn-type.js';
 import { ArrayPointType, PointType } from './data-types/point-type.js';
 import { RangeTypes } from './data-types/range-type.js';
+import {
+  ArrayPgSnapshotType,
+  ArrayTxidSnapshotType,
+  PgSnapshotType,
+  TxidSnapshotType,
+} from './data-types/snapshot-type.js';
 import { ArrayTidType, TidType } from './data-types/tid-type.js';
 import { ArrayTimeType, TimeType } from './data-types/time-type.js';
 import {
@@ -230,6 +236,33 @@ GlobalTypeMap.register({
   oid: DataTypeOIDs._xml,
   elementsOID: DataTypeOIDs.xml,
 });
+// `refcursor` is a cursor's name and `pg_node_tree` a catalog blob, and
+// both are literally text on the wire - `refcursor`'s own typsend is
+// textsend. Registered before varchar the way bpchar and the rest are,
+// and marked uninferrable on top of that: a plain string is not evidence
+// of either, and sending one declared `refcursor` where `text` was meant
+// would be refused by the server.
+GlobalTypeMap.register({
+  ...VarcharType,
+  name: 'refcursor',
+  oid: DataTypeOIDs.refcursor,
+  inferrable: false,
+});
+GlobalTypeMap.register({
+  ...ArrayVarcharType,
+  name: '_refcursor',
+  oid: DataTypeOIDs._refcursor,
+  elementsOID: DataTypeOIDs.refcursor,
+  inferrable: false,
+});
+// pg_node_tree has no array type of its own.
+GlobalTypeMap.register({
+  ...VarcharType,
+  name: 'pg_node_tree',
+  oid: DataTypeOIDs.pg_node_tree,
+  inferrable: false,
+});
+
 GlobalTypeMap.register([VarcharType, ArrayVarcharType]);
 GlobalTypeMap.register([UuidType, ArrayUuidType]);
 GlobalTypeMap.register([CharType, ArrayCharType]);
@@ -254,5 +287,7 @@ GlobalTypeMap.register([Xid8Type, ArrayXid8Type]);
 GlobalTypeMap.register([CidType, ArrayCidType]);
 GlobalTypeMap.register([TidType, ArrayTidType]);
 GlobalTypeMap.register([PgLsnType, ArrayPgLsnType]);
+GlobalTypeMap.register([PgSnapshotType, ArrayPgSnapshotType]);
+GlobalTypeMap.register([TxidSnapshotType, ArrayTxidSnapshotType]);
 GlobalTypeMap.register([MacaddrType, ArrayMacaddrType]);
 GlobalTypeMap.register([Macaddr8Type, ArrayMacaddr8Type]);

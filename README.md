@@ -163,8 +163,11 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
 - **What stays undecoded, and why:** the `reg*` family - `regclass`, `regtype`, `regproc` and the rest - cannot be
   decoded at all. Their binary form is a bare OID and their text form is the name that OID resolves to, which only a
   catalog lookup against that database produces, so whichever format a column arrived in the other would disagree.
-  `money` is the same story with `lc_monetary`. These are named in the OID table, so a field still reports its
-  `dataTypeName`, and `unknownTypesAsString` gets the string the server rendered.
+  `money` is the same story with `lc_monetary`. `aclitem` and `gtsvector` go further and have no binary output
+  function at all, so asking for either in binary makes the server itself raise. These are named in the OID table, so
+  a field still reports its `dataTypeName`, and `unknownTypesAsString` gets the string the server rendered. Every
+  other built-in type decodes - `refcursor` (what a PL/pgSQL function returning a cursor hands back), `pg_node_tree`,
+  `pg_snapshot` and `txid_snapshot` included.
 - **Array Handling:** Supports multidimensional arrays with fast binary encoding/decoding.
 - **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
 - **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure
