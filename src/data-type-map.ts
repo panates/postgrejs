@@ -14,6 +14,7 @@ import {
 } from './data-types/int2-vector-type.js';
 import { ArrayInt4Type, Int4Type } from './data-types/int4-type.js';
 import { ArrayInt8Type, Int8Type } from './data-types/int8-type.js';
+import { ArrayIntervalType, IntervalType } from './data-types/interval-type.js';
 import { ArrayJsonType, JsonType } from './data-types/json-type.js';
 import { ArrayJsonbType, JsonbType } from './data-types/jsonb-type.js';
 import { ArrayLsegType, LsegType } from './data-types/lseg-type.js';
@@ -166,3 +167,4 @@ GlobalTypeMap.register([TimestamptzType, ArrayTimestamptzType]);
 GlobalTypeMap.register([TimeType, ArrayTimeType]);
 GlobalTypeMap.register([DateType, ArrayDateType]);
 GlobalTypeMap.register([TimestampType, ArrayTimestampType]);
+GlobalTypeMap.register([IntervalType, ArrayIntervalType]);

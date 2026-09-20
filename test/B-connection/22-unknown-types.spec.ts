@@ -4,8 +4,8 @@ import { Connection } from 'postgrejs';
 const SQL =
   "select 'happy'::t_unk_mood as en," +
   " array['happy','sad']::t_unk_mood[] as enarr," +
-  " interval '1 day 2 hours' as iv," +
   " inet '192.168.0.1' as ip," +
+  ' int4range(1,10) as rng,' +
   ' 42::int4 as n,' +
   ' array[1,2]::int4[] as ia';
 
@@ -32,7 +32,7 @@ describe('unknownTypesAsString', () => {
     const r = await conn.query(SQL, { objectRows: true });
     const row = r.rows?.[0] as any;
     expect(Buffer.isBuffer(row.en)).toStrictEqual(true);
-    expect(Buffer.isBuffer(row.iv)).toStrictEqual(true);
+    expect(Buffer.isBuffer(row.ip)).toStrictEqual(true);
   });
 
   it('should read every undecodable column as the server printed it', async () => {
@@ -52,8 +52,8 @@ describe('unknownTypesAsString', () => {
         // literal - there is no telling it is an array without reading
         // the catalog, and `pg` answers the same way.
         enarr: '{happy,sad}',
-        iv: '1 day 02:00:00',
         ip: '192.168.0.1',
+        rng: '[1,10)',
         n: 42,
         ia: [1, 2],
       });
@@ -70,7 +70,7 @@ describe('unknownTypesAsString', () => {
     });
     const row = r.rows?.[0] as any;
     expect(row.en).toStrictEqual('happy');
-    expect(row.iv).toStrictEqual('1 day 02:00:00');
+    expect(row.ip).toStrictEqual('192.168.0.1');
     expect(row.n).toStrictEqual(42);
     expect(row.ia).toStrictEqual([1, 2]);
   });
@@ -95,7 +95,7 @@ describe('unknownTypesAsString', () => {
     const byName: Record<string, string> = {};
     for (const f of r.fields!) byName[f.fieldName] = f.jsType;
     expect(byName.en).toStrictEqual('string');
-    expect(byName.iv).toStrictEqual('string');
+    expect(byName.ip).toStrictEqual('string');
     expect(byName.n).toStrictEqual('number');
     // dataTypeName stays empty: there is no OID-to-name mapping here
     // without reading the catalog, which this option deliberately does

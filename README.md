@@ -108,6 +108,11 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
 - **Extensibility:** Extensible data-types and type mapping to accommodate custom requirements. A type can set
   `inferrable: false` to stay out of parameter type inference while still decoding its own columns.
 - **Parameter Binding:**  Bind parameters with OID mappings for precise and efficient query execution.
+- **Interval:** `interval` decodes to an `Interval` - a class, with every field always present rather than only the
+  non-zero ones, and a `toString()` that prints exactly what PostgreSQL prints, so the value reads the same in a log as
+  it does in psql and casts straight back. `toISOString()` gives the ISO 8601 duration. Months, days and time are kept
+  apart because they are not convertible: a month is 28 to 31 days and a day is 23 to 25 hours across a DST boundary,
+  so only the server can add one to a timestamp.
 - **Array Handling:** Supports multidimensional arrays with fast binary encoding/decoding.
 - **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
 - **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure
