@@ -78,7 +78,8 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
   pooled one is reported on the pool's `'destroy'` and `'error'` events - so an admin kill or a failover is
   distinguishable from an ordinary eviction, including when the connection was sitting idle with no query to reject.
   The reason is a `ConnectionLostError` carrying the backend's `processID`, and `code` `'08006'` so branching on it
-  needs no `instanceof`.
+  needs no `instanceof`. Whatever query was in flight rejects with that same object, so a `catch` can tell a lost
+  connection from a statement the server refused.
 - **Binary Wire Protocol:** Implements the full binary wire protocol for all PostgreSQL data types, ensuring robust and
   efficient data handling.
 - **Prepared Statements:** Named prepared statements for optimized query execution, and a per-connection cache that

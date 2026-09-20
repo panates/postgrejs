@@ -43,8 +43,15 @@ describe('lost connection', () => {
       );
       await new Promise(resolve => setTimeout(resolve, 200));
       await kill(pid);
-      expect((await rejected).message).toStrictEqual('Connection closed');
+      // The caller learns it the same way a pool listener does, down to
+      // the object - so branching on `code` works in a catch, and the
+      // two can be correlated by identity.
+      const err: any = await rejected;
+      expect(err).toBeInstanceOf(ConnectionLostError);
+      expect(err.code).toStrictEqual('08006');
+      expect(err.processID).toStrictEqual(pid);
       const [, reason] = await destroyed;
+      expect(err).toBe(reason);
       // The message is exactly what other drivers report for this, so
       // anything matching on it keeps working; what happened to this
       // connection is on the object instead.
@@ -54,8 +61,9 @@ describe('lost connection', () => {
       );
       expect(reason.code).toStrictEqual('08006');
       expect(reason.processID).toStrictEqual(pid);
-      const [err] = await errored;
-      expect(err).toBe(reason);
+      // One object for all three: the rejection, the destroy reason and
+      // the pool's error.
+      expect((await errored)[0]).toBe(reason);
     } finally {
       await pool.close(0);
     }
@@ -124,6 +132,23 @@ describe('lost connection', () => {
     } finally {
       await pool.close(0);
     }
+  });
+
+  it('should keep the plain error when the close was asked for', async () => {
+    // Nothing was lost here - the caller raced a shutdown it asked for -
+    // so this stays a bare Error rather than claiming a connection died.
+    const connection = new Connection();
+    await connection.connect();
+    const running = connection.query('select pg_sleep(5)').then(
+      () => undefined,
+      (e: any) => e,
+    );
+    await new Promise(resolve => setTimeout(resolve, 200));
+    await connection.close(0);
+    const err: any = await running;
+    expect(err).not.toBeInstanceOf(ConnectionLostError);
+    expect(err.message).toStrictEqual('Connection closed');
+    expect(err.code).toBeUndefined();
   });
 
   describe('Connection', () => {
