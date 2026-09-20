@@ -159,6 +159,21 @@ export class PreparedStatement
     return this._executeBatchWithTransaction(paramSets, options);
   }
 
+  /**
+   * A notice reaches both this statement and the connection it ran on.
+   *
+   * These are the three loops the statement keeps for its own close and
+   * cancel traffic; an `execute()` runs through the connection's loop
+   * instead and is forwarded there. Without this second hop a notice
+   * arriving on one of these three would be the only kind a caller
+   * holding a `Connection` never saw. Hard to provoke - `DEALLOCATE`
+   * does not normally raise one - which is why there is no test for it.
+   */
+  protected _emitNotice(msg: any): void {
+    this.emit('notice', msg);
+    getIntlConnection(this.connection).emit('notice', msg);
+  }
+
   protected _executeBatchWithTransaction(
     paramSets: any[][],
     options: QueryOptions,
@@ -375,7 +390,7 @@ export class PreparedStatement
         ) => {
           switch (code) {
             case Protocol.BackendMessageCode.NoticeResponse:
-              this.emit('notice', msg);
+              this._emitNotice(msg);
               break;
             case Protocol.BackendMessageCode.CloseComplete:
               // Arrives twice (once per Close) - neither call is terminal.
@@ -417,7 +432,7 @@ export class PreparedStatement
         ) => {
           switch (code) {
             case Protocol.BackendMessageCode.NoticeResponse:
-              this.emit('notice', msg);
+              this._emitNotice(msg);
               break;
             case Protocol.BackendMessageCode.CloseComplete:
               done();
@@ -442,7 +457,7 @@ export class PreparedStatement
         ) => {
           switch (code) {
             case Protocol.BackendMessageCode.NoticeResponse:
-              this.emit('notice', msg);
+              this._emitNotice(msg);
               break;
             case Protocol.BackendMessageCode.ReadyForQuery:
               intoCon.transactionStatus = msg.status;

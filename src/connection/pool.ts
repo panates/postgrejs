@@ -214,6 +214,12 @@ export class Pool extends SafeEventEmitter {
       connection.on('execute', (...args) => this.emit('execute', ...args));
     if (this.listenerCount('query'))
       connection.on('query', (...args) => this.emit('query', ...args));
+    // Forwarded with the connection that raised it, the way 'destroy'
+    // names its own subject: a caller using pool.query() never sees the
+    // Connection, so without this a notice raised by their statement has
+    // nowhere to go at all.
+    if (this.listenerCount('notice'))
+      connection.on('notice', msg => this.emit('notice', msg, connection));
     return connection;
   }
 
