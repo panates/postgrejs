@@ -80,8 +80,9 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
   The reason is a `ConnectionLostError` carrying the backend's `processID`, and `code` `'08006'` so branching on it
   needs no `instanceof`. Whatever query was in flight rejects with that same object, so a `catch` can tell a lost
   connection from a statement the server refused.
-- **Binary Wire Protocol:** Implements the full binary wire protocol for all PostgreSQL data types, ensuring robust and
-  efficient data handling.
+- **Binary Wire Protocol:** The binary format end to end - binary encoders as well as decoders, so parameters travel
+  in it too and not only results. 125 built-in types are registered - every one whose binary and text forms can be
+  reconciled at all; the few that cannot are named further down, with the reason.
 - **Prepared Statements:** Named prepared statements for optimized query execution, and a per-connection cache that
   reuses one automatically for SQL the connection has run before - a repeated query costs `Bind`/`Execute` instead of
   parsing again, worth 3.2x on fifty concurrent calls and 2.9x again on a query inside an open transaction. On by
@@ -126,7 +127,7 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
   `12:00:00+03` and `09:00:00+00` the same value and change it on the way back. A `Date` is still accepted as a
   parameter, its own zone being its offset. A string without one is refused rather than resolved against the Node
   process's zone, which is not the session's.
-- **Geometric Types:** all seven - `point`, `circle`, `box`, `lseg`, `line`, `path` and `polygon` - decode to a class
+- **Geometric Types:** All seven - `point`, `circle`, `box`, `lseg`, `line`, `path` and `polygon` - decode to a class
   of their own, each printing what PostgreSQL prints. A class rather than a shared shape is what tells the pairs apart:
   `box` and `lseg` both carried `{x1, y1, x2, y2}` before, so an `lseg` parameter was read as a `box` and could not be
   expressed at all, and `Path` and `Polygon` are the same list of points. A `Path` also carries whether it is closed,
@@ -271,10 +272,10 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Multiple hosts                    |           ✅           |          ❌           |        ✅        |
 | LISTEN/NOTIFY                     |           ✅           |   🟡 <sup>15</sup>    |        ✅        |
 | ***Data types***                  |                        |                       |                  |
-| Text encoders                     |           56           | generic <sup>16</sup> |        14        |
-| Text decoders                     |           56           |          44           | 12 <sup>17</sup> |
-| Binary encoders                   |           56           |          ❌           |        ❌        |
-| Binary decoders                   |           56           |          16           |        ❌        |
+| Text encoders                     |          125           | generic <sup>16</sup> |        14        |
+| Text decoders                     |          125           |          44           | 12 <sup>17</sup> |
+| Binary encoders                   |   121 <sup>27</sup>    |          ❌           |        ❌        |
+| Binary decoders                   |          125           |          16           |        ❌        |
 | Multidimensional arrays           |       ✅ binary        | 🟡 text <sup>18</sup> |     🟡 text      |
 | ***Security***                    |                        |                       |                  |
 | SSL/TLS                           |           ✅           |          ✅           |        ✅        |
@@ -361,7 +362,10 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   a savepoint, so nesting needs nothing from the caller. postgres.js has `sql.begin(fn)` (`src/index.js`), where a
   nested scope is opened explicitly with `sql.savepoint(fn)` instead. pg has no such helper in `lib/` - `BEGIN` and
   `COMMIT` are statements the caller sends, and getting a transaction onto one connection is the caller's problem too.
-
+- <sup>27</sup> Every registered type but `tsvector` and `tsquery`, which have none deliberately: the server's own
+  input parser is what sorts and deduplicates a vector and what defines a query's grammar, so encoding either here
+  would make the same text mean one thing written as a literal and another bound as a parameter. They are sent as
+  text instead, which is exact.
 
 ## Benchmarks
 
