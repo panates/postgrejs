@@ -1,4 +1,4 @@
-import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
+import { Connection, DataFormat, DataTypeOIDs, LineSegment } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
 describe('DataType: lseg', () => {
@@ -14,10 +14,10 @@ describe('DataType: lseg', () => {
       '10.24, 40.1, 4.6, 8.2',
     ];
     const output = [
-      { x1: 1.2, y1: 3.5, x2: 4.6, y2: 5.2 },
-      { x1: -1.6, y1: 3, x2: 4.6, y2: 0.1 },
-      { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
-      { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
+      new LineSegment(1.2, 3.5, 4.6, 5.2),
+      new LineSegment(-1.6, 3, 4.6, 0.1),
+      new LineSegment(4.2, 3.5, 4.6, 9.7),
+      new LineSegment(10.24, 40.1, 4.6, 8.2),
     ];
     await testParse(conn, DataTypeOIDs.lseg, input, output, {
       columnFormat: DataFormat.text,
@@ -32,10 +32,10 @@ describe('DataType: lseg', () => {
       '10.24, 40.1, 4.6, 8.2',
     ];
     const output = [
-      { x1: 1.2, y1: 3.5, x2: 4.6, y2: 5.2 },
-      { x1: -1.6, y1: 3, x2: 4.6, y2: 0.1 },
-      { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
-      { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
+      new LineSegment(1.2, 3.5, 4.6, 5.2),
+      new LineSegment(-1.6, 3, 4.6, 0.1),
+      new LineSegment(4.2, 3.5, 4.6, 9.7),
+      new LineSegment(10.24, 40.1, 4.6, 8.2),
     ];
     await testParse(conn, DataTypeOIDs.lseg, input, output, {
       columnFormat: DataFormat.binary,
@@ -50,10 +50,10 @@ describe('DataType: lseg', () => {
       '10.24, 40.1, 4.6, 8.2',
     ];
     const output = [
-      { x1: 1.2, y1: 3.5, x2: 4.6, y2: 5.2 },
-      { x1: -1.6, y1: 3, x2: 4.6, y2: 0.1 },
-      { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
-      { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
+      new LineSegment(1.2, 3.5, 4.6, 5.2),
+      new LineSegment(-1.6, 3, 4.6, 0.1),
+      new LineSegment(4.2, 3.5, 4.6, 9.7),
+      new LineSegment(10.24, 40.1, 4.6, 8.2),
     ];
     await testParse(conn, DataTypeOIDs._lseg, input, output, {
       columnFormat: DataFormat.text,
@@ -68,10 +68,10 @@ describe('DataType: lseg', () => {
       '10.24, 40.1, 4.6, 8.2',
     ];
     const output = [
-      { x1: 1.2, y1: 3.5, x2: 4.6, y2: 5.2 },
-      { x1: -1.6, y1: 3, x2: 4.6, y2: 0.1 },
-      { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
-      { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
+      new LineSegment(1.2, 3.5, 4.6, 5.2),
+      new LineSegment(-1.6, 3, 4.6, 0.1),
+      new LineSegment(4.2, 3.5, 4.6, 9.7),
+      new LineSegment(10.24, 40.1, 4.6, 8.2),
     ];
     await testParse(conn, DataTypeOIDs._lseg, input, output, {
       columnFormat: DataFormat.binary,
@@ -80,20 +80,20 @@ describe('DataType: lseg', () => {
 
   it('should encode "lseg" param', async () => {
     const input = [
-      { x1: 1.2, y1: 3.5, x2: 4.6, y2: 5.2 },
-      { x1: -1.6, y1: 3, x2: 4.6, y2: 0.1 },
-      { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
-      { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
+      new LineSegment(1.2, 3.5, 4.6, 5.2),
+      new LineSegment(-1.6, 3, 4.6, 0.1),
+      new LineSegment(4.2, 3.5, 4.6, 9.7),
+      new LineSegment(10.24, 40.1, 4.6, 8.2),
     ];
     await testEncode(conn, DataTypeOIDs.lseg, input, input);
   });
 
   it('should encode "lseg" array param', async () => {
     const input = [
-      { x1: 1.2, y1: 3.5, x2: 4.6, y2: 5.2 },
-      { x1: -1.6, y1: 3, x2: 4.6, y2: 0.1 },
-      { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
-      { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
+      new LineSegment(1.2, 3.5, 4.6, 5.2),
+      new LineSegment(-1.6, 3, 4.6, 0.1),
+      new LineSegment(4.2, 3.5, 4.6, 9.7),
+      new LineSegment(10.24, 40.1, 4.6, 8.2),
     ];
     await testEncode(conn, DataTypeOIDs._lseg, input);
   });

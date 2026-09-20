@@ -8,6 +8,7 @@ export * from './connection/pool.js';
 export * from './connection/prepared-statement.js';
 export * from './constants.js';
 export * from './data-type-map.js';
+export * from './data-types/classes/geometric.js';
 export * from './data-types/classes/interval.js';
 export * from './data-types/classes/range.js';
 export * from './interfaces/batch-result.js';

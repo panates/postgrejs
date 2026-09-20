@@ -1,8 +1,9 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
-import type { DataType, Point } from '../interfaces/data-type.js';
+import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import type { Maybe } from '../types.js';
+import { Point } from './classes/geometric.js';
 
 const POINT_PATTERN1 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\)$/;
 const POINT_PATTERN2 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
@@ -10,7 +11,7 @@ const POINT_PATTERN2 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 export const PointType: DataType = {
   name: 'point',
   oid: DataTypeOIDs.point,
-  jsType: 'object',
+  jsType: 'Point',
 
   encodeText(v: Point): string {
     return `(${v.x},${v.y})`;
@@ -22,19 +23,13 @@ export const PointType: DataType = {
   },
 
   decodeBinary(v: Buffer, offset: number = 0): Point {
-    return {
-      x: v.readDoubleBE(offset),
-      y: v.readDoubleBE(offset + 8),
-    };
+    return new Point(v.readDoubleBE(offset), v.readDoubleBE(offset + 8));
   },
 
   decodeText(v: string): Maybe<Point> {
     const m = v.match(POINT_PATTERN1) || v.match(POINT_PATTERN2);
     if (!m) return undefined;
-    return {
-      x: parseFloat(m[1]),
-      y: parseFloat(m[2]),
-    };
+    return new Point(parseFloat(m[1]), parseFloat(m[2]));
   },
 
   // See box-type.ts's decodeTextBuffer comment - same rationale.
@@ -50,13 +45,11 @@ export const PointType: DataType = {
     );
   },
 
+  // A plain `{x, y}` is still accepted: it is what this type returned
+  // before Point existed, and code that builds one by hand should keep
+  // working.
   isType(v: any): boolean {
-    return (
-      typeof v === 'object' &&
-      Object.keys(v).length === 2 &&
-      typeof v.x === 'number' &&
-      typeof v.y === 'number'
-    );
+    return v instanceof Point || Point.isPointLike(v);
   },
 };
 

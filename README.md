@@ -113,6 +113,10 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
   it does in psql and casts straight back. `toISOString()` gives the ISO 8601 duration. Months, days and time are kept
   apart because they are not convertible: a month is 28 to 31 days and a day is 23 to 25 hours across a DST boundary,
   so only the server can add one to a timestamp.
+- **Geometric Types:** `point`, `circle`, `box` and `lseg` decode to `Point`, `Circle`, `Box` and `LineSegment`, each
+  printing what PostgreSQL prints. Two classes for `box` and `lseg` rather than one shape, because that is what tells
+  them apart: both carried `{x1, y1, x2, y2}` before, so an `lseg` parameter was read as a `box` and could not be
+  expressed at all. The plain object each type used to return is still accepted.
 - **Ranges:** The six range types and their multiranges decode to a `Range` - the bounds as the element type's own
   JavaScript values, each end knowing whether it is included and each able to be absent, with `empty` kept distinct
   from the unbounded `(,)`. A multirange is a `Range[]`. `pg` hands all of these back as their literal text. A decoded

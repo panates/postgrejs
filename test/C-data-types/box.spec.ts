@@ -1,4 +1,4 @@
-import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
+import { Box, Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 import { testEncode, testParse } from './_testers.js';
 
 describe('DataType: box', () => {
@@ -13,9 +13,9 @@ describe('DataType: box', () => {
       '10.24, 40.1, 4.6, 8.2',
     ];
     const output = [
-      { x1: 4.6, y1: 3, x2: -1.6, y2: 0.1 },
-      { x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5 },
-      { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
+      new Box(4.6, 3, -1.6, 0.1),
+      new Box(4.6, 9.7, 4.2, 3.5),
+      new Box(10.24, 40.1, 4.6, 8.2),
     ];
     await testParse(conn, DataTypeOIDs.box, input, output, {
       columnFormat: DataFormat.text,
@@ -29,9 +29,9 @@ describe('DataType: box', () => {
       '10.24, 40.1, 4.6, 8.2',
     ];
     const output = [
-      { x1: 4.6, y1: 3, x2: -1.6, y2: 0.1 },
-      { x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5 },
-      { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
+      new Box(4.6, 3, -1.6, 0.1),
+      new Box(4.6, 9.7, 4.2, 3.5),
+      new Box(10.24, 40.1, 4.6, 8.2),
     ];
     await testParse(conn, DataTypeOIDs.box, input, output, {
       columnFormat: DataFormat.binary,
@@ -45,9 +45,9 @@ describe('DataType: box', () => {
       '10.24, 40.1, 4.6, 8.2',
     ];
     const output = [
-      { x1: 4.6, y1: 3, x2: -1.6, y2: 0.1 },
-      { x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5 },
-      { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
+      new Box(4.6, 3, -1.6, 0.1),
+      new Box(4.6, 9.7, 4.2, 3.5),
+      new Box(10.24, 40.1, 4.6, 8.2),
     ];
     await testParse(conn, DataTypeOIDs._box, input, output, {
       columnFormat: DataFormat.text,
@@ -61,9 +61,9 @@ describe('DataType: box', () => {
       '10.24, 40.1, 4.6, 8.2',
     ];
     const output = [
-      { x1: 4.6, y1: 3, x2: -1.6, y2: 0.1 },
-      { x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5 },
-      { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
+      new Box(4.6, 3, -1.6, 0.1),
+      new Box(4.6, 9.7, 4.2, 3.5),
+      new Box(10.24, 40.1, 4.6, 8.2),
     ];
     await testParse(conn, DataTypeOIDs._box, input, output, {
       columnFormat: DataFormat.binary,
@@ -72,28 +72,28 @@ describe('DataType: box', () => {
 
   it('should encode "box" param', async () => {
     const input = [
-      { x1: -1.6, y1: 3, x2: 4.6, y2: 0.1 },
-      { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
-      { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
+      new Box(-1.6, 3, 4.6, 0.1),
+      new Box(4.2, 3.5, 4.6, 9.7),
+      new Box(10.24, 40.1, 4.6, 8.2),
     ];
     const output = [
-      { x1: 4.6, y1: 3, x2: -1.6, y2: 0.1 },
-      { x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5 },
-      { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
+      new Box(4.6, 3, -1.6, 0.1),
+      new Box(4.6, 9.7, 4.2, 3.5),
+      new Box(10.24, 40.1, 4.6, 8.2),
     ];
     await testEncode(conn, DataTypeOIDs.box, input, output);
   });
 
   it('should encode "box" array param', async () => {
     const input = [
-      { x1: -1.6, y1: 3, x2: 4.6, y2: 0.1 },
-      { x1: 4.2, y1: 3.5, x2: 4.6, y2: 9.7 },
-      { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
+      new Box(-1.6, 3, 4.6, 0.1),
+      new Box(4.2, 3.5, 4.6, 9.7),
+      new Box(10.24, 40.1, 4.6, 8.2),
     ];
     const output = [
-      { x1: 4.6, y1: 3, x2: -1.6, y2: 0.1 },
-      { x1: 4.6, y1: 9.7, x2: 4.2, y2: 3.5 },
-      { x1: 10.24, y1: 40.1, x2: 4.6, y2: 8.2 },
+      new Box(4.6, 3, -1.6, 0.1),
+      new Box(4.6, 9.7, 4.2, 3.5),
+      new Box(10.24, 40.1, 4.6, 8.2),
     ];
     await testEncode(conn, DataTypeOIDs._box, input, output);
   });

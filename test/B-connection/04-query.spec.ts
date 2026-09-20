@@ -2,11 +2,15 @@ import assert from 'assert';
 import { expect } from 'expect';
 import {
   BindParam,
+  Box,
+  Circle,
   Connection,
   Cursor,
   DataFormat,
   DataTypeMap,
   GlobalTypeMap,
+  LineSegment,
+  Point,
   RowDecoder,
   sql,
 } from 'postgrejs';
@@ -295,10 +299,10 @@ describe('query() (Extended Query)', () => {
       new Date('2005-07-01T01:21:11.123+03:00'),
     );
     expect(row.f_bytea).toStrictEqual(Buffer.from([65, 66, 67, 68, 69]));
-    expect(row.f_point).toStrictEqual({ x: -1.2, y: 3.5 });
-    expect(row.f_circle).toStrictEqual({ x: -1.2, y: 3.5, r: 4.6 });
-    expect(row.f_lseg).toStrictEqual({ x1: 1.2, y1: 3.5, x2: 4.6, y2: 5.2 });
-    expect(row.f_box).toStrictEqual({ x1: 4.6, y1: 3, x2: -1.6, y2: 0.1 });
+    expect(row.f_point).toStrictEqual(new Point(-1.2, 3.5));
+    expect(row.f_circle).toStrictEqual(new Circle(-1.2, 3.5, 4.6));
+    expect(row.f_lseg).toStrictEqual(new LineSegment(1.2, 3.5, 4.6, 5.2));
+    expect(row.f_box).toStrictEqual(new Box(4.6, 3, -1.6, 0.1));
   });
 
   it('should not crash protocol on invalid query ', async () => {
