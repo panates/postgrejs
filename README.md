@@ -113,6 +113,9 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
   it does in psql and casts straight back. `toISOString()` gives the ISO 8601 duration. Months, days and time are kept
   apart because they are not convertible: a month is 28 to 31 days and a day is 23 to 25 hours across a DST boundary,
   so only the server can add one to a timestamp.
+- **Ranges:** The six range types and their multiranges decode to a `Range` - the bounds as the element type's own
+  JavaScript values, each end knowing whether it is included and each able to be absent, with `empty` kept distinct
+  from the unbounded `(,)`. A multirange is a `Range[]`. `pg` hands all of these back as their literal text.
 - **Array Handling:** Supports multidimensional arrays with fast binary encoding/decoding.
 - **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
 - **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure

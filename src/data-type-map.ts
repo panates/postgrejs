@@ -25,6 +25,7 @@ import {
   OidVectorType,
 } from './data-types/oid-vector-type.js';
 import { ArrayPointType, PointType } from './data-types/point-type.js';
+import { RangeTypes } from './data-types/range-type.js';
 import { ArrayTimeType, TimeType } from './data-types/time-type.js';
 import {
   ArrayTimestampType,
@@ -168,3 +169,4 @@ GlobalTypeMap.register([TimeType, ArrayTimeType]);
 GlobalTypeMap.register([DateType, ArrayDateType]);
 GlobalTypeMap.register([TimestampType, ArrayTimestampType]);
 GlobalTypeMap.register([IntervalType, ArrayIntervalType]);
+GlobalTypeMap.register(RangeTypes);

@@ -5,7 +5,7 @@ const SQL =
   "select 'happy'::t_unk_mood as en," +
   " array['happy','sad']::t_unk_mood[] as enarr," +
   " inet '192.168.0.1' as ip," +
-  ' int4range(1,10) as rng,' +
+  " tsvector 'a b' as tsv," +
   ' 42::int4 as n,' +
   ' array[1,2]::int4[] as ia';
 
@@ -53,7 +53,7 @@ describe('unknownTypesAsString', () => {
         // the catalog, and `pg` answers the same way.
         enarr: '{happy,sad}',
         ip: '192.168.0.1',
-        rng: '[1,10)',
+        tsv: "'a' 'b'",
         n: 42,
         ia: [1, 2],
       });

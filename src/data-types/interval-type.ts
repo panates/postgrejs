@@ -1,8 +1,8 @@
 import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
-import { Interval } from '../interval.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import { readBigInt64BE } from '../util/bigint-methods.js';
+import { Interval } from './classes/interval.js';
 
 /**
  * What PostgreSQL prints under the default `IntervalStyle` - years, months
