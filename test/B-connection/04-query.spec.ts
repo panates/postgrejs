@@ -276,9 +276,11 @@ describe('query() (Extended Query)', () => {
     expect(row.f_int2).toStrictEqual(1);
     expect(row.f_int4).toStrictEqual(12345);
     expect(row.f_int8).toStrictEqual(BigInt('9007199254740995'));
-    // float4 is IEEE754 single-precision; 1.2 is not exactly representable
-    // in 32 bits, so the stored value widens to the nearest float4 value.
-    expect(row.f_float4).toStrictEqual(Math.fround(1.2));
+    // 1.2 is not exactly representable in 32 bits, but it is the shortest
+    // decimal that reads back as the float4 that was stored, so that is
+    // what comes out - the number the server prints, not the double that
+    // spells its binary approximation out in full.
+    expect(row.f_float4).toStrictEqual(1.2);
     expect(row.f_float8).toStrictEqual(5.12345);
     expect(row.f_char).toStrictEqual('a');
     expect(row.f_varchar).toStrictEqual('abcd');
