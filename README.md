@@ -73,16 +73,11 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
 
 ## Features
 
-- **Connection Management:** Supports both single connection and advanced pooling, providing scalability and efficient
-  resource management. A connection that dies rather than being closed says so: `'close'` carries the reason, and a
-  pooled one is reported on the pool's `'destroy'` and `'error'` events - so an admin kill or a failover is
-  distinguishable from an ordinary eviction, including when the connection was sitting idle with no query to reject.
-  The reason is a `ConnectionLostError` carrying the backend's `processID`, and `code` `'08006'` so branching on it
-  needs no `instanceof`. Whatever query was in flight rejects with that same object, so a `catch` can tell a lost
-  connection from a statement the server refused.
-- **Binary Wire Protocol:** The binary format end to end - binary encoders as well as decoders, so parameters travel
-  in it too and not only results. 125 built-in types are registered - every one whose binary and text forms can be
-  reconciled at all; the few that cannot are named further down, with the reason.
+- **Connection Management:** Single connections and pooling. A connection that dies rather than being closed says so:
+  the `'close'` event, the pool's `'destroy'`/`'error'`, and whatever query was in flight all carry the same
+  `ConnectionLostError`, with the backend's `processID` and `code` `'08006'`.
+- **Binary Wire Protocol:** The binary format end to end - encoders as well as decoders, so parameters travel in it
+  too and not only results.
 - **Prepared Statements:** Named prepared statements for optimized query execution, and a per-connection cache that
   reuses one automatically for SQL the connection has run before - a repeated query costs `Bind`/`Execute` instead of
   parsing again, worth 3.2x on fifty concurrent calls and 2.9x again on a query inside an open transaction. On by
@@ -94,11 +89,9 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
 - **Complete Results:** `query()` returns every row the statement produced. A `fetchCount` limit is a limit rather
   than a silent cap: the result carries `suspended: true` when the server stopped at it, so a prefix can never be
   mistaken for the whole answer. `0` means unlimited, as it does in the protocol.
-- **Cursors:** Features fast double-link cache cursors for efficient data retrieval, iterable with `for await` a row
-  at a time and closed when the loop ends - by exhaustion, a `break`, or a throw. A cursor reads through a portal, and
-  a portal lives as long as the transaction that created it - `Pool.query()` keeps its connection out of the pool
-  until the cursor closes, and on a bare `Connection` open the cursor inside a transaction if anything else will run
-  on that connection meanwhile.
+- **Cursors:** Fast double-link cache cursors, iterable with `for await` a row at a time and closed when the loop
+  ends. A cursor reads through a portal, which lives only as long as its transaction - `Pool.query()` holds its
+  connection until the cursor closes.
 - **Scoped Transactions:** `transaction(fn)` commits when the callback returns and rolls back when it throws, on a
   connection or straight from the pool. A call made while a transaction is already open takes a savepoint rather than
   a second `BEGIN`, so a nested scope that fails rolls back its own work and leaves the outer transaction standing.
@@ -109,66 +102,10 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
 - **Extensibility:** Extensible data-types and type mapping to accommodate custom requirements. A type can set
   `inferrable: false` to stay out of parameter type inference while still decoding its own columns.
 - **Parameter Binding:**  Bind parameters with OID mappings for precise and efficient query execution.
-- **Exact Numerics:** `numeric` decodes to a `number` while a double carries the value, and to a `Numeric` - the exact
-  decimal as the server wrote it - once it does not. That covers both ways a double loses one: digits it cannot hold
-  (`12345678901234567.89` used to come back as `...68`) and a magnitude JavaScript prints in exponential form
-  (`-0.00000000000000001` as `-1e-17`, which PostgreSQL never writes). The padding a declared scale adds is not a
-  difference, so `numeric(40,6)` holding `19.99` is still the number `19.99`. A `Numeric` prints its digits for every
-  coercion and names its own type, so it can be written straight back with no `BindParam`; `toNumber()` is how you ask
-  for the double, and there is no `valueOf()` so nothing rounds behind your back. `fetchAsString` is unchanged and
-  still hands back every value as the server's own text.
-- **Interval:** `interval` decodes to an `Interval` - a class, with every field always present rather than only the
-  non-zero ones, and a `toString()` that prints exactly what PostgreSQL prints, so the value reads the same in a log as
-  it does in psql and casts straight back. `toISOString()` gives the ISO 8601 duration. Months, days and time are kept
-  apart because they are not convertible: a month is 28 to 31 days and a day is 23 to 25 hours across a DST boundary,
-  so only the server can add one to a timestamp.
-- **Time With Zone:** `timetz` decodes to a string rather than a `Date`, because the offset is the only thing that
-  makes it different from `time` and a `Date` has no field for one - folding it into the instant would make
-  `12:00:00+03` and `09:00:00+00` the same value and change it on the way back. A `Date` is still accepted as a
-  parameter, its own zone being its offset. A string without one is refused rather than resolved against the Node
-  process's zone, which is not the session's.
-- **Geometric Types:** All seven - `point`, `circle`, `box`, `lseg`, `line`, `path` and `polygon` - decode to a class
-  of their own, each printing what PostgreSQL prints. A class rather than a shared shape is what tells the pairs apart:
-  `box` and `lseg` both carried `{x1, y1, x2, y2}` before, so an `lseg` parameter was read as a `box` and could not be
-  expressed at all, and `Path` and `Polygon` are the same list of points. A `Path` also carries whether it is closed,
-  which is part of the value and not a formatting choice. The plain object each of the older types used to return is
-  still accepted, and `Line`, `Path` and `Polygon` take `{a, b, c}` and plain point arrays as parameters too.
-- **Ranges:** The six range types and their multiranges decode to a `Range` - the bounds as the element type's own
-  JavaScript values, each end knowing whether it is included and each able to be absent, with `empty` kept distinct
-  from the unbounded `(,)`. A multirange is a `Range[]`. `pg` hands all of these back as their literal text. A decoded
-  range remembers which of the six types it came from, so reading one and writing it back needs no `BindParam`; one
-  built by hand takes the OID as its last argument, and passing one that carries neither is an error rather than a
-  guess.
-- **Network Types:** `inet`, `cidr`, `macaddr` and `macaddr8` decode to the string PostgreSQL itself would print -
-  including the `::` collapsing and embedded-IPv4 rules its own formatter follows, so `0:0:0:0:0:0:1.2.3.4` comes back
-  as `::1.2.3.4` from the binary format just as it does from the text one. A string, because JavaScript has no address
-  type and every Node API that takes one takes a string. They stay out of parameter inference: an address is an
-  ordinary string, and stealing it would send `inet` where `text` was meant - name the type to use it.
-- **Bit Strings and jsonpath:** `bit` and `varbit` decode to a string of `0` and `1` - the type as it is written, where
-  a number would lose leading zeroes and anything past 53 bits and a Buffer would lose the bit count. `jsonpath`
-  decodes to PostgreSQL's own normalized spelling of the expression, which is what its binary form already holds.
-  `money` is deliberately left undecoded: its binary form is an integer count of a unit set by the server's
-  `lc_monetary`, which the protocol never reports, so nothing here can turn it into `$12.34` - read it with
-  `unknownTypesAsString`, or select `amount::numeric` and get an exact number.
-- **Full Text Search:** `tsvector` and `tsquery` decode to the strings PostgreSQL prints - `'cat':1,3 'dog':2` and
-  `'a' <-> ( 'b' <-> 'c' )`, parentheses exactly where the server puts them, since `a <-> (b <-> c)` and
-  `(a <-> b) <-> c` are different queries. Neither has a binary encoder, deliberately: the server's parser is what
-  orders and deduplicates a vector and what defines the query grammar, so a parameter goes over as text and means
-  exactly what the same literal would. The one thing given up is these two types inside a binary `COPY`, which
-  `copyFrom` reports by name before writing a row.
-- **System Columns:** `ctid`, `xmin`, `xmax`, `cmin` and `cmax` decode - `tid` to the `(block,offset)` string the
-  server prints, which is what a caller compares or hands straight back, and `xid`, `xid8` and `cid` to numbers
-  (`xid8` to a BigInt once a number would lose a digit). `pg_lsn` decodes too, as the `16/B374D848` hex pair, for
-  replication and monitoring queries. None of them joins parameter inference: a number says nothing about which
-  counter it is, and claiming integers would take them from `int4`.
-- **What stays undecoded, and why:** the `reg*` family - `regclass`, `regtype`, `regproc` and the rest - cannot be
-  decoded at all. Their binary form is a bare OID and their text form is the name that OID resolves to, which only a
-  catalog lookup against that database produces, so whichever format a column arrived in the other would disagree.
-  `money` is the same story with `lc_monetary`. `aclitem` and `gtsvector` go further and have no binary output
-  function at all, so asking for either in binary makes the server itself raise. These are named in the OID table, so
-  a field still reports its `dataTypeName`, and `unknownTypesAsString` gets the string the server rendered. Every
-  other built-in type decodes - `refcursor` (what a PL/pgSQL function returning a cursor hands back), `pg_node_tree`,
-  `pg_snapshot` and `txid_snapshot` included.
+- **Data Types:** 125 built-in types, with encoders and decoders in both wire formats. Values arrive as what they
+  are rather than as strings - `Interval`, `Range`, `Numeric` and a class per geometric type, each printing exactly
+  what PostgreSQL prints - and `numeric` keeps its digits instead of rounding into a double. `money` and the `reg*`
+  family cannot be decoded at all, their binary and text forms disagreeing; `unknownTypesAsString` answers for those.
 - **Array Handling:** Supports multidimensional arrays with fast binary encoding/decoding.
 - **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
 - **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure
@@ -195,16 +132,11 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
   `rollbackPrepared()`, from any connection.
 - **Cancellation:** Any call takes an `AbortSignal`, which also gives per-query timeouts via `AbortSignal.timeout()`.
 - **Flexible Data Retrieval:**  Can return both array and object rows to suit different data processing needs.
-- **Unknown Types:** Result columns are requested in binary, which is what makes the built-in types decode as fast as
-  they do - but a type with no decoder registered (an enum, a composite, an extension type, or one of the built-ins
-  without one yet) would arrive as a `Buffer` nothing can read. `unknownTypesAsString: true` asks the server for text
-  on exactly those columns, so they arrive as the string PostgreSQL would have printed while everything registered
-  keeps decoding as before. Off by default; `columnFormat` is the blunter instrument that sets the format for every
-  column at once.
-- **Values as Text:** `fetchAsString: [DataTypeOIDs.int8]` asks the server for those columns in its own text format
-  and hands the bytes back unparsed - so `count(*)` arrives as `'3'`, one consistent type where a decoded `int8` is a
-  `number` or a `BigInt` depending on magnitude. Any OID, arrays included. The string is PostgreSQL's own rendering
-  rather than one reconstructed from the binary value, so it cannot drift from what the server would print.
+- **Unknown Types:** `unknownTypesAsString: true` asks the server for text on exactly the columns this client has no
+  decoder for - an enum, a composite, an extension type - so they arrive as strings instead of unreadable `Buffer`s,
+  while everything registered keeps decoding in binary. Off by default.
+- **Values as Text:** `fetchAsString: [DataTypeOIDs.int8]` asks for those columns in the server's own text format and
+  hands the bytes back unparsed, so the value is exactly what PostgreSQL would print. Any OID, arrays included.
 - **Resource Management:** Auto disposal of resources with the "using" syntax
   ([TC39 Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management)), ensuring
   efficient resource cleanup.
