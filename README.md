@@ -59,6 +59,9 @@ $ npm install postgrejs --save
 Please read :small_orange_diamond: [DOCUMENTATION](https://www.postgrejs.com/) :small_orange_diamond: for detailed
 usage.
 
+Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3.6.md) - `query()` no longer stops at
+100 rows, and `fetchAsString` now returns the server's own text.
+
 ## Library Overview
 
 - **Language:** Pure JavaScript, with no native/binary dependencies to compile or ship.
@@ -82,16 +85,23 @@ usage.
   statement leaves the transaction usable instead of aborting the whole block. The `SAVEPOINT`/`RELEASE` pair travels
   in the statement's own round trip rather than costing one each - 36µs for the pair, against 507µs sent separately.
   `rollbackOnError: false` to opt out.
+- **Complete Results:** `query()` returns every row the statement produced. A `fetchCount` limit is a limit rather
+  than a silent cap: the result carries `suspended: true` when the server stopped at it, so a prefix can never be
+  mistaken for the whole answer. `0` means unlimited, as it does in the protocol.
 - **Cursors:** Features fast double-link cache cursors for efficient data retrieval, iterable with `for await` a row
-  at a time and closed when the loop ends - by exhaustion, a `break`, or a throw.
+  at a time and closed when the loop ends - by exhaustion, a `break`, or a throw. A cursor reads through a portal, and
+  a portal lives as long as the transaction that created it - `Pool.query()` keeps its connection out of the pool
+  until the cursor closes, and on a bare `Connection` open the cursor inside a transaction if anything else will run
+  on that connection meanwhile.
 - **Scoped Transactions:** `transaction(fn)` commits when the callback returns and rolls back when it throws, on a
   connection or straight from the pool. A call made while a transaction is already open takes a savepoint rather than
   a second `BEGIN`, so a nested scope that fails rolls back its own work and leaves the outer transaction standing.
 - **Batch Execution:** `executeBatch()` runs one prepared statement over many parameter sets under a single `Sync`,
   reporting each set's row count - 1000 updates in 20ms where the same calls pipelined individually take 188ms.
 - **Notifications:**  High-level implementation for PostgreSQL notifications (LISTEN/NOTIFY), enabling real-time data
-  updates.
-- **Extensibility:** Extensible data-types and type mapping to accommodate custom requirements.
+  updates. Channel names are quoted rather than pattern-matched, so any name PostgreSQL accepts works.
+- **Extensibility:** Extensible data-types and type mapping to accommodate custom requirements. A type can set
+  `inferrable: false` to stay out of parameter type inference while still decoding its own columns.
 - **Parameter Binding:**  Bind parameters with OID mappings for precise and efficient query execution.
 - **Array Handling:** Supports multidimensional arrays with fast binary encoding/decoding.
 - **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
@@ -119,6 +129,10 @@ usage.
   `rollbackPrepared()`, from any connection.
 - **Cancellation:** Any call takes an `AbortSignal`, which also gives per-query timeouts via `AbortSignal.timeout()`.
 - **Flexible Data Retrieval:**  Can return both array and object rows to suit different data processing needs.
+- **Values as Text:** `fetchAsString: [DataTypeOIDs.int8]` asks the server for those columns in its own text format
+  and hands the bytes back unparsed - so `count(*)` arrives as `'3'`, one consistent type where a decoded `int8` is a
+  `number` or a `BigInt` depending on magnitude. Any OID, arrays included. The string is PostgreSQL's own rendering
+  rather than one reconstructed from the binary value, so it cannot drift from what the server would print.
 - **Resource Management:** Auto disposal of resources with the "using" syntax
   ([TC39 Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management)), ensuring
   efficient resource cleanup.
