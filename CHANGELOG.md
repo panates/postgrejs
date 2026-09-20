@@ -1,6 +1,20 @@
 ## Changelog
 
-### [v3.6.0](https://github.com/panates/postgrejs/compare/v3.5.0...v3.6.0) - 
+### [v3.6.1](https://github.com/panates/postgrejs/compare/v3.6.0...v3.6.1) - 
+
+#### 🚀 New Features
+
+- feat: report a pooled connection that dies @Eray Hanoğlu 
+
+#### 🛠 Refactoring and Updates
+
+- refactor: give a lost connection its own error type @Eray Hanoğlu 
+
+#### 💬 General Changes
+
+- ci: pin the runner image and stop naming the PostgreSQL it ships @Eray Hanoğlu 
+
+### [v3.6.0](https://github.com/panates/postgrejs/compare/v3.5.0...v3.6.0) -  20 September 2026 
 
 #### 🚀 New Features
 
