@@ -54,8 +54,10 @@ import {
   PathType,
   PolygonType,
 } from './data-types/path-type.js';
+import { ArrayPgLsnType, PgLsnType } from './data-types/pg-lsn-type.js';
 import { ArrayPointType, PointType } from './data-types/point-type.js';
 import { RangeTypes } from './data-types/range-type.js';
+import { ArrayTidType, TidType } from './data-types/tid-type.js';
 import { ArrayTimeType, TimeType } from './data-types/time-type.js';
 import {
   ArrayTimestampType,
@@ -74,6 +76,14 @@ import {
 } from './data-types/tsvector-type.js';
 import { ArrayUuidType, UuidType } from './data-types/uuid-type.js';
 import { ArrayVarcharType, VarcharType } from './data-types/varchar-type.js';
+import {
+  ArrayCidType,
+  ArrayXid8Type,
+  ArrayXidType,
+  CidType,
+  Xid8Type,
+  XidType,
+} from './data-types/xid-type.js';
 import type { DataType } from './interfaces/data-type.js';
 import type { OID } from './types.js';
 
@@ -239,5 +249,10 @@ GlobalTypeMap.register([VarbitType, ArrayVarbitType]);
 GlobalTypeMap.register([JsonPathType, ArrayJsonPathType]);
 GlobalTypeMap.register([TsVectorType, ArrayTsVectorType]);
 GlobalTypeMap.register([TsQueryType, ArrayTsQueryType]);
+GlobalTypeMap.register([XidType, ArrayXidType]);
+GlobalTypeMap.register([Xid8Type, ArrayXid8Type]);
+GlobalTypeMap.register([CidType, ArrayCidType]);
+GlobalTypeMap.register([TidType, ArrayTidType]);
+GlobalTypeMap.register([PgLsnType, ArrayPgLsnType]);
 GlobalTypeMap.register([MacaddrType, ArrayMacaddrType]);
 GlobalTypeMap.register([Macaddr8Type, ArrayMacaddr8Type]);

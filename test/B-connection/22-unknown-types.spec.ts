@@ -2,16 +2,19 @@ import { expect } from 'expect';
 import { Connection } from 'postgrejs';
 
 // Every undecodable column here has to stay undecodable for the test to
-// mean anything, and the examples keep being overtaken as decoders land -
-// `interval`, then `int4range`, then `inet`, then `tsvector`. `pg_lsn`
-// and `tid` are the current pick, both from the catalog-reading family
-// that .claude/missing-builtin-decoders.md settles on leaving as strings:
-// nothing an application does with one is better served by a decoder.
+// mean anything, and the examples kept being overtaken as decoders landed
+// - `interval`, then `int4range`, then `inet`, `tsvector`, `pg_lsn` and
+// `tid`. `regclass` and `txid_snapshot` should be the last move: a
+// `reg*` type cannot be decoded at all, because its binary form is a
+// bare OID and its text form is the name that OID resolves to, which
+// only a catalog lookup against that database can produce. Whichever
+// format such a column arrived in, the other would disagree - the same
+// reason `money` has no decoder.
 const SQL =
   "select 'happy'::t_unk_mood as en," +
   " array['happy','sad']::t_unk_mood[] as enarr," +
-  " pg_lsn '16/B374D848' as lsn," +
-  " tid '(0,1)' as ctid," +
+  " 'pg_class'::regclass as rc," +
+  " txid_snapshot '10:20:' as snap," +
   ' 42::int4 as n,' +
   ' array[1,2]::int4[] as ia';
 
@@ -38,7 +41,7 @@ describe('unknownTypesAsString', () => {
     const r = await conn.query(SQL, { objectRows: true });
     const row = r.rows?.[0] as any;
     expect(Buffer.isBuffer(row.en)).toStrictEqual(true);
-    expect(Buffer.isBuffer(row.lsn)).toStrictEqual(true);
+    expect(Buffer.isBuffer(row.rc)).toStrictEqual(true);
   });
 
   it('should read every undecodable column as the server printed it', async () => {
@@ -58,8 +61,8 @@ describe('unknownTypesAsString', () => {
         // literal - there is no telling it is an array without reading
         // the catalog, and `pg` answers the same way.
         enarr: '{happy,sad}',
-        lsn: '16/B374D848',
-        ctid: '(0,1)',
+        rc: 'pg_class',
+        snap: '10:20:',
         n: 42,
         ia: [1, 2],
       });
@@ -76,7 +79,7 @@ describe('unknownTypesAsString', () => {
     });
     const row = r.rows?.[0] as any;
     expect(row.en).toStrictEqual('happy');
-    expect(row.lsn).toStrictEqual('16/B374D848');
+    expect(row.rc).toStrictEqual('pg_class');
     expect(row.n).toStrictEqual(42);
     expect(row.ia).toStrictEqual([1, 2]);
   });
@@ -101,13 +104,19 @@ describe('unknownTypesAsString', () => {
     const byName: Record<string, string> = {};
     for (const f of r.fields!) byName[f.fieldName] = f.jsType;
     expect(byName.en).toStrictEqual('string');
-    expect(byName.lsn).toStrictEqual('string');
+    expect(byName.rc).toStrictEqual('string');
     expect(byName.n).toStrictEqual('number');
-    // dataTypeName stays empty: there is no OID-to-name mapping here
-    // without reading the catalog, which this option deliberately does
-    // not do.
+    // dataTypeName is filled only for a type the OID table names. A
+    // user-defined enum's OID is assigned per database, so nothing here
+    // can name it without reading the catalog - which this option
+    // deliberately does not do.
     expect(
       r.fields!.find(f => f.fieldName === 'en')!.dataTypeName,
     ).toStrictEqual('');
+    // A built-in one is named even though it has no decoder, which is
+    // what the OID table is for.
+    expect(
+      r.fields!.find(f => f.fieldName === 'rc')!.dataTypeName,
+    ).toStrictEqual('regclass');
   });
 });

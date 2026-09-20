@@ -147,6 +147,16 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
   orders and deduplicates a vector and what defines the query grammar, so a parameter goes over as text and means
   exactly what the same literal would. The one thing given up is these two types inside a binary `COPY`, which
   `copyFrom` reports by name before writing a row.
+- **System Columns:** `ctid`, `xmin`, `xmax`, `cmin` and `cmax` decode - `tid` to the `(block,offset)` string the
+  server prints, which is what a caller compares or hands straight back, and `xid`, `xid8` and `cid` to numbers
+  (`xid8` to a BigInt once a number would lose a digit). `pg_lsn` decodes too, as the `16/B374D848` hex pair, for
+  replication and monitoring queries. None of them joins parameter inference: a number says nothing about which
+  counter it is, and claiming integers would take them from `int4`.
+- **What stays undecoded, and why:** the `reg*` family - `regclass`, `regtype`, `regproc` and the rest - cannot be
+  decoded at all. Their binary form is a bare OID and their text form is the name that OID resolves to, which only a
+  catalog lookup against that database produces, so whichever format a column arrived in the other would disagree.
+  `money` is the same story with `lc_monetary`. These are named in the OID table, so a field still reports its
+  `dataTypeName`, and `unknownTypesAsString` gets the string the server rendered.
 - **Array Handling:** Supports multidimensional arrays with fast binary encoding/decoding.
 - **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
 - **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure
