@@ -1,4 +1,10 @@
 import { DataTypeOIDs } from './constants.js';
+import {
+  ArrayBitType,
+  ArrayVarbitType,
+  BitType,
+  VarbitType,
+} from './data-types/bit-type.js';
 import { ArrayBoolType, BoolType } from './data-types/bool-type.js';
 import { ArrayBoxType, BoxType } from './data-types/box-type.js';
 import { ArrayByteaType, ByteaType } from './data-types/bytea-type.js';
@@ -27,6 +33,7 @@ import { ArrayInt8Type, Int8Type } from './data-types/int8-type.js';
 import { ArrayIntervalType, IntervalType } from './data-types/interval-type.js';
 import { ArrayJsonType, JsonType } from './data-types/json-type.js';
 import { ArrayJsonbType, JsonbType } from './data-types/jsonb-type.js';
+import { ArrayJsonPathType, JsonPathType } from './data-types/jsonpath-type.js';
 import { ArrayLsegType, LsegType } from './data-types/lseg-type.js';
 import {
   ArrayMacaddr8Type,
@@ -211,5 +218,8 @@ GlobalTypeMap.register(RangeTypes);
 
 GlobalTypeMap.register([InetType, ArrayInetType]);
 GlobalTypeMap.register([CidrType, ArrayCidrType]);
+GlobalTypeMap.register([BitType, ArrayBitType]);
+GlobalTypeMap.register([VarbitType, ArrayVarbitType]);
+GlobalTypeMap.register([JsonPathType, ArrayJsonPathType]);
 GlobalTypeMap.register([MacaddrType, ArrayMacaddrType]);
 GlobalTypeMap.register([Macaddr8Type, ArrayMacaddr8Type]);

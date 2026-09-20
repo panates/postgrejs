@@ -133,6 +133,12 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
   as `::1.2.3.4` from the binary format just as it does from the text one. A string, because JavaScript has no address
   type and every Node API that takes one takes a string. They stay out of parameter inference: an address is an
   ordinary string, and stealing it would send `inet` where `text` was meant - name the type to use it.
+- **Bit Strings and jsonpath:** `bit` and `varbit` decode to a string of `0` and `1` - the type as it is written, where
+  a number would lose leading zeroes and anything past 53 bits and a Buffer would lose the bit count. `jsonpath`
+  decodes to PostgreSQL's own normalized spelling of the expression, which is what its binary form already holds.
+  `money` is deliberately left undecoded: its binary form is an integer count of a unit set by the server's
+  `lc_monetary`, which the protocol never reports, so nothing here can turn it into `$12.34` - read it with
+  `unknownTypesAsString`, or select `amount::numeric` and get an exact number.
 - **Array Handling:** Supports multidimensional arrays with fast binary encoding/decoding.
 - **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
 - **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure
