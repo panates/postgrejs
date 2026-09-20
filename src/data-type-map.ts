@@ -51,6 +51,7 @@ import {
   ArrayTimestamptzType,
   TimestamptzType,
 } from './data-types/timestamptz-type.js';
+import { ArrayTimeTzType, TimeTzType } from './data-types/timetz-type.js';
 import { ArrayUuidType, UuidType } from './data-types/uuid-type.js';
 import { ArrayVarcharType, VarcharType } from './data-types/varchar-type.js';
 import type { DataType } from './interfaces/data-type.js';
@@ -202,6 +203,7 @@ GlobalTypeMap.register([CharType, ArrayCharType]);
 
 GlobalTypeMap.register([TimestamptzType, ArrayTimestamptzType]);
 GlobalTypeMap.register([TimeType, ArrayTimeType]);
+GlobalTypeMap.register([TimeTzType, ArrayTimeTzType]);
 GlobalTypeMap.register([DateType, ArrayDateType]);
 GlobalTypeMap.register([TimestampType, ArrayTimestampType]);
 GlobalTypeMap.register([IntervalType, ArrayIntervalType]);

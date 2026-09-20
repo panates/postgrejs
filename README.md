@@ -113,6 +113,11 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
   it does in psql and casts straight back. `toISOString()` gives the ISO 8601 duration. Months, days and time are kept
   apart because they are not convertible: a month is 28 to 31 days and a day is 23 to 25 hours across a DST boundary,
   so only the server can add one to a timestamp.
+- **Time With Zone:** `timetz` decodes to a string rather than a `Date`, because the offset is the only thing that
+  makes it different from `time` and a `Date` has no field for one - folding it into the instant would make
+  `12:00:00+03` and `09:00:00+00` the same value and change it on the way back. A `Date` is still accepted as a
+  parameter, its own zone being its offset. A string without one is refused rather than resolved against the Node
+  process's zone, which is not the session's.
 - **Geometric Types:** `point`, `circle`, `box` and `lseg` decode to `Point`, `Circle`, `Box` and `LineSegment`, each
   printing what PostgreSQL prints. Two classes for `box` and `lseg` rather than one shape, because that is what tells
   them apart: both carried `{x1, y1, x2, y2}` before, so an `lseg` parameter was read as a `box` and could not be
