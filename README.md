@@ -74,7 +74,9 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
 ## Features
 
 - **Connection Management:** Supports both single connection and advanced pooling, providing scalability and efficient
-  resource management.
+  resource management. A connection that dies rather than being closed says so: `'close'` carries the reason, and a
+  pooled one is reported on the pool's `'destroy'` and `'error'` events - so an admin kill or a failover is
+  distinguishable from an ordinary eviction, including when the connection was sitting idle with no query to reject.
 - **Binary Wire Protocol:** Implements the full binary wire protocol for all PostgreSQL data types, ensuring robust and
   efficient data handling.
 - **Prepared Statements:** Named prepared statements for optimized query execution, and a per-connection cache that

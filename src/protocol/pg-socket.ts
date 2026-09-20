@@ -36,6 +36,12 @@ interface CaptureEntry {
 
 export class PgSocket extends SafeEventEmitter {
   private _state = ConnectionState.CLOSED;
+  /**
+   * The socket-level error that is about to end this connection, kept so
+   * the 'close' that follows can say what happened instead of arriving
+   * bare. Cleared by _reset().
+   */
+  private _closeReason?: Error;
   private _socket?: net.Socket;
   private _backend = new Backend();
   private _frontend: Frontend;
@@ -711,6 +717,7 @@ export class PgSocket extends SafeEventEmitter {
   }
 
   protected _reset(): void {
+    this._closeReason = undefined;
     this._backend.reset();
     this._sessionParameters = {};
     this._processID = undefined;
@@ -832,17 +839,46 @@ export class PgSocket extends SafeEventEmitter {
   }
 
   protected _handleClose(): void {
+    // close() is the only thing that sets CLOSING, so anything else here
+    // is the far end going away on its own - an admin terminating the
+    // backend, a failover, a network fault. Built before _reset() clears
+    // the process id, which is the one detail that makes the report
+    // actionable, and carrying the socket error as its cause when there
+    // was one (a bare FIN leaves none).
+    const reason =
+      this._state === ConnectionState.CLOSING
+        ? undefined
+        : this._buildCloseReason();
     this._failPendingCaptures(new Error('Connection closed'));
     this._reset();
     this._socket = undefined;
     this._state = ConnectionState.CLOSED;
-    this.emit('close');
+    this.emit('close', reason);
+  }
+
+  private _buildCloseReason(): Error {
+    const err = new Error(
+      'Connection terminated unexpectedly' +
+        (this._processID ? ` (pid ${this._processID})` : ''),
+    );
+    // Assigned rather than passed to the constructor, as abortError() does
+    // - same reason, the option is newer than this package's floor.
+    if (this._closeReason !== undefined) {
+      try {
+        (err as { cause?: unknown }).cause = this._closeReason;
+      } catch {
+        /* c8 ignore next */
+      }
+    }
+    return err;
   }
 
   protected _handleError(err: unknown): void {
-    this._failPendingCaptures(
-      err instanceof Error ? err : new Error(String(err)),
-    );
+    // Kept for the 'close' that follows: the socket reports the cause
+    // here and the fact of closing separately, and only the pair together
+    // says what actually happened.
+    this._closeReason = err instanceof Error ? err : new Error(String(err));
+    this._failPendingCaptures(this._closeReason);
     if (this._state !== ConnectionState.READY) {
       this._socket?.end();
     }

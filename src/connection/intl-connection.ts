@@ -173,7 +173,9 @@ export class IntlConnection extends SafeEventEmitter {
     this._config = Object.freeze(getConnectionConfig(config));
     this.socket = new PgSocket(this._config);
     this.socket.on('error', err => this._onError(err));
-    this.socket.on('close', () => this.emit('close'));
+    // The reason travels with it: 'close' on its own cannot tell an
+    // ordinary shutdown from the backend being terminated under us.
+    this.socket.on('close', (reason?: Error) => this.emit('close', reason));
     this.socket.on('notification', payload =>
       this.emit('notification', payload),
     );
@@ -249,7 +251,7 @@ export class IntlConnection extends SafeEventEmitter {
       // IntlConnection TWICE per close() call - confirmed live: a single
       // close() left two listeners registered on the far side (e.g. two
       // NOTIFY deliveries after Pool's reconnect re-subscribed twice).
-      this.socket.once('close', resolve);
+      this.socket.once('close', () => resolve());
       this.socket.sendTerminateMessage(() => {
         this.socket.close();
       });
