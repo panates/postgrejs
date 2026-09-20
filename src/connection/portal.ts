@@ -101,7 +101,7 @@ export class Portal {
       const executePromise = socket.sendExecuteMessage(
         {
           portal: this.name,
-          fetchCount: fetchCount || 100,
+          fetchCount: fetchCount ?? 100,
         },
         (
           code: Protocol.BackendMessageCode,

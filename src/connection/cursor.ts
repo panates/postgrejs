@@ -83,7 +83,7 @@ export class Cursor extends SafeEventEmitter implements AsyncDisposable {
     await this._taskQueue
       .enqueue(async () => {
         const queryOptions = this._queryOptions;
-        const r = await portal.execute(queryOptions.fetchCount || 100);
+        const r = await portal.execute(queryOptions.fetchCount ?? 100);
         if (r && r.rows && r.rows.length) {
           const rows: any[] = r.rows;
           if (this._parsers) {

@@ -946,6 +946,7 @@ export class IntlConnection extends SafeEventEmitter {
       let resultFields: FieldInfo[] | undefined;
       let commandTag: Protocol.CommandCompleteMessage | undefined;
       let error: Error | undefined;
+      let suspended = false;
       const rowDecoder = resolveRowDecoder(options);
 
       // fetchAsString names OIDs, but Bind's result format codes are
@@ -982,7 +983,7 @@ export class IntlConnection extends SafeEventEmitter {
               columnFormat,
             },
             describe: { type: 'P' },
-            execute: { fetchCount: options.fetchCount || 100 },
+            execute: { fetchCount: options.fetchCount ?? 0 },
             before: savepoint ? 'SAVEPOINT ' + savepoint : undefined,
             after: savepoint ? 'RELEASE ' + savepoint : undefined,
           },
@@ -996,7 +997,13 @@ export class IntlConnection extends SafeEventEmitter {
               case Protocol.BackendMessageCode.BindComplete:
               case Protocol.BackendMessageCode.NoData:
               case Protocol.BackendMessageCode.NoticeResponse:
+                break;
+              // The server stopped at the fetchCount limit rather than
+              // running out of rows. The Sync that closes this call
+              // discards the portal, so the rest is gone - all that can be
+              // done is say the result is a prefix.
               case Protocol.BackendMessageCode.PortalSuspended:
+                suspended = true;
                 break;
               case Protocol.BackendMessageCode.RowDescription:
                 parsers = getParsers(typeMap, msg.fields, options);
@@ -1052,6 +1059,7 @@ export class IntlConnection extends SafeEventEmitter {
           );
         }
       }
+      if (suspended) result.suspended = true;
       if (reportsRowsAffected(result.command))
         result.rowsAffected = commandTag?.rowCount;
       if (timingEnabled) result.executeTime = performance.now() - startTime;
@@ -1567,6 +1575,7 @@ export class IntlConnection extends SafeEventEmitter {
       let resultFields: FieldInfo[] | undefined;
       let commandTag: Protocol.CommandCompleteMessage | undefined;
       let error: Error | undefined;
+      let suspended = false;
       const rowDecoder = resolveRowDecoder(options);
 
       // The whole point of reusing a prepared statement here: its
@@ -1606,7 +1615,7 @@ export class IntlConnection extends SafeEventEmitter {
               queryOptions: options,
               columnFormat,
             },
-            execute: { fetchCount: options.fetchCount || 100 },
+            execute: { fetchCount: options.fetchCount ?? 0 },
             before: savepoint ? 'SAVEPOINT ' + savepoint : undefined,
             after: savepoint ? 'RELEASE ' + savepoint : undefined,
           },
@@ -1619,7 +1628,10 @@ export class IntlConnection extends SafeEventEmitter {
               case Protocol.BackendMessageCode.ParseComplete:
               case Protocol.BackendMessageCode.BindComplete:
               case Protocol.BackendMessageCode.NoticeResponse:
+                break;
+              // See queryOnce() for what a suspended portal means here.
               case Protocol.BackendMessageCode.PortalSuspended:
+                suspended = true;
                 break;
               case Protocol.BackendMessageCode.DataRow:
                 rows.push(msg);
@@ -1668,6 +1680,7 @@ export class IntlConnection extends SafeEventEmitter {
           );
         }
       }
+      if (suspended) result.suspended = true;
       if (reportsRowsAffected(result.command))
         result.rowsAffected = commandTag?.rowCount;
       if (timingEnabled) result.executeTime = performance.now() - startTime;
