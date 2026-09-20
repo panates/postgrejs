@@ -3,15 +3,15 @@ import { Connection } from 'postgrejs';
 
 // Every undecodable column here has to stay undecodable for the test to
 // mean anything, and the examples keep being overtaken as decoders land -
-// `interval`, then `int4range`, then `inet`. `pg_lsn` and `tsvector` are
-// the current pick: the first is a catalog type a string already serves
-// (see .claude/missing-builtin-decoders.md), the second has a binary
-// layout involved enough that it may never get one.
+// `interval`, then `int4range`, then `inet`, then `tsvector`. `pg_lsn`
+// and `tid` are the current pick, both from the catalog-reading family
+// that .claude/missing-builtin-decoders.md settles on leaving as strings:
+// nothing an application does with one is better served by a decoder.
 const SQL =
   "select 'happy'::t_unk_mood as en," +
   " array['happy','sad']::t_unk_mood[] as enarr," +
   " pg_lsn '16/B374D848' as lsn," +
-  " tsvector 'a b' as tsv," +
+  " tid '(0,1)' as ctid," +
   ' 42::int4 as n,' +
   ' array[1,2]::int4[] as ia';
 
@@ -59,7 +59,7 @@ describe('unknownTypesAsString', () => {
         // the catalog, and `pg` answers the same way.
         enarr: '{happy,sad}',
         lsn: '16/B374D848',
-        tsv: "'a' 'b'",
+        ctid: '(0,1)',
         n: 42,
         ia: [1, 2],
       });

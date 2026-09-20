@@ -59,6 +59,12 @@ import {
   TimestamptzType,
 } from './data-types/timestamptz-type.js';
 import { ArrayTimeTzType, TimeTzType } from './data-types/timetz-type.js';
+import {
+  ArrayTsQueryType,
+  ArrayTsVectorType,
+  TsQueryType,
+  TsVectorType,
+} from './data-types/tsvector-type.js';
 import { ArrayUuidType, UuidType } from './data-types/uuid-type.js';
 import { ArrayVarcharType, VarcharType } from './data-types/varchar-type.js';
 import type { DataType } from './interfaces/data-type.js';
@@ -221,5 +227,7 @@ GlobalTypeMap.register([CidrType, ArrayCidrType]);
 GlobalTypeMap.register([BitType, ArrayBitType]);
 GlobalTypeMap.register([VarbitType, ArrayVarbitType]);
 GlobalTypeMap.register([JsonPathType, ArrayJsonPathType]);
+GlobalTypeMap.register([TsVectorType, ArrayTsVectorType]);
+GlobalTypeMap.register([TsQueryType, ArrayTsQueryType]);
 GlobalTypeMap.register([MacaddrType, ArrayMacaddrType]);
 GlobalTypeMap.register([Macaddr8Type, ArrayMacaddr8Type]);

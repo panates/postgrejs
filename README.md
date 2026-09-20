@@ -139,6 +139,12 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
   `money` is deliberately left undecoded: its binary form is an integer count of a unit set by the server's
   `lc_monetary`, which the protocol never reports, so nothing here can turn it into `$12.34` - read it with
   `unknownTypesAsString`, or select `amount::numeric` and get an exact number.
+- **Full Text Search:** `tsvector` and `tsquery` decode to the strings PostgreSQL prints - `'cat':1,3 'dog':2` and
+  `'a' <-> ( 'b' <-> 'c' )`, parentheses exactly where the server puts them, since `a <-> (b <-> c)` and
+  `(a <-> b) <-> c` are different queries. Neither has a binary encoder, deliberately: the server's parser is what
+  orders and deduplicates a vector and what defines the query grammar, so a parameter goes over as text and means
+  exactly what the same literal would. The one thing given up is these two types inside a binary `COPY`, which
+  `copyFrom` reports by name before writing a row.
 - **Array Handling:** Supports multidimensional arrays with fast binary encoding/decoding.
 - **Performance Optimization:**  Low memory utilization and boosted performance through the use of shared buffers.
 - **Authorization:** Supports various password algorithms including Clear text, MD5, and SASL, ensuring secure
