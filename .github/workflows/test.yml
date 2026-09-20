@@ -54,7 +54,13 @@ jobs:
       matrix:
         node: [ '20', '22', '24', '26' ]
         postgres: [ '12', '16', '18' ]
-    runs-on: ubuntu-latest
+    # Pinned rather than `ubuntu-latest`: the steps below are coupled to
+    # what the image ships (they purge its PostgreSQL and add an apt repo
+    # by codename), and `ubuntu-latest` changes which image that is without
+    # anything in this file changing - 24.04 to 26.04 over November 2026,
+    # per actions/runner-images#14748. Moving to a newer image is a change
+    # to make deliberately, then watch.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
       postgres:
@@ -77,19 +83,41 @@ jobs:
         run: |
           date
           echo "----- Removing pre-installed PostgreSQL -----"
-          psql --version  # Check version to confirm
-          sudo apt purge postgresql-16
-          echo "----- Installing PostgreSQL ${{ matrix.postgres }} -----"      
-          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          psql --version || true
+          # Whatever the image happens to ship, rather than a hardcoded
+          # major. `apt purge postgresql-16` worked only because 24.04
+          # preinstalls 16; 26.04 preinstalls 18, where that name is
+          # neither installed nor a package apt knows about before the pgdg
+          # repo is added, so the command fails and takes the step with it.
+          # Leaving the preinstalled one behind would also be wrong when
+          # the matrix asks for the major the image already has - two
+          # clusters, one of them not the one configured below.
+          sudo systemctl stop postgresql || true
+          preinstalled=$(dpkg-query -W -f='${binary:Package} ${Status}\n' 'postgresql-*' 2>/dev/null \
+            | awk '$NF == "installed" && $1 ~ /^postgresql(-client)?-[0-9]+$/ { print $1 }')
+          if [ -n "$preinstalled" ]; then
+            echo "purging: $preinstalled"
+            sudo apt-get -y purge $preinstalled
+          fi
+          echo "----- Installing PostgreSQL ${{ matrix.postgres }} -----"
+          # The key goes into a keyring rather than through `apt-key add`,
+          # which is deprecated and on its way out - on an image that no
+          # longer ships it the pipe fails and takes the repo setup down.
+          sudo install -d -m 0755 /etc/apt/keyrings
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --batch --yes --dearmor -o /etc/apt/keyrings/pgdg.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
           # The runner image ships a Google Chrome apt source we never use here;
           # when its upstream Release/Packages files briefly disagree (a known,
           # intermittent issue on their end), `apt-get update` fails outright and
           # takes the postgresql-org repo update down with it. Drop it first so a
-          # repo we don't need can't block one we do.
-          sudo rm -f /etc/apt/sources.list.d/google-chrome.list
+          # repo we don't need can't block one we do. Both spellings: newer
+          # images write sources in deb822 format under a .sources name.
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list \
+                     /etc/apt/sources.list.d/google-chrome.sources
           sudo apt-get update
-          sudo apt-get -y install postgresql-${{ matrix.postgres }}  postgresql-client-${{ matrix.postgres }}    
+          sudo apt-get -y install postgresql-${{ matrix.postgres }} postgresql-client-${{ matrix.postgres }}
           echo "----- Configuring -----"        
           sudo cp ./test/_support/pg_hba.conf /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf                                
           sudo sed -i 's/.*wal_level.*/wal_level = logical/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
@@ -177,7 +205,8 @@ jobs:
           )
         )
       )
-    runs-on: ubuntu-latest
+    # Pinned for the same reason as the "test" job above.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
       postgres:
@@ -200,13 +229,25 @@ jobs:
         run: |
           date
           echo "----- Removing pre-installed PostgreSQL -----"
-          psql --version  # Check version to confirm
-          sudo apt purge postgresql-16
+          psql --version || true
+          # See the equivalent step in the "test" job above for why the
+          # preinstalled version is discovered rather than named.
+          sudo systemctl stop postgresql || true
+          preinstalled=$(dpkg-query -W -f='${binary:Package} ${Status}\n' 'postgresql-*' 2>/dev/null \
+            | awk '$NF == "installed" && $1 ~ /^postgresql(-client)?-[0-9]+$/ { print $1 }')
+          if [ -n "$preinstalled" ]; then
+            echo "purging: $preinstalled"
+            sudo apt-get -y purge $preinstalled
+          fi
           echo "----- Installing PostgreSQL 18 -----"
-          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-          # See the equivalent step in the "test" job above for why this is here.
-          sudo rm -f /etc/apt/sources.list.d/google-chrome.list
+          # See the "test" job above for the keyring and the Chrome source.
+          sudo install -d -m 0755 /etc/apt/keyrings
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --batch --yes --dearmor -o /etc/apt/keyrings/pgdg.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list \
+                     /etc/apt/sources.list.d/google-chrome.sources
           sudo apt-get update
           sudo apt-get -y install postgresql-18 postgresql-client-18
           echo "----- Configuring -----"
