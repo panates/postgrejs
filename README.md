@@ -108,6 +108,14 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
 - **Extensibility:** Extensible data-types and type mapping to accommodate custom requirements. A type can set
   `inferrable: false` to stay out of parameter type inference while still decoding its own columns.
 - **Parameter Binding:**  Bind parameters with OID mappings for precise and efficient query execution.
+- **Exact Numerics:** `numeric` decodes to a `number` while a double carries the value, and to a `Numeric` - the exact
+  decimal as the server wrote it - once it does not. That covers both ways a double loses one: digits it cannot hold
+  (`12345678901234567.89` used to come back as `...68`) and a magnitude JavaScript prints in exponential form
+  (`-0.00000000000000001` as `-1e-17`, which PostgreSQL never writes). The padding a declared scale adds is not a
+  difference, so `numeric(40,6)` holding `19.99` is still the number `19.99`. A `Numeric` prints its digits for every
+  coercion and names its own type, so it can be written straight back with no `BindParam`; `toNumber()` is how you ask
+  for the double, and there is no `valueOf()` so nothing rounds behind your back. `fetchAsString` is unchanged and
+  still hands back every value as the server's own text.
 - **Interval:** `interval` decodes to an `Interval` - a class, with every field always present rather than only the
   non-zero ones, and a `toString()` that prints exactly what PostgreSQL prints, so the value reads the same in a log as
   it does in psql and casts straight back. `toISOString()` gives the ISO 8601 duration. Months, days and time are kept

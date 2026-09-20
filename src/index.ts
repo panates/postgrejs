@@ -10,6 +10,7 @@ export * from './constants.js';
 export * from './data-type-map.js';
 export * from './data-types/classes/geometric.js';
 export * from './data-types/classes/interval.js';
+export * from './data-types/classes/numeric.js';
 export * from './data-types/classes/range.js';
 export * from './interfaces/batch-result.js';
 export * from './interfaces/command-result.js';

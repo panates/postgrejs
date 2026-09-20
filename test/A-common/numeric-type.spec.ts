@@ -6,11 +6,19 @@ import {
 } from '../../src/data-types/numeric-type.js';
 import { SmartBuffer } from '../../src/protocol/smart-buffer.js';
 
-function roundTrip(v: any): number {
+function roundTrip(v: any): any {
   const buf = new SmartBuffer();
   NumericType.encodeBinary!(buf, v, {});
   return NumericType.decodeBinary!(buf.buffer, 0, buf.buffer.length, {});
 }
+
+/**
+ * The round trip as text. An exponential value comes back as a Numeric
+ * holding the plain decimal - the double is exact, but JavaScript prints
+ * it in a form PostgreSQL never writes, so the digits are what these
+ * encoder tests compare.
+ */
+const roundTripText = (v: any) => String(roundTrip(v));
 
 describe('NumericType', () => {
   it('should encode as its string form for the text/literal path', () => {
@@ -32,7 +40,8 @@ describe('NumericType', () => {
     });
 
     it('should round-trip a number given in exponential notation', () => {
-      expect(roundTrip('1e21')).toStrictEqual(1e21);
+      expect(roundTripText('1e21')).toStrictEqual('1000000000000000000000');
+      expect(roundTrip('1e21').toNumber()).toStrictEqual(1e21);
     });
 
     it('should round-trip a magnitude beyond what toFixed() can express (>= 1e21)', () => {
@@ -40,13 +49,21 @@ describe('NumericType', () => {
       // notation once |x| reaches 1e21 (per spec), which used to leave
       // the 'e' in place and silently corrupt the encoded value (1e21
       // round-tripped back as 10000 before this was fixed).
-      expect(roundTrip('2.5e30')).toStrictEqual(2.5e30);
-      expect(roundTrip('-1e25')).toStrictEqual(-1e25);
+      expect(roundTripText('2.5e30')).toStrictEqual(
+        '2500000000000000000000000000000',
+      );
+      expect(roundTripText('-1e25')).toStrictEqual(
+        '-10000000000000000000000000',
+      );
+      expect(roundTrip('2.5e30').toNumber()).toStrictEqual(2.5e30);
+      expect(roundTrip('-1e25').toNumber()).toStrictEqual(-1e25);
     });
 
     it('should round-trip a small-magnitude exponential value (negative exponent)', () => {
-      expect(roundTrip('1.5e-7')).toStrictEqual(1.5e-7);
-      expect(roundTrip('-1.5e-7')).toStrictEqual(-1.5e-7);
+      expect(roundTripText('1.5e-7')).toStrictEqual('0.00000015');
+      expect(roundTripText('-1.5e-7')).toStrictEqual('-0.00000015');
+      expect(roundTrip('1.5e-7').toNumber()).toStrictEqual(1.5e-7);
+      expect(roundTrip('-1.5e-7').toNumber()).toStrictEqual(-1.5e-7);
     });
 
     it('should accept a leading "+" sign', () => {

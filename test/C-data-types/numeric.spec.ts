@@ -6,6 +6,7 @@ import {
   DataTypeMap,
   DataTypeOIDs,
   GlobalTypeMap,
+  Numeric,
 } from 'postgrejs';
 import { numberBytesToString } from '../../src/data-types/numeric-type.js';
 import { testEncode, testParse } from './_testers.js';
@@ -282,5 +283,96 @@ describe('DataType: numeric', () => {
     expect(built.rows?.[0]).toStrictEqual(printed.rows?.[0]);
     expect(built.rows?.[0][0]).toStrictEqual('19.990000');
     await conn.execute('drop table t_num_scale');
+  });
+
+  it('should read back exactly what was written, against the same query', async () => {
+    // The assertion cannot drift with the server: the value and its
+    // ::text rendering come from one statement, so the comparison is
+    // always against what this server would have printed.
+    await conn.execute(
+      'drop table if exists t_num_exact;' +
+        ' create table t_num_exact(a numeric)',
+    );
+    const values = [
+      '123456789012345678901234567890.123456',
+      '12345678901234567.89',
+      '9007199254740993',
+      '-99999999999999999999.99',
+      '0.00000000000000001',
+      '19.99',
+      '0.1',
+    ];
+    await conn.query(
+      'insert into t_num_exact values' +
+        values.map((_, i) => `($${i + 1})`).join(','),
+      { params: values.map(v => new BindParam(DataTypeOIDs.numeric, v)) },
+    );
+    for (const format of [DataFormat.binary, DataFormat.text]) {
+      const r = await conn.query('select a, a::text from t_num_exact', {
+        columnFormat: format,
+        objectRows: false,
+      });
+      for (const row of r.rows!) expect(String(row[0])).toStrictEqual(row[1]);
+    }
+    await conn.execute('drop table t_num_exact');
+  });
+
+  it('should write a decoded value straight back with no BindParam', async () => {
+    // What a bare string could not do: determine() types one as varchar
+    // and the server refuses it for a numeric column. A Numeric names
+    // its own type, so read-modify-write works.
+    await conn.execute(
+      'drop table if exists t_num_back; create table t_num_back(a numeric)',
+    );
+    const v = '123456789012345678901234567890.123456';
+    const read = await conn.query('select $1::numeric f', {
+      params: [new BindParam(DataTypeOIDs.numeric, v)],
+      columnFormat: DataFormat.binary,
+    });
+    const decoded = read.rows?.[0][0];
+    expect(decoded).toBeInstanceOf(Numeric);
+    await conn.query('insert into t_num_back values($1)', {
+      params: [decoded],
+    });
+    const back = await conn.query('select a::text from t_num_back');
+    expect(back.rows?.[0][0]).toStrictEqual(v);
+    await conn.execute('drop table t_num_back');
+  });
+
+  it('should leave a value a double carries as a number', async () => {
+    const r = await conn.query(
+      "select 19.99::numeric a, 0.1::numeric b, '19.990000'::numeric(40,6) c," +
+        ' 0::numeric d, (-1)::numeric e',
+      { columnFormat: DataFormat.binary, objectRows: true },
+    );
+    const row = r.rows?.[0] as any;
+    expect(row).toStrictEqual({ a: 19.99, b: 0.1, c: 19.99, d: 0, e: -1 });
+  });
+
+  it('should widen inside an array too', async () => {
+    // _numeric inherits the element decoder by spread, so the array path
+    // is the same code - checked here rather than assumed.
+    const r = await conn.query(
+      "select array['19.99','12345678901234567.89']::numeric[] f",
+      { columnFormat: DataFormat.binary },
+    );
+    const arr = r.rows?.[0][0] as any[];
+    expect(arr[0]).toStrictEqual(19.99);
+    expect(arr[1]).toBeInstanceOf(Numeric);
+    expect(String(arr[1])).toStrictEqual('12345678901234567.89');
+  });
+
+  it('should still hand the raw text back under fetchAsString', async () => {
+    // A separate path that never reaches the decoder: the column is
+    // asked for as text and the bytes come back as they are, so every
+    // value is a string, exact ones included.
+    const r = await conn.query(
+      "select 19.99::numeric a, '12345678901234567.89'::numeric b",
+      { fetchAsString: [DataTypeOIDs.numeric], objectRows: true },
+    );
+    expect(r.rows?.[0]).toStrictEqual({
+      a: '19.99',
+      b: '12345678901234567.89',
+    });
   });
 });
