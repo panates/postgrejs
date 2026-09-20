@@ -354,7 +354,7 @@ export class IntlConnection extends SafeEventEmitter {
    * nesting the existing one.
    */
   async savepoint(name: string): Promise<void> {
-    if (!(name && name.match(/^[a-zA-Z]\w+$/)))
+    if (!(name && name.match(/^[a-zA-Z]\w*$/)))
       throw new Error(`Invalid savepoint "${name}"`);
     const depth = (this._savepointDepths.get(name) || 0) + 1;
     this._savepointDepths.set(name, depth);
@@ -386,7 +386,7 @@ export class IntlConnection extends SafeEventEmitter {
    * @param immediate - Ignores the tracked depth and releases right away.
    */
   async releaseSavepoint(name: string, immediate?: boolean): Promise<void> {
-    if (!(name && name.match(/^[a-zA-Z]\w+$/)))
+    if (!(name && name.match(/^[a-zA-Z]\w*$/)))
       throw new Error(`Invalid savepoint "${name}"`);
     const depth = this._savepointDepths.get(name) || 0;
     if (!immediate && depth > 1) {
@@ -450,7 +450,7 @@ export class IntlConnection extends SafeEventEmitter {
    * unwind.
    */
   async rollbackToSavepoint(name: string): Promise<void> {
-    if (!(name && name.match(/^[a-zA-Z]\w+$/)))
+    if (!(name && name.match(/^[a-zA-Z]\w*$/)))
       throw new Error(`Invalid savepoint "${name}"`);
     this._savepointDepths.delete(name);
     await this.execute('ROLLBACK TO SAVEPOINT ' + name, { autoCommit: false });
