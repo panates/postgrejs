@@ -145,6 +145,14 @@ interface PipelinePlan {
 const PREPARE_AFTER_USES = 2;
 
 /**
+ * Stands in for the command tag an empty statement never sends, so that
+ * the slot is taken and nothing behind it is mistaken for the caller's
+ * own command. Its empty name is what leaves `QueryResult.command`
+ * unset, which is what `pg` reports for the same statement.
+ */
+const EMPTY_QUERY_TAG: Protocol.CommandCompleteMessage = { command: '' };
+
+/**
  * SQL that manages transaction boundaries itself, and so must never be
  * wrapped in a savepoint or an implicit BEGIN/COMMIT of ours.
  */
@@ -1063,9 +1071,15 @@ export class IntlConnection extends SafeEventEmitter {
               case Protocol.BackendMessageCode.DataRow:
                 rows.push(msg);
                 break;
+              // An empty statement - '' or nothing but a comment - answers
+              // with this *instead of* a CommandComplete, so it has to take
+              // the same slot: a RELEASE riding along behind it would
+              // otherwise be read as the caller's own command. The sentinel
+              // carries no command name, which is what `pg` reports too.
+              case Protocol.BackendMessageCode.EmptyQueryResponse:
               case Protocol.BackendMessageCode.CommandComplete:
                 if (leadingCommandTags) leadingCommandTags--;
-                else if (!commandTag) commandTag = msg;
+                else if (!commandTag) commandTag = msg || EMPTY_QUERY_TAG;
                 break;
               case Protocol.BackendMessageCode.ErrorResponse:
                 error = msg;
@@ -1691,13 +1705,15 @@ export class IntlConnection extends SafeEventEmitter {
               case Protocol.BackendMessageCode.DataRow:
                 rows.push(msg);
                 break;
+              // See queryOnce() for why an empty statement lands here.
+              case Protocol.BackendMessageCode.EmptyQueryResponse:
               case Protocol.BackendMessageCode.CommandComplete:
                 // Three statements can answer here when a savepoint rides
                 // along: SAVEPOINT's tag, then the caller's own, then
                 // RELEASE's. Only the middle one describes what the caller
                 // asked for.
                 if (leadingCommandTags) leadingCommandTags--;
-                else if (!commandTag) commandTag = msg;
+                else if (!commandTag) commandTag = msg || EMPTY_QUERY_TAG;
                 break;
               case Protocol.BackendMessageCode.ErrorResponse:
                 error = msg;
