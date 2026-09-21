@@ -20,7 +20,10 @@ import type {
   DataMappingOptions,
   MoneyFormat,
 } from '../interfaces/data-mapping-options.js';
-import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
+import type {
+  ConnectionConfiguration,
+  ConnectionMappingDefaults,
+} from '../interfaces/database-connection-params.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
 import type { FunctionCallOptions } from '../interfaces/function-call-options.js';
 import type { FunctionCallResult } from '../interfaces/function-call-result.js';
@@ -167,6 +170,38 @@ const PREPARE_AFTER_USES = 2;
  * own command. Its empty name is what leaves `QueryResult.command`
  * unset, which is what `pg` reports for the same statement.
  */
+/** The connection-configuration keys that are per-statement defaults. */
+const MAPPING_DEFAULT_KEYS = [
+  'typeMap',
+  'columnFormat',
+  'objectRows',
+  'rowDecoder',
+  'utcDates',
+  'fetchAsString',
+  'unknownTypesAsString',
+  'moneyFormat',
+] as const;
+
+/**
+ * The mapping defaults out of a connection configuration, or undefined
+ * when it set none - so the merge can be skipped outright rather than
+ * walking an empty object on every statement.
+ */
+function pickMappingDefaults(
+  config: ConnectionConfiguration,
+): Maybe<ConnectionMappingDefaults> {
+  let out: any;
+  let k: (typeof MAPPING_DEFAULT_KEYS)[number];
+  let i: number;
+  for (i = 0; i < MAPPING_DEFAULT_KEYS.length; i++) {
+    k = MAPPING_DEFAULT_KEYS[i];
+    if (config[k] === undefined) continue;
+    out = out || {};
+    out[k] = config[k];
+  }
+  return out && Object.freeze(out);
+}
+
 const EMPTY_QUERY_TAG: Protocol.CommandCompleteMessage = { command: '' };
 
 /** See IntlConnection._decodeDeferredRows(). */
@@ -227,6 +262,12 @@ export class IntlConnection extends SafeEventEmitter {
   protected _savepointDepths = new Map<string, number>();
   protected _config: ConnectionConfiguration;
   protected _onErrorSavePoint: string;
+  /**
+   * The data-mapping options this connection was configured with, or
+   * undefined when it was given none - which is the common case, and
+   * the one that must not pay for this.
+   */
+  protected readonly _mappingDefaults?: ConnectionMappingDefaults;
   /** The server's own money rendering - see ensureMoneyFormat(). */
   protected _moneyFormat?: MoneyFormat;
   protected _moneyFormatPromise?: Promise<void>;
@@ -251,6 +292,7 @@ export class IntlConnection extends SafeEventEmitter {
   constructor(config?: ConnectionConfiguration | string) {
     super();
     this._config = Object.freeze(getConnectionConfig(config));
+    this._mappingDefaults = pickMappingDefaults(this._config);
     this.socket = new PgSocket(this._config);
     this.socket.on('error', err => this._onError(err));
     // The reason travels with it: 'close' on its own cannot tell an
@@ -809,7 +851,7 @@ export class IntlConnection extends SafeEventEmitter {
     options: ScriptExecuteOptions = {},
     cb?: (event: string, ...args: any[]) => void,
   ): Promise<ScriptResult> {
-    options = this._withMoneyFormat(options);
+    options = this.withDefaults(options);
     this.ref();
     try {
       const timingEnabled = options.timing ?? this.config.timing ?? false;
@@ -977,7 +1019,12 @@ export class IntlConnection extends SafeEventEmitter {
     params: Maybe<Maybe<any>[]>,
     options: QueryOptions,
   ): Promise<QueryResult> {
-    options = this._withMoneyFormat(options);
+    // Read before the merge below: a connection-wide fetchAsString must
+    // not give every statement a name on first sight - see
+    // _queryCached().
+    const callWantsFields =
+      !!options.fetchAsString?.length || !!options.unknownTypesAsString;
+    options = this.withDefaults(options);
     const savepoint = this._inlineSavepointFor(sql, options);
     try {
       return await this._queryCached(
@@ -986,6 +1033,7 @@ export class IntlConnection extends SafeEventEmitter {
         params,
         options,
         savepoint,
+        callWantsFields,
       );
     } catch (e: any) {
       // PostgreSQL throws away everything between a failed statement and
@@ -1020,6 +1068,8 @@ export class IntlConnection extends SafeEventEmitter {
     params: Maybe<Maybe<any>[]>,
     options: QueryOptions,
     savepoint: Maybe<string>,
+    /** Whether the CALL asked for text columns, not the connection. */
+    callWantsFields: boolean,
   ): Promise<QueryResult> {
     const enabled = options.prepare ?? this.config.prepare ?? true;
     if (!enabled)
@@ -1066,9 +1116,17 @@ export class IntlConnection extends SafeEventEmitter {
     // Parse+Describe would buy nothing. An array of formats is not the
     // same thing: it can be shorter than the row, and the columns it
     // does not cover are binary.
+    //
+    // And only for a list the CALL carried. The same list set once on
+    // the connection applies to every statement, so naming each one on
+    // first sight would double the round trips of a workload full of
+    // one-shot SQL and leave a server-side statement behind for each -
+    // measured at 5 distinct statements, 5 round trips against 10. A
+    // connection-wide list takes queryOnce()'s whole-row-text fallback
+    // on a statement's first run instead, and per-column codes from its
+    // second, which is where the name arrives anyway.
     const needsFields =
-      options.columnFormat !== DataFormat.text &&
-      (!!options.fetchAsString?.length || !!options.unknownTypesAsString);
+      callWantsFields && options.columnFormat !== DataFormat.text;
     if (!needsFields && !this._earnsAName(key))
       return this.queryOnce(sql, paramTypes, params, options, savepoint);
 
@@ -1176,7 +1234,7 @@ export class IntlConnection extends SafeEventEmitter {
     options: QueryOptions,
     savepoint?: string,
   ): Promise<QueryResult> {
-    options = this._withMoneyFormat(options);
+    options = this.withDefaults(options);
     this.assertConnected();
     this.ref();
     try {
@@ -1301,7 +1359,7 @@ export class IntlConnection extends SafeEventEmitter {
       // answer for itself can still be asked before they are read.
       if (this.needsMoneyFormat(resultFields, options)) {
         await this.ensureMoneyFormat();
-        options = this._withMoneyFormat(options);
+        options = this.withDefaults(options);
       }
       if (resultFields && parsers) {
         if (!result.command) result.command = 'SELECT';
@@ -1476,7 +1534,7 @@ export class IntlConnection extends SafeEventEmitter {
     requests: { sql: string; params?: any[]; paramTypes?: Maybe<OID>[] }[],
     options: QueryOptions,
   ): Promise<QueryResult[]> {
-    options = this._withMoneyFormat(options);
+    options = this.withDefaults(options);
     this.assertConnected();
     this.ref();
     try {
@@ -1712,7 +1770,7 @@ export class IntlConnection extends SafeEventEmitter {
     paramSets: Maybe<any>[][],
     options: QueryOptions,
   ): Promise<BatchResult> {
-    options = this._withMoneyFormat(options);
+    options = this.withDefaults(options);
     this.assertConnected();
     this.ref();
     try {
@@ -1846,7 +1904,7 @@ export class IntlConnection extends SafeEventEmitter {
     options: QueryOptions,
     savepoint?: string,
   ): Promise<QueryResult> {
-    options = this._withMoneyFormat(options);
+    options = this.withDefaults(options);
     this.assertConnected();
     this.ref();
     try {
@@ -1958,7 +2016,7 @@ export class IntlConnection extends SafeEventEmitter {
       // answer for itself can still be asked before they are read.
       if (this.needsMoneyFormat(resultFields, options)) {
         await this.ensureMoneyFormat();
-        options = this._withMoneyFormat(options);
+        options = this.withDefaults(options);
       }
       if (resultFields && parsers) {
         if (!result.command) result.command = 'SELECT';
@@ -2022,13 +2080,13 @@ export class IntlConnection extends SafeEventEmitter {
   }
 
   /**
-   * `options` carrying this connection's money format, so a money value
-   * can be read against the scale the server actually uses.
+   * `options` with whatever this connection can answer for it: the
+   * data-mapping defaults it was configured with, and the money format
+   * it has learned.
    *
-   * One shallow copy per statement, and only while the connection has
-   * an answer to give: the alternative is handing the decoders a
-   * connection they have no business knowing about. A caller that set
-   * the format itself keeps it.
+   * At most one shallow copy per statement, and only when there is
+   * something to fill in - a connection configured with nothing and no
+   * money in sight hands the caller's own object straight back.
    */
   /**
    * Rows left raw because a money column's scale was not in yet.
@@ -2045,7 +2103,7 @@ export class IntlConnection extends SafeEventEmitter {
     options: QueryOptions,
   ): Promise<QueryOptions> {
     await this.ensureMoneyFormat();
-    const opts = this._withMoneyFormat(options);
+    const opts = this.withDefaults(options);
     let d: DeferredRows;
     let i: number;
     let k: number;
@@ -2066,10 +2124,25 @@ export class IntlConnection extends SafeEventEmitter {
     return opts;
   }
 
-  protected _withMoneyFormat<T extends DataMappingOptions>(options: T): T {
-    return this._moneyFormat && !options.moneyFormat
-      ? { ...options, moneyFormat: this._moneyFormat }
-      : options;
+  withDefaults<T extends DataMappingOptions>(options: T): T {
+    const defaults = this._mappingDefaults;
+    const money = this._moneyFormat;
+    if (!defaults && !money) return options;
+    let out: any;
+    if (defaults) {
+      let k: keyof ConnectionMappingDefaults;
+      for (k in defaults) {
+        // The call always wins; the connection only fills a gap.
+        if ((options as any)[k] !== undefined) continue;
+        out = out || { ...options };
+        out[k] = defaults[k];
+      }
+    }
+    if (money && !(out || options).moneyFormat) {
+      out = out || { ...options };
+      out.moneyFormat = money;
+    }
+    return out || options;
   }
 
   protected _onError(err: Error): void {

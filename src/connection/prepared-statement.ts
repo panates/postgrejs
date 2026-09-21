@@ -87,6 +87,9 @@ export class PreparedStatement
 
   async execute(options: QueryOptions = {}): Promise<QueryResult> {
     const intlCon = getIntlConnection(this.connection);
+    // Folded in here rather than deeper: a cursor keeps these options
+    // and decodes its own rows with them long after this call is over.
+    options = intlCon.withDefaults(options);
     if (options.signal)
       return withAbortSignal(
         options.signal,
@@ -154,6 +157,7 @@ export class PreparedStatement
           'completion under one Sync, so there is no portal left to fetch from',
       );
     const intlCon = getIntlConnection(this.connection);
+    options = intlCon.withDefaults(options);
     if (!paramSets.length) return { results: [], totalRowsAffected: 0 };
     if (options.signal)
       return withAbortSignal(

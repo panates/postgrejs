@@ -2,6 +2,8 @@ import type { PoolConfiguration as LPoolConfiguration } from 'lightning-pool';
 import type { ConnectionOptions as TlsConnectionOptions } from 'tls';
 import type { SmartBufferConfig } from '../protocol/smart-buffer.js';
 import type { DebugLogger } from '../types.js';
+import type { DataMappingOptions } from './data-mapping-options.js';
+import type { QueryOptions } from './query-options.js';
 
 export interface DatabaseConnectionParams {
   host?: string;
@@ -149,8 +151,20 @@ export interface SocketOptions {
   keepAlive?: boolean;
 }
 
+/**
+ * The data-mapping options a connection can answer for every statement
+ * on it, so a caller that always wants the same shape says so once.
+ *
+ * Each is the default for `QueryOptions`'s field of the same name and
+ * is described there; a value on the call always wins. `fetchAsString`
+ * and `unknownTypesAsString` are the two with a cost worth knowing
+ * about - see `fetchAsString` in QueryOptions.
+ */
+export type ConnectionMappingDefaults = DataMappingOptions &
+  Pick<QueryOptions, 'objectRows' | 'rowDecoder' | 'typeMap' | 'columnFormat'>;
+
 export interface ConnectionConfiguration
-  extends DatabaseConnectionParams, SocketOptions {
+  extends DatabaseConnectionParams, SocketOptions, ConnectionMappingDefaults {
   buffer?: SmartBufferConfig;
   /**
    * Whether statements may share a connection with statements already in
