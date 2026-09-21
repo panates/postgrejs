@@ -22,6 +22,7 @@ import { normalizeChannelName } from '../util/channel-name.js';
 import type { CopyRowSource } from '../util/copy-from-rows.js';
 import { escapeIdentifier } from '../util/escape-identifier.js';
 import { QueryRequest } from '../util/sql-tag.js';
+import { isUnspecifiedParam } from '../util/unspecified-param.js';
 import { BindParam } from './bind-param.js';
 import type { CopyFromStream, CopyToStream } from './copy-stream.js';
 import { IntlConnection } from './intl-connection.js';
@@ -771,7 +772,18 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   ): Promise<QueryResult> {
     const typeMap = options?.typeMap || GlobalTypeMap;
     const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
-      prm instanceof BindParam ? prm.oid : typeMap.determine(prm),
+      prm instanceof BindParam
+        ? prm.oid
+        : // A Date and a string go out with no declared type, so the
+          // server resolves each from where it lands - neither can say
+          // what it is, and naming a type for them is what made a `Date`
+          // move by the client's offset and a string unusable anywhere a
+          // `varchar` is not what the context wanted. See
+          // `isUnspecifiedParam()` for what that costs. The text they go
+          // out as is written in getBindMessage().
+          isUnspecifiedParam(prm)
+          ? 0
+          : typeMap.determine(prm),
     );
 
     const effectiveAutoCommit =

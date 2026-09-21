@@ -3,7 +3,9 @@ import { DataTypeMap } from '../data-type-map.js';
 import type { QueryOptions } from '../interfaces/query-options.js';
 import type { Maybe, OID } from '../types.js';
 import { encodeBinaryArray } from '../util/encode-binaryarray.js';
+import { formatDateParam } from '../util/format-datetime.js';
 import { stringifyArrayLiteral } from '../util/stringify-arrayliteral.js';
+import { arrayLeaf } from '../util/unspecified-param.js';
 import { Protocol } from './protocol.js';
 import type { SASL } from './sasl.js';
 import { SmartBuffer, type SmartBufferConfig } from './smart-buffer.js';
@@ -292,6 +294,26 @@ export class Frontend {
               : dt.encodeText(v, queryOptions);
             io.writeLString(v, 'utf8');
           }
+        } else if (v instanceof Date) {
+          // No declared type, so the server resolves it from the column
+          // - which is the whole point, and why the text has to carry
+          // the zone. `String(v)` is a JavaScript date string the server
+          // cannot parse at all, which is what a prepared statement with
+          // no paramTypes used to send.
+          io.writeLString(formatDateParam(v, queryOptions), 'utf8');
+        } else if (Array.isArray(v)) {
+          // Also undeclared, so the server reads an array literal and
+          // takes the element type from the column. `'' + v` would hand
+          // it `a,b`, which is not one - the elements have to be quoted
+          // and the braces written, and a nested array needs its own.
+          io.writeLString(
+            stringifyArrayLiteral(
+              v,
+              queryOptions,
+              arrayLeaf(v) instanceof Date ? formatDateParam : undefined,
+            ),
+            'utf8',
+          );
         } else if (Buffer.isBuffer(v)) {
           // Set param format to binary
           io.buffer.writeInt16BE(

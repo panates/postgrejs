@@ -3,6 +3,9 @@ import { DataTypeMap, GlobalTypeMap } from '../data-type-map.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import { escapeIdentifier } from './escape-identifier.js';
 import { escapeLiteral } from './escape-literal.js';
+import { formatDateParam } from './format-datetime.js';
+import { stringifyArrayLiteral } from './stringify-arrayliteral.js';
+import { arrayLeaf, isUnspecifiedParam } from './unspecified-param.js';
 
 /**
  * A statement built by the `sql` tag: its text with the values pulled out.
@@ -187,6 +190,26 @@ function encodeLiteral(
     v = v.value;
   }
   if (v == null) return 'null';
+  // A Date and a string go in bare, exactly as they go out as
+  // parameters with no declared type (see unspecified-param.ts): an
+  // unadorned literal is `unknown` and takes the type of wherever it
+  // lands. The cast this path adds everywhere else is what keeps
+  // query() and execute() meaning the same thing, and for these two it
+  // is what would break that - `'{"a":1}'::varchar` is refused by a
+  // json column that takes the parameter without complaint.
+  if (oid == null && isUnspecifiedParam(v)) {
+    if (!Array.isArray(v))
+      return escapeLiteral(
+        v instanceof Date ? formatDateParam(v, options) : '' + v,
+      );
+    return escapeLiteral(
+      stringifyArrayLiteral(
+        v,
+        options,
+        arrayLeaf(v) instanceof Date ? formatDateParam : undefined,
+      ),
+    );
+  }
   oid = oid ?? typeMap.determine(v);
   /* c8 ignore start - typeMap.determine() always falls back to the
      "unknown" oid rather than returning null/undefined, so this can't

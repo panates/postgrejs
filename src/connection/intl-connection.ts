@@ -204,6 +204,10 @@ export class IntlConnection extends SafeEventEmitter {
     this.socket.on('notification', payload =>
       this.emit('notification', payload),
     );
+    // Covers a notice that arrives while no statement is running. One
+    // raised *by* a statement is dispatched to that statement's own
+    // message loop instead, which is why each of those forwards it too.
+    this.socket.on('notice', payload => this.emit('notice', payload));
     this.socket.on('connecting', () => this.emit('connecting'));
     this._onErrorSavePoint = 'SP_' + Math.round(Math.random() * 100000000);
   }
@@ -703,6 +707,9 @@ export class IntlConnection extends SafeEventEmitter {
                 );
               break;
             case Protocol.BackendMessageCode.NoticeResponse:
+              // Not an error: handed over, and the loop carries on.
+              this.emit('notice', msg);
+              break;
             case Protocol.BackendMessageCode.EmptyQueryResponse:
               break;
             case Protocol.BackendMessageCode.RowDescription:
@@ -1027,10 +1034,13 @@ export class IntlConnection extends SafeEventEmitter {
             done: (err?: Error, result?: any) => void,
           ) => {
             switch (code) {
+              case Protocol.BackendMessageCode.NoticeResponse:
+                // Not an error: handed over, and the loop carries on.
+                this.emit('notice', msg);
+                break;
               case Protocol.BackendMessageCode.ParseComplete:
               case Protocol.BackendMessageCode.BindComplete:
               case Protocol.BackendMessageCode.NoData:
-              case Protocol.BackendMessageCode.NoticeResponse:
                 break;
               // The server stopped at the fetchCount limit rather than
               // running out of rows. The Sync that closes this call
@@ -1134,10 +1144,13 @@ export class IntlConnection extends SafeEventEmitter {
             done: (err?: Error, result?: any) => void,
           ) => {
             switch (code) {
+              case Protocol.BackendMessageCode.NoticeResponse:
+                // Not an error: handed over, and the loop carries on.
+                this.emit('notice', msg);
+                break;
               case Protocol.BackendMessageCode.ParseComplete:
               case Protocol.BackendMessageCode.ParameterDescription:
               case Protocol.BackendMessageCode.NoData:
-              case Protocol.BackendMessageCode.NoticeResponse:
                 break;
               case Protocol.BackendMessageCode.RowDescription:
                 fields = msg.fields;
@@ -1342,9 +1355,12 @@ export class IntlConnection extends SafeEventEmitter {
         await this.socket
           .sendPipelineMessages({ statements }, (code, msg: any, done) => {
             switch (code) {
+              case Protocol.BackendMessageCode.NoticeResponse:
+                // Not an error: handed over, and the loop carries on.
+                this.emit('notice', msg);
+                break;
               case Protocol.BackendMessageCode.ParseComplete:
               case Protocol.BackendMessageCode.BindComplete:
-              case Protocol.BackendMessageCode.NoticeResponse:
                 break;
               case Protocol.BackendMessageCode.NoData:
                 pendingFields = undefined;
@@ -1515,8 +1531,11 @@ export class IntlConnection extends SafeEventEmitter {
             done: (err?: Error, result?: any) => void,
           ) => {
             switch (code) {
-              case Protocol.BackendMessageCode.BindComplete:
               case Protocol.BackendMessageCode.NoticeResponse:
+                // Not an error: handed over, and the loop carries on.
+                this.emit('notice', msg);
+                break;
+              case Protocol.BackendMessageCode.BindComplete:
                 break;
               case Protocol.BackendMessageCode.DataRow:
                 (pendingRows || (pendingRows = [])).push(msg);
@@ -1658,9 +1677,12 @@ export class IntlConnection extends SafeEventEmitter {
             done: (err?: Error, result?: any) => void,
           ) => {
             switch (code) {
+              case Protocol.BackendMessageCode.NoticeResponse:
+                // Not an error: handed over, and the loop carries on.
+                this.emit('notice', msg);
+                break;
               case Protocol.BackendMessageCode.ParseComplete:
               case Protocol.BackendMessageCode.BindComplete:
-              case Protocol.BackendMessageCode.NoticeResponse:
                 break;
               // See queryOnce() for what a suspended portal means here.
               case Protocol.BackendMessageCode.PortalSuspended:

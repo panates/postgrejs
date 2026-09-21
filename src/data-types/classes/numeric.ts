@@ -9,10 +9,14 @@
  * to a plain number; this class is what the rest become, and it carries
  * the digits exactly as the server wrote them.
  *
- * It is a class rather than a bare string so that it can be told apart:
- * `determine()` types a bare string as `varchar`, which the server then
- * refuses to put in a numeric column, so a string could be read but not
- * written back. A `Numeric` round-trips.
+ * It is a class rather than a bare string so that the value keeps
+ * saying what it is. A bare string parameter does reach a numeric
+ * column - it goes out with no declared type and the server resolves it
+ * there (see `util/unspecified-param.ts`) - but only where there is a
+ * column to resolve it from: `determine()` answers `varchar` for it, an
+ * inlined literal is written with no cast, and a decoded one is
+ * indistinguishable from text. A `Numeric` carries the type with the
+ * digits.
  *
  * There is deliberately no `valueOf()`. Arithmetic on one of these has
  * to be an explicit decision - `Symbol.toPrimitive` hands back the exact

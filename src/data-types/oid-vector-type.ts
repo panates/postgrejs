@@ -26,6 +26,10 @@ export const OidVectorType: DataType = {
       (io: SmartBuffer, x: number) => {
         io.writeUInt32BE(x);
       },
+      // A vector is genuinely 0-based, unlike every ordinary array -
+      // `array_lower(pg_index.indkey, 1)` is 0 on the server.
+      undefined,
+      0,
     );
   },
 

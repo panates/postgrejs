@@ -96,8 +96,13 @@ describe('DataType: char', () => {
       // the whole array "char"[] and every later element came back cut to
       // one byte - silently, and not even an explicit cast helped, since
       // the cut happened here rather than on the server.
+      //
+      // The cast is what names the type now: an array of strings goes out
+      // undeclared, so `select $1` alone has nothing to resolve it from
+      // and the server answers with the array literal as text - which is
+      // what `pg` returns for the same query, verified.
       const input = ['A', 'BB', 'CCC'];
-      const r = await conn.query('select $1 as v', {
+      const r = await conn.query('select $1::text[] as v', {
         params: [input],
         objectRows: true,
       });

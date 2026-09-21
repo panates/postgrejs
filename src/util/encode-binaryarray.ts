@@ -8,6 +8,17 @@ import type {
 } from '../types.js';
 import { arrayCalculateDim } from './array-calculatedim.js';
 
+/**
+ * Writes an array in the binary wire format.
+ *
+ * `lowerBound` is the index the first element answers to in SQL, and it
+ * is 1 for every ordinary array - `array_lower('{1,2}'::int4[], 1)` is
+ * 1, and a value written with 0 comes back subscripted from 0, so
+ * `arr[1]` is its *second* element and `::text` renders the
+ * explicit-bounds form `[0:2]={…}`. `oidvector` and `int2vector` are the
+ * exception and really are 0-based - confirmed against the catalog,
+ * `array_lower(pg_index.indkey, 1)` is 0 - so they pass 0 themselves.
+ */
 export function encodeBinaryArray(
   io: SmartBuffer,
   value: any[],
@@ -15,6 +26,7 @@ export function encodeBinaryArray(
   options: DataMappingOptions,
   encode: EncodeBinaryFunction,
   encodeCalculateDimFn?: EncodeCalculateDimFunction,
+  lowerBound: number = 1,
 ): void {
   encodeCalculateDimFn = encodeCalculateDimFn || arrayCalculateDim;
   itemOid = itemOid || DataTypeOIDs.varchar;
@@ -28,7 +40,7 @@ export function encodeBinaryArray(
   let d: number;
   for (d = 0; d < ndims; d++) {
     io.writeInt32BE(dim[d]); // Number of items in dimension
-    io.writeInt32BE(0); // LBound always 0.
+    io.writeInt32BE(lowerBound); // Index the first element answers to
   }
 
   let hasNull = false;

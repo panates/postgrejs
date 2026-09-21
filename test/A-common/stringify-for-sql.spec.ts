@@ -63,15 +63,26 @@ describe('stringifyValueForSQL()', () => {
       expect(() => str(new Range(1, 10))).toThrow('carries no type OID');
     });
 
-    it('should write a Date as a timestamp, not its ISO string', () => {
+    it('should write a Date bare, with its offset and no cast', () => {
+      // No cast, so the literal is `unknown` and the column decides what
+      // it means - a `timestamptz` honours the offset, a `timestamp`
+      // discards it. That is what a bound Date now does, and an inlined
+      // one has to agree with it. It used to be `::timestamp`, which
+      // moved the instant on the way into a `timestamptz` column.
       const d = new Date(2020, 0, 2, 3, 4, 5);
-      expect(str(d)).toStrictEqual("'2020-01-02 03:04:05.000'::timestamp");
+      const offset = -d.getTimezoneOffset();
+      const sign = offset < 0 ? '-' : '+';
+      const abs = Math.abs(offset);
+      const p = (n: number) => String(n).padStart(2, '0');
+      expect(str(d)).toStrictEqual(
+        `'2020-01-02 03:04:05.000${sign}${p(Math.floor(abs / 60))}:${p(abs % 60)}'`,
+      );
     });
 
     it('should read a Date the way utcDates says, as the parameter path does', () => {
       const d = new Date(Date.UTC(2020, 0, 2, 3, 4, 5));
       expect(str(d, { utcDates: true })).toStrictEqual(
-        "'2020-01-02 03:04:05.000'::timestamp",
+        "'2020-01-02 03:04:05.000+00:00'",
       );
     });
 
