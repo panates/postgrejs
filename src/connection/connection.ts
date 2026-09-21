@@ -206,18 +206,24 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     if (typeof sql === 'object' && sql instanceof QueryRequest)
       sql = sql.stringify({ ...options, typeMap: options?.typeMap });
     if (this.listenerCount('execute')) this.emit('execute', sql, options);
-    return withAbortSignal(
-      options?.signal,
-      () => this._intlCon.cancel(),
-      () =>
-        this._captureErrorStack(
-          this._intlCon.execute(sql, options),
-          this.execute,
-          options?.asyncErrorHandling,
-        ).catch((e: DatabaseError) => {
-          throw this._handleError(e, sql);
-        }),
-    );
+    let release = this._intlCon.enterWire(this._isExclusive(options?.pipeline));
+    if (typeof release !== 'function') release = await release;
+    try {
+      return await withAbortSignal(
+        options?.signal,
+        () => this._intlCon.cancel(),
+        () =>
+          this._captureErrorStack(
+            this._intlCon.execute(sql, options),
+            this.execute,
+            options?.asyncErrorHandling,
+          ).catch((e: DatabaseError) => {
+            throw this._handleError(e, sql);
+          }),
+      );
+    } finally {
+      release();
+    }
   }
 
   /**
@@ -274,11 +280,17 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     }
     /* c8 ignore stop */
     if (this.listenerCount('query')) this.emit('query', sql, options);
-    return withAbortSignal(
-      options?.signal,
-      () => this._intlCon.cancel(),
-      () => this._query(sql, options),
-    );
+    let release = this._intlCon.enterWire(this._isExclusive(options?.pipeline));
+    if (typeof release !== 'function') release = await release;
+    try {
+      return await withAbortSignal(
+        options?.signal,
+        () => this._intlCon.cancel(),
+        () => this._query(sql, options),
+      );
+    } finally {
+      release();
+    }
   }
 
   /**
@@ -764,6 +776,16 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       this._notificationListeners.removeAllListeners();
       await this._captureErrorStack(this.query('UNLISTEN *'));
     }
+  }
+
+  /**
+   * Whether a statement asked for the wire to itself - `pipeline: false`
+   * on the call, or on the connection when the call says nothing.
+   */
+  protected _isExclusive(pipeline: Maybe<boolean>): boolean {
+    return pipeline != null
+      ? !pipeline
+      : this._intlCon.config.pipeline === false;
   }
 
   protected async _query(

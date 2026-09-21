@@ -9,6 +9,33 @@ export interface ScriptExecuteOptions extends DataMappingOptions {
    */
   autoCommit?: boolean;
   /**
+   * Whether this statement may share a connection with statements that
+   * are already in flight (default: true, or the connection's own
+   * `pipeline` setting).
+   *
+   * PostgreSQL correlates responses to requests by order, so several
+   * statements can be on the wire at once, each under its own Sync and
+   * therefore with its own error boundary. `Pool` uses this to let a
+   * burst of queries share far fewer connections than it has queries; a
+   * `Connection` uses it to keep sending rather than waiting for each
+   * reply.
+   *
+   * `false` asks for the wire to itself: the statement waits until
+   * nothing else is running on the connection, and nothing else starts
+   * until it finishes. Through `Pool` it also takes a pooled connection
+   * of its own rather than sharing one. That is what a caller wants when
+   * a statement depends on the session state another one is leaving
+   * behind - `SET`, an advisory lock, a temporary table - since nothing
+   * orders two pipelined statements against each other.
+   *
+   * Some statements never share a *pooled* connection whatever this
+   * says, because they need one to themselves for longer than the call:
+   * anything carrying an `AbortSignal`, anything with
+   * `autoCommit: false`, a cursor, and SQL that opens a transaction or a
+   * COPY. On a `Connection` the setting is only about the wire.
+   */
+  pipeline?: boolean;
+  /**
    * Specifies if rows will be fetched as <FieldName, Value> pair objects or array of values
    * @deprecated Use `rowDecoder: 'object'` instead - `objectRows: true` still works exactly
    * as before, it's just the same thing `rowDecoder` now also expresses.

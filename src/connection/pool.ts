@@ -20,13 +20,16 @@ import { Connection, type NotificationCallback } from './connection.js';
 import { getIntlConnection, IntlConnection } from './intl-connection.js';
 import type { PreparedStatement } from './prepared-statement.js';
 
-export interface PoolPipelineOptions {
-  pipeline?: boolean;
-}
+/**
+ * @deprecated `pipeline` is part of `QueryOptions` and
+ * `ScriptExecuteOptions` now, so every connection takes it too. Kept as
+ * an alias of that one field so the exported type still means what it
+ * did.
+ */
+export type PoolPipelineOptions = Pick<QueryOptions, 'pipeline'>;
 
-export type PoolQueryOptions = QueryOptions & PoolPipelineOptions;
-export type PoolScriptExecuteOptions = ScriptExecuteOptions &
-  PoolPipelineOptions;
+export type PoolQueryOptions = QueryOptions;
+export type PoolScriptExecuteOptions = ScriptExecuteOptions;
 
 /**
  * One pooled connection the pipelined path is currently borrowing.
@@ -445,6 +448,21 @@ export class Pool extends SafeEventEmitter {
     this.emit('error', reason);
   }
 
+  /**
+   * Whether a one-shot query may share a pooled connection with the
+   * queries already in flight on it. On by default: the alternative is
+   * `max` being a ceiling on concurrent queries rather than on
+   * connections, which is what made a burst of 1000 queries run as 100
+   * sequential rounds of 10.
+   *
+   * The exclusions are not policy, they are statements that need a
+   * connection to themselves for longer than the call takes to resolve:
+   * a cursor reads from a portal afterwards, a transaction spans later
+   * statements, a COPY holds the connection mid-stream, `autoCommit:
+   * false` says a transaction is being managed by hand, and an
+   * `AbortSignal` cancels by tearing down whatever the connection is
+   * doing - which, shared, is not only this query.
+   */
   protected _canPipeline(
     pipeline: boolean | undefined,
     sql: string,
@@ -452,7 +470,7 @@ export class Pool extends SafeEventEmitter {
     signal: AbortSignal | undefined,
   ): boolean {
     return (
-      pipeline === true &&
+      (pipeline != null ? pipeline : this.config.pipeline !== false) &&
       !signal &&
       this._pipelineMaxQueries > 1 &&
       this._pipelineMaxConnections > 0 &&

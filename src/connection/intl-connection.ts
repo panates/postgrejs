@@ -196,6 +196,19 @@ export class IntlConnection extends SafeEventEmitter {
   protected _savepointDepths = new Map<string, number>();
   protected _config: ConnectionConfiguration;
   protected _onErrorSavePoint: string;
+  /** Statements currently holding the wire - see enterWire(). */
+  protected _wireUsers = 0;
+  protected _wireIdleWaiters?: (() => void)[];
+  protected _wireLock?: Promise<void>;
+  /** Bound once: enterWire()'s fast path hands out this same function. */
+  protected _releaseWire = (): void => {
+    if (--this._wireUsers || !this._wireIdleWaiters) return;
+    const waiters = this._wireIdleWaiters;
+    this._wireIdleWaiters = undefined;
+    let i: number;
+    const l = waiters.length;
+    for (i = 0; i < l; i++) waiters[i]();
+  };
   transactionStatus = 'I';
   socket: PgSocket;
   owner?: SafeEventEmitter;
@@ -527,6 +540,30 @@ export class IntlConnection extends SafeEventEmitter {
   /** Asks the server to cancel whatever this session is running. */
   cancel(): Promise<void> {
     return this.socket.cancel();
+  }
+
+  /**
+   * Claims the wire for one statement, and hands back the function that
+   * releases it.
+   *
+   * Several statements share it by default: PostgreSQL correlates
+   * responses to requests by order, so a connection can carry more than
+   * one at a time and a caller that does not wait for each reply is
+   * measurably faster. `exclusive` is `pipeline: false` - the statement
+   * waits until nothing else is running here, and nothing else starts
+   * until it releases.
+   *
+   * Returns the release function itself rather than a promise of one
+   * whenever it can be taken without waiting, which is every statement
+   * on a connection nobody has asked to serialise - the common case, and
+   * the one that must not pay for this.
+   */
+  enterWire(exclusive?: boolean): (() => void) | Promise<() => void> {
+    if (!exclusive && !this._wireLock) {
+      this._wireUsers++;
+      return this._releaseWire;
+    }
+    return this._enterWireQueued(!!exclusive);
   }
 
   ref(): void {
@@ -1764,6 +1801,37 @@ export class IntlConnection extends SafeEventEmitter {
   emit(event: string | symbol, ...args: any[]): boolean {
     const handled = super.emit(event, ...args);
     return this.owner ? this.owner.emit(event, ...args) || handled : handled;
+  }
+
+  /**
+   * The slow half of enterWire(): either an exclusive statement, or an
+   * ordinary one arriving while an exclusive statement holds the wire.
+   *
+   * The claim itself is synchronous on purpose. Each waiter wakes in its
+   * own microtask and runs to its next `await` without interruption, so
+   * re-reading `_wireLock` and assigning it in the same stretch is what
+   * makes two waiters unable to both believe they took it.
+   */
+  protected async _enterWireQueued(exclusive: boolean): Promise<() => void> {
+    while (this._wireLock) await this._wireLock;
+    if (!exclusive) {
+      this._wireUsers++;
+      return this._releaseWire;
+    }
+    let unlock!: () => void;
+    this._wireLock = new Promise<void>(resolve => (unlock = resolve));
+    // Whatever was already in flight when the lock went up still has to
+    // finish - the point of asking is not to be interleaved with it.
+    if (this._wireUsers)
+      await new Promise<void>(resolve =>
+        (this._wireIdleWaiters || (this._wireIdleWaiters = [])).push(resolve),
+      );
+    this._wireUsers++;
+    return () => {
+      this._wireLock = undefined;
+      this._releaseWire();
+      unlock();
+    };
   }
 
   protected _onError(err: Error): void {
