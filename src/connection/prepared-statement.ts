@@ -11,6 +11,10 @@ import { withAbortSignal } from '../util/abort-signal.js';
 import { getParsers } from '../util/get-parsers.js';
 import { resolveColumnFormats } from '../util/resolve-column-formats.js';
 import { resolveRowType } from '../util/row-decoder.js';
+import {
+  isTransactionCommand,
+  refusesSavepoint,
+} from '../util/transaction-command.js';
 import { wrapRowDescription } from '../util/wrap-row-description.js';
 import type { Connection } from './connection.js';
 import { Cursor } from './cursor.js';
@@ -223,9 +227,7 @@ export class PreparedStatement
   ): Promise<T> {
     const intlCon = getIntlConnection(this.connection);
 
-    const transactionCommand = this.sql.match(
-      /^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i,
-    );
+    const transactionCommand = isTransactionCommand(this.sql);
     let beginFirst = false;
     let commitLast = false;
     const autoCommit = options?.autoCommit;
@@ -244,7 +246,10 @@ export class PreparedStatement
     // See IntlConnection.execute()'s own rollbackOnError for why
     // intlCon.inTransaction goes first here but last in the checks below.
     const rollbackOnError =
-      !transactionCommand &&
+      // See IntlConnection.execute(): `SET TRANSACTION` keeps the
+      // implicit BEGIN and loses only the savepoint, which PostgreSQL
+      // refuses to let it run inside.
+      !refusesSavepoint(this.sql) &&
       intlCon.inTransaction &&
       (options?.rollbackOnError ?? intlCon.config.rollbackOnError ?? true);
 

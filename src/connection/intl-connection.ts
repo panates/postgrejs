@@ -38,6 +38,10 @@ import {
   resolveColumnFormats,
 } from '../util/resolve-column-formats.js';
 import { resolveRowDecoder, resolveRowType } from '../util/row-decoder.js';
+import {
+  isTransactionCommand,
+  refusesSavepoint,
+} from '../util/transaction-command.js';
 import { wrapRowDescription } from '../util/wrap-row-description.js';
 import type { Connection } from './connection.js';
 import { CopyFromStream, CopyToStream } from './copy-stream.js';
@@ -167,9 +171,6 @@ function preparedCacheKey(
 ): string {
   return paramTypes?.length ? sql + '\u0000' + paramTypes.join(',') : sql;
 }
-
-const TRANSACTION_COMMAND_PATTERN =
-  /^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i;
 
 export class IntlConnection extends SafeEventEmitter {
   /**
@@ -314,7 +315,7 @@ export class IntlConnection extends SafeEventEmitter {
     cb?: (event: string, ...args: any[]) => void,
   ): Promise<ScriptResult> {
     this.assertConnected();
-    const transactionCommand = TRANSACTION_COMMAND_PATTERN.test(sql);
+    const transactionCommand = isTransactionCommand(sql);
     let beginFirst = false;
     let commitLast = false;
     const { autoCommit } = options;
@@ -340,7 +341,9 @@ export class IntlConnection extends SafeEventEmitter {
     // short-circuits the getter whenever rollbackOnError is already
     // false, which it is outside a transaction.
     const rollbackOnError =
-      !transactionCommand &&
+      // Not `transactionCommand`: `SET TRANSACTION` still wants the
+      // implicit BEGIN above, and only the savepoint is fatal to it.
+      !refusesSavepoint(sql) &&
       this.inTransaction &&
       (options.rollbackOnError ?? this.config.rollbackOnError ?? true);
 
@@ -878,15 +881,15 @@ export class IntlConnection extends SafeEventEmitter {
   /**
    * The savepoint rollbackOnError calls for, or undefined when this call
    * needs none: outside a transaction there is nothing to roll back to,
-   * and a statement that is itself a transaction command manages its own
-   * boundaries (wrapping COMMIT in a savepoint would be nonsense).
+   * a statement that is itself a transaction command manages its own
+   * boundaries (wrapping COMMIT in a savepoint would be nonsense), and
+   * PostgreSQL refuses `SET TRANSACTION` inside one outright.
    */
   protected _inlineSavepointFor(
     sql: string,
     options: QueryOptions,
   ): Maybe<string> {
-    if (!this.inTransaction || TRANSACTION_COMMAND_PATTERN.test(sql))
-      return undefined;
+    if (!this.inTransaction || refusesSavepoint(sql)) return undefined;
     const on = options.rollbackOnError ?? this.config.rollbackOnError ?? true;
     return on ? this._onErrorSavePoint : undefined;
   }
