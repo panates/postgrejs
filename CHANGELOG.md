@@ -1,5 +1,21 @@
 ## Changelog
 
+### [v3.8.0](https://github.com/panates/postgrejs/compare/v3.7.0...v3.8.0) - 
+
+#### 🚀 New Features
+
+- feat: deliver server notices to the connection @Eray Hanoğlu 
+
+#### 🪲 Fixes
+
+- fix: send a string parameter unspecified, so the column decides @Eray Hanoğlu 
+- fix: send a Date parameter unspecified, so the column decides @Eray Hanoğlu 
+- fix: write a lower bound of 1 for an ordinary binary array @Eray Hanoğlu 
+
+#### 🧪 Changes to Test Assests
+
+- test: skip the types PostgreSQL 12 does not have @Eray Hanoğlu 
+
 ### [v3.7.0](https://github.com/panates/postgrejs/compare/v3.6.1...v3.7.0) -  20 September 2026 
 
 #### Breaking Changes :warning:
