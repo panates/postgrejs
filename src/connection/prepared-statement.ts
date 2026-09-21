@@ -1,3 +1,4 @@
+import { DataTypeOIDs } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import type { BatchResult } from '../interfaces/batch-result.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
@@ -226,6 +227,18 @@ export class PreparedStatement
     canInlineSavepoint = false,
   ): Promise<T> {
     const intlCon = getIntlConnection(this.connection);
+    // See Connection._query(): a money parameter is written as an int64
+    // of minor units, so the server's scale has to be known before the
+    // Bind goes out.
+    if (
+      this.paramTypes?.includes(DataTypeOIDs.money) ||
+      this.paramTypes?.includes(DataTypeOIDs._money) ||
+      // And before any of this statement's own money columns are read:
+      // a cursor and a batch both decode inside the message loop, where
+      // there is no longer anywhere to ask from.
+      intlCon.needsMoneyFormat(this._fields)
+    )
+      await intlCon.ensureMoneyFormat();
 
     const transactionCommand = isTransactionCommand(this.sql);
     let beginFirst = false;

@@ -1,6 +1,25 @@
 import type { OID } from '../types.js';
 
+/** How a server renders `money` - see `DataMappingOptions.moneyFormat`. */
+export interface MoneyFormat {
+  /** Fraction digits: 2 for `$1.00`, 0 for `¥1`, 3 for a dinar. */
+  scale: number;
+  /** The decimal separator the server prints, `.` or `,`. */
+  decimalSeparator: string;
+}
+
 export interface DataMappingOptions {
+  /**
+   * How the server renders money, which is what `money`'s wire format
+   * cannot say on its own: it is an int64 of the smallest currency unit,
+   * and how many of those make one is `lc_monetary` - a setting the
+   * server does not report. A connection asks it once on its way up (see
+   * `IntlConnection.ensureMoneyFormat()`) and fills this in; set it here
+   * to skip that question, or to read a value rendered by a different
+   * server than the one at hand.
+   */
+  moneyFormat?: MoneyFormat;
+
   /**
    * If true UTC time will be used for date decoding, else system time offset will be used
    * @default false

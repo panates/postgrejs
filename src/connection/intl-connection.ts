@@ -1,7 +1,12 @@
 import { performance } from 'node:perf_hooks';
-import { ConnectionState, DEFAULT_COLUMN_FORMAT } from '../constants.js';
+import {
+  ConnectionState,
+  DataTypeOIDs,
+  DEFAULT_COLUMN_FORMAT,
+} from '../constants.js';
 import type { DataTypeMap } from '../data-type-map.js';
 import { GlobalTypeMap } from '../data-type-map.js';
+import { parseMoneyFormat } from '../data-types/money-type.js';
 import type {
   BatchCommandResult,
   BatchResult,
@@ -11,6 +16,10 @@ import type {
   CopyFromRowsOptions,
   CopyFromRowsResult,
 } from '../interfaces/copy-from-rows-options.js';
+import type {
+  DataMappingOptions,
+  MoneyFormat,
+} from '../interfaces/data-mapping-options.js';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
 import type { FunctionCallOptions } from '../interfaces/function-call-options.js';
@@ -197,6 +206,9 @@ export class IntlConnection extends SafeEventEmitter {
   protected _savepointDepths = new Map<string, number>();
   protected _config: ConnectionConfiguration;
   protected _onErrorSavePoint: string;
+  /** The server's own money rendering - see ensureMoneyFormat(). */
+  protected _moneyFormat?: MoneyFormat;
+  protected _moneyFormatPromise?: Promise<void>;
   /** Statements currently holding the wire - see enterWire(). */
   protected _wireUsers = 0;
   protected _wireIdleWaiters?: (() => void)[];
@@ -569,6 +581,63 @@ export class IntlConnection extends SafeEventEmitter {
     return this._enterWireQueued(!!exclusive);
   }
 
+  /**
+   * Asks the server how it renders money, once per connection.
+   *
+   * `money` travels as an int64 of the smallest currency unit, and how
+   * many of those make one unit is `lc_monetary` - which the server
+   * does not report among its startup parameters, so `1234` on the wire
+   * is $12.34, ¥1234 or 1.234 KWD depending on a setting only the server
+   * knows. Asking it to render a value it already knows is the whole
+   * answer, and needs no locale data on this side.
+   *
+   * `1` is the value asked for because it cannot carry a thousands
+   * separator: whatever separator comes back can only be the decimal
+   * one, and the digits after it can only be the fraction. `$1.00` is
+   * two, `¥1` is none.
+   */
+  async ensureMoneyFormat(): Promise<void> {
+    if (this._moneyFormat) return;
+    if (!this._moneyFormatPromise) {
+      // Assigned before the query starts: the query goes through
+      // queryCached like any other, and would ask for the format again
+      // on its way out.
+      let done!: () => void;
+      this._moneyFormatPromise = new Promise<void>(r => (done = r));
+      this.queryCached("select '1'::money::text", undefined, undefined, {
+        columnFormat: DataFormat.text,
+      })
+        .then(r => {
+          const text = r.rows?.[0]?.[0];
+          if (typeof text === 'string')
+            this._moneyFormat = parseMoneyFormat(text);
+        })
+        .catch(() => undefined)
+        .then(done);
+    }
+    return this._moneyFormatPromise;
+  }
+
+  /**
+   * Whether these columns need the server's money format and this
+   * connection has not asked for it yet.
+   *
+   * The scan costs a look at each column's OID, and only until the
+   * answer is in - from then on the first test ends it.
+   */
+  needsMoneyFormat(fields: Maybe<{ dataTypeId: OID }[]>): boolean {
+    if (this._moneyFormat || !fields) return false;
+    const l = fields.length;
+    let i: number;
+    let oid: OID;
+    for (i = 0; i < l; i++) {
+      oid = fields[i].dataTypeId;
+      if (oid === DataTypeOIDs.money || oid === DataTypeOIDs._money)
+        return true;
+    }
+    return false;
+  }
+
   ref(): void {
     this._refCount++;
   }
@@ -712,6 +781,7 @@ export class IntlConnection extends SafeEventEmitter {
     options: ScriptExecuteOptions = {},
     cb?: (event: string, ...args: any[]) => void,
   ): Promise<ScriptResult> {
+    options = this._withMoneyFormat(options);
     this.ref();
     try {
       const timingEnabled = options.timing ?? this.config.timing ?? false;
@@ -858,6 +928,7 @@ export class IntlConnection extends SafeEventEmitter {
     params: Maybe<Maybe<any>[]>,
     options: QueryOptions,
   ): Promise<QueryResult> {
+    options = this._withMoneyFormat(options);
     const savepoint = this._inlineSavepointFor(sql, options);
     try {
       return await this._queryCached(
@@ -1022,6 +1093,7 @@ export class IntlConnection extends SafeEventEmitter {
     options: QueryOptions,
     savepoint?: string,
   ): Promise<QueryResult> {
+    options = this._withMoneyFormat(options);
     this.assertConnected();
     this.ref();
     try {
@@ -1142,6 +1214,12 @@ export class IntlConnection extends SafeEventEmitter {
         });
 
       if (commandTag?.command) result.command = commandTag.command;
+      // The rows are still raw here, so the one question money cannot
+      // answer for itself can still be asked before they are read.
+      if (this.needsMoneyFormat(resultFields)) {
+        await this.ensureMoneyFormat();
+        options = this._withMoneyFormat(options);
+      }
       if (resultFields && parsers) {
         if (!result.command) result.command = 'SELECT';
         result.rows = rows;
@@ -1315,6 +1393,7 @@ export class IntlConnection extends SafeEventEmitter {
     requests: { sql: string; params?: any[]; paramTypes?: Maybe<OID>[] }[],
     options: QueryOptions,
   ): Promise<QueryResult[]> {
+    options = this._withMoneyFormat(options);
     this.assertConnected();
     this.ref();
     try {
@@ -1536,6 +1615,7 @@ export class IntlConnection extends SafeEventEmitter {
     paramSets: Maybe<any>[][],
     options: QueryOptions,
   ): Promise<BatchResult> {
+    options = this._withMoneyFormat(options);
     this.assertConnected();
     this.ref();
     try {
@@ -1669,6 +1749,7 @@ export class IntlConnection extends SafeEventEmitter {
     options: QueryOptions,
     savepoint?: string,
   ): Promise<QueryResult> {
+    options = this._withMoneyFormat(options);
     this.assertConnected();
     this.ref();
     try {
@@ -1776,6 +1857,12 @@ export class IntlConnection extends SafeEventEmitter {
         });
 
       if (commandTag?.command) result.command = commandTag.command;
+      // The rows are still raw here, so the one question money cannot
+      // answer for itself can still be asked before they are read.
+      if (this.needsMoneyFormat(resultFields)) {
+        await this.ensureMoneyFormat();
+        options = this._withMoneyFormat(options);
+      }
       if (resultFields && parsers) {
         if (!result.command) result.command = 'SELECT';
         result.rows = rows;
@@ -1835,6 +1922,21 @@ export class IntlConnection extends SafeEventEmitter {
       this._releaseWire();
       unlock();
     };
+  }
+
+  /**
+   * `options` carrying this connection's money format, so a money value
+   * can be read against the scale the server actually uses.
+   *
+   * One shallow copy per statement, and only while the connection has
+   * an answer to give: the alternative is handing the decoders a
+   * connection they have no business knowing about. A caller that set
+   * the format itself keeps it.
+   */
+  protected _withMoneyFormat<T extends DataMappingOptions>(options: T): T {
+    return this._moneyFormat && !options.moneyFormat
+      ? { ...options, moneyFormat: this._moneyFormat }
+      : options;
   }
 
   protected _onError(err: Error): void {

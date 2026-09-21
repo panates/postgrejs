@@ -20,7 +20,7 @@ const PAIRS: string[] = new Array(100);
 for (let i = 0; i < 100; i++) PAIRS[i] = i < 10 ? '0' + i : '' + i;
 
 /** The decimal without the zeroes a declared scale pads it out to. */
-function trimTrailingZeros(s: string): string {
+export function trimTrailingZeros(s: string): string {
   const dot = s.indexOf('.');
   if (dot < 0) return s;
   let end = s.length;

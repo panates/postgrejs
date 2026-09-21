@@ -42,6 +42,7 @@ import {
   Macaddr8Type,
   MacaddrType,
 } from './data-types/macaddr-type.js';
+import { ArrayMoneyType, MoneyType } from './data-types/money-type.js';
 import { ArrayNumericType, NumericType } from './data-types/numeric-type.js';
 import { ArrayOidType, OidType } from './data-types/oid-type.js';
 import {
@@ -184,6 +185,9 @@ GlobalTypeMap.register([JsonType, ArrayJsonType]);
 
 GlobalTypeMap.register([BoolType, ArrayBoolType]);
 GlobalTypeMap.register([NumericType, ArrayNumericType]);
+// Registered after numeric and not inferrable: a JavaScript number is
+// never money by shape, and the type is reached by naming it.
+GlobalTypeMap.register([MoneyType, ArrayMoneyType]);
 GlobalTypeMap.register([Float4Type, ArrayFloat4Type]);
 GlobalTypeMap.register([Float8Type, ArrayFloat8Type]);
 GlobalTypeMap.register([Int2Type, ArrayInt2Type]);

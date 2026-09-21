@@ -808,6 +808,17 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
           : typeMap.determine(prm),
     );
 
+    // A money parameter is written as an int64 of minor units, so the
+    // scale has to be known before the Bind goes out - the probe fired
+    // at connect answers in time for every result, but not necessarily
+    // for the encode of the very first statement.
+    if (
+      paramTypes &&
+      (paramTypes.includes(DataTypeOIDs.money) ||
+        paramTypes.includes(DataTypeOIDs._money))
+    )
+      await this._intlCon.ensureMoneyFormat();
+
     const effectiveAutoCommit =
       options?.autoCommit != null
         ? options.autoCommit
