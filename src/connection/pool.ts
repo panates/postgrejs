@@ -450,12 +450,16 @@ export class Pool extends SafeEventEmitter {
 
   /**
    * Whether a one-shot query may share a pooled connection with the
-   * queries already in flight on it. On by default: the alternative is
-   * `max` being a ceiling on concurrent queries rather than on
-   * connections, which is what made a burst of 1000 queries run as 100
-   * sequential rounds of 10.
+   * queries already in flight on it.
    *
-   * The exclusions are not policy, they are statements that need a
+   * **Opt-in**, per call or with `pipeline: true` on the pool. It is
+   * worth asking for - `max` stops being a ceiling on concurrent
+   * queries and becomes one on connections, and a burst of 500 through
+   * a pool of 10 measured 12ms against 29ms - but it is not the default,
+   * because it moves the query onto a connection other callers are
+   * using and session state there stops being the caller's own.
+   *
+   * The exclusions below are not policy, they are statements that need a
    * connection to themselves for longer than the call takes to resolve:
    * a cursor reads from a portal afterwards, a transaction spans later
    * statements, a COPY holds the connection mid-stream, `autoCommit:
@@ -470,7 +474,7 @@ export class Pool extends SafeEventEmitter {
     signal: AbortSignal | undefined,
   ): boolean {
     return (
-      (pipeline != null ? pipeline : this.config.pipeline !== false) &&
+      (pipeline != null ? pipeline : this.config.pipeline === true) &&
       !signal &&
       this._pipelineMaxQueries > 1 &&
       this._pipelineMaxConnections > 0 &&

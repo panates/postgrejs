@@ -2,9 +2,11 @@ import { expect } from 'expect';
 import { Connection, Pool } from 'postgrejs';
 
 /**
- * Statements share a connection by default: several can be on the wire
- * at once, each under its own Sync and so with its own error boundary.
- * `pipeline: false` asks for the wire alone.
+ * Several statements can be on the wire at once, each under its own Sync
+ * and so with its own error boundary. A `Connection` does that by
+ * default and `pipeline: false` asks for the wire alone; a `Pool` does
+ * not, because there sharing also decides which connection the query
+ * lands on, so it is opt-in.
  *
  * What is asserted is the order the statements go out in, not how long
  * they take: PostgreSQL runs one connection's statements serially either
@@ -126,12 +128,15 @@ describe('pipeline option', () => {
   });
 
   describe('on a pool', () => {
-    it('should let a query share a pooled connection by default', async () => {
+    it('should keep a query off a shared connection unless asked', async () => {
+      // Opt-in here, unlike on a connection: sharing decides *which*
+      // connection the query runs on, and session state on a connection
+      // other callers are using is not the caller's own.
       const pool: any = new Pool({ max: 2 });
       try {
         expect(
           pool._canPipeline(undefined, 'select 1', undefined, undefined),
-        ).toStrictEqual(true);
+        ).toStrictEqual(false);
         expect(
           pool._canPipeline(true, 'select 1', undefined, undefined),
         ).toStrictEqual(true);
@@ -144,14 +149,14 @@ describe('pipeline option', () => {
     });
 
     it('should take the pool setting when the call says nothing', async () => {
-      const pool: any = new Pool({ max: 2, pipeline: false });
+      const pool: any = new Pool({ max: 2, pipeline: true });
       try {
         expect(
           pool._canPipeline(undefined, 'select 1', undefined, undefined),
-        ).toStrictEqual(false);
-        expect(
-          pool._canPipeline(true, 'select 1', undefined, undefined),
         ).toStrictEqual(true);
+        expect(
+          pool._canPipeline(false, 'select 1', undefined, undefined),
+        ).toStrictEqual(false);
       } finally {
         await pool.close(0);
       }
@@ -181,7 +186,7 @@ describe('pipeline option', () => {
     });
 
     it('should run a burst through one pooled connection correctly', async () => {
-      const pool = new Pool({ max: 1 });
+      const pool = new Pool({ max: 1, pipeline: true });
       try {
         const rows = await Promise.all(
           Array.from({ length: 20 }, (_, i) =>

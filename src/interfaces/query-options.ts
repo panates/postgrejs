@@ -12,26 +12,31 @@ export interface QueryOptions extends DataMappingOptions {
   autoCommit?: boolean;
   /**
    * Whether this statement may share a connection with statements that
-   * are already in flight (default: true, or the connection's own
-   * `pipeline` setting).
+   * are already in flight.
    *
    * PostgreSQL correlates responses to requests by order, so several
    * statements can be on the wire at once, each under its own Sync and
-   * therefore with its own error boundary. `Pool` uses this to let a
-   * burst of queries share far fewer connections than it has queries; a
-   * `Connection` uses it to keep sending rather than waiting for each
-   * reply.
+   * therefore with its own error boundary.
+   *
+   * **The default differs by where the statement runs, because the two
+   * places are not the same question:**
+   *
+   * - On a `Connection`, **on**. The connection is the caller's own, and
+   *   concurrent `query()` calls on one have always overlapped this way.
+   * - On a `Pool`, **off**. Here it also decides *which* connection the
+   *   statement runs on: sharing puts it on a connection other callers
+   *   are using, where session state - `SET`, an advisory lock, a
+   *   temporary table - is no longer the caller's alone. That is opt-in,
+   *   per call or with `pipeline: true` on the pool.
    *
    * `false` asks for the wire to itself: the statement waits until
    * nothing else is running on the connection, and nothing else starts
-   * until it finishes. Through `Pool` it also takes a pooled connection
-   * of its own rather than sharing one. That is what a caller wants when
-   * a statement depends on the session state another one is leaving
-   * behind - `SET`, an advisory lock, a temporary table - since nothing
-   * orders two pipelined statements against each other.
+   * until it finishes, whichever mode those asked for. Nothing orders
+   * two pipelined statements against each other, so this is how a
+   * statement that depends on what another one left behind says so.
    *
-   * Some statements never share a *pooled* connection whatever this
-   * says, because they need one to themselves for longer than the call:
+   * Some statements never share a *pooled* connection however this is
+   * set, because they need one to themselves for longer than the call:
    * anything carrying an `AbortSignal`, anything with
    * `autoCommit: false`, a cursor, and SQL that opens a transaction or a
    * COPY. On a `Connection` the setting is only about the wire.

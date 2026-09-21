@@ -153,14 +153,17 @@ export interface ConnectionConfiguration
   extends DatabaseConnectionParams, SocketOptions {
   buffer?: SmartBufferConfig;
   /**
-   * Whether statements may share the connection with statements already
-   * in flight (default: true). The default for every call on this
-   * connection - and, on a `Pool`, for whether a query may share a
-   * pooled connection at all; `QueryOptions.pipeline` overrides it per
-   * statement, and describes what the two settings mean.
+   * Whether statements may share a connection with statements already in
+   * flight - the default for every call here, which
+   * `QueryOptions.pipeline` overrides per statement and describes in
+   * full.
    *
-   * `false` gives the behaviour of a client that waits for each reply
-   * before sending the next statement.
+   * Defaults to **on for a `Connection`** (what one has always done) and
+   * **off for a `Pool`**, where sharing also means running on a
+   * connection other callers are using. `true` on a pool turns it on for
+   * every query that can take it; `false` on a connection gives the
+   * behaviour of a client that waits for each reply before sending the
+   * next statement.
    */
   pipeline?: boolean;
 }
@@ -178,11 +181,11 @@ export interface PoolConfiguration
    * ceiling on connections - with the default pool of 10, a burst of 1000
    * queries no longer has to run as 100 sequential rounds of 10.
    *
-   * Set to 1 - or `pipeline: false`, which says the same thing and says
-   * it plainly - for the behaviour of a client that holds a connection
-   * exclusively for the duration of each query. Connections handed out
-   * by acquire() are never shared whatever this is set to, so
-   * transactions, cursors and prepared statements are unaffected.
+   * Only queries that asked to be pipelined are counted, since sharing a
+   * pooled connection is opt-in - see `pipeline`. Setting this to 1 is
+   * the other way to turn it off. Connections handed out by acquire()
+   * are never shared whatever either is set to, so transactions, cursors
+   * and prepared statements are unaffected.
    */
   pipelineMaxQueries?: number;
 
