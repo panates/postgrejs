@@ -205,6 +205,15 @@ export class IntlConnection extends SafeEventEmitter {
    * this is per connection and dies with it.
    */
   private _preparedCache = new Map<string, PreparedCacheEntry>();
+  /**
+   * The names being given out right now, one per SQL. A burst of the
+   * same statement arrives before any of it is prepared, and without
+   * this every call in the burst prepares its own copy: measured at 50
+   * concurrent `select $1::int4`, 25 Parse+Describe round trips and 25
+   * named statements left on the server that this map's one entry could
+   * never close again.
+   */
+  private _preparing = new Map<string, Promise<PreparedCacheEntry>>();
   /** SQL seen once but not yet prepared - see PREPARE_AFTER_USES. */
   private _preparedCandidates = new Map<string, number>();
   private _preparedCounter = 0;
@@ -1063,22 +1072,50 @@ export class IntlConnection extends SafeEventEmitter {
     if (!needsFields && !this._earnsAName(key))
       return this.queryOnce(sql, paramTypes, params, options, savepoint);
 
-    const name = 'C_' + ++this._preparedCounter;
-    // A Parse that fails caches nothing and reports itself; the statement
-    // is simply never reused. It runs outside the savepoint, as the
-    // prepare() the transaction path used to do ahead of its own wrapper.
-    const { fields } = await this.prepareOnce(sql, paramTypes, name);
-    const entry: PreparedCacheEntry = { name, fields };
-    await this._evictPreparedIfFull();
-    this._preparedCache.set(key, entry);
+    let preparing = this._preparing.get(key);
+    if (!preparing) {
+      // Registered before the first await inside, so everything that
+      // arrives while this one is in flight finds it rather than
+      // starting a second one.
+      preparing = this._prepareForCache(key, sql, paramTypes);
+      this._preparing.set(key, preparing);
+    } else if (!needsFields) {
+      // Someone else is already naming it. Waiting would cost a round
+      // trip the one-shot path does not - the name is for the calls
+      // after this burst, not for this one.
+      return this.queryOnce(sql, paramTypes, params, options, savepoint);
+    }
+    const entry = await preparing;
     return this.executeReused(
-      name,
+      entry.name,
       entry.fields,
       paramTypes,
       params,
       options,
       savepoint,
     );
+  }
+
+  /**
+   * Gives this SQL a name and caches it, once, however many callers are
+   * waiting. A Parse that fails caches nothing and reports itself; the
+   * statement is simply never reused. It runs outside the savepoint, as
+   * the prepare() the transaction path used to do ahead of its own
+   * wrapper.
+   */
+  protected _prepareForCache(
+    key: string,
+    sql: string,
+    paramTypes: Maybe<Maybe<OID>[]>,
+  ): Promise<PreparedCacheEntry> {
+    const name = 'C_' + ++this._preparedCounter;
+    return (async () => {
+      const { fields } = await this.prepareOnce(sql, paramTypes, name);
+      const entry: PreparedCacheEntry = { name, fields };
+      await this._evictPreparedIfFull();
+      this._preparedCache.set(key, entry);
+      return entry;
+    })().finally(() => this._preparing.delete(key));
   }
 
   /**
