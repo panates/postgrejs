@@ -30,6 +30,23 @@ describe('binary array lower bound', () => {
   });
 
   it('should do the same for a type of no fixed size', async () => {
+    // The type is named because a bare array of strings goes out with no
+    // declared type, as an array literal, and would not reach the binary
+    // writer at all - which is what this file is about.
+    const r = await conn.query(
+      'select ($1::text[])[1] as first, array_lower($1::text[],1) as lo,' +
+        ' ($1::text[])::text as lit',
+      {
+        params: [new BindParam(DataTypeOIDs._text, ['a', 'b'])],
+        objectRows: true,
+      },
+    );
+    expect(r.rows?.[0]).toStrictEqual({ first: 'a', lo: 1, lit: '{a,b}' });
+  });
+
+  it('should subscript an undeclared array of strings from 1 too', async () => {
+    // That one goes as `{"a","b"}` for the server to read, which is a
+    // different writer with the same rule to obey.
     const r = await conn.query(
       'select ($1::text[])[1] as first, array_lower($1::text[],1) as lo,' +
         ' ($1::text[])::text as lit',

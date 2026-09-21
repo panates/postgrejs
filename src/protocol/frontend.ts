@@ -5,6 +5,7 @@ import type { Maybe, OID } from '../types.js';
 import { encodeBinaryArray } from '../util/encode-binaryarray.js';
 import { formatDateParam } from '../util/format-datetime.js';
 import { stringifyArrayLiteral } from '../util/stringify-arrayliteral.js';
+import { arrayLeaf } from '../util/unspecified-param.js';
 import { Protocol } from './protocol.js';
 import type { SASL } from './sasl.js';
 import { SmartBuffer, type SmartBufferConfig } from './smart-buffer.js';
@@ -300,9 +301,17 @@ export class Frontend {
           // cannot parse at all, which is what a prepared statement with
           // no paramTypes used to send.
           io.writeLString(formatDateParam(v, queryOptions), 'utf8');
-        } else if (Array.isArray(v) && v[0] instanceof Date) {
+        } else if (Array.isArray(v)) {
+          // Also undeclared, so the server reads an array literal and
+          // takes the element type from the column. `'' + v` would hand
+          // it `a,b`, which is not one - the elements have to be quoted
+          // and the braces written, and a nested array needs its own.
           io.writeLString(
-            stringifyArrayLiteral(v, queryOptions, formatDateParam),
+            stringifyArrayLiteral(
+              v,
+              queryOptions,
+              arrayLeaf(v) instanceof Date ? formatDateParam : undefined,
+            ),
             'utf8',
           );
         } else if (Buffer.isBuffer(v)) {

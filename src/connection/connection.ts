@@ -22,6 +22,7 @@ import { normalizeChannelName } from '../util/channel-name.js';
 import type { CopyRowSource } from '../util/copy-from-rows.js';
 import { escapeIdentifier } from '../util/escape-identifier.js';
 import { QueryRequest } from '../util/sql-tag.js';
+import { isUnspecifiedParam } from '../util/unspecified-param.js';
 import { BindParam } from './bind-param.js';
 import type { CopyFromStream, CopyToStream } from './copy-stream.js';
 import { IntlConnection } from './intl-connection.js';
@@ -36,14 +37,6 @@ const CAPTURE_STACK_TRACE_LIMIT = 5;
 
 /** Names the savepoint a nested transaction() scope takes. */
 let transactionScopeCounter = 0;
-
-/**
- * A value the Bind path sends as unspecified text rather than as a
- * declared type - a `Date`, or an array of them. See `_query()`.
- */
-function isDateParam(v: any): boolean {
-  return v instanceof Date || (Array.isArray(v) && v[0] instanceof Date);
-}
 
 export class Connection extends SafeEventEmitter implements AsyncDisposable {
   protected _pool?: Pool;
@@ -781,16 +774,14 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
       prm instanceof BindParam
         ? prm.oid
-        : // A Date goes out unspecified, so the column decides what it
-          // means. Declaring `timestamp` for it - which determine() does,
-          // since TimestamptzType.isType is unreachable behind it - moved
-          // the instant by the client's offset on the way into a
-          // `timestamptz` column, and declaring `timestamptz` would have
-          // moved the wall clock by it on the way into a `timestamp` one.
-          // One Date cannot say which it is; the server can, and `pg`
-          // sends them this way for the same reason. The text that goes
-          // with it is formatDateParam()'s, in getBindMessage().
-          isDateParam(prm)
+        : // A Date and a string go out with no declared type, so the
+          // server resolves each from where it lands - neither can say
+          // what it is, and naming a type for them is what made a `Date`
+          // move by the client's offset and a string unusable anywhere a
+          // `varchar` is not what the context wanted. See
+          // `isUnspecifiedParam()` for what that costs. The text they go
+          // out as is written in getBindMessage().
+          isUnspecifiedParam(prm)
           ? 0
           : typeMap.determine(prm),
     );

@@ -50,7 +50,18 @@ describe('sql`` tag', () => {
     it('should escape a value that tries to break out', () => {
       const out = sql`select ${`x'; drop table t; --`}`.stringify();
       // Doubled quote keeps it one literal.
-      expect(out).toStrictEqual("select 'x''; drop table t; --'::varchar");
+      expect(out).toStrictEqual("select 'x''; drop table t; --'");
+    });
+
+    it('should write a string and an array of them with no cast', () => {
+      // The one exception to the cast above, and the reason for it: a
+      // string parameter goes out with no declared type, so an inlined
+      // one has to be as untyped as the bound one - `'{"a":1}'::varchar`
+      // is refused by a json column that takes the parameter.
+      expect(sql`select ${'abc'}`.stringify()).toStrictEqual("select 'abc'");
+      expect(sql`select ${['a', 'b']}`.stringify()).toStrictEqual(
+        `select '{"a","b"}'`,
+      );
     });
 
     it('should write null without a cast', () => {
