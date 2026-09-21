@@ -907,6 +907,12 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     this._closing = false;
   }
 
+  /**
+   * Adds the source excerpt the server's `position` points at to
+   * `message`, so an error reads in a terminal without the caller doing
+   * anything. `err.serverMessage` keeps the undecorated text for
+   * anything that parses it.
+   */
   protected _handleError(err: DatabaseError, script: string): DatabaseError {
     if (err.position != null) {
       const i1 = script.lastIndexOf('\n', err.position - 1) + 1;
