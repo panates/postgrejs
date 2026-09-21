@@ -109,6 +109,29 @@ describe('Money format', () => {
     }
   });
 
+  it('should not ask when the value goes back verbatim', async () => {
+    // fetchAsString names the column, so the server's own rendering is
+    // what the caller gets and no decoder asks what a minor unit is -
+    // the question would be a round trip spent on nothing.
+    const conn = new Connection();
+    const sent: string[] = [];
+    (conn as any)._intlCon.socket.on('debug', (e: any) => {
+      const sql = e.args?.parse?.sql ?? e.args?.sql;
+      if (typeof sql === 'string') sent.push(sql);
+    });
+    await conn.connect();
+    try {
+      const r = await conn.query("select '12.34'::money as v", {
+        fetchAsString: [DataTypeOIDs.money],
+      });
+      expect(typeof r.rows?.[0][0]).toStrictEqual('string');
+      expect(sent.some(s => s.includes('::money::text'))).toStrictEqual(false);
+      expect((conn as any)._intlCon._moneyFormat).toStrictEqual(undefined);
+    } finally {
+      await conn.close(0);
+    }
+  });
+
   it('should ask only once per connection', async () => {
     const conn = new Connection();
     const sent: string[] = [];

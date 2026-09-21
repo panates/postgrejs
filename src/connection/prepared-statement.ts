@@ -236,7 +236,7 @@ export class PreparedStatement
       // And before any of this statement's own money columns are read:
       // a cursor and a batch both decode inside the message loop, where
       // there is no longer anywhere to ask from.
-      intlCon.needsMoneyFormat(this._fields)
+      intlCon.needsMoneyFormat(this._fields, options)
     )
       await intlCon.ensureMoneyFormat();
 

@@ -637,15 +637,22 @@ export class IntlConnection extends SafeEventEmitter {
    * The scan costs a look at each column's OID, and only until the
    * answer is in - from then on the first test ends it.
    */
-  needsMoneyFormat(fields: Maybe<{ dataTypeId: OID }[]>): boolean {
+  needsMoneyFormat(
+    fields: Maybe<{ dataTypeId: OID }[]>,
+    options?: DataMappingOptions,
+  ): boolean {
     if (this._moneyFormat || !fields) return false;
+    const asString = options?.fetchAsString;
     const l = fields.length;
     let i: number;
     let oid: OID;
     for (i = 0; i < l; i++) {
       oid = fields[i].dataTypeId;
-      if (oid === DataTypeOIDs.money || oid === DataTypeOIDs._money)
-        return true;
+      if (oid !== DataTypeOIDs.money && oid !== DataTypeOIDs._money) continue;
+      // Named by fetchAsString, so the value goes back exactly as the
+      // server rendered it and no decoder asks what a minor unit is.
+      if (asString?.includes(oid)) continue;
+      return true;
     }
     return false;
   }
@@ -857,7 +864,7 @@ export class IntlConnection extends SafeEventEmitter {
                 options,
               );
               current.rows = [];
-              currentDeferred = this.needsMoneyFormat(fields)
+              currentDeferred = this.needsMoneyFormat(fields, options)
                 ? {
                     target: current,
                     raw: [],
@@ -1045,8 +1052,14 @@ export class IntlConnection extends SafeEventEmitter {
     // text (what queryOnce() falls back to).
     // unknownTypesAsString needs the columns known before the Bind for
     // the same reason fetchAsString does, so it earns a name the same way.
+    // ...unless the caller already asked for the whole row as text, in
+    // which case there is nothing for either option to resolve and the
+    // Parse+Describe would buy nothing. An array of formats is not the
+    // same thing: it can be shorter than the row, and the columns it
+    // does not cover are binary.
     const needsFields =
-      !!options.fetchAsString?.length || !!options.unknownTypesAsString;
+      options.columnFormat !== DataFormat.text &&
+      (!!options.fetchAsString?.length || !!options.unknownTypesAsString);
     if (!needsFields && !this._earnsAName(key))
       return this.queryOnce(sql, paramTypes, params, options, savepoint);
 
@@ -1249,7 +1262,7 @@ export class IntlConnection extends SafeEventEmitter {
       if (commandTag?.command) result.command = commandTag.command;
       // The rows are still raw here, so the one question money cannot
       // answer for itself can still be asked before they are read.
-      if (this.needsMoneyFormat(resultFields)) {
+      if (this.needsMoneyFormat(resultFields, options)) {
         await this.ensureMoneyFormat();
         options = this._withMoneyFormat(options);
       }
@@ -1559,7 +1572,7 @@ export class IntlConnection extends SafeEventEmitter {
                   result.rowType = resolveRowType(options);
                   if (!result.command) result.command = 'SELECT';
                   const rows = pendingRows || [];
-                  if (this.needsMoneyFormat(fields)) {
+                  if (this.needsMoneyFormat(fields, options)) {
                     // Set aside: see _decodeDeferredRows().
                     result.rows = [];
                     deferred.push({
@@ -1906,7 +1919,7 @@ export class IntlConnection extends SafeEventEmitter {
       if (commandTag?.command) result.command = commandTag.command;
       // The rows are still raw here, so the one question money cannot
       // answer for itself can still be asked before they are read.
-      if (this.needsMoneyFormat(resultFields)) {
+      if (this.needsMoneyFormat(resultFields, options)) {
         await this.ensureMoneyFormat();
         options = this._withMoneyFormat(options);
       }

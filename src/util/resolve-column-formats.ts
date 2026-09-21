@@ -59,6 +59,9 @@ export function resolveColumnFormats(
   const unknownAsString = !!options.unknownTypesAsString && !!typeMap;
   const named = !!asString && asString.length > 0;
   if (!fields || (!named && !unknownAsString)) return base;
+  // Both options do one thing: ask for a column as text. A row that is
+  // already all text has nothing left for them to ask.
+  if (base === DataFormat.text) return base;
   const l = fields.length;
   const baseIsArray = Array.isArray(base);
   const out: Protocol.DataFormat[] = new Array(l);
