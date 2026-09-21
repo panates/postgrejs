@@ -1142,15 +1142,13 @@ export class PgSocket extends SafeEventEmitter {
       socket.write(data, cb);
       return true;
     }
-    socket.cork();
-    try {
-      const l = data.length;
-      let i: number;
-      for (i = 0; i < l; i++)
-        socket.write(data[i], i === l - 1 ? cb : undefined);
-    } finally {
-      socket.uncork();
-    }
+    // Joined rather than written one by one under a cork: a statement is
+    // three messages (Bind, Execute, Sync) of a few dozen bytes, and a
+    // write apiece costs three trips through the stream machinery - a
+    // WriteReq, a buffer entry, a cork/uncork pair - to save a copy of
+    // 43 bytes. Measured at 50 concurrent queries, 150 writes against
+    // 50.
+    socket.write(data.length === 1 ? data[0] : Buffer.concat(data), cb);
     return true;
   }
 
