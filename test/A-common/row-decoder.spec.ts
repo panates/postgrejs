@@ -114,4 +114,49 @@ describe('resolveRowType()', () => {
       'custom',
     );
   });
+
+  it('should let a subclass of a built-in keep its shape', () => {
+    // Subclassing to hook decode() without changing what comes out -
+    // the rows really are arrays, and saying 'custom' would throw that
+    // away. This is also what an `instanceof` test used to answer, so
+    // nothing here moved.
+    class Counting extends ArrayRowDecoder {
+      calls = 0;
+      override decode(
+        parsers: AnyParseFunction[],
+        data: Buffer,
+        columnCount: number,
+        options: any,
+      ): any[] {
+        this.calls++;
+        return super.decode(parsers, data, columnCount, options);
+      }
+    }
+    expect(resolveRowType({ rowDecoder: new Counting() })).toStrictEqual(
+      'array',
+    );
+  });
+
+  it('should let a subclass that changes the shape say so', () => {
+    // The case an `instanceof` test got wrong: a decoder that hands
+    // back a lazy view rather than a plain array is not an 'array', and
+    // a caller indexing it because the result said so would be reading
+    // the wrong thing.
+    class Lazy extends ArrayRowDecoder {
+      override readonly rowType = 'custom' as const;
+      override decode(): any {
+        return { get: () => undefined };
+      }
+    }
+    expect(resolveRowType({ rowDecoder: new Lazy() })).toStrictEqual('custom');
+  });
+
+  it('should report what the decoder says, whoever built it', () => {
+    // A fresh instance of a built-in is still that built-in - the
+    // answer comes from the object, not from which instance it is.
+    expect(
+      resolveRowType({ rowDecoder: new ObjectRowDecoder() }),
+    ).toStrictEqual('object');
+    expect(new ArrayRowDecoder().rowType).toStrictEqual('array');
+  });
 });

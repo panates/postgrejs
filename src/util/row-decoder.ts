@@ -19,6 +19,21 @@ import { parseObjectRow, parseRow } from './parse-row.js';
  * every other row's bytes in it) alive until released.
  */
 export abstract class RowDecoder {
+  /**
+   * What `QueryResult.rowType`/`Cursor.rowType` reports for rows this
+   * decoder produced - a promise to the caller about their shape, so it
+   * is the decoder's to make. `'custom'` here is the honest answer for
+   * a decoder nobody else knows anything about; the two built-ins name
+   * their own shape, and a subclass of one that still produces that
+   * shape inherits the right answer without doing anything.
+   *
+   * Set it when a subclass changes the shape - a decoder that hands
+   * back a lazy view rather than a plain array is not an `'array'`, and
+   * a caller that indexes it because the result said so would be
+   * reading the wrong thing.
+   */
+  readonly rowType: 'array' | 'object' | 'custom' = 'custom';
+
   abstract decode(
     parsers: AnyParseFunction[],
     data: Buffer,
@@ -29,6 +44,8 @@ export abstract class RowDecoder {
 }
 
 export class ArrayRowDecoder extends RowDecoder {
+  override readonly rowType = 'array' as const;
+
   decode(
     parsers: AnyParseFunction[],
     data: Buffer,
@@ -40,6 +57,8 @@ export class ArrayRowDecoder extends RowDecoder {
 }
 
 export class ObjectRowDecoder extends RowDecoder {
+  override readonly rowType = 'object' as const;
+
   decode(
     parsers: AnyParseFunction[],
     data: Buffer,
@@ -77,16 +96,17 @@ export function resolveRowDecoder(options: RowDecoderOptions): RowDecoder {
 }
 
 /**
- * The `rowType` string surfaced on `QueryResult`/`Cursor.rowType`. `'custom'`
- * when the caller supplied their own RowDecoder subclass - there's no way to
- * know what shape it returns - otherwise the same `'array' | 'object'` this
- * option has always reported.
+ * The `rowType` string surfaced on `QueryResult`/`Cursor.rowType`.
+ *
+ * Asked of the decoder rather than worked out from its class: an
+ * `instanceof` test answers `'array'` for anything derived from
+ * `ArrayRowDecoder`, including a subclass that overrode `decode()` to
+ * return something else entirely - which is the only reason to subclass
+ * it. The built-ins declare their own shape, so the answers are
+ * unchanged, and a subclass that changes the shape can now say so.
  */
 export function resolveRowType(
   options: RowDecoderOptions,
 ): 'array' | 'object' | 'custom' {
-  const decoder = resolveRowDecoder(options);
-  if (decoder instanceof ObjectRowDecoder) return 'object';
-  if (decoder instanceof ArrayRowDecoder) return 'array';
-  return 'custom';
+  return resolveRowDecoder(options).rowType;
 }
