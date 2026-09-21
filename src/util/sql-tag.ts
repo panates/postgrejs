@@ -1,11 +1,12 @@
 import { BindParam } from '../connection/bind-param.js';
 import { DataTypeMap, GlobalTypeMap } from '../data-type-map.js';
 import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
+import { arrayLeaf } from './array-leaf.js';
 import { escapeIdentifier } from './escape-identifier.js';
 import { escapeLiteral } from './escape-literal.js';
 import { formatDateParam } from './format-datetime.js';
 import { stringifyArrayLiteral } from './stringify-arrayliteral.js';
-import { arrayLeaf, isUnspecifiedParam } from './unspecified-param.js';
+import { isUnspecifiedParam } from './unspecified-param.js';
 
 /**
  * A statement built by the `sql` tag: its text with the values pulled out.

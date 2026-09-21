@@ -1,8 +1,6 @@
 import { expect } from 'expect';
-import {
-  arrayLeaf,
-  isUnspecifiedParam,
-} from '../../src/util/unspecified-param.js';
+import { arrayLeaf } from '../../src/util/array-leaf.js';
+import { isUnspecifiedParam } from '../../src/util/unspecified-param.js';
 
 /**
  * Which values go out with no declared type. Pinned here because the
@@ -38,10 +36,17 @@ describe('isUnspecifiedParam()', () => {
     expect(isUnspecifiedParam({ a: 1 })).toStrictEqual(false);
   });
 
+  it('should read past a leading null to find one', () => {
+    expect(isUnspecifiedParam([null, 'a'])).toStrictEqual(true);
+    expect(isUnspecifiedParam([null, new Date()])).toStrictEqual(true);
+    expect(isUnspecifiedParam([null, 5])).toStrictEqual(false);
+  });
+
   it('should leave a value it cannot read an element from', () => {
     // An empty array and a null answer nothing, so determine() keeps
     // them - which is what it did before any of this.
     expect(isUnspecifiedParam([])).toStrictEqual(false);
+    expect(isUnspecifiedParam([null, null])).toStrictEqual(false);
     expect(isUnspecifiedParam(null)).toStrictEqual(false);
     expect(isUnspecifiedParam(undefined)).toStrictEqual(false);
   });
@@ -57,8 +62,17 @@ describe('arrayLeaf()', () => {
     expect(arrayLeaf([[['a', 'b']]])).toStrictEqual('a');
   });
 
-  it('should answer undefined for an empty array', () => {
+  it('should skip past a leading null', () => {
+    // `[null, 2, 3]` is an ordinary value to send, and `value[0]` asks
+    // what type null is.
+    expect(arrayLeaf([null, 2, 3])).toStrictEqual(2);
+    expect(arrayLeaf([[null], [3]])).toStrictEqual(3);
+    expect(arrayLeaf([undefined, 'a'])).toStrictEqual('a');
+  });
+
+  it('should answer undefined when there is nothing to read', () => {
     expect(arrayLeaf([])).toStrictEqual(undefined);
     expect(arrayLeaf([[]])).toStrictEqual(undefined);
+    expect(arrayLeaf([null, null])).toStrictEqual(undefined);
   });
 });

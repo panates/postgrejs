@@ -92,6 +92,7 @@ import {
 } from './data-types/xid-type.js';
 import type { DataType } from './interfaces/data-type.js';
 import type { OID } from './types.js';
+import { arrayLeaf } from './util/array-leaf.js';
 
 export class DataTypeMap {
   private _itemsByOID: Record<OID, DataType> = {};
@@ -152,6 +153,12 @@ export class DataTypeMap {
       }
     }
     const valueIsArray = Array.isArray(value);
+    // An array is typed from the first value inside it that is actually
+    // a value: `value[0]` answers `_int2vector` for [[1, 2], [3, 4]],
+    // because the first element is itself an array and a vector is the
+    // one registered type an array of numbers matches, and answers
+    // nothing at all for [null, 2, 3].
+    const element = valueIsArray ? arrayLeaf(value) : undefined;
     let i: number;
     let t: DataType;
     for (i = this._items.length - 1; i >= 0; i--) {
@@ -161,7 +168,7 @@ export class DataTypeMap {
       // picked here at all, however well `isType` matches.
       if (t.inferrable === false) continue;
       if (valueIsArray) {
-        if (t.elementsOID && t.isType(value[0])) return t.oid;
+        if (t.elementsOID && t.isType(element)) return t.oid;
       } else if (!t.elementsOID && t.isType(value)) return t.oid;
     }
     return DataTypeOIDs.unknown;
