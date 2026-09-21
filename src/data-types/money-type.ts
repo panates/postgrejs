@@ -117,15 +117,14 @@ function parseMoneyText(s: string): bigint {
  * is what the caller wants - which is also what `pg` always returns.
  *
  * The question is asked the first time a money column is on its way
- * back through `query()` or a prepared statement, while the rows are
- * still raw bytes. Two paths decode inside the message loop and cannot
- * ask from there - `execute()`'s Simple Query, and an uncached
- * statement inside `pipeline()` - so a money value that is the *first*
- * one a connection has ever seen arrives through one of those, it is
- * read at two fraction digits. That is right everywhere except a
- * currency with none (yen, won) or three (dinars); pass `moneyFormat`
- * in the options there, or read one money value through `query()`
- * first.
+ * back, while the rows are still raw bytes - so no value is ever read
+ * against a scale nobody confirmed, and a caller who never touches
+ * money never asks. `execute()` and `pipeline()` decode inside the
+ * message loop, where there is nowhere left to ask from, so those two
+ * set the rows aside and read them once the loop is over.
+ *
+ * `moneyFormat` in the options answers it in advance, for a caller who
+ * knows the server or is reading a value some other server rendered.
  */
 export const MoneyType: DataType = {
   name: 'money',

@@ -56,6 +56,59 @@ describe('Money format', () => {
     }
   });
 
+  it('should ask before a Simple Query reads its rows', async () => {
+    // execute() decodes inside the message loop, where there is nowhere
+    // left to ask from - so its rows wait until the loop is over. This
+    // is the first statement on the connection, so nothing else can
+    // have asked first.
+    const conn = new Connection();
+    await conn.connect();
+    try {
+      const r = await conn.execute(
+        "select '12.34'::money as v, array['1.00'::money] as a",
+      );
+      expect(r.results[0].rows?.[0]).toStrictEqual([12.34, [1]]);
+      expect((conn as any)._intlCon._moneyFormat).toBeDefined();
+    } finally {
+      await conn.close(0);
+    }
+  });
+
+  it('should ask before a pipeline reads its rows', async () => {
+    // Same again, and with statements the connection has never seen -
+    // so their columns are not known until the results are already in.
+    const conn = new Connection();
+    await conn.connect();
+    try {
+      const rs = await conn.pipeline([
+        "select '12.34'::money as v",
+        "select '0.05'::money as v",
+      ]);
+      expect(rs.map(r => r.rows?.[0])).toStrictEqual([[12.34], [0.05]]);
+      expect((conn as any)._intlCon._moneyFormat).toBeDefined();
+    } finally {
+      await conn.close(0);
+    }
+  });
+
+  it('should never ask on a connection that has no money in it', async () => {
+    const conn = new Connection();
+    const sent: string[] = [];
+    (conn as any)._intlCon.socket.on('debug', (e: any) => {
+      const sql = e.args?.parse?.sql ?? e.args?.sql;
+      if (typeof sql === 'string') sent.push(sql);
+    });
+    await conn.connect();
+    try {
+      await conn.query('select 1 as v');
+      await conn.execute('select 2 as v');
+      await conn.pipeline(['select 3 as v']);
+      expect(sent.some(s => s.includes('::money'))).toStrictEqual(false);
+    } finally {
+      await conn.close(0);
+    }
+  });
+
   it('should ask only once per connection', async () => {
     const conn = new Connection();
     const sent: string[] = [];

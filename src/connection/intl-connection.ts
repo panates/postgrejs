@@ -46,7 +46,11 @@ import {
   fetchAsStringEqual,
   resolveColumnFormats,
 } from '../util/resolve-column-formats.js';
-import { resolveRowDecoder, resolveRowType } from '../util/row-decoder.js';
+import {
+  resolveRowDecoder,
+  resolveRowType,
+  type RowDecoder,
+} from '../util/row-decoder.js';
 import {
   isTransactionCommand,
   refusesSavepoint,
@@ -164,6 +168,14 @@ const PREPARE_AFTER_USES = 2;
  * unset, which is what `pg` reports for the same statement.
  */
 const EMPTY_QUERY_TAG: Protocol.CommandCompleteMessage = { command: '' };
+
+/** See IntlConnection._decodeDeferredRows(). */
+interface DeferredRows {
+  target: { rows?: any[] };
+  raw: Protocol.DataRowMessage[];
+  parsers: AnyParseFunction[];
+  fields: any;
+}
 
 /**
  * SQL that manages transaction boundaries itself, and so must never be
@@ -794,11 +806,13 @@ export class IntlConnection extends SafeEventEmitter {
       let parsers: AnyParseFunction[] | undefined;
       let current: CommandResult = { command: undefined };
       let fields: Protocol.RowDescription[];
+      const deferred: DeferredRows[] = [];
+      let currentDeferred: DeferredRows | undefined;
       let error: Error | undefined;
       const typeMap = options.typeMap || GlobalTypeMap;
       const rowDecoder = resolveRowDecoder(options);
       this.runningQueryCount++;
-      return await this.socket.sendQueryMessage(
+      const scriptResult: ScriptResult = await this.socket.sendQueryMessage(
         sql,
         (
           code: Protocol.BackendMessageCode,
@@ -843,9 +857,24 @@ export class IntlConnection extends SafeEventEmitter {
                 options,
               );
               current.rows = [];
+              currentDeferred = this.needsMoneyFormat(fields)
+                ? {
+                    target: current,
+                    raw: [],
+                    parsers,
+                    fields: current.fields,
+                  }
+                : undefined;
+              if (currentDeferred) deferred.push(currentDeferred);
               break;
             case Protocol.BackendMessageCode.DataRow:
               {
+                // Set aside rather than read against a scale nobody has
+                // confirmed - see _decodeDeferredRows().
+                if (currentDeferred) {
+                  currentDeferred.raw.push(msg);
+                  break;
+                }
                 const row: any = rowDecoder.decode(
                   parsers!,
                   msg.data,
@@ -859,6 +888,7 @@ export class IntlConnection extends SafeEventEmitter {
               }
               break;
             case Protocol.BackendMessageCode.CommandComplete:
+              currentDeferred = undefined;
               // Ignore BEGIN command that we added to sql
               current.command = msg.command;
               if (reportsRowsAffected(current.command))
@@ -888,6 +918,9 @@ export class IntlConnection extends SafeEventEmitter {
           }
         },
       );
+      if (deferred.length)
+        await this._decodeDeferredRows(deferred, rowDecoder, options);
+      return scriptResult;
     } finally {
       this.runningQueryCount--;
       this.unref();
@@ -1405,6 +1438,7 @@ export class IntlConnection extends SafeEventEmitter {
       const results: QueryResult[] = [];
       let pendingFields: Protocol.RowDescription[] | undefined;
       let pendingRows: any[] | undefined;
+      const deferred: DeferredRows[] = [];
       let error: DatabaseError | undefined;
 
       // Plan every statement against the prepared statement cache before
@@ -1525,18 +1559,29 @@ export class IntlConnection extends SafeEventEmitter {
                   result.rowType = resolveRowType(options);
                   if (!result.command) result.command = 'SELECT';
                   const rows = pendingRows || [];
-                  const l = rows.length;
-                  let i: number;
-                  for (i = 0; i < l; i++) {
-                    rows[i] = rowDecoder.decode(
+                  if (this.needsMoneyFormat(fields)) {
+                    // Set aside: see _decodeDeferredRows().
+                    result.rows = [];
+                    deferred.push({
+                      target: result,
+                      raw: rows,
                       parsers,
-                      rows[i].data,
-                      rows[i].columnCount,
-                      options,
-                      resultFields,
-                    );
+                      fields: resultFields,
+                    });
+                  } else {
+                    const l = rows.length;
+                    let i: number;
+                    for (i = 0; i < l; i++) {
+                      rows[i] = rowDecoder.decode(
+                        parsers,
+                        rows[i].data,
+                        rows[i].columnCount,
+                        options,
+                        resultFields,
+                      );
+                    }
+                    result.rows = rows;
                   }
-                  result.rows = rows;
                 }
                 if (reportsRowsAffected(result.command))
                   result.rowsAffected = msg.rowCount;
@@ -1596,6 +1641,8 @@ export class IntlConnection extends SafeEventEmitter {
         });
       }
 
+      if (deferred.length)
+        await this._decodeDeferredRows(deferred, rowDecoder, options);
       if (timingEnabled) {
         const elapsed = performance.now() - startTime;
         const l = results.length;
@@ -1933,6 +1980,42 @@ export class IntlConnection extends SafeEventEmitter {
    * connection they have no business knowing about. A caller that set
    * the format itself keeps it.
    */
+  /**
+   * Rows left raw because a money column's scale was not in yet.
+   *
+   * Two paths decode inside the message loop, where there is no longer
+   * anywhere to ask the server anything: the Simple Query protocol and
+   * a pipeline. Rather than read those against a scale nobody
+   * confirmed, they set the rows aside and this reads them once the
+   * loop is over and the question can be asked.
+   */
+  protected async _decodeDeferredRows(
+    deferred: DeferredRows[],
+    rowDecoder: RowDecoder,
+    options: QueryOptions,
+  ): Promise<QueryOptions> {
+    await this.ensureMoneyFormat();
+    const opts = this._withMoneyFormat(options);
+    let d: DeferredRows;
+    let i: number;
+    let k: number;
+    for (i = 0; i < deferred.length; i++) {
+      d = deferred[i];
+      const l = d.raw.length;
+      const out = new Array(l);
+      for (k = 0; k < l; k++)
+        out[k] = rowDecoder.decode(
+          d.parsers,
+          d.raw[k].data,
+          d.raw[k].columnCount,
+          opts,
+          d.fields,
+        );
+      d.target.rows = out;
+    }
+    return opts;
+  }
+
   protected _withMoneyFormat<T extends DataMappingOptions>(options: T): T {
     return this._moneyFormat && !options.moneyFormat
       ? { ...options, moneyFormat: this._moneyFormat }
