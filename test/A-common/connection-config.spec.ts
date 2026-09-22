@@ -54,6 +54,74 @@ describe('Parse connection string', () => {
       expect(cfg.user).toStrictEqual('me');
     });
 
+    describe('the scheme', () => {
+      // `postgresql://` was not in the list, so the path - the database
+      // name - was dropped for the one scheme PostgreSQL's own
+      // documentation leads with and every framework generates. The
+      // connection still succeeded, against the default database.
+      const SCHEMES = ['postgres', 'postgresql', 'pg'];
+
+      it('should read the same URL the same way under each of them', () => {
+        const expected = {
+          host: 'h',
+          port: 5433,
+          database: 'mydb',
+          user: 'me',
+          password: 'pw',
+          schema: 'myschema',
+        };
+        for (const scheme of SCHEMES) {
+          const cfg = parseConnectionString(
+            `${scheme}://me:pw@h:5433/mydb?schema=myschema`,
+          );
+          // The whole config, not only `database`: host, port, user,
+          // password and the query parameters were never the problem, so
+          // a test watching one field would miss it widening.
+          expect({
+            host: cfg.host,
+            port: cfg.port,
+            database: cfg.database,
+            user: cfg.user,
+            password: cfg.password,
+            schema: cfg.schema,
+          }).toStrictEqual(expected);
+        }
+      });
+
+      it('should take the database from the path under each of them', () => {
+        for (const scheme of SCHEMES) {
+          expect(
+            parseConnectionString(`${scheme}://h/mydb`).database,
+          ).toStrictEqual('mydb');
+          expect(
+            parseConnectionString(`${scheme}:///mydb`).database,
+          ).toStrictEqual('mydb');
+          expect(
+            getConnectionConfig(`${scheme}://h/my db`).database,
+          ).toStrictEqual('my db');
+        }
+      });
+
+      it('should still fall back to the same default when the URL names none', () => {
+        // Whatever that default is here - PGDATABASE is set for the
+        // test run - the point is that the scheme does not change it.
+        const [first, ...rest] = SCHEMES.map(
+          scheme => getConnectionConfig(`${scheme}://h`).database,
+        );
+        expect(first).toBeTruthy();
+        for (const other of rest) expect(other).toStrictEqual(first);
+      });
+
+      it('should leave a socket URL taking its database from ?db=', () => {
+        // Out of the list on purpose: its path is the socket directory.
+        for (const scheme of ['socket', 'unix']) {
+          const cfg = parseConnectionString(`${scheme}://somepath/?db=mydb`);
+          expect(cfg.host).toStrictEqual('/somepath/');
+          expect(cfg.database).toStrictEqual('mydb');
+        }
+      });
+    });
+
     it('should default to an empty host when the URL has none', () => {
       const cfg = parseConnectionString('postgres:///mydb');
       expect(cfg.host).toStrictEqual('');

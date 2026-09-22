@@ -9,6 +9,15 @@ describe('CircleType', () => {
     );
   });
 
+  it('should encode a plain object under either spelling of the radius', () => {
+    expect(
+      CircleType.encodeText!({ x: 1, y: 2, radius: 3 } as any),
+    ).toStrictEqual('<(1,2),3>');
+    expect(CircleType.encodeText!({ x: 1, y: 2, r: 3 } as any)).toStrictEqual(
+      '<(1,2),3>',
+    );
+  });
+
   describe('decodeText()', () => {
     it('should parse the "<(x,y),r>" form', () => {
       expect(CircleType.decodeText!('<(1.2, 3.5), 4.6>')).toStrictEqual(
@@ -40,8 +49,15 @@ describe('CircleType', () => {
   });
 
   describe('isType()', () => {
-    it('should accept an object with exactly x/y/r, all numbers', () => {
+    it('should accept an object with exactly x/y/radius, all numbers', () => {
       expect(CircleType.isType(new Circle(1, 2, 3))).toStrictEqual(true);
+      expect(CircleType.isType({ x: 1, y: 2, radius: 3 })).toStrictEqual(true);
+    });
+
+    it('should still accept the released `r` spelling', () => {
+      // `{x, y, r}` is what this client both returned and accepted up to
+      // 3.9, so a parameter written against that keeps working.
+      expect(CircleType.isType({ x: 1, y: 2, r: 3 })).toStrictEqual(true);
     });
 
     it('should refuse a non-object value', () => {
@@ -50,13 +66,18 @@ describe('CircleType', () => {
 
     it('should refuse an object with a missing or extra key', () => {
       expect(CircleType.isType({ x: 1, y: 2 })).toStrictEqual(false);
-      expect(CircleType.isType({ x: 1, y: 2, r: 3, z: 4 })).toStrictEqual(
+      expect(CircleType.isType({ x: 1, y: 2, radius: 3, z: 4 })).toStrictEqual(
         false,
       );
     });
 
     it('should refuse an object whose coordinates are not all numbers', () => {
-      expect(CircleType.isType({ x: '1', y: 2, r: 3 })).toStrictEqual(false);
+      expect(CircleType.isType({ x: '1', y: 2, radius: 3 })).toStrictEqual(
+        false,
+      );
+      expect(CircleType.isType({ x: 1, y: 2, radius: '3' })).toStrictEqual(
+        false,
+      );
     });
   });
 });

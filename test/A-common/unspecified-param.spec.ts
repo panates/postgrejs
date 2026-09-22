@@ -25,6 +25,20 @@ describe('isUnspecifiedParam()', () => {
     expect(isUnspecifiedParam([[new Date()]])).toStrictEqual(true);
   });
 
+  it('should claim an array of numbers, which a scalar number is not', () => {
+    // `[1, 2]` is int2[], int4[], int8[], numeric[], float4[] or
+    // float8[] depending on where it lands, and those have no operators
+    // between them the way their scalars do: measured,
+    // `array[1,2]::int8[] = $1` under a declared int4[] is 42883, while
+    // `1::int8 = $1` under a declared int4 resolves.
+    expect(isUnspecifiedParam([1, 2])).toStrictEqual(true);
+    expect(isUnspecifiedParam([1.5])).toStrictEqual(true);
+    expect(isUnspecifiedParam([[1.5]])).toStrictEqual(true);
+    expect(isUnspecifiedParam([1n])).toStrictEqual(true);
+    expect(isUnspecifiedParam(5)).toStrictEqual(false);
+    expect(isUnspecifiedParam(5n)).toStrictEqual(false);
+  });
+
   it('should leave a value that can say what it is', () => {
     // A number, a boolean and a Buffer are already declared correctly
     // nearly everywhere, and sending them as text would give up the
@@ -32,14 +46,19 @@ describe('isUnspecifiedParam()', () => {
     expect(isUnspecifiedParam(5)).toStrictEqual(false);
     expect(isUnspecifiedParam(true)).toStrictEqual(false);
     expect(isUnspecifiedParam(Buffer.from('a'))).toStrictEqual(false);
-    expect(isUnspecifiedParam([1, 2])).toStrictEqual(false);
     expect(isUnspecifiedParam({ a: 1 })).toStrictEqual(false);
+    // An array of these has one type it can be, so naming it says
+    // nothing the server would have decided differently - and it keeps
+    // the binary encoding a text literal gives up.
+    expect(isUnspecifiedParam([true])).toStrictEqual(false);
+    expect(isUnspecifiedParam([Buffer.from('a')])).toStrictEqual(false);
   });
 
   it('should read past a leading null to find one', () => {
     expect(isUnspecifiedParam([null, 'a'])).toStrictEqual(true);
     expect(isUnspecifiedParam([null, new Date()])).toStrictEqual(true);
-    expect(isUnspecifiedParam([null, 5])).toStrictEqual(false);
+    expect(isUnspecifiedParam([null, 5])).toStrictEqual(true);
+    expect(isUnspecifiedParam([null, true])).toStrictEqual(false);
   });
 
   it('should leave a value it cannot read an element from', () => {

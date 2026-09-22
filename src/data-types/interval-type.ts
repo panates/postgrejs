@@ -75,7 +75,7 @@ export const IntervalType: DataType = {
   encodeBinary(buf: SmartBuffer, v: any): void {
     const iv = toInterval(v);
     buf.writeBigInt64BE(iv.totalMicroseconds);
-    buf.writeInt32BE(iv.days);
+    buf.writeInt32BE(iv.days ?? 0);
     buf.writeInt32BE(iv.totalMonths);
   },
 

@@ -72,6 +72,17 @@ function splitHosts(
     });
 }
 
+/**
+ * The schemes whose path is the database name.
+ *
+ * PostgreSQL gives two URI forms of its own, `postgres://` and
+ * `postgresql://`, and the longer one is what Prisma, TypeORM and most
+ * tutorials write - it was missing here, so a string naming a database
+ * connected to the default one instead, with nothing reported. `pg:`
+ * has been accepted for longer than either and stays.
+ */
+const DATABASE_PATH_SCHEMES = ['pg:', 'postgres:', 'postgresql:'];
+
 export function parseConnectionString(str: string): ConnectionConfiguration {
   if (str.startsWith('/')) str = 'socket:/' + str;
 
@@ -100,7 +111,7 @@ export function parseConnectionString(str: string): ConnectionConfiguration {
     cfg.host += decodeURI(parsed.pathname || '');
     if (parsed.searchParams.get('db'))
       cfg.database = decodeURI(getFirst(parsed.searchParams.get('db')));
-  } else if (parsed.protocol === 'pg:' || parsed.protocol === 'postgres:') {
+  } else if (DATABASE_PATH_SCHEMES.includes(parsed.protocol)) {
     if (parsed.pathname) cfg.database = decodeURI(parsed.pathname.substring(1));
   }
 

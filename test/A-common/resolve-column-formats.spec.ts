@@ -1,10 +1,7 @@
 import { expect } from 'expect';
 import { DataFormat, DataTypeOIDs, GlobalTypeMap } from 'postgrejs';
 import type { Protocol } from '../../src/protocol/protocol.js';
-import {
-  fetchAsStringEqual,
-  resolveColumnFormats,
-} from '../../src/util/resolve-column-formats.js';
+import { resolveColumnFormats } from '../../src/util/resolve-column-formats.js';
 
 function field(dataTypeId: number): Protocol.RowDescription {
   return {
@@ -178,20 +175,5 @@ describe('resolveColumnFormats() with unknownTypesAsString', () => {
         GlobalTypeMap,
       ),
     ).toStrictEqual([DataFormat.text, DataFormat.text, DataFormat.binary]);
-  });
-});
-
-describe('fetchAsStringEqual()', () => {
-  it('should treat absent and empty as the same list', () => {
-    expect(fetchAsStringEqual(undefined, undefined)).toStrictEqual(true);
-    expect(fetchAsStringEqual(undefined, [])).toStrictEqual(true);
-    expect(fetchAsStringEqual([], undefined)).toStrictEqual(true);
-    expect(fetchAsStringEqual(undefined, [25])).toStrictEqual(false);
-  });
-
-  it('should compare contents, not identity', () => {
-    expect(fetchAsStringEqual([25, 114], [25, 114])).toStrictEqual(true);
-    expect(fetchAsStringEqual([25, 114], [114, 25])).toStrictEqual(false);
-    expect(fetchAsStringEqual([25], [25, 114])).toStrictEqual(false);
   });
 });

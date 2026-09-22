@@ -34,7 +34,12 @@ export class Point {
     return `(${this.x},${this.y})`;
   }
 
-  toJSON(): string {
+  /**
+   * The literal PostgreSQL reads back, for an encoder that asks the value
+   * how to write itself - `pg`'s convention, and the reason a value this
+   * client decoded can be handed straight to one.
+   */
+  toPostgres(): string {
     return this.toString();
   }
 
@@ -53,20 +58,42 @@ export class Point {
 export class Circle {
   x: number;
   y: number;
-  r: number;
+  radius: number;
 
-  constructor(x: number = 0, y: number = 0, r: number = 0) {
+  constructor(x: number = 0, y: number = 0, radius: number = 0) {
     this.x = x;
     this.y = y;
-    this.r = r;
+    this.radius = radius;
+  }
+
+  /**
+   * The radius under the name this client used up to 3.9. `pg` spells it
+   * `radius`, and a value decoded here should be usable wherever one of
+   * its own is, so `radius` is what the property is now - but `r` was a
+   * released name, so it stays as an accessor onto the same number
+   * rather than silently reading back undefined.
+   *
+   * @deprecated use `radius`
+   */
+  get r(): number {
+    return this.radius;
+  }
+
+  set r(value: number) {
+    this.radius = value;
   }
 
   /** As PostgreSQL prints it, so it casts back through `::circle`. */
   toString(): string {
-    return `<(${this.x},${this.y}),${this.r}>`;
+    return `<(${this.x},${this.y}),${this.radius}>`;
   }
 
-  toJSON(): string {
+  /**
+   * The literal PostgreSQL reads back, for an encoder that asks the value
+   * how to write itself - `pg`'s convention, and the reason a value this
+   * client decoded can be handed straight to one.
+   */
+  toPostgres(): string {
     return this.toString();
   }
 
@@ -76,8 +103,17 @@ export class Circle {
       Object.keys(v).length === 3 &&
       isNum(v.x) &&
       isNum(v.y) &&
-      isNum(v.r)
+      (isNum(v.radius) || isNum(v.r))
     );
+  }
+
+  /**
+   * The radius of anything isCircleLike() accepts: a Circle, the plain
+   * `{x, y, radius}` object `pg` hands back, or the `{x, y, r}` that was
+   * this client's own shape before the classes existed.
+   */
+  static radiusOf(v: any): number {
+    return v.radius ?? v.r;
   }
 }
 
@@ -101,7 +137,12 @@ abstract class TwoPoints {
     this.y2 = y2;
   }
 
-  toJSON(): string {
+  /**
+   * The literal PostgreSQL reads back, for an encoder that asks the value
+   * how to write itself - `pg`'s convention, and the reason a value this
+   * client decoded can be handed straight to one.
+   */
+  toPostgres(): string {
     return this.toString();
   }
 
@@ -158,7 +199,12 @@ export class Line {
     return `{${this.a},${this.b},${this.c}}`;
   }
 
-  toJSON(): string {
+  /**
+   * The literal PostgreSQL reads back, for an encoder that asks the value
+   * how to write itself - `pg`'s convention, and the reason a value this
+   * client decoded can be handed straight to one.
+   */
+  toPostgres(): string {
     return this.toString();
   }
 
@@ -189,7 +235,12 @@ abstract class PointList {
     );
   }
 
-  toJSON(): string {
+  /**
+   * The literal PostgreSQL reads back, for an encoder that asks the value
+   * how to write itself - `pg`'s convention, and the reason a value this
+   * client decoded can be handed straight to one.
+   */
+  toPostgres(): string {
     return this.toString();
   }
 

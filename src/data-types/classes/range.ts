@@ -120,7 +120,12 @@ export class Range<T = any> {
     );
   }
 
-  toJSON(): string {
+  /**
+   * The literal PostgreSQL reads back, for an encoder that asks the value
+   * how to write itself - `pg`'s convention, and the reason a value this
+   * client decoded can be handed straight to one.
+   */
+  toPostgres(): string {
     return this.toString();
   }
 }

@@ -4,6 +4,10 @@ import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { Protocol } from '../protocol/protocol.js';
 import type { AnyParseFunction } from '../types.js';
 import { decodeBinaryArray } from './decode-binaryarray.js';
+import {
+  fetchAsStringNamesElement,
+  fetchAsStringNamesOid,
+} from './fetch-as-string.js';
 import { parsePostgresArray } from './parse-array.js';
 
 const DefaultColumnParser: AnyParseFunction = (data, offset, len) =>
@@ -34,12 +38,31 @@ export function getParsers(
     if (
       asString &&
       f.format === DataFormat.text &&
-      asString.includes(f.dataTypeId)
+      fetchAsStringNamesOid(asString, f.dataTypeId)
     ) {
       parsers[i] = DefaultTextColumnParser;
       continue;
     }
     const dataTypeReg = typeMap.get(f.dataTypeId);
+    // The other half of the same ask: the list named this column's
+    // *element* type, so the literal is split and the elements are handed
+    // back as the server wrote them - an array of what naming the scalar
+    // OID gives for a scalar column. Naming the array's own OID still
+    // means the whole literal, above; the two remain tellable apart
+    // because they name different OIDs.
+    if (
+      asString &&
+      f.format === DataFormat.text &&
+      dataTypeReg?.elementsOID &&
+      fetchAsStringNamesElement(asString, dataTypeReg.elementsOID)
+    ) {
+      const separator = dataTypeReg.arraySeparator;
+      parsers[i] = (data, offset, len) =>
+        parsePostgresArray(data.toString('utf8', offset, offset + len), {
+          separator,
+        });
+      continue;
+    }
     if (dataTypeReg) {
       const isArray = !!dataTypeReg.elementsOID;
       if (f.format === DataFormat.binary) {

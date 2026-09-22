@@ -1,4 +1,4 @@
-/** The fields an Interval is built from. All optional, all defaulting to 0. */
+/** The fields an Interval is built from; it keeps the ones that have a value. */
 export interface IntervalFields {
   years?: number;
   months?: number;
@@ -27,20 +27,29 @@ function pad2(v: number): string {
  * zone, can add one to a timestamp. Anything here that answered "how many
  * milliseconds is this" would have to invent those lengths.
  *
- * Every field is always present, 0 when the value has none:
+ * It carries the fields that have a value and no others, which is what
+ * the wire format carries too - three quantities, and a zero among them
+ * is not a field:
  *
  * ```ts
  * const iv = new Interval({ days: 1, hours: 2 });
- * iv.minutes;          // 0, not undefined
+ * Object.keys(iv);     // ['days', 'hours']
+ * iv.minutes;          // undefined
  * String(iv);          // '1 day 02:00:00'
  * iv.toISOString();    // 'P0Y0M1DT2H0M0S'
  * ```
  *
- * The field names are `pg`'s (`postgres-interval`), so code ported from it
- * reads the same values from the same places. The difference is that
- * package's objects are sparse - `interval '1 day'` gives it `{days: 1}`
- * and nothing else, so `iv.hours + 1` is NaN and a zero interval is `{}` -
- * and that it has no `toString()`, so a log line gets `[object Object]`.
+ * The field names and the shape are `pg`'s (`postgres-interval`), so code
+ * ported from it reads the same values from the same places and a
+ * `JSON.stringify` of a row says the same thing. The difference is that
+ * this has a `toString()` - `pg`'s object gives `[object Object]` in a log
+ * line - and a `toPostgres()`, so the value can be sent back.
+ *
+ * The fields are optional, so `iv.hours + 1` does not compile without
+ * saying what an absent one means (`(iv.hours ?? 0) + 1`). That is the
+ * point: which fields a value has depends on the value, not on the type,
+ * and the older shape - every field present and 0 - hid that behind
+ * numbers nobody wrote.
  *
  * `milliseconds` carries the sub-second part and can be fractional, since
  * PostgreSQL stores microseconds: `interval '0.000001 seconds'` is
@@ -49,26 +58,40 @@ function pad2(v: number): string {
  * A negative interval carries the sign on each field that has one, the way
  * the server prints it: `interval '-1 day -2 hours'` is
  * `{ days: -1, hours: -2 }`.
+ *
+ * `toPostgres()` is `pg`'s convention for "write yourself back", so a
+ * value read here can be passed to any encoder that follows it - this
+ * client's own parameter path never needed it, since it knows the class.
  */
 export class Interval implements IntervalFields {
-  years: number;
-  months: number;
-  days: number;
-  hours: number;
-  minutes: number;
+  // `declare`, so that the class body emits nothing: a declared field is
+  // defined as `undefined` on every instance under ES2022 class fields,
+  // which is an own key again - exactly what this is getting rid of.
+  declare years?: number;
+  declare months?: number;
+  declare days?: number;
+  declare hours?: number;
+  declare minutes?: number;
   /** Whole seconds; the sub-second part is in `milliseconds`. */
-  seconds: number;
+  declare seconds?: number;
   /** The sub-second part, fractional down to a microsecond. */
-  milliseconds: number;
+  declare milliseconds?: number;
 
+  /**
+   * Keeps the fields that have a value. A zero is not one: it is what
+   * every field of every interval would otherwise be filled with, and
+   * `{ days: 1 }` says what `interval '1 day'` is far better than the
+   * same thing plus six zeroes nobody wrote.
+   */
   constructor(fields?: IntervalFields) {
-    this.years = fields?.years || 0;
-    this.months = fields?.months || 0;
-    this.days = fields?.days || 0;
-    this.hours = fields?.hours || 0;
-    this.minutes = fields?.minutes || 0;
-    this.seconds = fields?.seconds || 0;
-    this.milliseconds = fields?.milliseconds || 0;
+    if (!fields) return;
+    if (fields.years) this.years = fields.years;
+    if (fields.months) this.months = fields.months;
+    if (fields.days) this.days = fields.days;
+    if (fields.hours) this.hours = fields.hours;
+    if (fields.minutes) this.minutes = fields.minutes;
+    if (fields.seconds) this.seconds = fields.seconds;
+    if (fields.milliseconds) this.milliseconds = fields.milliseconds;
   }
 
   /**
@@ -105,7 +128,7 @@ export class Interval implements IntervalFields {
 
   /** The whole month count, as the wire format carries it. */
   get totalMonths(): number {
-    return this.years * 12 + this.months;
+    return (this.years ?? 0) * 12 + (this.months ?? 0);
   }
 
   /** The time part as a signed microsecond count, as the wire format carries it. */
@@ -113,17 +136,17 @@ export class Interval implements IntervalFields {
     // Split so that a fractional hours/minutes/seconds is folded in rather
     // than silently truncated, while whole values stay exact past what a
     // double can hold.
-    const whole =
-      Math.trunc(this.hours) * 3600 +
-      Math.trunc(this.minutes) * 60 +
-      Math.trunc(this.seconds);
+    const h = this.hours ?? 0;
+    const mi = this.minutes ?? 0;
+    const sec = this.seconds ?? 0;
+    const whole = Math.trunc(h) * 3600 + Math.trunc(mi) * 60 + Math.trunc(sec);
     const fraction =
-      (this.hours - Math.trunc(this.hours)) * 3600 +
-      (this.minutes - Math.trunc(this.minutes)) * 60 +
-      (this.seconds - Math.trunc(this.seconds));
+      (h - Math.trunc(h)) * 3600 +
+      (mi - Math.trunc(mi)) * 60 +
+      (sec - Math.trunc(sec));
     return (
       BigInt(whole) * US_PER_SECOND +
-      BigInt(Math.round(fraction * 1e6 + this.milliseconds * 1000))
+      BigInt(Math.round(fraction * 1e6 + (this.milliseconds ?? 0) * 1000))
     );
   }
 
@@ -180,30 +203,38 @@ export class Interval implements IntervalFields {
     left -= minutes * US_PER_MINUTE;
     const seconds = left / US_PER_SECOND;
     left -= seconds * US_PER_SECOND;
+    // The sign goes on the components that have a value, not on all of
+    // them: `interval '-1 day -2 hours'` is `P0Y0M-1DT-2H0M0S`, and
+    // signing the empty ones printed `-0M-0S` - which is what `pg` does
+    // not write and no reader expects.
     const sign = negative ? '-' : '';
-    let secondsPart = sign + seconds;
+    const signed = (v: bigint) => (v ? sign : '') + v;
+    let secondsPart = (seconds || left ? sign : '') + seconds;
     if (left)
       secondsPart += '.' + String(left).padStart(6, '0').replace(/0+$/, '');
     return (
       'P' +
-      this.years +
+      (this.years ?? 0) +
       'Y' +
-      this.months +
+      (this.months ?? 0) +
       'M' +
-      this.days +
+      (this.days ?? 0) +
       'DT' +
-      sign +
-      hours +
+      signed(hours) +
       'H' +
-      sign +
-      minutes +
+      signed(minutes) +
       'M' +
       secondsPart +
       'S'
     );
   }
 
-  toJSON(): string {
+  /**
+   * The literal PostgreSQL reads back, for an encoder that asks the value
+   * how to write itself - `pg`'s convention, and the reason a value this
+   * client decoded can be handed straight to one.
+   */
+  toPostgres(): string {
     return this.toString();
   }
 }

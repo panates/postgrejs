@@ -3,28 +3,22 @@ import { Interval } from 'postgrejs';
 import { parseIntervalText } from '../../src/data-types/interval-type.js';
 
 describe('Interval', () => {
-  it('should carry every field, zero when the value has none', () => {
-    // The difference from pg's sparse objects, where `interval '1 day'`
-    // is `{days: 1}` and reading `.hours` gives undefined.
+  it('should carry the fields that have a value and no others', () => {
+    // The same shape `pg` gives, and what the wire format carries: three
+    // quantities, where a zero is not a field. Filling the rest with
+    // zeroes put numbers nobody wrote into every spread and every
+    // JSON.stringify of a row.
     const iv = new Interval({ days: 1, hours: 2 });
-    expect({ ...iv }).toStrictEqual({
-      years: 0,
-      months: 0,
-      days: 1,
-      hours: 2,
-      minutes: 0,
-      seconds: 0,
-      milliseconds: 0,
-    });
-    expect({ ...new Interval() }).toStrictEqual({
-      years: 0,
-      months: 0,
-      days: 0,
-      hours: 0,
-      minutes: 0,
-      seconds: 0,
-      milliseconds: 0,
-    });
+    expect({ ...iv }).toStrictEqual({ days: 1, hours: 2 });
+    expect(Object.keys(iv)).toStrictEqual(['days', 'hours']);
+    expect(iv.minutes).toStrictEqual(undefined);
+    // A zero interval carries nothing at all, and still prints.
+    expect({ ...new Interval() }).toStrictEqual({});
+    expect({ ...new Interval({ days: 0 }) }).toStrictEqual({});
+    expect(String(new Interval())).toStrictEqual('00:00:00');
+    // The totals read an absent field as the zero it stands for.
+    expect(iv.totalMonths).toStrictEqual(0);
+    expect(iv.totalMicroseconds).toStrictEqual(7200000000n);
   });
 
   describe('fromParts()', () => {
@@ -43,21 +37,19 @@ describe('Interval', () => {
 
     it('should print years and months from one month count', () => {
       // What the server does with `interval '13 mons'`.
-      expect({ ...Interval.fromParts(0n, 0, 13) }).toMatchObject({
+      expect({ ...Interval.fromParts(0n, 0, 13) }).toStrictEqual({
         years: 1,
         months: 1,
       });
-      expect({ ...Interval.fromParts(0n, 0, -36) }).toMatchObject({
+      expect({ ...Interval.fromParts(0n, 0, -36) }).toStrictEqual({
         years: -3,
-        months: 0,
       });
     });
 
     it('should put the sign on each field that has one', () => {
-      expect({ ...Interval.fromParts(-7200000000n, -1, 0) }).toMatchObject({
+      expect({ ...Interval.fromParts(-7200000000n, -1, 0) }).toStrictEqual({
         days: -1,
         hours: -2,
-        minutes: 0,
       });
     });
 
@@ -139,12 +131,15 @@ describe('Interval', () => {
     expect(new Interval().toISOString()).toStrictEqual('P0Y0M0DT0H0M0S');
   });
 
-  it('should serialize to JSON as the string, not as its fields', () => {
-    // A consumer can cast the string straight back to an interval; a bag
-    // of seven numbers means nothing outside this package.
+  it('should serialize to JSON as its own fields', () => {
     expect(JSON.stringify({ iv: new Interval({ days: 1, hours: 2 }) })).toBe(
-      '{"iv":"1 day 02:00:00"}',
+      '{"iv":{"days":1,"hours":2}}',
     );
+    // What `pg` gives for the same value, so a row serialised by either
+    // reads the same. The literal is still one `String(iv)` away, and is
+    // what goes back to the server.
+    expect(JSON.stringify(new Interval())).toBe('{}');
+    expect(String(new Interval({ days: 1, hours: 2 }))).toBe('1 day 02:00:00');
   });
 
   describe('parseIntervalText()', () => {

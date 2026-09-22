@@ -18,14 +18,17 @@ export const CircleType: DataType = {
   oid: DataTypeOIDs.circle,
   jsType: 'Circle',
 
+  // isType() accepts a plain object as well as a Circle, and that object
+  // may spell the radius either way - hence Circle.radiusOf() rather
+  // than the property.
   encodeText(v: Circle): string {
-    return `<(${v.x},${v.y}),${v.r}>`;
+    return `<(${v.x},${v.y}),${Circle.radiusOf(v)}>`;
   },
 
   encodeBinary(buf: SmartBuffer, v: Circle): void {
     buf.writeDoubleBE(v.x);
     buf.writeDoubleBE(v.y);
-    buf.writeDoubleBE(v.r);
+    buf.writeDoubleBE(Circle.radiusOf(v));
   },
 
   decodeBinary(v: Buffer, offset: number = 0): Circle {

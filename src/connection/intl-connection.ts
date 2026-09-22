@@ -7,6 +7,7 @@ import {
 import type { DataTypeMap } from '../data-type-map.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import { parseMoneyFormat } from '../data-types/money-type.js';
+import { temporalTypeMap } from '../data-types/temporal-types.js';
 import type {
   BatchCommandResult,
   BatchResult,
@@ -18,6 +19,7 @@ import type {
 } from '../interfaces/copy-from-rows-options.js';
 import type {
   DataMappingOptions,
+  FetchAsStringItem,
   MoneyFormat,
 } from '../interfaces/data-mapping-options.js';
 import type {
@@ -45,17 +47,22 @@ import {
   writeCopyBinaryRows,
 } from '../util/copy-from-rows.js';
 import { parseDateStyleSetting, type PgDateStyle } from '../util/date-style.js';
+import { validateDecimalAsString } from '../util/decimal-as-string.js';
 import { escapeLiteral } from '../util/escape-literal.js';
-import { getParsers } from '../util/get-parsers.js';
 import {
   fetchAsStringEqual,
-  resolveColumnFormats,
-} from '../util/resolve-column-formats.js';
+  fetchAsStringNamesElement,
+  fetchAsStringNamesOid,
+  validateFetchAsString,
+} from '../util/fetch-as-string.js';
+import { getParsers } from '../util/get-parsers.js';
+import { resolveColumnFormats } from '../util/resolve-column-formats.js';
 import {
   resolveRowDecoder,
   resolveRowType,
   type RowDecoder,
 } from '../util/row-decoder.js';
+import { requireTimeZone } from '../util/temporal.js';
 import {
   isTransactionCommand,
   refusesSavepoint,
@@ -72,7 +79,7 @@ interface ExecuteReusedParserCacheEntry {
   // Not implied by columnFormat: a column the caller made text explicitly
   // and one fetchAsString turned text carry the same format code but get
   // different parsers, so the list has to be compared in its own right.
-  fetchAsString: Maybe<OID[]>;
+  fetchAsString: Maybe<FetchAsStringItem[]>;
   parsers: AnyParseFunction[];
   resultFields: FieldInfo[];
 }
@@ -175,11 +182,14 @@ const PREPARE_AFTER_USES = 2;
 /** The connection-configuration keys that are per-statement defaults. */
 const MAPPING_DEFAULT_KEYS = [
   'typeMap',
+  'temporalTypes',
+  'timeZone',
   'columnFormat',
   'objectRows',
   'rowDecoder',
   'utcDates',
   'fetchAsString',
+  'decimalAsString',
   'unknownTypesAsString',
   'moneyFormat',
 ] as const;
@@ -306,9 +316,14 @@ export class IntlConnection extends SafeEventEmitter {
   /** The session's DateStyle as last reported, and what it parsed to. */
   protected _dateStyleRaw?: string;
   protected _dateStyle?: PgDateStyle;
+  /** The session's TimeZone as last reported, once checked. */
+  protected _timeZoneRaw?: string;
+  protected _timeZone?: string;
   /** The server's own money rendering - see ensureMoneyFormat(). */
   protected _moneyFormat?: MoneyFormat;
   protected _moneyFormatPromise?: Promise<void>;
+  /** Whether the socket has been up, which is what makes a close a loss. */
+  protected _live = false;
   /** Statements currently holding the wire - see enterWire(). */
   protected _wireUsers = 0;
   protected _wireIdleWaiters?: (() => void)[];
@@ -331,11 +346,38 @@ export class IntlConnection extends SafeEventEmitter {
     super();
     this._config = Object.freeze(getConnectionConfig(config));
     this._mappingDefaults = pickMappingDefaults(this._config);
+    // Built here rather than at the first statement, so that a Temporal
+    // this runtime does not have, or an OID that is not one of the five,
+    // is reported before any I/O - and so the map every statement then
+    // reuses is made once.
+    if (this._mappingDefaults?.temporalTypes)
+      temporalTypeMap(
+        this._mappingDefaults.temporalTypes,
+        this._mappingDefaults.typeMap || GlobalTypeMap,
+      );
     this.socket = new PgSocket(this._config);
-    this.socket.on('error', err => this._onError(err));
+    this.socket.on('ready', () => {
+      this._live = true;
+    });
     // The reason travels with it: 'close' on its own cannot tell an
     // ordinary shutdown from the backend being terminated under us.
-    this.socket.on('close', (reason?: Error) => this.emit('close', reason));
+    //
+    // A loss is reported on 'error' as well, which is where `pg` puts it
+    // and where code ported from it listens - `client.on('error')` was
+    // attached and never fired, because a terminated backend closes
+    // cleanly at the socket level and Node gives 'close' without an
+    // 'error' of its own. The Pool already reports the same object the
+    // same way. Emitted before 'close': the loss is the cause and the
+    // close is the consequence. Safe to do unconditionally, since
+    // SafeEventEmitter drops an 'error' nobody is listening for instead
+    // of throwing - and only for a connection that was up, so a failed
+    // connect stays the business of the promise connect() returns.
+    this.socket.on('close', (reason?: Error) => {
+      const live = this._live;
+      this._live = false;
+      if (reason && live) this.emit('error', reason);
+      this.emit('close', reason);
+    });
     this.socket.on('notification', payload =>
       this.emit('notification', payload),
     );
@@ -759,8 +801,14 @@ export class IntlConnection extends SafeEventEmitter {
       oid = fields[i].dataTypeId;
       if (oid !== DataTypeOIDs.money && oid !== DataTypeOIDs._money) continue;
       // Named by fetchAsString, so the value goes back exactly as the
-      // server rendered it and no decoder asks what a minor unit is.
-      if (asString?.includes(oid)) continue;
+      // server rendered it and no decoder asks what a minor unit is -
+      // which naming `money` does for a `money[]` column too.
+      if (
+        fetchAsStringNamesOid(asString, oid) ||
+        (oid === DataTypeOIDs._money &&
+          fetchAsStringNamesElement(asString, DataTypeOIDs.money))
+      )
+        continue;
       return true;
     }
     return false;
@@ -2182,11 +2230,31 @@ export class IntlConnection extends SafeEventEmitter {
     return opts;
   }
 
+  /**
+   * The type map a statement is parsed and its parameters typed with:
+   * the call's, else the connection's, with whatever `temporalTypes`
+   * asks for registered on top of it.
+   */
+  resolveTypeMap(options?: ConnectionMappingDefaults): DataTypeMap {
+    const defaults = this._mappingDefaults;
+    const base = options?.typeMap || defaults?.typeMap || GlobalTypeMap;
+    const temporal = options?.temporalTypes ?? defaults?.temporalTypes;
+    return temporal ? temporalTypeMap(temporal, base) : base;
+  }
+
   withDefaults<T extends DataMappingOptions>(options: T): T {
     const defaults = this._mappingDefaults;
     const money = this._moneyFormat;
     const dateStyle = this._currentDateStyle();
-    if (!defaults && !money && !dateStyle) return options;
+    if (
+      !defaults &&
+      !money &&
+      !dateStyle &&
+      !options.temporalTypes &&
+      !options.fetchAsString &&
+      options.decimalAsString === undefined
+    )
+      return options;
     let out: any;
     if (defaults) {
       let k: keyof ConnectionMappingDefaults;
@@ -2205,6 +2273,35 @@ export class IntlConnection extends SafeEventEmitter {
       out = out || { ...options };
       out.dateStyle = dateStyle;
     }
+    // Every path into a statement passes through here, so a selector
+    // that asks for something this does not do is refused once, at the
+    // call that carries it, rather than in whichever of the three
+    // readers of the list happens to reach it first.
+    if ((out || options).fetchAsString)
+      validateFetchAsString(
+        (out || options).fetchAsString,
+        this.resolveTypeMap(out || options),
+      );
+    if ((out || options).decimalAsString !== undefined)
+      validateDecimalAsString((out || options).decimalAsString);
+    if ((out || options).temporalTypes) {
+      // On top of whatever type map is in effect, rather than instead of
+      // it. The map is memoized per (base, selection), so this is two
+      // lookups and not a copy.
+      const base = (out || options).typeMap || GlobalTypeMap;
+      const map = this.resolveTypeMap(out || options);
+      if (map !== base) {
+        out = out || { ...options };
+        out.typeMap = map;
+      }
+      if (!(out || options).timeZone) {
+        const tz = this._currentTimeZone();
+        if (tz) {
+          out = out || { ...options };
+          out.timeZone = tz;
+        }
+      }
+    }
     return out || options;
   }
 
@@ -2219,6 +2316,23 @@ export class IntlConnection extends SafeEventEmitter {
    * compare while nothing changes - which is always, for the ISO
    * default that needs no parsing at all.
    */
+  /**
+   * The zone `timestamptz` values are given when they decode to a
+   * Temporal.ZonedDateTime. Checked when the server's answer changes, so
+   * that a zone nothing can resolve is reported against the setting it
+   * came from instead of from inside a decode.
+   */
+  protected _currentTimeZone(): Maybe<string> {
+    const raw = this.socket.sessionParameters.TimeZone;
+    if (raw !== this._timeZoneRaw) {
+      this._timeZoneRaw = raw;
+      this._timeZone = raw
+        ? requireTimeZone(raw, 'the session TimeZone')
+        : undefined;
+    }
+    return this._timeZone;
+  }
+
   protected _currentDateStyle(): Maybe<PgDateStyle> {
     const raw = this.socket.sessionParameters.DateStyle;
     if (raw !== this._dateStyleRaw) {
@@ -2226,11 +2340,6 @@ export class IntlConnection extends SafeEventEmitter {
       this._dateStyle = parseDateStyleSetting(raw);
     }
     return this._dateStyle;
-  }
-
-  protected _onError(err: Error): void {
-    if (this.socket.state !== ConnectionState.READY) return;
-    this.emit('error', err);
   }
 }
 

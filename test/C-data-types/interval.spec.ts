@@ -126,4 +126,30 @@ describe('DataType: interval', () => {
       b: '3 days 04:00:00',
     });
   });
+
+  it('should send back what it read, unchanged', () => {
+    // An Interval handed straight back as a parameter, asserted through
+    // ::text rather than on "no error was raised": the sign, the zero
+    // and the microseconds are the three that could be lost on the way.
+    const values = [
+      '1 year 2 mons 3 days 04:05:06.7',
+      '-1 days -02:00:00',
+      '00:00:00',
+      '00:00:00.000001',
+      '-1 years -2 mons',
+    ];
+    return Promise.all(
+      values.map(async v => {
+        const read = await conn.query(`select '${v}'::interval as iv`, {
+          objectRows: true,
+        });
+        const iv = (read.rows?.[0] as any).iv;
+        const back = await conn.query('select ($1::interval)::text as t', {
+          params: [iv],
+          objectRows: true,
+        });
+        expect((back.rows?.[0] as any).t).toStrictEqual(v);
+      }),
+    );
+  });
 });
