@@ -1,6 +1,27 @@
 ## Changelog
 
-### [v3.9.0](https://github.com/panates/postgrejs/compare/v3.8.0...v3.9.0) - 
+### [v3.10.0](https://github.com/panates/postgrejs/compare/v3.9.0...v3.10.0) - 
+
+#### Breaking Changes :warning:
+
+- feat!: serialise the value classes as their fields @Eray Hanoğlu  
+
+#### 🚀 New Features
+
+- feat: decode the date/time types into Temporal values on request @Eray Hanoğlu 
+- feat: let fetchAsString ask for a scalar without its arrays @Eray Hanoğlu 
+- feat: decode money and numeric as their exact decimal string on request @Eray Hanoğlu 
+- feat: let fetchAsString name an array column by its element type @Eray Hanoğlu 
+- feat: report a lost connection on 'error', not only on 'close' @Eray Hanoğlu 
+- feat: name Circle's radius `radius`, as pg does @Eray Hanoğlu 
+
+#### 🪲 Fixes
+
+- fix: stop declaring an element type for an array of numbers @Eray Hanoğlu 
+- fix: sign only the interval components that have one, and add toPostgres() @Eray Hanoğlu 
+- fix: read the database out of a `postgresql://` URL @Eray Hanoğlu 
+
+### [v3.9.0](https://github.com/panates/postgrejs/compare/v3.8.0...v3.9.0) -  22 September 2026 
 
 #### 🚀 New Features
 
