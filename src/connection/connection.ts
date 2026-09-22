@@ -1,5 +1,4 @@
 import { ConnectionState, DataTypeOIDs } from '../constants.js';
-import { GlobalTypeMap } from '../data-type-map.js';
 import type {
   CopyFromRowsOptions,
   CopyFromRowsResult,
@@ -808,7 +807,12 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     sql: string,
     options?: QueryOptions,
   ): Promise<QueryResult> {
-    const typeMap = options?.typeMap || GlobalTypeMap;
+    // Only the type map, not withDefaults(): the parameter types are
+    // decided here, before the options are merged, and merging them here
+    // would change what the merge means - a fetchAsString list that came
+    // from the connection deliberately takes a cheaper route than one
+    // named on the call.
+    const typeMap = this._intlCon.resolveTypeMap(options);
     const paramTypes: Maybe<OID[]> = options?.params?.map(prm =>
       prm instanceof BindParam
         ? prm.oid

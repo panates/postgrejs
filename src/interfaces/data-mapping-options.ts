@@ -11,6 +11,44 @@ export interface MoneyFormat {
 
 export interface DataMappingOptions {
   /**
+   * Decode PostgreSQL's date/time types into `Temporal` values instead
+   * of `Date`.
+   *
+   * `true` takes all five - `date`, `time`, `timestamp`, `timestamptz`
+   * and `interval`; an array takes only the ones it names, and may name
+   * only those five (`DataTypeOIDs.timestamptz`, and so on - see
+   * `TemporalCapableOIDs`). Each one selected brings its own array and
+   * range types with it, because those carry a copy of the element's
+   * decoders rather than following it.
+   *
+   * This is decoding only: every type still accepts as a *parameter*
+   * everything it accepted before, so the `Date`s and strings already
+   * being passed keep working.
+   *
+   * What it buys: the microseconds PostgreSQL stores and a `Date` cannot
+   * hold, a `timestamp` that says it has no zone instead of guessing one
+   * from `utcDates`, and a `date` that stays a date. What it costs: no
+   * runtime ships `Temporal` yet, so an application turning this on
+   * installs a polyfill (`temporal-polyfill`) and imports it before
+   * connecting; building these values is also dearer than `new Date`.
+   *
+   * Off by default.
+   */
+  temporalTypes?: boolean | OID[];
+
+  /**
+   * The time zone a `timestamptz` is given when it is decoded as a
+   * `Temporal.ZonedDateTime` - see `temporalTypes`.
+   *
+   * A connection fills this in from the `TimeZone` the server reports,
+   * so a caller normally never sets it; set it to print those values in
+   * a zone of your own choosing. It decides only what wall clock the
+   * value shows: a timestamptz is an absolute instant and is the same
+   * moment in every zone.
+   */
+  timeZone?: string;
+
+  /**
    * How the server renders dates, when it is not rendering them in ISO.
    *
    * Only the text wire format is affected - binary carries no formatting

@@ -1,5 +1,10 @@
 import { expect } from 'expect';
-import { Connection, DataTypeOIDs } from 'postgrejs';
+import {
+  Connection,
+  DataTypeMap,
+  DataTypeOIDs,
+  GlobalTypeMap,
+} from 'postgrejs';
 
 /**
  * The data-mapping options can be answered once by the connection
@@ -46,6 +51,63 @@ describe('Connection mapping defaults', () => {
     } finally {
       await conn.close(0);
     }
+  });
+
+  describe('typeMap', () => {
+    class Tag {
+      constructor(readonly text: string) {}
+    }
+
+    function mapWithTag(): DataTypeMap {
+      const map = new DataTypeMap(GlobalTypeMap);
+      const base = GlobalTypeMap.get(DataTypeOIDs.varchar);
+      map.register({
+        ...base,
+        oid: DataTypeOIDs.name,
+        name: 'name',
+        isType: (v: any) => v instanceof Tag,
+        encodeText: (v: any) => (v instanceof Tag ? v.text : String(v)),
+        encodeBinary: (buf: any, v: any, options: any) =>
+          base.encodeBinary!(buf, v instanceof Tag ? v.text : v, options),
+      });
+      return map;
+    }
+
+    it('should type a parameter, not only decode a column', async () => {
+      // The parameter types are decided in Connection._query(), which
+      // used to read the call's type map and nothing else - so a map set
+      // once on the connection decoded every row and then had no say in
+      // what went out, and a value only it knew about was inferred by
+      // the global map as something else entirely.
+      const conn = new Connection({ typeMap: mapWithTag() });
+      await conn.connect();
+      try {
+        const r = await conn.query('select pg_typeof($1)::text as t', {
+          objectRows: true,
+          params: [new Tag('hello')],
+        });
+        expect((r.rows?.[0] as any).t).toStrictEqual('name');
+      } finally {
+        await conn.close(0);
+      }
+    });
+
+    it('should still lose to a map named on the call', async () => {
+      const conn = new Connection({ typeMap: mapWithTag() });
+      await conn.connect();
+      try {
+        const r = await conn.query('select pg_typeof($1)::text as t', {
+          objectRows: true,
+          typeMap: GlobalTypeMap,
+          params: [new Tag('hello')],
+        });
+        // Nothing in the global map knows a Tag, so it lands where an
+        // unknown object lands.
+        expect((r.rows?.[0] as any).t).not.toStrictEqual('name');
+      } finally {
+        await conn.close(0);
+      }
+    });
   });
 
   describe('fetchAsString', () => {

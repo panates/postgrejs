@@ -12,6 +12,7 @@ export * from './data-types/classes/geometric.js';
 export * from './data-types/classes/interval.js';
 export * from './data-types/classes/numeric.js';
 export * from './data-types/classes/range.js';
+export * from './data-types/temporal-types.js';
 export * from './interfaces/batch-result.js';
 export * from './interfaces/command-result.js';
 export * from './interfaces/copy-from-rows-options.js';
