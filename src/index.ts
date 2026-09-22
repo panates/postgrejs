@@ -34,6 +34,7 @@ export * from './protocol/database-error.js';
 export * from './protocol/smart-buffer.js';
 export * from './types.js';
 export * from './util/connection-config.js';
+export * from './util/decimal-as-string.js';
 export * from './util/escape-identifier.js';
 export * from './util/escape-literal.js';
 export * from './util/parse-datetime.js';

@@ -47,6 +47,7 @@ import {
   writeCopyBinaryRows,
 } from '../util/copy-from-rows.js';
 import { parseDateStyleSetting, type PgDateStyle } from '../util/date-style.js';
+import { validateDecimalAsString } from '../util/decimal-as-string.js';
 import { escapeLiteral } from '../util/escape-literal.js';
 import {
   fetchAsStringEqual,
@@ -188,6 +189,7 @@ const MAPPING_DEFAULT_KEYS = [
   'rowDecoder',
   'utcDates',
   'fetchAsString',
+  'decimalAsString',
   'unknownTypesAsString',
   'moneyFormat',
 ] as const;
@@ -2229,7 +2231,8 @@ export class IntlConnection extends SafeEventEmitter {
       !money &&
       !dateStyle &&
       !options.temporalTypes &&
-      !options.fetchAsString
+      !options.fetchAsString &&
+      options.decimalAsString === undefined
     )
       return options;
     let out: any;
@@ -2259,6 +2262,8 @@ export class IntlConnection extends SafeEventEmitter {
         (out || options).fetchAsString,
         this.resolveTypeMap(out || options),
       );
+    if ((out || options).decimalAsString !== undefined)
+      validateDecimalAsString((out || options).decimalAsString);
     if ((out || options).temporalTypes) {
       // On top of whatever type map is in effect, rather than instead of
       // it. The map is memoized per (base, selection), so this is two

@@ -3,6 +3,7 @@ import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import { assertCoercedNumber } from '../util/assert-integer.js';
+import { wantsDecimalString } from '../util/decimal-as-string.js';
 import { fastParseFloatBuffer } from '../util/fast-parsefloat.js';
 import { Numeric } from './classes/numeric.js';
 
@@ -144,7 +145,12 @@ export const NumericType: DataType = {
     }
   },
 
-  decodeBinary(v: Buffer, offset: number = 0): number | Numeric {
+  decodeBinary(
+    v: Buffer,
+    offset: number = 0,
+    _len?: number,
+    options?: DataMappingOptions,
+  ): number | Numeric | string {
     const len = v.readInt16BE(offset);
     const weight = v.readInt16BE(offset + 2);
     // sign is a bitmask (0x0000/0x4000/0xC000/0xD000/0xF000), not a two's
@@ -153,9 +159,13 @@ export const NumericType: DataType = {
     const sign = v.readUInt16BE(offset + 4);
     const scale = v.readInt16BE(offset + 6);
 
-    if (sign === NUMERIC_NAN) return NaN;
-    if (sign === NUMERIC_PINF) return Infinity;
-    if (sign === NUMERIC_NINF) return -Infinity;
+    // The words PostgreSQL itself writes for these, when the caller
+    // asked for strings: a decimal string type that sometimes answers a
+    // number would have to be checked for on every value.
+    const asString = wantsDecimalString(options, DataTypeOIDs.numeric);
+    if (sign === NUMERIC_NAN) return asString ? 'NaN' : NaN;
+    if (sign === NUMERIC_PINF) return asString ? 'Infinity' : Infinity;
+    if (sign === NUMERIC_NINF) return asString ? '-Infinity' : -Infinity;
 
     const digits: number[] = [];
     for (let i = 0; i < len; i++) {
@@ -172,11 +182,14 @@ export const NumericType: DataType = {
     // both out. `weight === -1` is a value in [0.0001, 1), far from the
     // exponent that would make JavaScript switch notation.
     if (
-      (weight >= 0 && weight <= 4 && (weight + 1) * DEC_DIGITS + scale <= 15) ||
-      (weight === -1 && scale <= 15)
+      !asString &&
+      ((weight >= 0 &&
+        weight <= 4 &&
+        (weight + 1) * DEC_DIGITS + scale <= 15) ||
+        (weight === -1 && scale <= 15))
     )
       return parseFloat(numString);
-    return toNumberOrNumeric(numString);
+    return asString ? numString : toNumberOrNumeric(numString);
   },
 
   encodeText(v: any): string {
@@ -187,7 +200,11 @@ export const NumericType: DataType = {
     return typeof v === 'string' ? v.trim() : String(v);
   },
 
-  decodeText(v: string): number | Numeric {
+  decodeText(
+    v: string,
+    options?: DataMappingOptions,
+  ): number | Numeric | string {
+    if (wantsDecimalString(options, DataTypeOIDs.numeric)) return v;
     // NaN and the infinities arrive as those words and stay numbers.
     const n = parseFloat(v);
     if (!Number.isFinite(n)) return n;
@@ -199,12 +216,14 @@ export const NumericType: DataType = {
     offset: number,
     len: number,
     options: DataMappingOptions,
-  ): number | Numeric {
+  ): number | Numeric | string {
     // Eight characters hold at most eight digits, cannot reach 1e21 -
     // which needs twenty-two - and cannot reach 1e-7, which needs `0.`
     // and seven more. So a value this short is carried faithfully by
-    // definition and keeps the parser that never builds a string.
-    if (len <= 8) return fastParseFloatBuffer(buf, offset, len);
+    // definition and keeps the parser that never builds a string - but
+    // only while a number is what the caller wants back.
+    if (len <= 8 && !wantsDecimalString(options, DataTypeOIDs.numeric))
+      return fastParseFloatBuffer(buf, offset, len);
     return NumericType.decodeText(
       buf.toString('latin1', offset, offset + len),
       options,

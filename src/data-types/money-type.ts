@@ -6,6 +6,7 @@ import type {
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import { readBigInt64BE } from '../util/bigint-methods.js';
+import { wantsDecimalString } from '../util/decimal-as-string.js';
 import { Numeric } from './classes/numeric.js';
 import { trimTrailingZeros } from './numeric-type.js';
 
@@ -153,17 +154,28 @@ export const MoneyType: DataType = {
     offset: number = 0,
     _len?: number,
     options?: DataMappingOptions,
-  ): number | Numeric {
+  ): number | Numeric | string {
     const v =
       typeof buf.readBigInt64BE === 'function'
         ? buf.readBigInt64BE(offset)
         : readBigInt64BE(buf, offset);
-    return toNumberOrNumeric(moneyToString(v, formatOf(options).scale));
+    const s = moneyToString(v, formatOf(options).scale);
+    // The exact decimal is what the decode already built; handing it
+    // back is the whole of `decimalAsString`.
+    return wantsDecimalString(options, DataTypeOIDs.money)
+      ? s
+      : toNumberOrNumeric(s);
   },
 
-  decodeText(s: string, options?: DataMappingOptions): number | Numeric {
+  decodeText(
+    s: string,
+    options?: DataMappingOptions,
+  ): number | Numeric | string {
     const { scale } = formatOf(options);
-    return toNumberOrNumeric(moneyToString(parseMoneyText(s), scale));
+    const exact = moneyToString(parseMoneyText(s), scale);
+    return wantsDecimalString(options, DataTypeOIDs.money)
+      ? exact
+      : toNumberOrNumeric(exact);
   },
 
   /**

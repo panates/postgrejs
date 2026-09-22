@@ -42,6 +42,36 @@ export interface FetchAsStringSelector {
 
 export interface DataMappingOptions {
   /**
+   * Decode `numeric` and `money` into the exact decimal string they
+   * carry, instead of a number.
+   *
+   * `true` takes both; an array takes only the ones it names, and may
+   * name only those two (`DecimalAsStringOIDs`). Their array, range and
+   * multirange types follow, since those decode through the element.
+   *
+   * The string is the value and nothing else: an optional leading `-`,
+   * the digits, and - for money - a decimal point with exactly the scale
+   * the server reported. No currency symbol, no thousands separator, no
+   * locale. That is what tells it apart from
+   * `fetchAsString: [DataTypeOIDs.money]`, which asks the *server* for
+   * its own rendering and gets `-$1,234.50` back, because `lc_monetary`
+   * is what writes a money value out.
+   *
+   * There is no conversion behind this: both types build the exact
+   * decimal while decoding and then decide whether a double can carry it
+   * (a `Numeric` when it cannot). This hands back that same string, so
+   * nothing is rounded, re-parsed or formatted a second time - which is
+   * the thing a caller doing it themselves cannot avoid, and cannot get
+   * right for money without knowing the scale.
+   *
+   * `numeric`'s non-finite values keep the spelling PostgreSQL writes:
+   * `'NaN'`, `'Infinity'`, `'-Infinity'`.
+   *
+   * Off by default.
+   */
+  decimalAsString?: boolean | OID[];
+
+  /**
    * Decode PostgreSQL's date/time types into `Temporal` values instead
    * of `Date`.
    *
