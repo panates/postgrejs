@@ -54,6 +54,107 @@ describe('Parse connection string', () => {
       expect(cfg.user).toStrictEqual('me');
     });
 
+    describe('connectionString', () => {
+      // `pg`'s spelling of the bare string this already took, and what
+      // drizzle-orm's first example writes. Ignored, it did not fail -
+      // it connected to whatever the environment defaults to, which in
+      // development usually exists.
+      const CS = 'postgres://me:pw@h:5433/mydb';
+
+      it('should be read as the connection string it is', () => {
+        const cfg = parseConnectionString(CS);
+        const viaOption = getConnectionConfig({ connectionString: CS });
+        expect(viaOption.host).toStrictEqual(cfg.host);
+        expect(viaOption.port).toStrictEqual(cfg.port);
+        expect(viaOption.database).toStrictEqual(cfg.database);
+        expect(viaOption.user).toStrictEqual(cfg.user);
+        expect(viaOption.password).toStrictEqual(cfg.password);
+      });
+
+      it('should win over a field of the same name beside it', () => {
+        // What `pg` does: a value the string carries is not quietly
+        // overridden by one that was left in the object.
+        const cfg = getConnectionConfig({
+          connectionString: CS,
+          database: 'ignored',
+          host: 'ignored',
+        });
+        expect(cfg.database).toStrictEqual('mydb');
+        expect(cfg.host).toStrictEqual('h');
+      });
+
+      it('should leave the fields the string does not name', () => {
+        const cfg = getConnectionConfig({
+          connectionString: CS,
+          applicationName: 'app',
+          schema: 'myschema',
+        });
+        expect(cfg.applicationName).toStrictEqual('app');
+        expect(cfg.schema).toStrictEqual('myschema');
+        expect(cfg.database).toStrictEqual('mydb');
+      });
+
+      it('should not leave itself in the configuration', () => {
+        expect(
+          (getConnectionConfig({ connectionString: CS }) as any)
+            .connectionString,
+        ).toStrictEqual(undefined);
+        expect(
+          (getConnectionConfig({ connectionString: undefined }) as any)
+            .connectionString,
+        ).toStrictEqual(undefined);
+      });
+    });
+
+    describe('a key from another client', () => {
+      // Nothing checks that a configuration's keys are keys this client
+      // knows, and that stays: a PoolConfiguration carries
+      // lightning-pool's own options and callers pass objects carrying
+      // their own fields. What is caught is the short list of names that
+      // are the right idea under another client's spelling.
+      const CASES: [string, any, string][] = [
+        ['dbname', { dbname: 'x' }, 'database'],
+        ['db', { db: 'x' }, 'database'],
+        ['username', { username: 'x' }, 'user'],
+        ['pass', { pass: 'x' }, 'password'],
+        ['hostname', { hostname: 'x' }, 'host'],
+        ['url', { url: 'postgres://h/db' }, 'connectionString'],
+        ['connection_string', { connection_string: 'x' }, 'connectionString'],
+        ['application_name', { application_name: 'x' }, 'applicationName'],
+        [
+          'connectionTimeoutMillis',
+          { connectionTimeoutMillis: 1 },
+          'connectTimeoutMs',
+        ],
+      ];
+
+      for (const [name, config, meant] of CASES)
+        it(`should answer "${name}" with the name that works`, () => {
+          expect(() => getConnectionConfig(config)).toThrow(
+            new RegExp(`"${name}" is not a connection option here.+"${meant}"`),
+          );
+        });
+
+      it('should leave a configuration carrying its own fields alone', () => {
+        // The reason there is no allowlist: rejecting an unknown key
+        // would reject these, and the list would have to be kept current
+        // forever.
+        const cfg = getConnectionConfig({
+          host: 'h',
+          max: 5,
+          idleTimeoutMillis: 1000,
+          ownField: { anything: true },
+        } as any);
+        expect(cfg.host).toStrictEqual('h');
+      });
+
+      it('should ignore one that is only there as undefined', () => {
+        expect(() =>
+          getConnectionConfig({ dbname: undefined } as any),
+        ).not.toThrow();
+      });
+    });
+
     describe('the scheme', () => {
       // `postgresql://` was not in the list, so the path - the database
       // name - was dropped for the one scheme PostgreSQL's own
@@ -173,23 +274,46 @@ describe('Parse connection string', () => {
   });
 
   it('Get connection config from environment variables', () => {
-    process.env.PGHOST = 'PGHOST';
-    process.env.PGPORT = '1234';
-    process.env.PGDATABASE = 'PGDATABASE';
-    process.env.PGUSER = 'PGUSER';
-    process.env.PGPASSWORD = 'PGPASSWORD';
-    process.env.PGAPPNAME = 'PGAPPNAME';
-    process.env.PGCONNECT_TIMEOUT = '32000';
-    process.env.PGMAX_BUFFER_SIZE = '4096';
-    const cfg = getConnectionConfig();
-    expect(cfg.host).toStrictEqual('PGHOST');
-    expect(cfg.port).toStrictEqual(1234);
-    expect(cfg.database).toStrictEqual('PGDATABASE');
-    expect(cfg.user).toStrictEqual('PGUSER');
-    expect(cfg.password).toStrictEqual('PGPASSWORD');
-    expect(cfg.applicationName).toStrictEqual('PGAPPNAME');
-    expect(cfg.connectTimeoutMs).toStrictEqual(32000);
-    expect(cfg.buffer?.maxLength).toStrictEqual(4096);
+    // Put back key by key, in a finally: the suite-level `after` that
+    // replaces `process.env` wholesale does not run until this file is
+    // done, and every spec that connects in between reads these - a
+    // `PGHOST` of "PGHOST" is not a host anything can resolve.
+    const KEYS = [
+      'PGHOST',
+      'PGPORT',
+      'PGDATABASE',
+      'PGUSER',
+      'PGPASSWORD',
+      'PGAPPNAME',
+      'PGCONNECT_TIMEOUT',
+      'PGMAX_BUFFER_SIZE',
+    ];
+    const saved: Record<string, string | undefined> = {};
+    for (const k of KEYS) saved[k] = process.env[k];
+    try {
+      process.env.PGHOST = 'PGHOST';
+      process.env.PGPORT = '1234';
+      process.env.PGDATABASE = 'PGDATABASE';
+      process.env.PGUSER = 'PGUSER';
+      process.env.PGPASSWORD = 'PGPASSWORD';
+      process.env.PGAPPNAME = 'PGAPPNAME';
+      process.env.PGCONNECT_TIMEOUT = '32000';
+      process.env.PGMAX_BUFFER_SIZE = '4096';
+      const cfg = getConnectionConfig();
+      expect(cfg.host).toStrictEqual('PGHOST');
+      expect(cfg.port).toStrictEqual(1234);
+      expect(cfg.database).toStrictEqual('PGDATABASE');
+      expect(cfg.user).toStrictEqual('PGUSER');
+      expect(cfg.password).toStrictEqual('PGPASSWORD');
+      expect(cfg.applicationName).toStrictEqual('PGAPPNAME');
+      expect(cfg.connectTimeoutMs).toStrictEqual(32000);
+      expect(cfg.buffer?.maxLength).toStrictEqual(4096);
+    } finally {
+      for (const k of KEYS) {
+        if (saved[k] === undefined) delete process.env[k];
+        else process.env[k] = saved[k];
+      }
+    }
   });
 
   describe('multiple hosts', () => {

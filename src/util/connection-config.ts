@@ -5,6 +5,49 @@ import type {
 } from '../interfaces/database-connection-params.js';
 import { configFromEnv } from './config-from-env.js';
 
+/**
+ * Spellings from other clients that mean something here under a
+ * different name.
+ *
+ * Nothing checks that a configuration's keys are keys this client knows,
+ * and it deliberately stays that way: a `PoolConfiguration` carries
+ * `lightning-pool`'s own options, which are not declared here, and
+ * callers pass configurations that carry their own fields. An allowlist
+ * would reject those, and would have to be kept current forever.
+ *
+ * What is caught instead is the short list of names that are *wrong* -
+ * each is the right idea under another client's spelling, so it can be
+ * answered with the name that works rather than merely refused.
+ */
+const FOREIGN_KEYS: Record<string, string> = {
+  connection_string: 'connectionString',
+  connectionUri: 'connectionString',
+  uri: 'connectionString',
+  url: 'connectionString',
+  dbname: 'database',
+  db: 'database',
+  username: 'user',
+  pass: 'password',
+  passwd: 'password',
+  hostname: 'host',
+  application_name: 'applicationName',
+  connect_timeout: 'connectTimeoutMs',
+  connectionTimeoutMillis: 'connectTimeoutMs',
+};
+
+function checkForeignKeys(config: object): void {
+  let k: string;
+  for (k in config) {
+    const meant = FOREIGN_KEYS[k];
+    if (meant && (config as any)[k] !== undefined)
+      throw new TypeError(
+        `"${k}" is not a connection option here - did you mean "${meant}"? ` +
+          'An option this client does not know is otherwise ignored, so a ' +
+          'name that is nearly right does nothing and says nothing.',
+      );
+  }
+}
+
 export function getConnectionConfig(
   config?: ConnectionConfiguration | string,
 ): ConnectionConfiguration {
@@ -12,7 +55,21 @@ export function getConnectionConfig(
   if (typeof config === 'string') {
     merge(cfg, parseConnectionString(config));
   } else if (typeof config === 'object') {
+    checkForeignKeys(config);
     merge(cfg, config);
+    // `pg`'s spelling of the same thing, and what `drizzle-orm`'s first
+    // example writes - so it is the single most likely key someone
+    // moving from `pg` puts here. Ignored, it did not fail: it connected
+    // to whatever the environment defaults to, which in development is
+    // usually a database that exists, so the mistake surfaced as missing
+    // tables or as writes landing somewhere else. Applied after the
+    // merge and not before it, because `pg` lets the string win over the
+    // fields beside it.
+    const cs = (cfg as any).connectionString;
+    if (cs !== undefined) {
+      delete (cfg as any).connectionString;
+      if (cs) merge(cfg, parseConnectionString('' + cs));
+    }
   }
   if (cfg.host) {
     const explicitRequireSSL = cfg.requireSSL;
