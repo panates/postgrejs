@@ -13,6 +13,7 @@ import type { QueryResult } from '../interfaces/query-result.js';
 import type { ScriptExecuteOptions } from '../interfaces/script-execute-options.js';
 import type { ScriptResult } from '../interfaces/script-result.js';
 import type { StatementPrepareOptions } from '../interfaces/statement-prepare-options.js';
+import type { TransactionOptions } from '../interfaces/transaction-options.js';
 import type { DatabaseError } from '../protocol/database-error.js';
 import type { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
@@ -608,8 +609,8 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   /**
    * Starts a transaction
    */
-  startTransaction(): Promise<void> {
-    return this._captureErrorStack(this._intlCon.startTransaction());
+  startTransaction(options?: TransactionOptions): Promise<void> {
+    return this._captureErrorStack(this._intlCon.startTransaction(options));
   }
 
   /**
@@ -639,9 +640,24 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * `fn` is handed this same connection: every statement it runs on it is
    * inside the transaction, and one it runs on another connection is not.
    */
-  async transaction<T>(fn: (connection: this) => Promise<T>): Promise<T> {
-    if (this._intlCon.inTransaction) return await this._savepointScope(fn);
-    await this.startTransaction();
+  async transaction<T>(
+    fn: (connection: this) => Promise<T>,
+    options?: TransactionOptions,
+  ): Promise<T> {
+    // A call inside a transaction becomes a savepoint scope, which has
+    // no BEGIN to carry modes - see startTransaction(), which refuses
+    // them for the same reason rather than applying them to somebody
+    // else's transaction.
+    if (this._intlCon.inTransaction) {
+      if (options)
+        throw new Error(
+          'transaction() cannot set transaction modes inside a transaction ' +
+            'that is already open - the inner scope is a savepoint, and the ' +
+            'modes belong to the BEGIN that opened the outer one',
+        );
+      return await this._savepointScope(fn);
+    }
+    await this.startTransaction(options);
     try {
       const result = await fn(this);
       await this.commit();

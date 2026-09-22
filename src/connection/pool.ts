@@ -11,6 +11,7 @@ import type { QueryResult } from '../interfaces/query-result.js';
 import type { ScriptExecuteOptions } from '../interfaces/script-execute-options.js';
 import type { ScriptResult } from '../interfaces/script-result.js';
 import type { StatementPrepareOptions } from '../interfaces/statement-prepare-options.js';
+import type { TransactionOptions } from '../interfaces/transaction-options.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import { normalizeChannelName } from '../util/channel-name.js';
 import { getConnectionConfig } from '../util/connection-config.js';
@@ -351,10 +352,13 @@ export class Pool extends SafeEventEmitter {
    * is free to pick a different connection, and a transaction lives on
    * one. This is the way to get several statements onto the same one.
    */
-  async transaction<T>(fn: (connection: Connection) => Promise<T>): Promise<T> {
+  async transaction<T>(
+    fn: (connection: Connection) => Promise<T>,
+    options?: TransactionOptions,
+  ): Promise<T> {
     const connection = await this.acquire();
     try {
-      return await connection.transaction(fn);
+      return await connection.transaction(fn, options);
     } finally {
       await this.release(connection);
     }

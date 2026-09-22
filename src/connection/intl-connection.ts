@@ -31,6 +31,7 @@ import type { QueryOptions } from '../interfaces/query-options.js';
 import type { QueryResult } from '../interfaces/query-result.js';
 import type { ScriptExecuteOptions } from '../interfaces/script-execute-options.js';
 import type { ScriptResult } from '../interfaces/script-result.js';
+import type { TransactionOptions } from '../interfaces/transaction-options.js';
 import { DatabaseError } from '../protocol/database-error.js';
 import { PgSocket } from '../protocol/pg-socket.js';
 import { Protocol } from '../protocol/protocol.js';
@@ -201,6 +202,39 @@ function pickMappingDefaults(
     out[k] = config[k];
   }
   return out && Object.freeze(out);
+}
+
+/**
+ * The isolation levels PostgreSQL takes, as the SQL that names them.
+ *
+ * A table rather than the caller's own string: this text is
+ * concatenated into a statement, and nothing that reaches it may come
+ * from outside this file.
+ */
+const ISOLATION_LEVELS: Record<string, string> = {
+  serializable: 'SERIALIZABLE',
+  'repeatable read': 'REPEATABLE READ',
+  'read committed': 'READ COMMITTED',
+  'read uncommitted': 'READ UNCOMMITTED',
+};
+
+/** `BEGIN`, carrying whatever modes the caller asked for. */
+function beginStatement(options?: TransactionOptions): string {
+  if (!options) return 'BEGIN';
+  let sql = 'BEGIN';
+  if (options.isolationLevel != null) {
+    const level = ISOLATION_LEVELS[options.isolationLevel.toLowerCase()];
+    if (!level)
+      throw new TypeError(
+        `Unknown transaction isolation level "${options.isolationLevel}"`,
+      );
+    sql += ' ISOLATION LEVEL ' + level;
+  }
+  if (options.readOnly != null)
+    sql += options.readOnly ? ' READ ONLY' : ' READ WRITE';
+  if (options.deferrable != null)
+    sql += options.deferrable ? ' DEFERRABLE' : ' NOT DEFERRABLE';
+  return sql;
 }
 
 const EMPTY_QUERY_TAG: Protocol.CommandCompleteMessage = { command: '' };
@@ -503,9 +537,29 @@ export class IntlConnection extends SafeEventEmitter {
    * that point). A matching number of commit() calls is then needed to
    * actually commit - see commit().
    */
-  async startTransaction(): Promise<void> {
+  async startTransaction(options?: TransactionOptions): Promise<void> {
+    // A nested call is a depth increment, not a second BEGIN - so modes
+    // it carries could only be applied to a transaction someone else
+    // opened. PostgreSQL would take them: a nested `BEGIN ISOLATION
+    // LEVEL SERIALIZABLE` before any query has run *silently changes the
+    // outer transaction's level* (measured, only a warning about the
+    // redundant BEGIN), and after one it raises 25001. Neither is what
+    // the caller of a nested scope means, so this says so instead.
+    // Built before anything is counted: an isolation level this client
+    // does not know throws here, and a start that never happened must
+    // not leave the depth one higher than the transactions there are.
+    const sql = beginStatement(options);
+    if (options && this._transactionDepth > 0)
+      throw new Error(
+        'startTransaction() cannot set transaction modes on a transaction ' +
+          'that is already open - they belong to the BEGIN that opens it',
+      );
+    if (this.inTransaction) {
+      this._transactionDepth++;
+      return;
+    }
+    await this.execute(sql);
     this._transactionDepth++;
-    if (!this.inTransaction) await this.execute('BEGIN');
   }
 
   /**
