@@ -4,6 +4,10 @@ import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { Protocol } from '../protocol/protocol.js';
 import type { AnyParseFunction } from '../types.js';
 import { decodeBinaryArray } from './decode-binaryarray.js';
+import {
+  fetchAsStringNamesElement,
+  fetchAsStringNamesOid,
+} from './fetch-as-string.js';
 import { parsePostgresArray } from './parse-array.js';
 
 const DefaultColumnParser: AnyParseFunction = (data, offset, len) =>
@@ -34,7 +38,7 @@ export function getParsers(
     if (
       asString &&
       f.format === DataFormat.text &&
-      asString.includes(f.dataTypeId)
+      fetchAsStringNamesOid(asString, f.dataTypeId)
     ) {
       parsers[i] = DefaultTextColumnParser;
       continue;
@@ -50,7 +54,7 @@ export function getParsers(
       asString &&
       f.format === DataFormat.text &&
       dataTypeReg?.elementsOID &&
-      asString.includes(dataTypeReg.elementsOID)
+      fetchAsStringNamesElement(asString, dataTypeReg.elementsOID)
     ) {
       const separator = dataTypeReg.arraySeparator;
       parsers[i] = (data, offset, len) =>

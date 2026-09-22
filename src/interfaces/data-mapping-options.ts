@@ -9,6 +9,37 @@ export interface MoneyFormat {
   decimalSeparator: string;
 }
 
+/**
+ * One entry of `fetchAsString`: an OID on its own, or an OID with what
+ * it should reach.
+ */
+export type FetchAsStringItem = OID | FetchAsStringSelector;
+
+/** An OID named by `fetchAsString`, with what it reaches. */
+export interface FetchAsStringSelector {
+  oid: OID;
+
+  /**
+   * Whether naming a scalar type also asks for columns of *arrays* of
+   * it - which is what naming it on its own does, so this defaults to
+   * `true`.
+   *
+   * `false` is for reproducing something that is inconsistent on the
+   * other side: `pg` hands back a scalar `numeric` as a string and a
+   * `numeric[]` as numbers, and a `numeric[]` column already decodes
+   * that way here, so only the scalar wants asking for as text.
+   */
+  arrays?: boolean;
+
+  /**
+   * Reserved. An element OID does not reach range columns today - a
+   * `numrange` column is selected by naming `numrange` - so `false` is
+   * the only value this can be given, and `true` is refused rather than
+   * ignored.
+   */
+  ranges?: boolean;
+}
+
 export interface DataMappingOptions {
   /**
    * Decode PostgreSQL's date/time types into `Temporal` values instead
@@ -94,7 +125,7 @@ export interface DataMappingOptions {
    * the nulls still null - the same thing naming that OID does for a
    * column of one.
    */
-  fetchAsString?: OID[];
+  fetchAsString?: FetchAsStringItem[];
 
   /**
    * Ask the server for text on any column this client has no way to

@@ -98,6 +98,78 @@ describe('fetchAsString by element OID', () => {
     expect((decoded.rows?.[0] as any).m).toStrictEqual([12.34, null, -5]);
   });
 
+  describe('a selector that stops at the scalar', () => {
+    // `numeric` is the case it exists for: `pg` hands back a scalar
+    // numeric as a string and a numeric[] as numbers, and the array
+    // already decodes that way here - so reproducing it needs the two
+    // said apart, which naming the OID on its own cannot do.
+    const N =
+      "select '19.99'::numeric a, '{1.5,2.5}'::numeric[] b," +
+      " array[array['1.5'::numeric]] c";
+
+    it('should leave the array columns decoding', async () => {
+      const r = await conn.query(N, {
+        objectRows: true,
+        fetchAsString: [{ oid: DataTypeOIDs.numeric, arrays: false }],
+      });
+      const row = r.rows?.[0] as any;
+      expect(row.a).toStrictEqual('19.99');
+      expect(row.b).toStrictEqual([1.5, 2.5]);
+      expect(row.c).toStrictEqual([[1.5]]);
+    });
+
+    it('should still take the arrays when the OID is named on its own', async () => {
+      const r = await conn.query(N, {
+        objectRows: true,
+        fetchAsString: [DataTypeOIDs.numeric],
+      });
+      const row = r.rows?.[0] as any;
+      expect(row.a).toStrictEqual('19.99');
+      expect(row.b).toStrictEqual(['1.5', '2.5']);
+    });
+
+    it('should not hand one ask the other’s cached parsers', async () => {
+      // Same SQL, so the same cached statement - and the only thing
+      // telling the two apart is the list.
+      const narrow = await conn.query(N, {
+        objectRows: true,
+        fetchAsString: [{ oid: DataTypeOIDs.numeric, arrays: false }],
+      });
+      const wide = await conn.query(N, {
+        objectRows: true,
+        fetchAsString: [DataTypeOIDs.numeric],
+      });
+      const plain = await conn.query(N, { objectRows: true });
+      expect((narrow.rows?.[0] as any).b).toStrictEqual([1.5, 2.5]);
+      expect((wide.rows?.[0] as any).b).toStrictEqual(['1.5', '2.5']);
+      expect((plain.rows?.[0] as any).a).toStrictEqual(19.99);
+    });
+
+    it('should refuse an ask it cannot honour, at the call', async () => {
+      await expect(
+        conn.query(N, {
+          fetchAsString: [{ oid: DataTypeOIDs.numeric, ranges: true }],
+        }),
+      ).rejects.toThrow(/does not reach range columns/);
+      await expect(
+        conn.query(N, {
+          fetchAsString: [{ oid: DataTypeOIDs._numeric, arrays: false }],
+        }),
+      ).rejects.toThrow(/is an array type/);
+    });
+
+    it('should work on the whole-row-text fallback too', async () => {
+      const r = await conn.query(N, {
+        objectRows: true,
+        prepare: false,
+        fetchAsString: [{ oid: DataTypeOIDs.numeric, arrays: false }],
+      });
+      const row = r.rows?.[0] as any;
+      expect(row.a).toStrictEqual('19.99');
+      expect(row.b).toStrictEqual([1.5, 2.5]);
+    });
+  });
+
   it('should work the same on the whole-row-text fallback', async () => {
     // `prepare: false` asks for every column as text instead of naming
     // them positionally, which is a different route to the same parsers.

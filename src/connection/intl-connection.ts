@@ -19,6 +19,7 @@ import type {
 } from '../interfaces/copy-from-rows-options.js';
 import type {
   DataMappingOptions,
+  FetchAsStringItem,
   MoneyFormat,
 } from '../interfaces/data-mapping-options.js';
 import type {
@@ -47,11 +48,14 @@ import {
 } from '../util/copy-from-rows.js';
 import { parseDateStyleSetting, type PgDateStyle } from '../util/date-style.js';
 import { escapeLiteral } from '../util/escape-literal.js';
-import { getParsers } from '../util/get-parsers.js';
 import {
   fetchAsStringEqual,
-  resolveColumnFormats,
-} from '../util/resolve-column-formats.js';
+  fetchAsStringNamesElement,
+  fetchAsStringNamesOid,
+  validateFetchAsString,
+} from '../util/fetch-as-string.js';
+import { getParsers } from '../util/get-parsers.js';
+import { resolveColumnFormats } from '../util/resolve-column-formats.js';
 import {
   resolveRowDecoder,
   resolveRowType,
@@ -74,7 +78,7 @@ interface ExecuteReusedParserCacheEntry {
   // Not implied by columnFormat: a column the caller made text explicitly
   // and one fetchAsString turned text carry the same format code but get
   // different parsers, so the list has to be compared in its own right.
-  fetchAsString: Maybe<OID[]>;
+  fetchAsString: Maybe<FetchAsStringItem[]>;
   parsers: AnyParseFunction[];
   resultFields: FieldInfo[];
 }
@@ -775,8 +779,14 @@ export class IntlConnection extends SafeEventEmitter {
       oid = fields[i].dataTypeId;
       if (oid !== DataTypeOIDs.money && oid !== DataTypeOIDs._money) continue;
       // Named by fetchAsString, so the value goes back exactly as the
-      // server rendered it and no decoder asks what a minor unit is.
-      if (asString?.includes(oid)) continue;
+      // server rendered it and no decoder asks what a minor unit is -
+      // which naming `money` does for a `money[]` column too.
+      if (
+        fetchAsStringNamesOid(asString, oid) ||
+        (oid === DataTypeOIDs._money &&
+          fetchAsStringNamesElement(asString, DataTypeOIDs.money))
+      )
+        continue;
       return true;
     }
     return false;
@@ -2214,7 +2224,13 @@ export class IntlConnection extends SafeEventEmitter {
     const defaults = this._mappingDefaults;
     const money = this._moneyFormat;
     const dateStyle = this._currentDateStyle();
-    if (!defaults && !money && !dateStyle && !options.temporalTypes)
+    if (
+      !defaults &&
+      !money &&
+      !dateStyle &&
+      !options.temporalTypes &&
+      !options.fetchAsString
+    )
       return options;
     let out: any;
     if (defaults) {
@@ -2234,6 +2250,15 @@ export class IntlConnection extends SafeEventEmitter {
       out = out || { ...options };
       out.dateStyle = dateStyle;
     }
+    // Every path into a statement passes through here, so a selector
+    // that asks for something this does not do is refused once, at the
+    // call that carries it, rather than in whichever of the three
+    // readers of the list happens to reach it first.
+    if ((out || options).fetchAsString)
+      validateFetchAsString(
+        (out || options).fetchAsString,
+        this.resolveTypeMap(out || options),
+      );
     if ((out || options).temporalTypes) {
       // On top of whatever type map is in effect, rather than instead of
       // it. The map is memoized per (base, selection), so this is two

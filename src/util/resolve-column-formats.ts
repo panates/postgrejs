@@ -1,8 +1,15 @@
 import { DEFAULT_COLUMN_FORMAT } from '../constants.js';
 import type { DataTypeMap } from '../data-type-map.js';
-import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
+import type {
+  DataMappingOptions,
+  FetchAsStringItem,
+} from '../interfaces/data-mapping-options.js';
 import { Protocol } from '../protocol/protocol.js';
 import type { Maybe, OID } from '../types.js';
+import {
+  fetchAsStringNamesElement,
+  fetchAsStringNamesOid,
+} from './fetch-as-string.js';
 
 const DataFormat = Protocol.DataFormat;
 
@@ -36,11 +43,11 @@ function canDecode(
  */
 function namesElementOf(
   typeMap: Maybe<DataTypeMap>,
-  asString: OID[],
+  asString: FetchAsStringItem[],
   oid: OID,
 ): boolean {
   const elementsOID = typeMap?.get(oid)?.elementsOID;
-  return !!elementsOID && asString.includes(elementsOID);
+  return !!elementsOID && fetchAsStringNamesElement(asString, elementsOID);
 }
 
 /**
@@ -94,7 +101,8 @@ export function resolveColumnFormats(
       : (base as Protocol.DataFormat);
     if (
       named &&
-      (asString!.includes(oid) || namesElementOf(typeMap, asString!, oid))
+      (fetchAsStringNamesOid(asString, oid) ||
+        namesElementOf(typeMap, asString!, oid))
     ) {
       // fetchAsString names the value the caller wants verbatim, so it
       // overrides an explicit columnFormat for its own columns - the two
@@ -115,20 +123,4 @@ export function resolveColumnFormats(
     out[i] = format;
   }
   return hit ? out : base;
-}
-
-/**
- * Whether two `fetchAsString` lists select the same columns. Used to tell
- * a cached set of parsers apart from one built for a different list, which
- * `columnFormat` alone cannot do: an explicitly text column and one turned
- * text by fetchAsString carry the same format code but decode differently.
- */
-export function fetchAsStringEqual(a: Maybe<OID[]>, b: Maybe<OID[]>): boolean {
-  if (a === b) return true;
-  if (!a || !b) return !a?.length && !b?.length;
-  const l = a.length;
-  if (l !== b.length) return false;
-  let i: number;
-  for (i = 0; i < l; i++) if (a[i] !== b[i]) return false;
-  return true;
 }
