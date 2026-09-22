@@ -49,9 +49,12 @@ export interface DataMappingOptions {
    * a query whose statement is not prepared asks for the whole row as text
    * instead (see IntlConnection.queryOnce()).
    *
-   * An array column is selected by its own array OID (`_timestamptz`),
-   * never by its element's, and then the whole array literal is the string
-   * that comes back.
+   * An array column can be named either way, and the two ask for
+   * different things. Its own array OID (`_timestamptz`) asks for the
+   * whole literal, one string. Its *element's* OID (`timestamptz`) asks
+   * for the elements: an array, of the strings the server wrote, with
+   * the nulls still null - the same thing naming that OID does for a
+   * column of one.
    */
   fetchAsString?: OID[];
 

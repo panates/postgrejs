@@ -40,6 +40,25 @@ export function getParsers(
       continue;
     }
     const dataTypeReg = typeMap.get(f.dataTypeId);
+    // The other half of the same ask: the list named this column's
+    // *element* type, so the literal is split and the elements are handed
+    // back as the server wrote them - an array of what naming the scalar
+    // OID gives for a scalar column. Naming the array's own OID still
+    // means the whole literal, above; the two remain tellable apart
+    // because they name different OIDs.
+    if (
+      asString &&
+      f.format === DataFormat.text &&
+      dataTypeReg?.elementsOID &&
+      asString.includes(dataTypeReg.elementsOID)
+    ) {
+      const separator = dataTypeReg.arraySeparator;
+      parsers[i] = (data, offset, len) =>
+        parsePostgresArray(data.toString('utf8', offset, offset + len), {
+          separator,
+        });
+      continue;
+    }
     if (dataTypeReg) {
       const isArray = !!dataTypeReg.elementsOID;
       if (f.format === DataFormat.binary) {

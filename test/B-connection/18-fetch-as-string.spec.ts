@@ -85,7 +85,12 @@ describe('fetchAsString', () => {
     ]);
   });
 
-  it('should leave an array column alone when only its element oid is listed', async () => {
+  it('should give an array column its elements when the element oid is listed', async () => {
+    // This used to leave the column alone: an element OID selected
+    // nothing and an array could only be asked for by its own OID, as
+    // the whole literal. Naming the element now means for a column of
+    // them what it means for one - the value as the server wrote it -
+    // and 37-fetch-as-string-element.spec.ts is where that lives.
     const sql =
       "select array['2020-10-22T23:45:12.123Z'::timestamptz, null] as a";
     const r = await conn.query(sql, {
@@ -93,7 +98,7 @@ describe('fetchAsString', () => {
       fetchAsString: [DataTypeOIDs.timestamptz],
     });
     expect(r.rows?.[0]).toStrictEqual({
-      a: [new Date('2020-10-22T23:45:12.123Z'), null],
+      a: ['2020-10-22 23:45:12.123+00', null],
     });
   });
 

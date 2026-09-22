@@ -27,6 +27,23 @@ function canDecode(
 }
 
 /**
+ * Whether `asString` names the element type of the array type `oid` -
+ * "give me this type verbatim", asked of a column of them.
+ *
+ * Needs the type map to find the element OID, which the caller already
+ * hands over for `unknownTypesAsString`; without one this answers no and
+ * only an array's own OID selects it, as it always did.
+ */
+function namesElementOf(
+  typeMap: Maybe<DataTypeMap>,
+  asString: OID[],
+  oid: OID,
+): boolean {
+  const elementsOID = typeMap?.get(oid)?.elementsOID;
+  return !!elementsOID && asString.includes(elementsOID);
+}
+
+/**
  * Turns `fetchAsString`'s OID list into the positional result format codes
  * a Bind message actually carries.
  *
@@ -38,9 +55,10 @@ function canDecode(
  * statement's, or a cached one's) pay nothing for this; callers that do
  * not have to ask for the whole row as text instead - see queryOnce().
  *
- * A column matches on its own `dataTypeId`, so an array column is only
- * ever selected by its own array OID (`_timestamptz`), never by its
- * element's. Listing the element OID leaves array columns alone.
+ * An array column is selected by its own array OID (`_timestamptz`) and
+ * by its element's (`timestamptz`) - both need the column as text, and
+ * which of the two was named is what get-parsers.ts reads to decide
+ * between the whole literal and the elements.
  *
  * Returns `columnFormat` untouched when there is nothing to do, so the
  * common case allocates nothing and keeps sending a single format code.
@@ -74,10 +92,17 @@ export function resolveColumnFormats(
     format = baseIsArray
       ? ((base as Protocol.DataFormat[])[i] ?? DEFAULT_COLUMN_FORMAT)
       : (base as Protocol.DataFormat);
-    if (named && asString!.includes(oid)) {
+    if (
+      named &&
+      (asString!.includes(oid) || namesElementOf(typeMap, asString!, oid))
+    ) {
       // fetchAsString names the value the caller wants verbatim, so it
       // overrides an explicit columnFormat for its own columns - the two
       // cannot both be honored and the OID list is the more specific ask.
+      // An array column is selected either way: by its own OID, which
+      // asks for the whole literal, or by its element's, which asks for
+      // the elements - both need the column as text, and get-parsers.ts
+      // is where the two part company.
       format = DataFormat.text;
       hit = true;
     } else if (unknownAsString && !canDecode(typeMap!, oid, format)) {
