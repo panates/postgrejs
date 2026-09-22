@@ -1,13 +1,11 @@
-# Migrating: what the value classes serialise to
+# Migrating from v3.9 to v3.10
 
-> File this under whatever version number the release takes; the change
-> itself is the one below.
+Three changes are visible to existing code. Two are about what a decoded
+value looks like once it is serialised - `res.json(rows)`, a structured
+log line, or writing into a `json`/`jsonb` column - and the third is about
+what an array parameter is declared as on the wire.
 
-One change, visible only to code that puts a decoded value through
-`JSON.stringify` - which includes `res.json(rows)`, a structured log line,
-and writing a value into a `json`/`jsonb` column.
-
-## Breaking change
+## Breaking changes
 
 ### The value classes serialise as their fields, not as the literal
 
@@ -86,3 +84,59 @@ before upgrading.
 Everything derived still reads an absent field as the zero it stands for:
 `iv.totalMonths`, `iv.totalMicroseconds`, `String(iv)` (a zero interval is
 still `00:00:00`), `iv.toISOString()` and the parameter path are unchanged.
+
+### An array of numbers is sent with no declared type
+
+`[1, 2]` used to go out declared `int4[]`, and `[1.5]` declared `float8[]`.
+Which it really is depends on the column it lands in, and unlike their
+scalars those array types have no operators or implicit casts between
+them - so the declaration was not a harmless guess:
+
+```ts
+await connection.query('select array[1,2]::int8[] = $1', { params: [[1, 2]] });
+// v3.9:  42883 operator does not exist: bigint[] = integer[]
+// v3.10: true
+```
+
+Four of the six numeric array types could not be compared with a parameter
+at all. They all work now, and so does the same thing one layer up: the
+`sql` tag writes `'{"1","2"}'` where it used to write
+`ARRAY['1','2']::_int4`.
+
+**What to change.** Nothing, unless a statement gave the parameter no
+context to be resolved from - the same price a string parameter has paid
+since v3.7:
+
+```ts
+await connection.query('select $1', { params: [[1, 2]] });
+// v3.9:  [1, 2]
+// v3.10: '{"1","2"}'   - the server reads an unknown literal as text
+```
+
+Name the type where that matters, which is also how a large numeric array
+keeps the binary encoding a text literal gives up:
+
+```ts
+new BindParam(DataTypeOIDs._int4, [1, 2])
+```
+
+Arrays of strings, dates, booleans, Buffers and this client's own classes
+are unchanged, as are scalar numbers.
+
+## Also in this release
+
+Nothing below changes existing behaviour.
+
+- `temporalTypes` decodes `date`, `time`, `timestamp`, `timestamptz` and
+  `interval` into `Temporal` values instead of `Date`, with the
+  microseconds PostgreSQL stores. Off by default; needs a `Temporal`
+  polyfill until a runtime ships one.
+- `decimalAsString` decodes `money` and `numeric` into the exact decimal
+  string they carry - no currency symbol, no grouping, the scale the
+  server reported.
+- `fetchAsString` entries may be `{ oid, arrays: false }`, to ask for a
+  scalar column as text without its array columns following.
+- A connection that is lost now reports on `'error'` as well as `'close'`,
+  which is where code ported from `pg` listens. A listener that was
+  attached and never fired starts firing.
+- A `postgresql://` connection string no longer loses the database name.
