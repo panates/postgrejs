@@ -22,11 +22,27 @@ import { arrayLeaf } from './array-leaf.js';
  * as it does under `pg`. A cast (`$1::text`) or a named type
  * (`new BindParam(DataTypeOIDs.varchar, v)`) says which type is meant.
  *
- * Numbers, booleans and Buffers keep their declared types: they are
- * already right nearly everywhere, and sending them as text would give
- * up the binary encoding for no correctness gain.
+ * - An array of numbers is the same question, and the answer matters
+ *   more: `[1, 2]` is `int2[]`, `int4[]`, `int8[]`, `numeric[]`,
+ *   `float4[]` or `float8[]` depending on where it lands, and unlike
+ *   their scalars those types have no operators or implicit casts
+ *   between them. A declared `int4[]` is therefore not merely a guess
+ *   but a wrong answer wherever the column is one of the other five:
+ *   `array[1,2]::int8[] = $1` is `42883 operator does not exist:
+ *   bigint[] = integer[]`, and `numeric[] = double precision[]` the
+ *   same. The scalars are left declared because they do have those
+ *   operators - `1::int8 = $1` and `1.5::numeric = $1` both resolve.
+ *
+ * A scalar number, a boolean, a Buffer, and an array of anything but
+ * numbers keep their declared types: an array of booleans, of Buffers
+ * or of one of this client's own classes has one type it can be, so
+ * naming it says nothing the server would have decided differently -
+ * and it keeps the binary encoding, which the text literal gives up.
+ * A caller who wants that back for a large numeric array names the type
+ * with `new BindParam(DataTypeOIDs._float8, v)`.
  */
 export function isUnspecifiedParam(v: any): boolean {
   const x = arrayLeaf(v);
-  return typeof x === 'string' || x instanceof Date;
+  if (typeof x === 'string' || x instanceof Date) return true;
+  return Array.isArray(v) && (typeof x === 'number' || typeof x === 'bigint');
 }
