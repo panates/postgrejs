@@ -1,6 +1,12 @@
 ## Changelog
 
-### [v3.10.0](https://github.com/panates/postgrejs/compare/v3.9.0...v3.10.0) - 
+### [v3.10.1](https://github.com/panates/postgrejs/compare/v3.10.0...v3.10.1) - 
+
+#### 🚀 New Features
+
+- feat: accept `connectionString`, and answer a key from another client @Eray Hanoğlu 
+
+### [v3.10.0](https://github.com/panates/postgrejs/compare/v3.9.0...v3.10.0) -  22 September 2026 
 
 #### Breaking Changes :warning:
 
@@ -20,6 +26,10 @@
 - fix: stop declaring an element type for an array of numbers @Eray Hanoğlu 
 - fix: sign only the interval components that have one, and add toPostgres() @Eray Hanoğlu 
 - fix: read the database out of a `postgresql://` URL @Eray Hanoğlu 
+
+#### 📖 Documentation Changes
+
+- docs: name the migration note after the release it is for @Eray Hanoğlu 
 
 ### [v3.9.0](https://github.com/panates/postgrejs/compare/v3.8.0...v3.9.0) -  22 September 2026 
 

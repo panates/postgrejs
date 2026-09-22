@@ -1,6 +1,6 @@
 import * as process from 'node:process';
 import { expect } from 'expect';
-import { Connection, ConnectionState } from 'postgrejs';
+import { Connection, ConnectionState, Pool } from 'postgrejs';
 
 describe('Connection', () => {
   let connection: Connection;
@@ -13,6 +13,48 @@ describe('Connection', () => {
     connection = new Connection();
     await connection.connect();
     expect(connection.state).toStrictEqual(ConnectionState.READY);
+  });
+
+  describe('connectionString', () => {
+    /**
+     * A config assertion is not enough here: the failure this covers was
+     * a *working* connection to the wrong place, so the test asks the
+     * server which database it is in. `template1` exists on every
+     * cluster and is not the default this would otherwise land in.
+     */
+    const target = () => {
+      const env = process.env;
+      const user = env.PGUSER || 'postgres';
+      const password = env.PGPASSWORD || 'postgres';
+      const host = env.PGHOST || '127.0.0.1';
+      const port = env.PGPORT || '5432';
+      return `postgres://${user}:${password}@${host}:${port}/template1`;
+    };
+
+    it('should reach the database the string names', async () => {
+      connection = new Connection({ connectionString: target() });
+      await connection.connect();
+      const r = await connection.query('select current_database() as d', {
+        objectRows: true,
+      });
+      expect((r.rows?.[0] as any).d).toStrictEqual('template1');
+      // And it is not where an ignored option would have left it.
+      expect((r.rows?.[0] as any).d).not.toStrictEqual(
+        process.env.PGDATABASE || 'postgres',
+      );
+    });
+
+    it('should reach it through a pool too', async () => {
+      const pool = new Pool({ connectionString: target(), max: 1 });
+      try {
+        const r = await pool.query('select current_database() as d', {
+          objectRows: true,
+        });
+        expect((r.rows?.[0] as any).d).toStrictEqual('template1');
+      } finally {
+        await pool.close(0);
+      }
+    });
   });
 
   it('should connect with ssl option', async () => {

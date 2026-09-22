@@ -6,6 +6,16 @@ import type { DataMappingOptions } from './data-mapping-options.js';
 import type { QueryOptions } from './query-options.js';
 
 export interface DatabaseConnectionParams {
+  /**
+   * A whole connection string, as an alternative to the fields below -
+   * `pg`'s spelling of what this client also accepts as a bare string
+   * (`new Connection('postgres://...')`).
+   *
+   * Like `pg`, what the string names wins over a field of the same name
+   * beside it, so a value the string carries is not quietly overridden
+   * by one that was left in the object.
+   */
+  connectionString?: string;
   host?: string;
   port?: number;
   user?: string;
