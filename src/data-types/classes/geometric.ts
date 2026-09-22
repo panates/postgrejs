@@ -38,6 +38,15 @@ export class Point {
     return this.toString();
   }
 
+  /**
+   * The literal PostgreSQL reads back, for an encoder that asks the value
+   * how to write itself - `pg`'s convention, and the reason a value this
+   * client decoded can be handed straight to one.
+   */
+  toPostgres(): string {
+    return this.toString();
+  }
+
   /* c8 ignore next 3 */
   static isPointLike(v: any): boolean {
     return (
@@ -67,6 +76,15 @@ export class Circle {
   }
 
   toJSON(): string {
+    return this.toString();
+  }
+
+  /**
+   * The literal PostgreSQL reads back, for an encoder that asks the value
+   * how to write itself - `pg`'s convention, and the reason a value this
+   * client decoded can be handed straight to one.
+   */
+  toPostgres(): string {
     return this.toString();
   }
 
@@ -102,6 +120,15 @@ abstract class TwoPoints {
   }
 
   toJSON(): string {
+    return this.toString();
+  }
+
+  /**
+   * The literal PostgreSQL reads back, for an encoder that asks the value
+   * how to write itself - `pg`'s convention, and the reason a value this
+   * client decoded can be handed straight to one.
+   */
+  toPostgres(): string {
     return this.toString();
   }
 
@@ -162,6 +189,15 @@ export class Line {
     return this.toString();
   }
 
+  /**
+   * The literal PostgreSQL reads back, for an encoder that asks the value
+   * how to write itself - `pg`'s convention, and the reason a value this
+   * client decoded can be handed straight to one.
+   */
+  toPostgres(): string {
+    return this.toString();
+  }
+
   static isLineLike(v: any): boolean {
     return (
       isPlainObject(v) &&
@@ -190,6 +226,15 @@ abstract class PointList {
   }
 
   toJSON(): string {
+    return this.toString();
+  }
+
+  /**
+   * The literal PostgreSQL reads back, for an encoder that asks the value
+   * how to write itself - `pg`'s convention, and the reason a value this
+   * client decoded can be handed straight to one.
+   */
+  toPostgres(): string {
     return this.toString();
   }
 

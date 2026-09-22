@@ -39,6 +39,15 @@ export class Numeric {
     return this.value;
   }
 
+  /**
+   * The literal PostgreSQL reads back, for an encoder that asks the value
+   * how to write itself - `pg`'s convention, and the reason a value this
+   * client decoded can be handed straight to one.
+   */
+  toPostgres(): string {
+    return this.toString();
+  }
+
   /** The value as a double, which is lossy - that is the whole point of this class. */
   toNumber(): number {
     return parseFloat(this.value);

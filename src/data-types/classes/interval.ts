@@ -49,6 +49,24 @@ function pad2(v: number): string {
  * A negative interval carries the sign on each field that has one, the way
  * the server prints it: `interval '-1 day -2 hours'` is
  * `{ days: -1, hours: -2 }`.
+ *
+ * Two of those differences are deliberate and stay, so anyone porting
+ * from `pg` knows what to change:
+ *
+ * - **`JSON.stringify` gives the string, where `pg` gives the object.**
+ *   `interval '1 day'` serialises as `"1 day"` here and as `{"days":1}`
+ *   there. The string is what a log line, an API response and a `::interval`
+ *   cast all want, and it is the only form that survives a round trip
+ *   through JSON. Code that reads `body.duration.days` has to read the
+ *   string, or keep the object with `{...iv}`.
+ * - **Every field is present.** `pg` omits the ones that are zero, which
+ *   is why `iv.hours + 1` is `NaN` there and a zero interval is `{}`. Code
+ *   that counted on `Object.keys()` being short, or on a deep-equal
+ *   against a sparse literal, sees all seven here.
+ *
+ * `toPostgres()` is `pg`'s convention for "write yourself back", so a
+ * value read here can be passed to any encoder that follows it - this
+ * client's own parameter path never needed it, since it knows the class.
  */
 export class Interval implements IntervalFields {
   years: number;
@@ -180,8 +198,13 @@ export class Interval implements IntervalFields {
     left -= minutes * US_PER_MINUTE;
     const seconds = left / US_PER_SECOND;
     left -= seconds * US_PER_SECOND;
+    // The sign goes on the components that have a value, not on all of
+    // them: `interval '-1 day -2 hours'` is `P0Y0M-1DT-2H0M0S`, and
+    // signing the empty ones printed `-0M-0S` - which is what `pg` does
+    // not write and no reader expects.
     const sign = negative ? '-' : '';
-    let secondsPart = sign + seconds;
+    const signed = (v: bigint) => (v ? sign : '') + v;
+    let secondsPart = (seconds || left ? sign : '') + seconds;
     if (left)
       secondsPart += '.' + String(left).padStart(6, '0').replace(/0+$/, '');
     return (
@@ -192,11 +215,9 @@ export class Interval implements IntervalFields {
       'M' +
       this.days +
       'DT' +
-      sign +
-      hours +
+      signed(hours) +
       'H' +
-      sign +
-      minutes +
+      signed(minutes) +
       'M' +
       secondsPart +
       'S'
@@ -204,6 +225,15 @@ export class Interval implements IntervalFields {
   }
 
   toJSON(): string {
+    return this.toString();
+  }
+
+  /**
+   * The literal PostgreSQL reads back, for an encoder that asks the value
+   * how to write itself - `pg`'s convention, and the reason a value this
+   * client decoded can be handed straight to one.
+   */
+  toPostgres(): string {
     return this.toString();
   }
 }
