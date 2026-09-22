@@ -95,7 +95,9 @@ describe('stringifyValueForSQL()', () => {
       // A behaviour change, and the consistent one: the same object bound
       // as a parameter has always been sent as a point.
       expect(str({ x: 1, y: 2 })).toStrictEqual("'(1,2)'::point");
-      expect(str({ x: 1, y: 2, r: 3 })).toStrictEqual("'<(1,2),3>'::circle");
+      expect(str({ x: 1, y: 2, radius: 3 })).toStrictEqual(
+        "'<(1,2),3>'::circle",
+      );
     });
 
     it('should still write an object no type claims as json', () => {

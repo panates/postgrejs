@@ -83,6 +83,8 @@ describe('geometric classes', () => {
     // nothing about the four numbers says which is meant.
     const name = (v: any) => DataTypeNames[GlobalTypeMap.determine(v)];
     expect(name({ x: 1, y: 2 })).toStrictEqual('point');
+    expect(name({ x: 1, y: 2, radius: 3 })).toStrictEqual('circle');
+    // `r` is what the plain form used to be spelled, and still is.
     expect(name({ x: 1, y: 2, r: 3 })).toStrictEqual('circle');
     expect(name({ x1: 1, y1: 2, x2: 3, y2: 4 })).toStrictEqual('box');
     // line is new and had no plain form to preserve, but `{a, b, c}` is
@@ -100,5 +102,34 @@ describe('geometric classes', () => {
       true,
     );
     expect(Point.isPointLike(new Circle(1, 2, 3))).toStrictEqual(false);
+  });
+
+  describe("Circle's radius", () => {
+    it('should carry the name pg gives it', () => {
+      const c = new Circle(1, 2, 3);
+      expect(c.radius).toStrictEqual(3);
+      // And nothing else: the old name must not become a second own
+      // property that a copy would carry a stale value in.
+      expect(Object.keys(c)).toStrictEqual(['x', 'y', 'radius']);
+      expect({ ...c }).toStrictEqual({ x: 1, y: 2, radius: 3 });
+    });
+
+    it('should still answer to the name it had up to 3.9', () => {
+      const c = new Circle(1, 2, 3);
+      expect(c.r).toStrictEqual(3);
+      c.r = 4;
+      expect(c.radius).toStrictEqual(4);
+      expect(String(c)).toStrictEqual('<(1,2),4>');
+      c.radius = 5;
+      expect(c.r).toStrictEqual(5);
+    });
+
+    it('should read either spelling off a plain object', () => {
+      expect(Circle.radiusOf({ x: 1, y: 2, radius: 3 })).toStrictEqual(3);
+      expect(Circle.radiusOf({ x: 1, y: 2, r: 3 })).toStrictEqual(3);
+      expect(Circle.radiusOf(new Circle(1, 2, 3))).toStrictEqual(3);
+      // A zero radius is a radius, not a missing one.
+      expect(Circle.radiusOf({ x: 1, y: 2, radius: 0 })).toStrictEqual(0);
+    });
   });
 });
