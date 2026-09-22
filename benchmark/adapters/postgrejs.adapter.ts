@@ -1,4 +1,4 @@
-import type { PreparedStatement } from 'postgrejs';
+import type { ConnectionConfiguration, PreparedStatement } from 'postgrejs';
 import { Connection, DataFormat, Pool } from 'postgrejs';
 import type { BenchDbConfig } from '../config.js';
 import {
@@ -40,7 +40,9 @@ function connectionConfig(config: BenchDbConfig) {
     // neither of them pays for - off here for a fair, apples-to-apples
     // measurement (see DatabaseConnectionParams.asyncErrorHandling).
     asyncErrorHandling: false,
-  };
+    prepare: true,
+    timing: false,
+  } satisfies ConnectionConfiguration;
 }
 
 export const postgrejsAdapter: Adapter = {
@@ -95,6 +97,7 @@ export const postgrejsAdapter: Adapter = {
           Array.from({ length: concurrency }, (_, i) =>
             connection.execute(simpleQueryExecuteConcurrentSql(i), {
               objectRows: true,
+              pipeline: true,
             }),
           ),
         );
@@ -141,6 +144,7 @@ export const postgrejsAdapter: Adapter = {
               params: [i],
               objectRows: true,
               columnFormat: DataFormat.text,
+              prepare: true,
             }),
           ),
         );
