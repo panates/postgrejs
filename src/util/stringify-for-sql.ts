@@ -22,11 +22,12 @@ export function stringifyArrayForSQL(
  * registered `encodeText()` that writes exactly the literal PostgreSQL
  * reads back, and `determine()` already knows which type each one is -
  * it is what the same value is sent as when it is bound as a parameter.
- * Without asking, all of them became `::json`, and since these classes
- * have a `toJSON()` returning their own literal the result was not even
- * a JSON object but a JSON string holding one, which casts to nothing:
- * `'"(1,2)"'::json` where `'(1,2)'::point` was meant. A Date became its
- * ISO string and a Buffer leaked its bytes as `{"type":"Buffer",...}`.
+ * Without asking, all of them became `::json`: `'{"x":1,"y":2}'::json`
+ * where `'(1,2)'::point` was meant - a JSON object that casts to no
+ * geometric type at all, and which back when these classes had a
+ * `toJSON()` of their own was not even that, but a JSON string holding
+ * the literal. A Date became its ISO string and a Buffer leaked its
+ * bytes as `{"type":"Buffer",...}`.
  */
 function stringifyObjectForSQL(
   v: object,

@@ -18,7 +18,9 @@ describe('type OID carried on a value', () => {
       'upperInclusive',
       'isEmpty',
     ]);
-    expect(JSON.stringify({ r })).toStrictEqual('{"r":"[1,10)"}');
+    expect(JSON.parse(JSON.stringify({ r })).r).toStrictEqual(
+      JSON.parse(JSON.stringify(new Range(1, 10))),
+    );
     expect({ ...r }).toStrictEqual({ ...new Range(1, 10) });
     expect(r).toStrictEqual(new Range(1, 10));
   });

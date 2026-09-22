@@ -40,10 +40,21 @@ describe('geometric classes', () => {
     );
   });
 
-  it('should serialize to JSON as that string', () => {
+  it('should serialize to JSON as its own fields', () => {
+    // `toJSON()` used to hand back `toString()`, which turned a structure
+    // into text the moment a row went through `res.json()`. The literal
+    // is still what `String(v)` and the parameter path give; JSON is for
+    // the fields.
     expect(JSON.stringify({ p: new Point(1, 2) })).toStrictEqual(
-      '{"p":"(1,2)"}',
+      '{"p":{"x":1,"y":2}}',
     );
+    expect(JSON.stringify(new Circle(1, 2, 3))).toStrictEqual(
+      '{"x":1,"y":2,"radius":3}',
+    );
+    expect(JSON.stringify(new Box(1, 2, 3, 4))).toStrictEqual(
+      '{"x1":1,"y1":2,"x2":3,"y2":4}',
+    );
+    expect(String(new Point(1, 2))).toStrictEqual('(1,2)');
   });
 
   it('should tell a box from an lseg, which the plain shapes could not', () => {

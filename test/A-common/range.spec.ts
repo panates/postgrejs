@@ -65,8 +65,12 @@ describe('Range', () => {
     );
   });
 
-  it('should serialize to JSON as the string', () => {
-    expect(JSON.stringify({ r: new Range(1, 10) })).toBe('{"r":"[1,10)"}');
-    expect(JSON.stringify({ r: Range.empty() })).toBe('{"r":"empty"}');
+  it('should serialize to JSON as its own fields', () => {
+    expect(JSON.stringify({ r: new Range(1, 10) })).toBe(
+      '{"r":{"lower":1,"upper":10,"lowerInclusive":true,"upperInclusive":false,"isEmpty":false}}',
+    );
+    // The literal is what String() gives, and what goes to the server.
+    expect(String(new Range(1, 10))).toBe('[1,10)');
+    expect(String(Range.empty())).toBe('empty');
   });
 });

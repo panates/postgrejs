@@ -1,5 +1,16 @@
 import { expect } from 'expect';
-import { Circle, Interval, Numeric, Point, Range } from 'postgrejs';
+import {
+  Box,
+  Circle,
+  Interval,
+  Line,
+  LineSegment,
+  Numeric,
+  Path,
+  Point,
+  Polygon,
+  Range,
+} from 'postgrejs';
 
 /**
  * The matrix is the six values measured against `pg` 8.23.0, plus the
@@ -58,6 +69,11 @@ describe('toPostgres()', () => {
       new Point(3, 4),
       new Circle(0, 0, 1),
       new Range(1, 5, '[]', 3904),
+      new Box(1, 2, 3, 4),
+      new LineSegment(1, 2, 3, 4),
+      new Line(1, -1, 0),
+      new Path([new Point(1, 2), new Point(3, 4)]),
+      new Polygon([new Point(1, 2), new Point(3, 4)]),
     ] as any[]) {
       expect(v.toPostgres()).toStrictEqual(String(v));
     }

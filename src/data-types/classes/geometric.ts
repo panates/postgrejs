@@ -34,10 +34,6 @@ export class Point {
     return `(${this.x},${this.y})`;
   }
 
-  toJSON(): string {
-    return this.toString();
-  }
-
   /**
    * The literal PostgreSQL reads back, for an encoder that asks the value
    * how to write itself - `pg`'s convention, and the reason a value this
@@ -92,10 +88,6 @@ export class Circle {
     return `<(${this.x},${this.y}),${this.radius}>`;
   }
 
-  toJSON(): string {
-    return this.toString();
-  }
-
   /**
    * The literal PostgreSQL reads back, for an encoder that asks the value
    * how to write itself - `pg`'s convention, and the reason a value this
@@ -143,10 +135,6 @@ abstract class TwoPoints {
     this.y1 = y1;
     this.x2 = x2;
     this.y2 = y2;
-  }
-
-  toJSON(): string {
-    return this.toString();
   }
 
   /**
@@ -211,10 +199,6 @@ export class Line {
     return `{${this.a},${this.b},${this.c}}`;
   }
 
-  toJSON(): string {
-    return this.toString();
-  }
-
   /**
    * The literal PostgreSQL reads back, for an encoder that asks the value
    * how to write itself - `pg`'s convention, and the reason a value this
@@ -249,10 +233,6 @@ abstract class PointList {
     this.points = points.map(p =>
       p instanceof Point ? p : new Point(p.x, p.y),
     );
-  }
-
-  toJSON(): string {
-    return this.toString();
   }
 
   /**

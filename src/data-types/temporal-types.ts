@@ -448,7 +448,7 @@ function temporalIntervalType(T: TemporalApi): DataType {
 
     decodeText(v: string): any {
       const iv = parseIntervalText(v);
-      return toDuration(T, iv.totalMonths, iv.days, iv.totalMicroseconds);
+      return toDuration(T, iv.totalMonths, iv.days ?? 0, iv.totalMicroseconds);
     },
 
     encodeBinary(buf: SmartBuffer, v: any, options: DataMappingOptions): void {
