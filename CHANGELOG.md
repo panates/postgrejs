@@ -1,6 +1,43 @@
 ## Changelog
 
-### [v3.8.0](https://github.com/panates/postgrejs/compare/v3.7.0...v3.8.0) - 
+### [v3.9.0](https://github.com/panates/postgrejs/compare/v3.8.0...v3.9.0) - 
+
+#### 🚀 New Features
+
+- feat: decode money, by asking the server what a minor unit is @Eray Hanoğlu 
+- feat: pipeline by default, and let a connection opt out of it @Eray Hanoğlu 
+- feat: take the transaction's modes on startTransaction() @Eray Hanoğlu 
+- feat: let a connection answer the data-mapping options once @Eray Hanoğlu 
+- feat: keep the server's own error text on serverMessage @Eray Hanoğlu 
+
+#### 🪲 Fixes
+
+- fix: read a text date in the DateStyle the server said it wrote @Eray Hanoğlu 
+- fix: let SET TRANSACTION run with rollbackOnError on @Eray Hanoğlu 
+- fix: ask for money's scale on the two paths that decoded before asking @Eray Hanoğlu 
+- fix: name a statement once, not once per caller in a burst @Eray Hanoğlu 
+- fix: keep a pooled connection unshared unless the caller asks @Eray Hanoğlu 
+- fix: type an array from the first value inside it, not from value[0] @Eray Hanoğlu 
+- fix: answer an empty statement instead of raising @Eray Hanoğlu 
+
+#### 📖 Documentation Changes
+
+- docs: list the ORM adapters that run on this client @Eray Hanoğlu 
+
+#### 🛠 Refactoring and Updates
+
+- refactor: let a row decoder declare its own rowType @Eray Hanoğlu 
+
+#### ⚡️ Performance Improvments
+
+- perf: walk fewer types to infer a parameter, and write once per statement @Eray Hanoğlu 
+- perf: stop paying for a text row twice @Eray Hanoğlu 
+
+#### 💬 General Changes
+
+- bench: regenerate the reports, and pin the adapter's options @Eray Hanoğlu 
+
+### [v3.8.0](https://github.com/panates/postgrejs/compare/v3.7.0...v3.8.0) -  21 September 2026 
 
 #### 🚀 New Features
 
