@@ -1,3 +1,4 @@
+import { DataTypeOIDs } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import type { BatchResult } from '../interfaces/batch-result.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
@@ -11,6 +12,10 @@ import { withAbortSignal } from '../util/abort-signal.js';
 import { getParsers } from '../util/get-parsers.js';
 import { resolveColumnFormats } from '../util/resolve-column-formats.js';
 import { resolveRowType } from '../util/row-decoder.js';
+import {
+  isTransactionCommand,
+  refusesSavepoint,
+} from '../util/transaction-command.js';
 import { wrapRowDescription } from '../util/wrap-row-description.js';
 import type { Connection } from './connection.js';
 import { Cursor } from './cursor.js';
@@ -82,6 +87,9 @@ export class PreparedStatement
 
   async execute(options: QueryOptions = {}): Promise<QueryResult> {
     const intlCon = getIntlConnection(this.connection);
+    // Folded in here rather than deeper: a cursor keeps these options
+    // and decodes its own rows with them long after this call is over.
+    options = intlCon.withDefaults(options);
     if (options.signal)
       return withAbortSignal(
         options.signal,
@@ -149,6 +157,7 @@ export class PreparedStatement
           'completion under one Sync, so there is no portal left to fetch from',
       );
     const intlCon = getIntlConnection(this.connection);
+    options = intlCon.withDefaults(options);
     if (!paramSets.length) return { results: [], totalRowsAffected: 0 };
     if (options.signal)
       return withAbortSignal(
@@ -222,10 +231,20 @@ export class PreparedStatement
     canInlineSavepoint = false,
   ): Promise<T> {
     const intlCon = getIntlConnection(this.connection);
+    // See Connection._query(): a money parameter is written as an int64
+    // of minor units, so the server's scale has to be known before the
+    // Bind goes out.
+    if (
+      this.paramTypes?.includes(DataTypeOIDs.money) ||
+      this.paramTypes?.includes(DataTypeOIDs._money) ||
+      // And before any of this statement's own money columns are read:
+      // a cursor and a batch both decode inside the message loop, where
+      // there is no longer anywhere to ask from.
+      intlCon.needsMoneyFormat(this._fields, options)
+    )
+      await intlCon.ensureMoneyFormat();
 
-    const transactionCommand = this.sql.match(
-      /^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i,
-    );
+    const transactionCommand = isTransactionCommand(this.sql);
     let beginFirst = false;
     let commitLast = false;
     const autoCommit = options?.autoCommit;
@@ -244,7 +263,10 @@ export class PreparedStatement
     // See IntlConnection.execute()'s own rollbackOnError for why
     // intlCon.inTransaction goes first here but last in the checks below.
     const rollbackOnError =
-      !transactionCommand &&
+      // See IntlConnection.execute(): `SET TRANSACTION` keeps the
+      // implicit BEGIN and loses only the savepoint, which PostgreSQL
+      // refuses to let it run inside.
+      !refusesSavepoint(this.sql) &&
       intlCon.inTransaction &&
       (options?.rollbackOnError ?? intlCon.config.rollbackOnError ?? true);
 

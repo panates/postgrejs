@@ -1,7 +1,12 @@
 import { performance } from 'node:perf_hooks';
-import { ConnectionState, DEFAULT_COLUMN_FORMAT } from '../constants.js';
+import {
+  ConnectionState,
+  DataTypeOIDs,
+  DEFAULT_COLUMN_FORMAT,
+} from '../constants.js';
 import type { DataTypeMap } from '../data-type-map.js';
 import { GlobalTypeMap } from '../data-type-map.js';
+import { parseMoneyFormat } from '../data-types/money-type.js';
 import type {
   BatchCommandResult,
   BatchResult,
@@ -11,7 +16,14 @@ import type {
   CopyFromRowsOptions,
   CopyFromRowsResult,
 } from '../interfaces/copy-from-rows-options.js';
-import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
+import type {
+  DataMappingOptions,
+  MoneyFormat,
+} from '../interfaces/data-mapping-options.js';
+import type {
+  ConnectionConfiguration,
+  ConnectionMappingDefaults,
+} from '../interfaces/database-connection-params.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
 import type { FunctionCallOptions } from '../interfaces/function-call-options.js';
 import type { FunctionCallResult } from '../interfaces/function-call-result.js';
@@ -19,6 +31,7 @@ import type { QueryOptions } from '../interfaces/query-options.js';
 import type { QueryResult } from '../interfaces/query-result.js';
 import type { ScriptExecuteOptions } from '../interfaces/script-execute-options.js';
 import type { ScriptResult } from '../interfaces/script-result.js';
+import type { TransactionOptions } from '../interfaces/transaction-options.js';
 import { DatabaseError } from '../protocol/database-error.js';
 import { PgSocket } from '../protocol/pg-socket.js';
 import { Protocol } from '../protocol/protocol.js';
@@ -31,13 +44,22 @@ import {
   type CopyRowSource,
   writeCopyBinaryRows,
 } from '../util/copy-from-rows.js';
+import { parseDateStyleSetting, type PgDateStyle } from '../util/date-style.js';
 import { escapeLiteral } from '../util/escape-literal.js';
 import { getParsers } from '../util/get-parsers.js';
 import {
   fetchAsStringEqual,
   resolveColumnFormats,
 } from '../util/resolve-column-formats.js';
-import { resolveRowDecoder, resolveRowType } from '../util/row-decoder.js';
+import {
+  resolveRowDecoder,
+  resolveRowType,
+  type RowDecoder,
+} from '../util/row-decoder.js';
+import {
+  isTransactionCommand,
+  refusesSavepoint,
+} from '../util/transaction-command.js';
 import { wrapRowDescription } from '../util/wrap-row-description.js';
 import type { Connection } from './connection.js';
 import { CopyFromStream, CopyToStream } from './copy-stream.js';
@@ -145,6 +167,87 @@ interface PipelinePlan {
 const PREPARE_AFTER_USES = 2;
 
 /**
+ * Stands in for the command tag an empty statement never sends, so that
+ * the slot is taken and nothing behind it is mistaken for the caller's
+ * own command. Its empty name is what leaves `QueryResult.command`
+ * unset, which is what `pg` reports for the same statement.
+ */
+/** The connection-configuration keys that are per-statement defaults. */
+const MAPPING_DEFAULT_KEYS = [
+  'typeMap',
+  'columnFormat',
+  'objectRows',
+  'rowDecoder',
+  'utcDates',
+  'fetchAsString',
+  'unknownTypesAsString',
+  'moneyFormat',
+] as const;
+
+/**
+ * The mapping defaults out of a connection configuration, or undefined
+ * when it set none - so the merge can be skipped outright rather than
+ * walking an empty object on every statement.
+ */
+function pickMappingDefaults(
+  config: ConnectionConfiguration,
+): Maybe<ConnectionMappingDefaults> {
+  let out: any;
+  let k: (typeof MAPPING_DEFAULT_KEYS)[number];
+  let i: number;
+  for (i = 0; i < MAPPING_DEFAULT_KEYS.length; i++) {
+    k = MAPPING_DEFAULT_KEYS[i];
+    if (config[k] === undefined) continue;
+    out = out || {};
+    out[k] = config[k];
+  }
+  return out && Object.freeze(out);
+}
+
+/**
+ * The isolation levels PostgreSQL takes, as the SQL that names them.
+ *
+ * A table rather than the caller's own string: this text is
+ * concatenated into a statement, and nothing that reaches it may come
+ * from outside this file.
+ */
+const ISOLATION_LEVELS: Record<string, string> = {
+  serializable: 'SERIALIZABLE',
+  'repeatable read': 'REPEATABLE READ',
+  'read committed': 'READ COMMITTED',
+  'read uncommitted': 'READ UNCOMMITTED',
+};
+
+/** `BEGIN`, carrying whatever modes the caller asked for. */
+function beginStatement(options?: TransactionOptions): string {
+  if (!options) return 'BEGIN';
+  let sql = 'BEGIN';
+  if (options.isolationLevel != null) {
+    const level = ISOLATION_LEVELS[options.isolationLevel.toLowerCase()];
+    if (!level)
+      throw new TypeError(
+        `Unknown transaction isolation level "${options.isolationLevel}"`,
+      );
+    sql += ' ISOLATION LEVEL ' + level;
+  }
+  if (options.readOnly != null)
+    sql += options.readOnly ? ' READ ONLY' : ' READ WRITE';
+  if (options.deferrable != null)
+    sql += options.deferrable ? ' DEFERRABLE' : ' NOT DEFERRABLE';
+  return sql;
+}
+
+const EMPTY_QUERY_TAG: Protocol.CommandCompleteMessage = { command: '' };
+
+/** See IntlConnection._decodeDeferredRows(). */
+interface DeferredRows {
+  target: { rows?: any[] };
+  raw: Protocol.DataRowMessage[];
+  parsers: AnyParseFunction[];
+  fields: any;
+}
+
+/**
  * SQL that manages transaction boundaries itself, and so must never be
  * wrapped in a savepoint or an implicit BEGIN/COMMIT of ours.
  */
@@ -160,9 +263,6 @@ function preparedCacheKey(
   return paramTypes?.length ? sql + '\u0000' + paramTypes.join(',') : sql;
 }
 
-const TRANSACTION_COMMAND_PATTERN =
-  /^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i;
-
 export class IntlConnection extends SafeEventEmitter {
   /**
    * Server-side prepared statements this connection has built, keyed by
@@ -175,6 +275,15 @@ export class IntlConnection extends SafeEventEmitter {
    * this is per connection and dies with it.
    */
   private _preparedCache = new Map<string, PreparedCacheEntry>();
+  /**
+   * The names being given out right now, one per SQL. A burst of the
+   * same statement arrives before any of it is prepared, and without
+   * this every call in the burst prepares its own copy: measured at 50
+   * concurrent `select $1::int4`, 25 Parse+Describe round trips and 25
+   * named statements left on the server that this map's one entry could
+   * never close again.
+   */
+  private _preparing = new Map<string, Promise<PreparedCacheEntry>>();
   /** SQL seen once but not yet prepared - see PREPARE_AFTER_USES. */
   private _preparedCandidates = new Map<string, number>();
   private _preparedCounter = 0;
@@ -188,6 +297,31 @@ export class IntlConnection extends SafeEventEmitter {
   protected _savepointDepths = new Map<string, number>();
   protected _config: ConnectionConfiguration;
   protected _onErrorSavePoint: string;
+  /**
+   * The data-mapping options this connection was configured with, or
+   * undefined when it was given none - which is the common case, and
+   * the one that must not pay for this.
+   */
+  protected readonly _mappingDefaults?: ConnectionMappingDefaults;
+  /** The session's DateStyle as last reported, and what it parsed to. */
+  protected _dateStyleRaw?: string;
+  protected _dateStyle?: PgDateStyle;
+  /** The server's own money rendering - see ensureMoneyFormat(). */
+  protected _moneyFormat?: MoneyFormat;
+  protected _moneyFormatPromise?: Promise<void>;
+  /** Statements currently holding the wire - see enterWire(). */
+  protected _wireUsers = 0;
+  protected _wireIdleWaiters?: (() => void)[];
+  protected _wireLock?: Promise<void>;
+  /** Bound once: enterWire()'s fast path hands out this same function. */
+  protected _releaseWire = (): void => {
+    if (--this._wireUsers || !this._wireIdleWaiters) return;
+    const waiters = this._wireIdleWaiters;
+    this._wireIdleWaiters = undefined;
+    let i: number;
+    const l = waiters.length;
+    for (i = 0; i < l; i++) waiters[i]();
+  };
   transactionStatus = 'I';
   socket: PgSocket;
   owner?: SafeEventEmitter;
@@ -196,6 +330,7 @@ export class IntlConnection extends SafeEventEmitter {
   constructor(config?: ConnectionConfiguration | string) {
     super();
     this._config = Object.freeze(getConnectionConfig(config));
+    this._mappingDefaults = pickMappingDefaults(this._config);
     this.socket = new PgSocket(this._config);
     this.socket.on('error', err => this._onError(err));
     // The reason travels with it: 'close' on its own cannot tell an
@@ -293,7 +428,7 @@ export class IntlConnection extends SafeEventEmitter {
     cb?: (event: string, ...args: any[]) => void,
   ): Promise<ScriptResult> {
     this.assertConnected();
-    const transactionCommand = TRANSACTION_COMMAND_PATTERN.test(sql);
+    const transactionCommand = isTransactionCommand(sql);
     let beginFirst = false;
     let commitLast = false;
     const { autoCommit } = options;
@@ -319,7 +454,9 @@ export class IntlConnection extends SafeEventEmitter {
     // short-circuits the getter whenever rollbackOnError is already
     // false, which it is outside a transaction.
     const rollbackOnError =
-      !transactionCommand &&
+      // Not `transactionCommand`: `SET TRANSACTION` still wants the
+      // implicit BEGIN above, and only the savepoint is fatal to it.
+      !refusesSavepoint(sql) &&
       this.inTransaction &&
       (options.rollbackOnError ?? this.config.rollbackOnError ?? true);
 
@@ -400,9 +537,29 @@ export class IntlConnection extends SafeEventEmitter {
    * that point). A matching number of commit() calls is then needed to
    * actually commit - see commit().
    */
-  async startTransaction(): Promise<void> {
+  async startTransaction(options?: TransactionOptions): Promise<void> {
+    // A nested call is a depth increment, not a second BEGIN - so modes
+    // it carries could only be applied to a transaction someone else
+    // opened. PostgreSQL would take them: a nested `BEGIN ISOLATION
+    // LEVEL SERIALIZABLE` before any query has run *silently changes the
+    // outer transaction's level* (measured, only a warning about the
+    // redundant BEGIN), and after one it raises 25001. Neither is what
+    // the caller of a nested scope means, so this says so instead.
+    // Built before anything is counted: an isolation level this client
+    // does not know throws here, and a start that never happened must
+    // not leave the depth one higher than the transactions there are.
+    const sql = beginStatement(options);
+    if (options && this._transactionDepth > 0)
+      throw new Error(
+        'startTransaction() cannot set transaction modes on a transaction ' +
+          'that is already open - they belong to the BEGIN that opens it',
+      );
+    if (this.inTransaction) {
+      this._transactionDepth++;
+      return;
+    }
+    await this.execute(sql);
     this._transactionDepth++;
-    if (!this.inTransaction) await this.execute('BEGIN');
   }
 
   /**
@@ -519,6 +676,94 @@ export class IntlConnection extends SafeEventEmitter {
   /** Asks the server to cancel whatever this session is running. */
   cancel(): Promise<void> {
     return this.socket.cancel();
+  }
+
+  /**
+   * Claims the wire for one statement, and hands back the function that
+   * releases it.
+   *
+   * Several statements share it by default: PostgreSQL correlates
+   * responses to requests by order, so a connection can carry more than
+   * one at a time and a caller that does not wait for each reply is
+   * measurably faster. `exclusive` is `pipeline: false` - the statement
+   * waits until nothing else is running here, and nothing else starts
+   * until it releases.
+   *
+   * Returns the release function itself rather than a promise of one
+   * whenever it can be taken without waiting, which is every statement
+   * on a connection nobody has asked to serialise - the common case, and
+   * the one that must not pay for this.
+   */
+  enterWire(exclusive?: boolean): (() => void) | Promise<() => void> {
+    if (!exclusive && !this._wireLock) {
+      this._wireUsers++;
+      return this._releaseWire;
+    }
+    return this._enterWireQueued(!!exclusive);
+  }
+
+  /**
+   * Asks the server how it renders money, once per connection.
+   *
+   * `money` travels as an int64 of the smallest currency unit, and how
+   * many of those make one unit is `lc_monetary` - which the server
+   * does not report among its startup parameters, so `1234` on the wire
+   * is $12.34, ¥1234 or 1.234 KWD depending on a setting only the server
+   * knows. Asking it to render a value it already knows is the whole
+   * answer, and needs no locale data on this side.
+   *
+   * `1` is the value asked for because it cannot carry a thousands
+   * separator: whatever separator comes back can only be the decimal
+   * one, and the digits after it can only be the fraction. `$1.00` is
+   * two, `¥1` is none.
+   */
+  async ensureMoneyFormat(): Promise<void> {
+    if (this._moneyFormat) return;
+    if (!this._moneyFormatPromise) {
+      // Assigned before the query starts: the query goes through
+      // queryCached like any other, and would ask for the format again
+      // on its way out.
+      let done!: () => void;
+      this._moneyFormatPromise = new Promise<void>(r => (done = r));
+      this.queryCached("select '1'::money::text", undefined, undefined, {
+        columnFormat: DataFormat.text,
+      })
+        .then(r => {
+          const text = r.rows?.[0]?.[0];
+          if (typeof text === 'string')
+            this._moneyFormat = parseMoneyFormat(text);
+        })
+        .catch(() => undefined)
+        .then(done);
+    }
+    return this._moneyFormatPromise;
+  }
+
+  /**
+   * Whether these columns need the server's money format and this
+   * connection has not asked for it yet.
+   *
+   * The scan costs a look at each column's OID, and only until the
+   * answer is in - from then on the first test ends it.
+   */
+  needsMoneyFormat(
+    fields: Maybe<{ dataTypeId: OID }[]>,
+    options?: DataMappingOptions,
+  ): boolean {
+    if (this._moneyFormat || !fields) return false;
+    const asString = options?.fetchAsString;
+    const l = fields.length;
+    let i: number;
+    let oid: OID;
+    for (i = 0; i < l; i++) {
+      oid = fields[i].dataTypeId;
+      if (oid !== DataTypeOIDs.money && oid !== DataTypeOIDs._money) continue;
+      // Named by fetchAsString, so the value goes back exactly as the
+      // server rendered it and no decoder asks what a minor unit is.
+      if (asString?.includes(oid)) continue;
+      return true;
+    }
+    return false;
   }
 
   ref(): void {
@@ -664,6 +909,7 @@ export class IntlConnection extends SafeEventEmitter {
     options: ScriptExecuteOptions = {},
     cb?: (event: string, ...args: any[]) => void,
   ): Promise<ScriptResult> {
+    options = this.withDefaults(options);
     this.ref();
     try {
       const timingEnabled = options.timing ?? this.config.timing ?? false;
@@ -676,11 +922,13 @@ export class IntlConnection extends SafeEventEmitter {
       let parsers: AnyParseFunction[] | undefined;
       let current: CommandResult = { command: undefined };
       let fields: Protocol.RowDescription[];
+      const deferred: DeferredRows[] = [];
+      let currentDeferred: DeferredRows | undefined;
       let error: Error | undefined;
       const typeMap = options.typeMap || GlobalTypeMap;
       const rowDecoder = resolveRowDecoder(options);
       this.runningQueryCount++;
-      return await this.socket.sendQueryMessage(
+      const scriptResult: ScriptResult = await this.socket.sendQueryMessage(
         sql,
         (
           code: Protocol.BackendMessageCode,
@@ -725,9 +973,24 @@ export class IntlConnection extends SafeEventEmitter {
                 options,
               );
               current.rows = [];
+              currentDeferred = this.needsMoneyFormat(fields, options)
+                ? {
+                    target: current,
+                    raw: [],
+                    parsers,
+                    fields: current.fields,
+                  }
+                : undefined;
+              if (currentDeferred) deferred.push(currentDeferred);
               break;
             case Protocol.BackendMessageCode.DataRow:
               {
+                // Set aside rather than read against a scale nobody has
+                // confirmed - see _decodeDeferredRows().
+                if (currentDeferred) {
+                  currentDeferred.raw.push(msg);
+                  break;
+                }
                 const row: any = rowDecoder.decode(
                   parsers!,
                   msg.data,
@@ -741,6 +1004,7 @@ export class IntlConnection extends SafeEventEmitter {
               }
               break;
             case Protocol.BackendMessageCode.CommandComplete:
+              currentDeferred = undefined;
               // Ignore BEGIN command that we added to sql
               current.command = msg.command;
               if (reportsRowsAffected(current.command))
@@ -770,6 +1034,9 @@ export class IntlConnection extends SafeEventEmitter {
           }
         },
       );
+      if (deferred.length)
+        await this._decodeDeferredRows(deferred, rowDecoder, options);
+      return scriptResult;
     } finally {
       this.runningQueryCount--;
       this.unref();
@@ -810,6 +1077,12 @@ export class IntlConnection extends SafeEventEmitter {
     params: Maybe<Maybe<any>[]>,
     options: QueryOptions,
   ): Promise<QueryResult> {
+    // Read before the merge below: a connection-wide fetchAsString must
+    // not give every statement a name on first sight - see
+    // _queryCached().
+    const callWantsFields =
+      !!options.fetchAsString?.length || !!options.unknownTypesAsString;
+    options = this.withDefaults(options);
     const savepoint = this._inlineSavepointFor(sql, options);
     try {
       return await this._queryCached(
@@ -818,6 +1091,7 @@ export class IntlConnection extends SafeEventEmitter {
         params,
         options,
         savepoint,
+        callWantsFields,
       );
     } catch (e: any) {
       // PostgreSQL throws away everything between a failed statement and
@@ -833,15 +1107,15 @@ export class IntlConnection extends SafeEventEmitter {
   /**
    * The savepoint rollbackOnError calls for, or undefined when this call
    * needs none: outside a transaction there is nothing to roll back to,
-   * and a statement that is itself a transaction command manages its own
-   * boundaries (wrapping COMMIT in a savepoint would be nonsense).
+   * a statement that is itself a transaction command manages its own
+   * boundaries (wrapping COMMIT in a savepoint would be nonsense), and
+   * PostgreSQL refuses `SET TRANSACTION` inside one outright.
    */
   protected _inlineSavepointFor(
     sql: string,
     options: QueryOptions,
   ): Maybe<string> {
-    if (!this.inTransaction || TRANSACTION_COMMAND_PATTERN.test(sql))
-      return undefined;
+    if (!this.inTransaction || refusesSavepoint(sql)) return undefined;
     const on = options.rollbackOnError ?? this.config.rollbackOnError ?? true;
     return on ? this._onErrorSavePoint : undefined;
   }
@@ -852,6 +1126,8 @@ export class IntlConnection extends SafeEventEmitter {
     params: Maybe<Maybe<any>[]>,
     options: QueryOptions,
     savepoint: Maybe<string>,
+    /** Whether the CALL asked for text columns, not the connection. */
+    callWantsFields: boolean,
   ): Promise<QueryResult> {
     const enabled = options.prepare ?? this.config.prepare ?? true;
     if (!enabled)
@@ -893,27 +1169,69 @@ export class IntlConnection extends SafeEventEmitter {
     // text (what queryOnce() falls back to).
     // unknownTypesAsString needs the columns known before the Bind for
     // the same reason fetchAsString does, so it earns a name the same way.
+    // ...unless the caller already asked for the whole row as text, in
+    // which case there is nothing for either option to resolve and the
+    // Parse+Describe would buy nothing. An array of formats is not the
+    // same thing: it can be shorter than the row, and the columns it
+    // does not cover are binary.
+    //
+    // And only for a list the CALL carried. The same list set once on
+    // the connection applies to every statement, so naming each one on
+    // first sight would double the round trips of a workload full of
+    // one-shot SQL and leave a server-side statement behind for each -
+    // measured at 5 distinct statements, 5 round trips against 10. A
+    // connection-wide list takes queryOnce()'s whole-row-text fallback
+    // on a statement's first run instead, and per-column codes from its
+    // second, which is where the name arrives anyway.
     const needsFields =
-      !!options.fetchAsString?.length || !!options.unknownTypesAsString;
+      callWantsFields && options.columnFormat !== DataFormat.text;
     if (!needsFields && !this._earnsAName(key))
       return this.queryOnce(sql, paramTypes, params, options, savepoint);
 
-    const name = 'C_' + ++this._preparedCounter;
-    // A Parse that fails caches nothing and reports itself; the statement
-    // is simply never reused. It runs outside the savepoint, as the
-    // prepare() the transaction path used to do ahead of its own wrapper.
-    const { fields } = await this.prepareOnce(sql, paramTypes, name);
-    const entry: PreparedCacheEntry = { name, fields };
-    await this._evictPreparedIfFull();
-    this._preparedCache.set(key, entry);
+    let preparing = this._preparing.get(key);
+    if (!preparing) {
+      // Registered before the first await inside, so everything that
+      // arrives while this one is in flight finds it rather than
+      // starting a second one.
+      preparing = this._prepareForCache(key, sql, paramTypes);
+      this._preparing.set(key, preparing);
+    } else if (!needsFields) {
+      // Someone else is already naming it. Waiting would cost a round
+      // trip the one-shot path does not - the name is for the calls
+      // after this burst, not for this one.
+      return this.queryOnce(sql, paramTypes, params, options, savepoint);
+    }
+    const entry = await preparing;
     return this.executeReused(
-      name,
+      entry.name,
       entry.fields,
       paramTypes,
       params,
       options,
       savepoint,
     );
+  }
+
+  /**
+   * Gives this SQL a name and caches it, once, however many callers are
+   * waiting. A Parse that fails caches nothing and reports itself; the
+   * statement is simply never reused. It runs outside the savepoint, as
+   * the prepare() the transaction path used to do ahead of its own
+   * wrapper.
+   */
+  protected _prepareForCache(
+    key: string,
+    sql: string,
+    paramTypes: Maybe<Maybe<OID>[]>,
+  ): Promise<PreparedCacheEntry> {
+    const name = 'C_' + ++this._preparedCounter;
+    return (async () => {
+      const { fields } = await this.prepareOnce(sql, paramTypes, name);
+      const entry: PreparedCacheEntry = { name, fields };
+      await this._evictPreparedIfFull();
+      this._preparedCache.set(key, entry);
+      return entry;
+    })().finally(() => this._preparing.delete(key));
   }
 
   /**
@@ -974,6 +1292,7 @@ export class IntlConnection extends SafeEventEmitter {
     options: QueryOptions,
     savepoint?: string,
   ): Promise<QueryResult> {
+    options = this.withDefaults(options);
     this.assertConnected();
     this.ref();
     try {
@@ -1063,9 +1382,15 @@ export class IntlConnection extends SafeEventEmitter {
               case Protocol.BackendMessageCode.DataRow:
                 rows.push(msg);
                 break;
+              // An empty statement - '' or nothing but a comment - answers
+              // with this *instead of* a CommandComplete, so it has to take
+              // the same slot: a RELEASE riding along behind it would
+              // otherwise be read as the caller's own command. The sentinel
+              // carries no command name, which is what `pg` reports too.
+              case Protocol.BackendMessageCode.EmptyQueryResponse:
               case Protocol.BackendMessageCode.CommandComplete:
                 if (leadingCommandTags) leadingCommandTags--;
-                else if (!commandTag) commandTag = msg;
+                else if (!commandTag) commandTag = msg || EMPTY_QUERY_TAG;
                 break;
               case Protocol.BackendMessageCode.ErrorResponse:
                 error = msg;
@@ -1088,6 +1413,12 @@ export class IntlConnection extends SafeEventEmitter {
         });
 
       if (commandTag?.command) result.command = commandTag.command;
+      // The rows are still raw here, so the one question money cannot
+      // answer for itself can still be asked before they are read.
+      if (this.needsMoneyFormat(resultFields, options)) {
+        await this.ensureMoneyFormat();
+        options = this.withDefaults(options);
+      }
       if (resultFields && parsers) {
         if (!result.command) result.command = 'SELECT';
         result.rows = rows;
@@ -1261,6 +1592,7 @@ export class IntlConnection extends SafeEventEmitter {
     requests: { sql: string; params?: any[]; paramTypes?: Maybe<OID>[] }[],
     options: QueryOptions,
   ): Promise<QueryResult[]> {
+    options = this.withDefaults(options);
     this.assertConnected();
     this.ref();
     try {
@@ -1272,6 +1604,7 @@ export class IntlConnection extends SafeEventEmitter {
       const results: QueryResult[] = [];
       let pendingFields: Protocol.RowDescription[] | undefined;
       let pendingRows: any[] | undefined;
+      const deferred: DeferredRows[] = [];
       let error: DatabaseError | undefined;
 
       // Plan every statement against the prepared statement cache before
@@ -1392,18 +1725,29 @@ export class IntlConnection extends SafeEventEmitter {
                   result.rowType = resolveRowType(options);
                   if (!result.command) result.command = 'SELECT';
                   const rows = pendingRows || [];
-                  const l = rows.length;
-                  let i: number;
-                  for (i = 0; i < l; i++) {
-                    rows[i] = rowDecoder.decode(
+                  if (this.needsMoneyFormat(fields, options)) {
+                    // Set aside: see _decodeDeferredRows().
+                    result.rows = [];
+                    deferred.push({
+                      target: result,
+                      raw: rows,
                       parsers,
-                      rows[i].data,
-                      rows[i].columnCount,
-                      options,
-                      resultFields,
-                    );
+                      fields: resultFields,
+                    });
+                  } else {
+                    const l = rows.length;
+                    let i: number;
+                    for (i = 0; i < l; i++) {
+                      rows[i] = rowDecoder.decode(
+                        parsers,
+                        rows[i].data,
+                        rows[i].columnCount,
+                        options,
+                        resultFields,
+                      );
+                    }
+                    result.rows = rows;
                   }
-                  result.rows = rows;
                 }
                 if (reportsRowsAffected(result.command))
                   result.rowsAffected = msg.rowCount;
@@ -1463,6 +1807,8 @@ export class IntlConnection extends SafeEventEmitter {
         });
       }
 
+      if (deferred.length)
+        await this._decodeDeferredRows(deferred, rowDecoder, options);
       if (timingEnabled) {
         const elapsed = performance.now() - startTime;
         const l = results.length;
@@ -1482,6 +1828,7 @@ export class IntlConnection extends SafeEventEmitter {
     paramSets: Maybe<any>[][],
     options: QueryOptions,
   ): Promise<BatchResult> {
+    options = this.withDefaults(options);
     this.assertConnected();
     this.ref();
     try {
@@ -1615,6 +1962,7 @@ export class IntlConnection extends SafeEventEmitter {
     options: QueryOptions,
     savepoint?: string,
   ): Promise<QueryResult> {
+    options = this.withDefaults(options);
     this.assertConnected();
     this.ref();
     try {
@@ -1691,13 +2039,15 @@ export class IntlConnection extends SafeEventEmitter {
               case Protocol.BackendMessageCode.DataRow:
                 rows.push(msg);
                 break;
+              // See queryOnce() for why an empty statement lands here.
+              case Protocol.BackendMessageCode.EmptyQueryResponse:
               case Protocol.BackendMessageCode.CommandComplete:
                 // Three statements can answer here when a savepoint rides
                 // along: SAVEPOINT's tag, then the caller's own, then
                 // RELEASE's. Only the middle one describes what the caller
                 // asked for.
                 if (leadingCommandTags) leadingCommandTags--;
-                else if (!commandTag) commandTag = msg;
+                else if (!commandTag) commandTag = msg || EMPTY_QUERY_TAG;
                 break;
               case Protocol.BackendMessageCode.ErrorResponse:
                 error = msg;
@@ -1720,6 +2070,12 @@ export class IntlConnection extends SafeEventEmitter {
         });
 
       if (commandTag?.command) result.command = commandTag.command;
+      // The rows are still raw here, so the one question money cannot
+      // answer for itself can still be asked before they are read.
+      if (this.needsMoneyFormat(resultFields, options)) {
+        await this.ensureMoneyFormat();
+        options = this.withDefaults(options);
+      }
       if (resultFields && parsers) {
         if (!result.command) result.command = 'SELECT';
         result.rows = rows;
@@ -1748,6 +2104,128 @@ export class IntlConnection extends SafeEventEmitter {
   emit(event: string | symbol, ...args: any[]): boolean {
     const handled = super.emit(event, ...args);
     return this.owner ? this.owner.emit(event, ...args) || handled : handled;
+  }
+
+  /**
+   * The slow half of enterWire(): either an exclusive statement, or an
+   * ordinary one arriving while an exclusive statement holds the wire.
+   *
+   * The claim itself is synchronous on purpose. Each waiter wakes in its
+   * own microtask and runs to its next `await` without interruption, so
+   * re-reading `_wireLock` and assigning it in the same stretch is what
+   * makes two waiters unable to both believe they took it.
+   */
+  protected async _enterWireQueued(exclusive: boolean): Promise<() => void> {
+    while (this._wireLock) await this._wireLock;
+    if (!exclusive) {
+      this._wireUsers++;
+      return this._releaseWire;
+    }
+    let unlock!: () => void;
+    this._wireLock = new Promise<void>(resolve => (unlock = resolve));
+    // Whatever was already in flight when the lock went up still has to
+    // finish - the point of asking is not to be interleaved with it.
+    if (this._wireUsers)
+      await new Promise<void>(resolve =>
+        (this._wireIdleWaiters || (this._wireIdleWaiters = [])).push(resolve),
+      );
+    this._wireUsers++;
+    return () => {
+      this._wireLock = undefined;
+      this._releaseWire();
+      unlock();
+    };
+  }
+
+  /**
+   * `options` with whatever this connection can answer for it: the
+   * data-mapping defaults it was configured with, and the money format
+   * it has learned.
+   *
+   * At most one shallow copy per statement, and only when there is
+   * something to fill in - a connection configured with nothing and no
+   * money in sight hands the caller's own object straight back.
+   */
+  /**
+   * Rows left raw because a money column's scale was not in yet.
+   *
+   * Two paths decode inside the message loop, where there is no longer
+   * anywhere to ask the server anything: the Simple Query protocol and
+   * a pipeline. Rather than read those against a scale nobody
+   * confirmed, they set the rows aside and this reads them once the
+   * loop is over and the question can be asked.
+   */
+  protected async _decodeDeferredRows(
+    deferred: DeferredRows[],
+    rowDecoder: RowDecoder,
+    options: QueryOptions,
+  ): Promise<QueryOptions> {
+    await this.ensureMoneyFormat();
+    const opts = this.withDefaults(options);
+    let d: DeferredRows;
+    let i: number;
+    let k: number;
+    for (i = 0; i < deferred.length; i++) {
+      d = deferred[i];
+      const l = d.raw.length;
+      const out = new Array(l);
+      for (k = 0; k < l; k++)
+        out[k] = rowDecoder.decode(
+          d.parsers,
+          d.raw[k].data,
+          d.raw[k].columnCount,
+          opts,
+          d.fields,
+        );
+      d.target.rows = out;
+    }
+    return opts;
+  }
+
+  withDefaults<T extends DataMappingOptions>(options: T): T {
+    const defaults = this._mappingDefaults;
+    const money = this._moneyFormat;
+    const dateStyle = this._currentDateStyle();
+    if (!defaults && !money && !dateStyle) return options;
+    let out: any;
+    if (defaults) {
+      let k: keyof ConnectionMappingDefaults;
+      for (k in defaults) {
+        // The call always wins; the connection only fills a gap.
+        if ((options as any)[k] !== undefined) continue;
+        out = out || { ...options };
+        out[k] = defaults[k];
+      }
+    }
+    if (money && !(out || options).moneyFormat) {
+      out = out || { ...options };
+      out.moneyFormat = money;
+    }
+    if (dateStyle && !(out || options).dateStyle) {
+      out = out || { ...options };
+      out.dateStyle = dateStyle;
+    }
+    return out || options;
+  }
+
+  /**
+   * The session's DateStyle, when it is not ISO.
+   *
+   * Read off the reported parameters rather than cached once: `SET
+   * DateStyle` is answered with a fresh ParameterStatus, so the string
+   * changes under us and a connection that changes it mid-session must
+   * not go on decoding by the old one. The comparison is against the
+   * same string the socket holds, so it costs a read and a pointer
+   * compare while nothing changes - which is always, for the ISO
+   * default that needs no parsing at all.
+   */
+  protected _currentDateStyle(): Maybe<PgDateStyle> {
+    const raw = this.socket.sessionParameters.DateStyle;
+    if (raw !== this._dateStyleRaw) {
+      this._dateStyleRaw = raw;
+      this._dateStyle = parseDateStyleSetting(raw);
+    }
+    return this._dateStyle;
   }
 
   protected _onError(err: Error): void {

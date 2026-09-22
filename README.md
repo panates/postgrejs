@@ -48,6 +48,56 @@ prepared statements, server-side cursors, LISTEN/NOTIFY, bulk `COPY` streams, lo
 two-phase commit, multi-host failover, and SCRAM channel binding - all in the one package, written in
 strictly-typed TypeScript from the ground up.
 
+### 🔌 Bring Your Own ORM
+
+PostgreJS is a driver, not a framework, so what you build on top of it stays your choice:
+
+<!-- One cell per adapter, so each renders as its own card: a table because
+     GitHub strips CSS, and this is the one layout that survives everywhere
+     the README is read. The logos come from postgrejs.com rather than being
+     hotlinked from each project, and Drizzle's follows the reader's theme. -->
+<table>
+  <tr>
+    <td align="center" width="230" valign="top">
+      <a href="https://www.sqbjs.org"><img src="https://www.postgrejs.com/img/sqb-logo.svg" alt="SQB" height="60"></a><br><br>
+      <b><a href="https://www.sqbjs.org">SQB</a></b><br>
+      <a href="https://www.npmjs.com/package/@sqb/postgres"><code>@sqb/postgres</code></a><br>
+      <sub>native driver</sub>
+    </td>
+    <td align="center" width="230" valign="top">
+      <a href="https://kysely.dev"><img src="https://www.postgrejs.com/img/kysely-logo.svg" alt="Kysely" height="60"></a><br><br>
+      <b><a href="https://kysely.dev">Kysely</a></b><br>
+      <a href="https://github.com/panates/postgrejs-kysely"><code>kysely-postgrejs</code></a><br>
+      <sub>dialect</sub>
+    </td>
+    <td align="center" width="230" valign="top">
+      <a href="https://orm.drizzle.team"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/drizzle-logo-dark.svg"><img src="https://www.postgrejs.com/img/drizzle-logo-light.svg" alt="Drizzle ORM" height="34"></picture></a><br><br>
+      <b><a href="https://orm.drizzle.team">Drizzle ORM</a></b><br>
+      <a href="https://github.com/panates/postgrejs-drizzle"><code>drizzle-postgrejs</code></a><br>
+      <sub>driver</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="230" valign="top">
+      <a href="https://typeorm.io"><img src="https://www.postgrejs.com/img/typeorm-icon.png" alt="TypeORM" height="60"></a><br><br>
+      <b><a href="https://typeorm.io">TypeORM</a></b><br>
+      <a href="https://github.com/panates/postgrejs-typeorm"><code>typeorm-postgrejs</code></a><br>
+      <sub>driver</sub>
+    </td>
+    <td align="center" width="230" valign="top">
+      <a href="https://www.prisma.io"><img src="https://www.postgrejs.com/img/prisma-icon.svg" alt="Prisma" height="60"></a><br><br>
+      <b><a href="https://www.prisma.io">Prisma</a></b><br>
+      <a href="https://github.com/panates/postgrejs-prisma"><code>prisma-postgrejs</code></a><br>
+      <sub>driver adapter</sub>
+    </td>
+    <td width="230"></td>
+  </tr>
+</table>
+
+Each adapter hands the compiled SQL straight to this client, with no `pg` left anywhere in the chain, and each is
+compared query by query against the driver it replaces - and, where the project ships a suite of its own, run
+against that too. So adopting one is a change to how the connection is created and nothing else.
+
 ## Installation
 
 ```bash

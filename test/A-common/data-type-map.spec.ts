@@ -24,6 +24,39 @@ describe('DataTypeMap', () => {
       });
       expect(map.determine('anything')).toStrictEqual(DataTypeOIDs.unknown);
     });
+
+    it('should type an array from the first value inside it', () => {
+      // `value[0]` answered `_int2vector` for an array of number arrays -
+      // a vector is the one registered type an array of numbers matches -
+      // so a perfectly ordinary 2-D array went out as something the
+      // caller never mentioned.
+      expect(
+        GlobalTypeMap.determine([
+          [1, 2],
+          [3, 4],
+        ]),
+      ).toStrictEqual(DataTypeOIDs._int4);
+      expect(GlobalTypeMap.determine([[1.5], [2.5]])).toStrictEqual(
+        DataTypeOIDs._float8,
+      );
+    });
+
+    it('should read past a leading null to find that value', () => {
+      // `[null, 2, 3]` asked what type null is, and nothing answers that.
+      expect(GlobalTypeMap.determine([null, 2, 3])).toStrictEqual(
+        DataTypeOIDs._int4,
+      );
+      expect(GlobalTypeMap.determine([null, true])).toStrictEqual(
+        DataTypeOIDs._bool,
+      );
+    });
+
+    it('should still answer unknown when there is no value to read', () => {
+      expect(GlobalTypeMap.determine([])).toStrictEqual(DataTypeOIDs.unknown);
+      expect(GlobalTypeMap.determine([null, null])).toStrictEqual(
+        DataTypeOIDs.unknown,
+      );
+    });
   });
 
   describe('copy constructor', () => {

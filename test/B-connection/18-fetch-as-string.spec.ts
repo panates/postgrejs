@@ -166,6 +166,35 @@ describe('fetchAsString', () => {
     expect(asText.rows?.[0]).toStrictEqual(asBinary.rows?.[0]);
   });
 
+  it('should not prepare a statement whose row is already all text', async () => {
+    // Preparing on first sight buys the RowDescription that per-column
+    // format codes need. With `columnFormat: text` every column is text
+    // already, so there is nothing to ask for and the Parse+Describe
+    // would be a round trip spent on nothing.
+    const fresh = new Connection();
+    await fresh.connect();
+    // The session zone the file's own expectations are written against,
+    // set before the counting starts so it costs nothing here.
+    await fresh.execute(`set time zone 'UTC'`);
+    const locations: string[] = [];
+    (fresh as any)._intlCon.socket.on('debug', (e: any) =>
+      locations.push(e.location),
+    );
+    try {
+      const r = await fresh.query(SQL, {
+        objectRows: true,
+        columnFormat: DataFormat.text,
+        fetchAsString: AS_STRING,
+      });
+      expect(r.rows?.[0]).toStrictEqual(EXPECTED);
+      expect(
+        locations.filter(l => l.startsWith('PgSocket.send')).length,
+      ).toStrictEqual(1);
+    } finally {
+      await fresh.close(0);
+    }
+  });
+
   it('should not change anything for a query that lists nothing', async () => {
     const r = await conn.query(SQL, { objectRows: true });
     expect(r.rows?.[0]).toStrictEqual({

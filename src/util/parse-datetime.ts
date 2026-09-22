@@ -1,4 +1,5 @@
 // noinspection RegExpUnnecessaryNonCapturingGroup
+import { parseStyledDateTime, type PgDateStyle } from './date-style.js';
 import { fastParseInt } from './fast-parseint.js';
 import { parsePgTimestampString } from './parse-pg-timestamp.js';
 
@@ -24,7 +25,15 @@ function fillTimeArgs(m: RegExpMatchArray, args: DateArgs): void {
   }
 }
 
-export function parseDate(str: string, utc?: boolean): Date | number {
+export function parseDate(
+  str: string,
+  utc?: boolean,
+  dateStyle?: PgDateStyle,
+): Date | number {
+  if (dateStyle) {
+    const styled = parseStyledDateTime(str, dateStyle, utc);
+    if (styled) return styled;
+  }
   const m = str.match(TIMESTAMP_PATTERN);
   if (!m) return noMatch(str);
 
@@ -43,14 +52,27 @@ export function parseDate(str: string, utc?: boolean): Date | number {
   return new Date(...args);
 }
 
-export function parseDateTime(str: string, utc?: boolean): Date | number {
+export function parseDateTime(
+  str: string,
+  utc?: boolean,
+  dateStyle?: PgDateStyle,
+): Date | number {
+  if (dateStyle) {
+    const styled = parseStyledDateTime(str, dateStyle, utc);
+    if (styled) return styled;
+  }
   if (!utc) {
     if (str === 'infinity') return Infinity;
     if (str === '-infinity') return -Infinity;
     const fast = parsePgTimestampString(str);
     if (fast) return fast;
-    const d = new Date(str);
-    if (!isNaN(d.getTime())) return d;
+    // Only reached under the ISO DateStyle: `new Date()` reads
+    // `05.03.2024` as the third of May, and a session that renders dates
+    // that way has said so above.
+    if (!dateStyle) {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) return d;
+    }
   }
 
   const m = str.match(TIMESTAMP_PATTERN);
@@ -72,13 +94,25 @@ export function parseDateTime(str: string, utc?: boolean): Date | number {
   return new Date(...args);
 }
 
-export function parseDateTimeTz(str: string, utc?: boolean): Date | number {
+export function parseDateTimeTz(
+  str: string,
+  utc?: boolean,
+  dateStyle?: PgDateStyle,
+): Date | number {
+  if (dateStyle) {
+    const styled = parseStyledDateTime(str, dateStyle, utc);
+    if (styled) return styled;
+  }
   if (str === 'infinity') return Infinity;
   if (str === '-infinity') return -Infinity;
   const fast = parsePgTimestampString(str);
   if (fast) return fast;
-  const native = new Date(str);
-  if (!isNaN(native.getTime())) return native;
+  // See parseDateTime(): the engine's guess is only trusted where the
+  // session renders ISO.
+  if (!dateStyle) {
+    const native = new Date(str);
+    if (!isNaN(native.getTime())) return native;
+  }
 
   const m = str.match(TIMESTAMP_PATTERN);
   if (!m) return noMatch(str);

@@ -1,12 +1,4 @@
-/**
- * The first value inside `v` that is not itself an array - what an array
- * parameter's element type would be read from. A scalar answers itself.
- */
-export function arrayLeaf(v: any): any {
-  let x = v;
-  while (Array.isArray(x)) x = x[0];
-  return x;
-}
+import { arrayLeaf } from './array-leaf.js';
 
 /**
  * Whether a parameter goes out with no declared type (OID 0), as text,

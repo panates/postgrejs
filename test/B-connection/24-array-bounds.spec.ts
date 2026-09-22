@@ -66,19 +66,36 @@ describe('binary array lower bound', () => {
     expect(r.rows?.[0]).toStrictEqual({ first: 1, lo: 1, lit: '{1,NULL,3}' });
   });
 
+  it('should do the same when the null is the first element', async () => {
+    // A leading null used to leave determine() with nothing to read, so
+    // the array fell out of the typed path entirely and could not be
+    // sent at all.
+    const r = await conn.query(
+      'select ($1::int4[])[2] as second, array_lower($1::int4[],1) as lo,' +
+        ' ($1::int4[])::text as lit',
+      { params: [[null, 2, 3]], objectRows: true },
+    );
+    expect(r.rows?.[0]).toStrictEqual({
+      second: 2,
+      lo: 1,
+      lit: '{NULL,2,3}',
+    });
+  });
+
   it('should write a bound per dimension', async () => {
-    // The type is named because determine() answers `_int2vector` for an
-    // array of number arrays - unrelated to bounds, but it would send
-    // this somewhere else.
+    // Sent bare: determine() used to answer `_int2vector` for an array of
+    // number arrays, so this case could only be written with the type
+    // named. It answers `_int4` now, which is the point of leaving the
+    // BindParam off here.
     const r = await conn.query(
       'select ($1::int4[])[1][1] as first, array_lower($1::int4[],1) as lo1,' +
         ' array_lower($1::int4[],2) as lo2, ($1::int4[])::text as lit',
       {
         params: [
-          new BindParam(DataTypeOIDs._int4, [
+          [
             [1, 2],
             [3, 4],
-          ]),
+          ],
         ],
         objectRows: true,
       },

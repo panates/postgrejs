@@ -11,6 +11,7 @@ import type { QueryResult } from '../interfaces/query-result.js';
 import type { ScriptExecuteOptions } from '../interfaces/script-execute-options.js';
 import type { ScriptResult } from '../interfaces/script-result.js';
 import type { StatementPrepareOptions } from '../interfaces/statement-prepare-options.js';
+import type { TransactionOptions } from '../interfaces/transaction-options.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import { normalizeChannelName } from '../util/channel-name.js';
 import { getConnectionConfig } from '../util/connection-config.js';
@@ -20,13 +21,16 @@ import { Connection, type NotificationCallback } from './connection.js';
 import { getIntlConnection, IntlConnection } from './intl-connection.js';
 import type { PreparedStatement } from './prepared-statement.js';
 
-export interface PoolPipelineOptions {
-  pipeline?: boolean;
-}
+/**
+ * @deprecated `pipeline` is part of `QueryOptions` and
+ * `ScriptExecuteOptions` now, so every connection takes it too. Kept as
+ * an alias of that one field so the exported type still means what it
+ * did.
+ */
+export type PoolPipelineOptions = Pick<QueryOptions, 'pipeline'>;
 
-export type PoolQueryOptions = QueryOptions & PoolPipelineOptions;
-export type PoolScriptExecuteOptions = ScriptExecuteOptions &
-  PoolPipelineOptions;
+export type PoolQueryOptions = QueryOptions;
+export type PoolScriptExecuteOptions = ScriptExecuteOptions;
 
 /**
  * One pooled connection the pipelined path is currently borrowing.
@@ -348,10 +352,13 @@ export class Pool extends SafeEventEmitter {
    * is free to pick a different connection, and a transaction lives on
    * one. This is the way to get several statements onto the same one.
    */
-  async transaction<T>(fn: (connection: Connection) => Promise<T>): Promise<T> {
+  async transaction<T>(
+    fn: (connection: Connection) => Promise<T>,
+    options?: TransactionOptions,
+  ): Promise<T> {
     const connection = await this.acquire();
     try {
-      return await connection.transaction(fn);
+      return await connection.transaction(fn, options);
     } finally {
       await this.release(connection);
     }
@@ -445,6 +452,25 @@ export class Pool extends SafeEventEmitter {
     this.emit('error', reason);
   }
 
+  /**
+   * Whether a one-shot query may share a pooled connection with the
+   * queries already in flight on it.
+   *
+   * **Opt-in**, per call or with `pipeline: true` on the pool. It is
+   * worth asking for - `max` stops being a ceiling on concurrent
+   * queries and becomes one on connections, and a burst of 500 through
+   * a pool of 10 measured 12ms against 29ms - but it is not the default,
+   * because it moves the query onto a connection other callers are
+   * using and session state there stops being the caller's own.
+   *
+   * The exclusions below are not policy, they are statements that need a
+   * connection to themselves for longer than the call takes to resolve:
+   * a cursor reads from a portal afterwards, a transaction spans later
+   * statements, a COPY holds the connection mid-stream, `autoCommit:
+   * false` says a transaction is being managed by hand, and an
+   * `AbortSignal` cancels by tearing down whatever the connection is
+   * doing - which, shared, is not only this query.
+   */
   protected _canPipeline(
     pipeline: boolean | undefined,
     sql: string,
@@ -452,7 +478,7 @@ export class Pool extends SafeEventEmitter {
     signal: AbortSignal | undefined,
   ): boolean {
     return (
-      pipeline === true &&
+      (pipeline != null ? pipeline : this.config.pipeline === true) &&
       !signal &&
       this._pipelineMaxQueries > 1 &&
       this._pipelineMaxConnections > 0 &&

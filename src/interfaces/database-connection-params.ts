@@ -2,6 +2,8 @@ import type { PoolConfiguration as LPoolConfiguration } from 'lightning-pool';
 import type { ConnectionOptions as TlsConnectionOptions } from 'tls';
 import type { SmartBufferConfig } from '../protocol/smart-buffer.js';
 import type { DebugLogger } from '../types.js';
+import type { DataMappingOptions } from './data-mapping-options.js';
+import type { QueryOptions } from './query-options.js';
 
 export interface DatabaseConnectionParams {
   host?: string;
@@ -149,9 +151,35 @@ export interface SocketOptions {
   keepAlive?: boolean;
 }
 
+/**
+ * The data-mapping options a connection can answer for every statement
+ * on it, so a caller that always wants the same shape says so once.
+ *
+ * Each is the default for `QueryOptions`'s field of the same name and
+ * is described there; a value on the call always wins. `fetchAsString`
+ * and `unknownTypesAsString` are the two with a cost worth knowing
+ * about - see `fetchAsString` in QueryOptions.
+ */
+export type ConnectionMappingDefaults = DataMappingOptions &
+  Pick<QueryOptions, 'objectRows' | 'rowDecoder' | 'typeMap' | 'columnFormat'>;
+
 export interface ConnectionConfiguration
-  extends DatabaseConnectionParams, SocketOptions {
+  extends DatabaseConnectionParams, SocketOptions, ConnectionMappingDefaults {
   buffer?: SmartBufferConfig;
+  /**
+   * Whether statements may share a connection with statements already in
+   * flight - the default for every call here, which
+   * `QueryOptions.pipeline` overrides per statement and describes in
+   * full.
+   *
+   * Defaults to **on for a `Connection`** (what one has always done) and
+   * **off for a `Pool`**, where sharing also means running on a
+   * connection other callers are using. `true` on a pool turns it on for
+   * every query that can take it; `false` on a connection gives the
+   * behaviour of a client that waits for each reply before sending the
+   * next statement.
+   */
+  pipeline?: boolean;
 }
 
 export interface PoolConfiguration
@@ -167,10 +195,11 @@ export interface PoolConfiguration
    * ceiling on connections - with the default pool of 10, a burst of 1000
    * queries no longer has to run as 100 sequential rounds of 10.
    *
-   * Set to 1 for the older behaviour, where Pool.query() holds a
-   * connection exclusively for the duration of each query. Connections
-   * handed out by acquire() are never shared, whatever this is set to, so
-   * transactions, cursors and prepared statements are unaffected.
+   * Only queries that asked to be pipelined are counted, since sharing a
+   * pooled connection is opt-in - see `pipeline`. Setting this to 1 is
+   * the other way to turn it off. Connections handed out by acquire()
+   * are never shared whatever either is set to, so transactions, cursors
+   * and prepared statements are unaffected.
    */
   pipelineMaxQueries?: number;
 

@@ -42,6 +42,7 @@ import {
   Macaddr8Type,
   MacaddrType,
 } from './data-types/macaddr-type.js';
+import { ArrayMoneyType, MoneyType } from './data-types/money-type.js';
 import { ArrayNumericType, NumericType } from './data-types/numeric-type.js';
 import { ArrayOidType, OidType } from './data-types/oid-type.js';
 import {
@@ -92,8 +93,11 @@ import {
 } from './data-types/xid-type.js';
 import type { DataType } from './interfaces/data-type.js';
 import type { OID } from './types.js';
+import { arrayLeaf } from './util/array-leaf.js';
 
 export class DataTypeMap {
+  protected _inferScalars: DataType[] = [];
+  protected _inferArrays: DataType[] = [];
   private _itemsByOID: Record<OID, DataType> = {};
   private _items: DataType[] = [];
 
@@ -112,6 +116,11 @@ export class DataTypeMap {
     if (other instanceof DataTypeMap) {
       this._items = [...other._items];
       this._itemsByOID = { ...other._itemsByOID };
+      // Shared, not copied: they are rebuilt wholesale by register(),
+      // so a copy that registers nothing never diverges and one that
+      // does gets its own pair then.
+      this._inferScalars = other._inferScalars;
+      this._inferArrays = other._inferArrays;
     }
   }
 
@@ -127,6 +136,37 @@ export class DataTypeMap {
       if (i >= 0) this._items[i] = t;
       else this._items.push(t);
     }
+    this._rebuildInferenceLists();
+  }
+
+  /**
+   * The two lists determine() actually walks, newest-registered first.
+   *
+   * A value is either an array or it is not, so half of `_items` can
+   * never match it - and the half that can is the smaller one: of 127
+   * registered types, a plain number used to be tested against 22 and
+   * skipped past 105. Rebuilt on registration, which happens at startup
+   * and hardly ever again, so the walk itself reads a list that is
+   * already only what it needs.
+   *
+   * A type that is not inferrable is left out of both: determine() may
+   * never pick it, however well its isType matches.
+   */
+  protected _rebuildInferenceLists(): void {
+    const scalars: DataType[] = [];
+    const arrays: DataType[] = [];
+    let i: number;
+    let t: DataType;
+    // Built back to front, so index 0 is the newest registration and the
+    // walk runs forward - which is the direction a JS array is fastest
+    // to read and the one that needs no length arithmetic per step.
+    for (i = this._items.length - 1; i >= 0; i--) {
+      t = this._items[i];
+      if (t.inferrable === false) continue;
+      (t.elementsOID ? arrays : scalars).push(t);
+    }
+    this._inferScalars = scalars;
+    this._inferArrays = arrays;
   }
 
   determine(value: any): OID {
@@ -151,18 +191,22 @@ export class DataTypeMap {
         );
       }
     }
+    // An array is typed from the first value inside it that is actually
+    // a value: `value[0]` answers `_int2vector` for [[1, 2], [3, 4]],
+    // because the first element is itself an array and a vector is the
+    // one registered type an array of numbers matches, and answers
+    // nothing at all for [null, 2, 3].
     const valueIsArray = Array.isArray(value);
+    const candidates = valueIsArray ? this._inferArrays : this._inferScalars;
+    const v = valueIsArray ? arrayLeaf(value) : value;
+    // Newest-registered first, so a later registration of the same OID
+    // wins - see _rebuildInferenceLists() for how the order is kept.
+    const l = candidates.length;
     let i: number;
     let t: DataType;
-    for (i = this._items.length - 1; i >= 0; i--) {
-      t = this._items[i];
-      // Walked newest-registered first, so a later registration of the
-      // same OID wins - and a type marked `inferrable: false` is never
-      // picked here at all, however well `isType` matches.
-      if (t.inferrable === false) continue;
-      if (valueIsArray) {
-        if (t.elementsOID && t.isType(value[0])) return t.oid;
-      } else if (!t.elementsOID && t.isType(value)) return t.oid;
+    for (i = 0; i < l; i++) {
+      t = candidates[i];
+      if (t.isType(v)) return t.oid;
     }
     return DataTypeOIDs.unknown;
   }
@@ -177,6 +221,9 @@ GlobalTypeMap.register([JsonType, ArrayJsonType]);
 
 GlobalTypeMap.register([BoolType, ArrayBoolType]);
 GlobalTypeMap.register([NumericType, ArrayNumericType]);
+// Registered after numeric and not inferrable: a JavaScript number is
+// never money by shape, and the type is reached by naming it.
+GlobalTypeMap.register([MoneyType, ArrayMoneyType]);
 GlobalTypeMap.register([Float4Type, ArrayFloat4Type]);
 GlobalTypeMap.register([Float8Type, ArrayFloat8Type]);
 GlobalTypeMap.register([Int2Type, ArrayInt2Type]);

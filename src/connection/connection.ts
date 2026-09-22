@@ -13,6 +13,7 @@ import type { QueryResult } from '../interfaces/query-result.js';
 import type { ScriptExecuteOptions } from '../interfaces/script-execute-options.js';
 import type { ScriptResult } from '../interfaces/script-result.js';
 import type { StatementPrepareOptions } from '../interfaces/statement-prepare-options.js';
+import type { TransactionOptions } from '../interfaces/transaction-options.js';
 import type { DatabaseError } from '../protocol/database-error.js';
 import type { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
@@ -206,18 +207,24 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     if (typeof sql === 'object' && sql instanceof QueryRequest)
       sql = sql.stringify({ ...options, typeMap: options?.typeMap });
     if (this.listenerCount('execute')) this.emit('execute', sql, options);
-    return withAbortSignal(
-      options?.signal,
-      () => this._intlCon.cancel(),
-      () =>
-        this._captureErrorStack(
-          this._intlCon.execute(sql, options),
-          this.execute,
-          options?.asyncErrorHandling,
-        ).catch((e: DatabaseError) => {
-          throw this._handleError(e, sql);
-        }),
-    );
+    let release = this._intlCon.enterWire(this._isExclusive(options?.pipeline));
+    if (typeof release !== 'function') release = await release;
+    try {
+      return await withAbortSignal(
+        options?.signal,
+        () => this._intlCon.cancel(),
+        () =>
+          this._captureErrorStack(
+            this._intlCon.execute(sql, options),
+            this.execute,
+            options?.asyncErrorHandling,
+          ).catch((e: DatabaseError) => {
+            throw this._handleError(e, sql);
+          }),
+      );
+    } finally {
+      release();
+    }
   }
 
   /**
@@ -274,11 +281,17 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     }
     /* c8 ignore stop */
     if (this.listenerCount('query')) this.emit('query', sql, options);
-    return withAbortSignal(
-      options?.signal,
-      () => this._intlCon.cancel(),
-      () => this._query(sql, options),
-    );
+    let release = this._intlCon.enterWire(this._isExclusive(options?.pipeline));
+    if (typeof release !== 'function') release = await release;
+    try {
+      return await withAbortSignal(
+        options?.signal,
+        () => this._intlCon.cancel(),
+        () => this._query(sql, options),
+      );
+    } finally {
+      release();
+    }
   }
 
   /**
@@ -596,8 +609,8 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   /**
    * Starts a transaction
    */
-  startTransaction(): Promise<void> {
-    return this._captureErrorStack(this._intlCon.startTransaction());
+  startTransaction(options?: TransactionOptions): Promise<void> {
+    return this._captureErrorStack(this._intlCon.startTransaction(options));
   }
 
   /**
@@ -627,9 +640,24 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * `fn` is handed this same connection: every statement it runs on it is
    * inside the transaction, and one it runs on another connection is not.
    */
-  async transaction<T>(fn: (connection: this) => Promise<T>): Promise<T> {
-    if (this._intlCon.inTransaction) return await this._savepointScope(fn);
-    await this.startTransaction();
+  async transaction<T>(
+    fn: (connection: this) => Promise<T>,
+    options?: TransactionOptions,
+  ): Promise<T> {
+    // A call inside a transaction becomes a savepoint scope, which has
+    // no BEGIN to carry modes - see startTransaction(), which refuses
+    // them for the same reason rather than applying them to somebody
+    // else's transaction.
+    if (this._intlCon.inTransaction) {
+      if (options)
+        throw new Error(
+          'transaction() cannot set transaction modes inside a transaction ' +
+            'that is already open - the inner scope is a savepoint, and the ' +
+            'modes belong to the BEGIN that opened the outer one',
+        );
+      return await this._savepointScope(fn);
+    }
+    await this.startTransaction(options);
     try {
       const result = await fn(this);
       await this.commit();
@@ -766,6 +794,16 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     }
   }
 
+  /**
+   * Whether a statement asked for the wire to itself - `pipeline: false`
+   * on the call, or on the connection when the call says nothing.
+   */
+  protected _isExclusive(pipeline: Maybe<boolean>): boolean {
+    return pipeline != null
+      ? !pipeline
+      : this._intlCon.config.pipeline === false;
+  }
+
   protected async _query(
     sql: string,
     options?: QueryOptions,
@@ -785,6 +823,17 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
           ? 0
           : typeMap.determine(prm),
     );
+
+    // A money parameter is written as an int64 of minor units, so the
+    // scale has to be known before the Bind goes out - the probe fired
+    // at connect answers in time for every result, but not necessarily
+    // for the encode of the very first statement.
+    if (
+      paramTypes &&
+      (paramTypes.includes(DataTypeOIDs.money) ||
+        paramTypes.includes(DataTypeOIDs._money))
+    )
+      await this._intlCon.ensureMoneyFormat();
 
     const effectiveAutoCommit =
       options?.autoCommit != null
@@ -885,6 +934,12 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     this._closing = false;
   }
 
+  /**
+   * Adds the source excerpt the server's `position` points at to
+   * `message`, so an error reads in a terminal without the caller doing
+   * anything. `err.serverMessage` keeps the undecorated text for
+   * anything that parses it.
+   */
   protected _handleError(err: DatabaseError, script: string): DatabaseError {
     if (err.position != null) {
       const i1 = script.lastIndexOf('\n', err.position - 1) + 1;
