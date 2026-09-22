@@ -23,7 +23,8 @@ export const TimestampType: DataType = {
     v: Date | number | string,
     options: DataMappingOptions,
   ): void {
-    if (typeof v === 'string') v = parseDateTime(v, options.utcDates);
+    if (typeof v === 'string')
+      v = parseDateTime(v, options.utcDates, options.dateStyle);
     if (v === Infinity) {
       buf.writeInt32BE(0x7fffffff); // hi
       buf.writeUInt32BE(0xffffffff); // lo
@@ -73,7 +74,7 @@ export const TimestampType: DataType = {
     return d;
   },
   decodeText(v: string, options: DataMappingOptions): Date | number {
-    return parseDateTime(v, options.utcDates);
+    return parseDateTime(v, options.utcDates, options.dateStyle);
   },
 
   // Reads PostgreSQL's own timestamp shape straight from the wire bytes -

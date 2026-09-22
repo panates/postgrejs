@@ -1,4 +1,5 @@
 import type { OID } from '../types.js';
+import type { PgDateStyle } from '../util/date-style.js';
 
 /** How a server renders `money` - see `DataMappingOptions.moneyFormat`. */
 export interface MoneyFormat {
@@ -9,6 +10,16 @@ export interface MoneyFormat {
 }
 
 export interface DataMappingOptions {
+  /**
+   * How the server renders dates, when it is not rendering them in ISO.
+   *
+   * Only the text wire format is affected - binary carries no formatting
+   * at all - and the connection fills this in from the `DateStyle` the
+   * server reports, so a caller normally never sets it. See
+   * `util/date-style.ts` for what each setting prints.
+   */
+  dateStyle?: PgDateStyle;
+
   /**
    * How the server renders money, which is what `money`'s wire format
    * cannot say on its own: it is an int64 of the smallest currency unit,

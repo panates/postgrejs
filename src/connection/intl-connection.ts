@@ -43,6 +43,7 @@ import {
   type CopyRowSource,
   writeCopyBinaryRows,
 } from '../util/copy-from-rows.js';
+import { parseDateStyleSetting, type PgDateStyle } from '../util/date-style.js';
 import { escapeLiteral } from '../util/escape-literal.js';
 import { getParsers } from '../util/get-parsers.js';
 import {
@@ -268,6 +269,9 @@ export class IntlConnection extends SafeEventEmitter {
    * the one that must not pay for this.
    */
   protected readonly _mappingDefaults?: ConnectionMappingDefaults;
+  /** The session's DateStyle as last reported, and what it parsed to. */
+  protected _dateStyleRaw?: string;
+  protected _dateStyle?: PgDateStyle;
   /** The server's own money rendering - see ensureMoneyFormat(). */
   protected _moneyFormat?: MoneyFormat;
   protected _moneyFormatPromise?: Promise<void>;
@@ -2127,7 +2131,8 @@ export class IntlConnection extends SafeEventEmitter {
   withDefaults<T extends DataMappingOptions>(options: T): T {
     const defaults = this._mappingDefaults;
     const money = this._moneyFormat;
-    if (!defaults && !money) return options;
+    const dateStyle = this._currentDateStyle();
+    if (!defaults && !money && !dateStyle) return options;
     let out: any;
     if (defaults) {
       let k: keyof ConnectionMappingDefaults;
@@ -2142,7 +2147,31 @@ export class IntlConnection extends SafeEventEmitter {
       out = out || { ...options };
       out.moneyFormat = money;
     }
+    if (dateStyle && !(out || options).dateStyle) {
+      out = out || { ...options };
+      out.dateStyle = dateStyle;
+    }
     return out || options;
+  }
+
+  /**
+   * The session's DateStyle, when it is not ISO.
+   *
+   * Read off the reported parameters rather than cached once: `SET
+   * DateStyle` is answered with a fresh ParameterStatus, so the string
+   * changes under us and a connection that changes it mid-session must
+   * not go on decoding by the old one. The comparison is against the
+   * same string the socket holds, so it costs a read and a pointer
+   * compare while nothing changes - which is always, for the ISO
+   * default that needs no parsing at all.
+   */
+  protected _currentDateStyle(): Maybe<PgDateStyle> {
+    const raw = this.socket.sessionParameters.DateStyle;
+    if (raw !== this._dateStyleRaw) {
+      this._dateStyleRaw = raw;
+      this._dateStyle = parseDateStyleSetting(raw);
+    }
+    return this._dateStyle;
   }
 
   protected _onError(err: Error): void {

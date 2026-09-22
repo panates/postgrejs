@@ -21,7 +21,8 @@ export const DateType: DataType = {
     v: Date | number | string,
     options: DataMappingOptions,
   ): void {
-    if (typeof v === 'string') v = parseDate(v, options.utcDates);
+    if (typeof v === 'string')
+      v = parseDate(v, options.utcDates, options.dateStyle);
     if (v === Infinity) {
       buf.writeInt32BE(0x7fffffff);
       return;
@@ -56,7 +57,7 @@ export const DateType: DataType = {
   },
 
   decodeText(v: string, options: DataMappingOptions): Date | number {
-    return parseDate(v, options.utcDates);
+    return parseDate(v, options.utcDates, options.dateStyle);
   },
 
   decodeTextBuffer(
