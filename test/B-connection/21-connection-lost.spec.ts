@@ -171,5 +171,111 @@ describe('lost connection', () => {
       await connection.close(0);
       expect((await closed)[0]).toBeUndefined();
     });
+
+    describe("'error'", () => {
+      /** Every event this connection emits, in the order it emits them. */
+      function record(connection: Connection): string[] {
+        const seen: string[] = [];
+        connection.on('error', (e: any) =>
+          seen.push('error:' + e.code + ':' + e.processID),
+        );
+        connection.on('close', (r: any) =>
+          seen.push('close:' + (r ? r.code : 'none')),
+        );
+        return seen;
+      }
+
+      it('should fire with a query in flight, on the same object', async () => {
+        // `pg` reports a lost connection on 'error' as well as rejecting
+        // the query, and this emitted only 'close' - so a handler ported
+        // from it was attached and never fired. Nothing crashed, which
+        // is worse than crashing: the handler looked alive.
+        const connection = new Connection();
+        await connection.connect();
+        const pid = connection.processID!;
+        const seen = record(connection);
+        const errored = once(connection, 'error');
+        const rejected = connection.query('select pg_sleep(5)').then(
+          () => undefined,
+          (e: any) => e,
+        );
+        await new Promise(resolve => setTimeout(resolve, 200));
+        await kill(pid);
+        const [err] = await errored;
+        expect(err).toBeInstanceOf(ConnectionLostError);
+        expect(err.code).toStrictEqual('08006');
+        expect(err.processID).toStrictEqual(pid);
+        // One object for both, as it already is for the pool.
+        expect(await rejected).toBe(err);
+        // The loss is the cause and the close is the consequence.
+        await new Promise(resolve => setTimeout(resolve, 200));
+        expect(seen).toStrictEqual(['error:08006:' + pid, 'close:08006']);
+      });
+
+      it('should fire when the connection was idle', async () => {
+        // The case pg's own documentation is about: no query to reject,
+        // so this event is the only report there can be.
+        const connection = new Connection();
+        await connection.connect();
+        const pid = connection.processID!;
+        const errored = once(connection, 'error');
+        await kill(pid);
+        const [err] = await errored;
+        expect(err.code).toStrictEqual('08006');
+        expect(err.processID).toStrictEqual(pid);
+      });
+
+      it('should stay quiet for a close that was asked for', async () => {
+        const connection = new Connection();
+        await connection.connect();
+        const seen = record(connection);
+        await connection.close(0);
+        await new Promise(resolve => setTimeout(resolve, 200));
+        expect(seen).toStrictEqual(['close:none']);
+      });
+
+      it('should stay quiet for a connect that never got up', async () => {
+        // There was no connection to lose, and connect() already
+        // rejects - two reports for one failure is one too many.
+        const connection = new Connection({ port: 5999 });
+        const seen = record(connection);
+        await expect(connection.connect()).rejects.toThrow();
+        await new Promise(resolve => setTimeout(resolve, 200));
+        expect(seen.filter(e => e.startsWith('error'))).toStrictEqual([]);
+      });
+
+      it('should report a socket error once, not twice', async () => {
+        // A socket that fails rather than closing cleanly emits 'error'
+        // and then 'close', and both used to reach this - the first as
+        // the raw Node error, with no SQLSTATE on it. Now the close is
+        // the single report and the socket error is its `cause`.
+        const connection = new Connection();
+        await connection.connect();
+        const seen = record(connection);
+        const rejected = connection.query('select pg_sleep(5)').then(
+          () => undefined,
+          (e: any) => e,
+        );
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const boom = new Error('boom');
+        (connection as any)._intlCon.socket._socket.destroy(boom);
+        const err: any = await rejected;
+        await new Promise(resolve => setTimeout(resolve, 300));
+        expect(err.code).toStrictEqual('08006');
+        expect(err.cause).toBe(boom);
+        expect(seen.filter(e => e.startsWith('error'))).toHaveLength(1);
+      });
+
+      it('should not throw when nothing is listening', async () => {
+        // SafeEventEmitter drops an 'error' with no listener instead of
+        // throwing, which is what makes this safe to emit for everyone.
+        const connection = new Connection();
+        await connection.connect();
+        const pid = connection.processID!;
+        const closed = once(connection, 'close');
+        await kill(pid);
+        await closed;
+      });
+    });
   });
 });

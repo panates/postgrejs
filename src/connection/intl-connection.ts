@@ -322,6 +322,8 @@ export class IntlConnection extends SafeEventEmitter {
   /** The server's own money rendering - see ensureMoneyFormat(). */
   protected _moneyFormat?: MoneyFormat;
   protected _moneyFormatPromise?: Promise<void>;
+  /** Whether the socket has been up, which is what makes a close a loss. */
+  protected _live = false;
   /** Statements currently holding the wire - see enterWire(). */
   protected _wireUsers = 0;
   protected _wireIdleWaiters?: (() => void)[];
@@ -354,10 +356,28 @@ export class IntlConnection extends SafeEventEmitter {
         this._mappingDefaults.typeMap || GlobalTypeMap,
       );
     this.socket = new PgSocket(this._config);
-    this.socket.on('error', err => this._onError(err));
+    this.socket.on('ready', () => {
+      this._live = true;
+    });
     // The reason travels with it: 'close' on its own cannot tell an
     // ordinary shutdown from the backend being terminated under us.
-    this.socket.on('close', (reason?: Error) => this.emit('close', reason));
+    //
+    // A loss is reported on 'error' as well, which is where `pg` puts it
+    // and where code ported from it listens - `client.on('error')` was
+    // attached and never fired, because a terminated backend closes
+    // cleanly at the socket level and Node gives 'close' without an
+    // 'error' of its own. The Pool already reports the same object the
+    // same way. Emitted before 'close': the loss is the cause and the
+    // close is the consequence. Safe to do unconditionally, since
+    // SafeEventEmitter drops an 'error' nobody is listening for instead
+    // of throwing - and only for a connection that was up, so a failed
+    // connect stays the business of the promise connect() returns.
+    this.socket.on('close', (reason?: Error) => {
+      const live = this._live;
+      this._live = false;
+      if (reason && live) this.emit('error', reason);
+      this.emit('close', reason);
+    });
     this.socket.on('notification', payload =>
       this.emit('notification', payload),
     );
@@ -2320,11 +2340,6 @@ export class IntlConnection extends SafeEventEmitter {
       this._dateStyle = parseDateStyleSetting(raw);
     }
     return this._dateStyle;
-  }
-
-  protected _onError(err: Error): void {
-    if (this.socket.state !== ConnectionState.READY) return;
-    this.emit('error', err);
   }
 }
 
