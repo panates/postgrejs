@@ -1,7 +1,7 @@
 {
   "name": "postgrejs",
   "description": "Professional PostgreSQL client NodeJS",
-  "version": "3.10.1",
+  "version": "3.11.0",
   "author": "Panates",
   "license": "BSD-3-Clause",
   "private": true,
@@ -28,7 +28,7 @@
     "auto-changelog": "^2.6.0",
     "bun-types": "^1.4.2",
     "c8": "^12.0.0",
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.3",
     "dpdm": "^4.2.0",
     "expect": "^30.4.1",
     "globals": "^17.7.0",

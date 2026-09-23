@@ -1,6 +1,16 @@
 ## Changelog
 
-### [v3.10.1](https://github.com/panates/postgrejs/compare/v3.10.0...v3.10.1) - 
+### [v3.11.0](https://github.com/panates/postgrejs/compare/v3.10.1...v3.11.0) - 
+
+#### 🚀 New Features
+
+- feat: add isMultiStatement(), so a caller can tell which of the two to use @Eray Hanoğlu 
+
+#### 🛠 Refactoring and Updates
+
+- refactor: rename `multi-statement` to `is-multi-statement` for clarity @Eray Hanoğlu 
+
+### [v3.10.1](https://github.com/panates/postgrejs/compare/v3.10.0...v3.10.1) -  22 September 2026 
 
 #### 🚀 New Features
 
