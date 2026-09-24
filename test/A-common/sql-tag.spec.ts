@@ -73,10 +73,8 @@ describe('sql`` tag', () => {
       // cast was a guess, and measured against a live server the old
       // form was the wrong one wherever the column was not int4[] -
       // `array[1,2]::int8[] = ARRAY['1','2']::_int4` is 42883, while
-      // `array[1,2]::int8[] = '{"1","2"}'` is true.
-      expect(sql`select ${[1, 2]}`.stringify()).toStrictEqual(
-        'select \'{"1","2"}\'',
-      );
+      // `array[1,2]::int8[] = '{1,2}'` is true.
+      expect(sql`select ${[1, 2]}`.stringify()).toStrictEqual("select '{1,2}'");
     });
 
     it('should still write an ARRAY literal for what can say what it is', () => {
@@ -121,7 +119,7 @@ describe('sql`` tag', () => {
 
     it('should write a null element inside an array literal as null, unescaped', () => {
       expect(sql`select ${[1, null, 3]}`.stringify()).toStrictEqual(
-        'select \'{"1",NULL,"3"}\'',
+        "select '{1,NULL,3}'",
       );
       expect(sql`select ${[true, null]}`.stringify()).toStrictEqual(
         "select ARRAY['t',null]::_bool",

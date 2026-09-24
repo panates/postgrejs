@@ -119,7 +119,7 @@ describe('Array parameters', () => {
       // The same price a string parameter pays: with nothing to resolve
       // against, the server reads the literal as text rather than
       // guessing a numeric type - it used to come back as int4[].
-      expect(await one('select $1 v', [[1, 2]])).toStrictEqual('{"1","2"}');
+      expect(await one('select $1 v', [[1, 2]])).toStrictEqual('{1,2}');
     });
 
     it('should take the declared type back when the caller names one', async () => {
