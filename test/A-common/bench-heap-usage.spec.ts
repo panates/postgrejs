@@ -48,16 +48,15 @@ describe('benchmark heap accounting', () => {
   });
 
   it('should not double-count array buffers, which external already holds', () => {
-    const before = process.memoryUsage();
+    // No deltas here: a GC between two samples can free more elsewhere
+    // than this allocates, and the relation being pinned does not need
+    // them - `arrayBuffers` is a part of `external`, so adding it on top
+    // would count the same bytes twice.
     const buf = Buffer.alloc(SIZE, 1);
-    const after = process.memoryUsage();
+    const usage = process.memoryUsage();
     expect(buf.length).toStrictEqual(SIZE);
-    // The same bytes moved both numbers, because one contains the other:
-    // adding arrayBuffers on top of external would count them twice.
-    expect(after.arrayBuffers - before.arrayBuffers).toBeGreaterThan(
-      SIZE - NEAR,
-    );
-    expect(after.external - before.external).toBeGreaterThan(SIZE - NEAR);
-    expect(after.arrayBuffers).toBeLessThanOrEqual(after.external);
+    expect(usage.arrayBuffers).toBeGreaterThan(SIZE - NEAR);
+    expect(usage.arrayBuffers).toBeLessThanOrEqual(usage.external);
+    expect(usedBytes()).toBeGreaterThan(SIZE - NEAR);
   });
 });
