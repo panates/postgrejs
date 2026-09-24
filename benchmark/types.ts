@@ -66,9 +66,11 @@ export interface BenchResultStats {
    * not just the timed ones, since tinybench doesn't expose a hook at the
    * boundary between them. gcCount/gcDurationMs are totals for the whole
    * run, always populated (observing GC events doesn't need --expose-gc).
-   * peakHeapGrowthBytes is the highest heapUsed observed at any point while
-   * bench.run() was executing, minus a heapUsed baseline captured right
-   * before it via a *forced* global.gc() - the most the heap ever grew
+   * peakHeapGrowthBytes is the highest usedBytes() - heapUsed plus
+   * external, since a Buffer and a large string are both off-heap; see
+   * runner/heap-usage.ts - observed at any point while bench.run() was
+   * executing, minus a baseline captured right before it via a *forced*
+   * global.gc() - the most the heap ever grew
    * above a clean starting point during the run, not just what's left over
    * once it's done (a scenario that spikes memory and then frees it again
    * would show ~0 by an after-the-fact delta, but a real peak here). This

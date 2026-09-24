@@ -28,6 +28,7 @@ import {
   UNIT_OF_WORK_STATEMENTS,
 } from '../scenarios/index.js';
 import type { BenchResult, LibId, ScenarioName } from '../types.js';
+import { usedBytes } from './heap-usage.js';
 
 function parseArgs(argv: string[]): Record<string, string> {
   const args: Record<string, string> = {};
@@ -59,7 +60,7 @@ net.Socket.prototype.push = function (chunk: any, ...rest: any[]): boolean {
   return originalSocketPush.call(this, chunk, ...rest);
 };
 
-// How often to sample heapUsed while the run is in flight. A before/after
+// How often to sample memory while the run is in flight. A before/after
 // snapshot only sees what's left over once everything is done - it can't
 // tell a scenario that peaks at 200MB mid-run and frees it all apart from
 // one that never allocates more than 1MB, even though the first one is the
@@ -71,7 +72,7 @@ net.Socket.prototype.push = function (chunk: any, ...rest: any[]): boolean {
 // (A "typical"/median-of-samples heap figure was tried alongside this and
 // removed: for I/O-bound scenarios - most of a call's wall-clock time
 // spent waiting on the network rather than allocating - the vast majority
-// of 1ms samples land during that idle wait, where heapUsed sits back near
+// of 1ms samples land during that idle wait, where usage sits back near
 // baseline, so the median collapses to ~0 even when a real, large spike
 // happens on every single call (confirmed live: large-blob-fetch showed
 // 0KB "typical" for pg/postgres despite a 1-1.5MB peak on the same runs).
@@ -85,7 +86,8 @@ const HEAP_SAMPLE_INTERVAL_MS = 1;
  * part works regardless of --expose-gc, since observing GC events doesn't
  * require the ability to force one. peakHeapGrowthBytes is different: it
  * forces a clean baseline via global.gc() immediately before the call, then
- * polls process.memoryUsage().heapUsed every HEAP_SAMPLE_INTERVAL_MS while
+ * polls usedBytes() - heap plus external, see heap-usage.ts - every
+ * HEAP_SAMPLE_INTERVAL_MS while
  * `run()` is executing and keeps the highest value seen - the most the heap
  * ever grew above that baseline at any point during the run, not just
  * whatever happens to still be alive afterwards. That part only works when
@@ -106,10 +108,10 @@ async function withGcStats(run: () => Promise<void>): Promise<GcStats> {
   observer.observe({ entryTypes: ['gc'] });
 
   const rxBefore = rxBytes;
-  const heapBefore = gc ? (gc(), process.memoryUsage().heapUsed) : undefined;
-  let peakHeapUsed = heapBefore ?? process.memoryUsage().heapUsed;
+  const heapBefore = gc ? (gc(), usedBytes()) : undefined;
+  let peakHeapUsed = heapBefore ?? usedBytes();
   const sampler = setInterval(() => {
-    const current = process.memoryUsage().heapUsed;
+    const current = usedBytes();
     if (current > peakHeapUsed) peakHeapUsed = current;
   }, HEAP_SAMPLE_INTERVAL_MS);
   sampler.unref();
