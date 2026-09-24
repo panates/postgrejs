@@ -283,11 +283,11 @@ Each scenario is implemented once per library, using that library's own idiomati
 
 Each \`(library, scenario)\` pair runs in its own child process, spawned sequentially (never in parallel), to avoid CPU/connection contention skewing numbers and to get clean, uncontaminated V8 JIT warm-up per run. The default matrix runs each pair \`--repeats=3\` times; the tables below report the **median across repeats**, with intra-run p75/p99 latency and ops/sec from tinybench's own sample statistics.\n\nRows are listed in a **fixed library order, not fastest-first**, and the bolding marks a band rather than a single winner. Sorting by mean would read as a verdict the measurement cannot support: several scenarios here separate the leading libraries by around one percent, and re-running the same pair can reorder them. A value is bolded when it is within the leader's own run-to-run spread for that column - how far the leader's repeats of that very number moved between runs - so a library is only shown as behind when the gap is larger than the noise the leader itself exhibits. The numbers are all printed in full, so a reader who wants a ranking can still read one off; what is deliberately absent is the table asserting one on their behalf. Where a genuine, repeatable difference exists it is usually not subtle - see Large Blob Fetch or Pooled Simple Query, which separate the libraries by 2x and more.
 
-Each table also reports **GC (ms/op)** and **Peak Heap (KB)** - allocation pressure, not just wall-clock speed. GC (ms/op) is the total time spent in garbage collection during the run (observed via \`node:perf_hooks\`, every GC pause regardless of cause), divided by the number of timed samples - a proxy for how much garbage a library's own decode/encode path churns through per call, independent of how much of it survives. Peak Heap (KB) is different, and isn't a per-call figure: each worker process is started with \`--expose-gc\`, forces a clean GC immediately before the run to get a baseline, then polls \`heapUsed + external\` throughout the run and keeps the highest single sample - the most the process's memory ever grew above that baseline at any point while running the whole scenario. **\`external\` is counted because the payload usually lives there**: a \`Buffer\` is not on the JS heap, and neither is a large string built out of one, so on \`heapUsed\` alone a scenario moving tens of megabytes reported a figure with no relation to what it was holding - and understated whichever library moved the most bytes the most, which is the opposite of the ordering those scenarios exist to show, not just what's left over once it's done (a call that allocates a large temporary buffer and frees it before finishing would show a real spike here while still showing near-zero long-term growth). Both include tinybench's own warmup iterations (it doesn't expose a hook at the boundary between warmup and the timed run), and memory measurements are inherently noisier than latency ones - GC timing isn't deterministic and V8's heap growth isn't perfectly linear, so treat these as directional, not to the same precision as the latency columns. (A median-of-samples "typical heap" figure was tried and dropped: for I/O-bound scenarios almost all of the polled samples land during idle network wait rather than the brief allocation burst, so the median collapsed to ~0 even on runs with a real, multi-hundred-KB peak - it doesn't have a reliable per-call interpretation the way Peak Heap does.)
+Each table also reports **GC (ms/op)** and **Peak Heap (KB)** - allocation pressure, not just wall-clock speed. GC (ms/op) is the total time spent in garbage collection during the run (observed via \`node:perf_hooks\`, every GC pause regardless of cause), divided by the number of timed samples - a proxy for how much garbage a library's own decode/encode path churns through per call, independent of how much of it survives. Peak Heap (KB) is different, and isn't a per-call figure: each worker process is started with \`--expose-gc\`, forces a clean GC immediately before the run to get a baseline, then polls \`heapUsed + external\` throughout the run and keeps the highest single sample - the most the process's memory ever grew above that baseline at any point while running the whole scenario. **\`external\` is counted because the payload usually lives there**: a \`Buffer\` is not on the JS heap, and neither is a large string built out of one, so on \`heapUsed\` alone a scenario moving tens of megabytes reported a figure with no relation to what it was holding - and understated whichever library moved the most bytes the most, which is the opposite of the ordering those scenarios exist to show, not just what's left over once it's done (a call that allocates a large temporary buffer and frees it before finishing would show a real spike here while still showing near-zero long-term growth). **Retained (KB)** is the other half of that reading, against the same baseline: once the run is over, a second forced collection, and what is still held above where it started - a pool, a statement cache, a buffer that grew and was kept. The peak is the most the process ever needed; this is how much of it never went away, and the two can disagree by orders of magnitude on the same scenario. That difference is the point rather than a wrinkle: a large peak with nothing retained is churn, which costs collector time and shows up in GC (ms/op), while a figure that climbs with the call count is footprint, which does not go away. Reading a peak alone for the second question has produced a wrong answer before - a per-call gap was taken for a fixed cost when it was garbage all along. Both include tinybench's own warmup iterations (it doesn't expose a hook at the boundary between warmup and the timed run), and memory measurements are inherently noisier than latency ones - GC timing isn't deterministic and V8's heap growth isn't perfectly linear, so treat these as directional, not to the same precision as the latency columns. (A median-of-samples "typical heap" figure was tried and dropped: for I/O-bound scenarios almost all of the polled samples land during idle network wait rather than the brief allocation burst, so the median collapsed to ~0 even on runs with a real, multi-hundred-KB peak - it doesn't have a reliable per-call interpretation the way Peak Heap does.)
 
 **GC (ms/op) is unavailable under Bun** and shows as \`-\` in that report: \`PerformanceObserver({entryTypes: ['gc']})\` never fires a single \`'gc'\` entry there (confirmed directly - forcing heavy allocation plus an explicit \`global.gc()\`, which itself runs without error, still produces zero observed entries under \`bun\`, versus dozens under the identical script run with \`node\`), so it's reported as missing rather than a misleading 0. Peak Heap (KB) is unaffected - it comes from \`process.memoryUsage()\`, which works the same on both runtimes.
 
-Two scenarios - Large Blob Fetch and Large Array Fetch - additionally report **Network (KB/op)**: the bytes the server actually sent, per call, counted at the socket (\`Readable.push()\`, so all three libraries are measured identically rather than through any library's own accounting). It is reported only there because that is where it separates the libraries: PostgreJS reads those columns in the binary protocol while pg and postgres.js read them as text, and the same rows cost very different amounts on the wire in the two formats. A \`bytea\` costs exactly twice as much as text (\`\\x\`-prefixed hex, two characters per byte), while an \`int4[]\` depends entirely on the values - binary spends a fixed 8 bytes per element (4-byte length prefix + 4-byte value) where text spends one byte per digit, so full-width int4s favour binary and values near zero favour text. Everywhere else the payload is small and near-identical across libraries, so the number would be noise rather than information.
+Four scenarios - Large Blob Fetch, Large Array Fetch and both Bulk Loads - additionally report **Net in (KB/op)** and **Net out (KB/op)**: the bytes that actually crossed the socket in each direction, per call, counted there (\`Readable.push()\` and \`write()\`, so all three libraries are measured identically rather than through any library's own accounting). Both directions are counted because a scenario that writes has nothing to show in the other one - a \`COPY ... FROM STDIN\` is made entirely of bytes going out, and the received figure for it is zero, which is what that table used to have in place of the payload it is a comparison of. It is reported only in those four because that is where it separates the libraries: PostgreJS reads those columns in the binary protocol while pg and postgres.js read them as text, and the same rows cost very different amounts on the wire in the two formats. A \`bytea\` costs exactly twice as much as text (\`\\x\`-prefixed hex, two characters per byte), while an \`int4[]\` depends entirely on the values - binary spends a fixed 8 bytes per element (4-byte length prefix + 4-byte value) where text spends one byte per digit, so full-width int4s favour binary and values near zero favour text. The two Bulk Loads are the same question in the other direction: the same 200,000 rows as CSV and as the binary COPY format, where the difference between the tables had been reasoned from the formats rather than counted. Everywhere else the payload is small and near-identical across libraries, so the number would be noise rather than information.
 
 ### Disclosed asymmetries
 
@@ -470,8 +470,11 @@ function renderScenarioCharts(
 ): string {
   const hasGc = summaries.some(s => s.medianGcDurationMs != null);
   const hasPeakHeap = summaries.some(s => s.medianPeakHeapGrowthBytes != null);
+  const hasRetained = summaries.some(s => s.medianRetainedHeapBytes != null);
   const hasWire =
     !!reportWireBytes && summaries.some(s => s.medianWireRxBytes != null);
+  const hasWireTx =
+    !!reportWireBytes && summaries.some(s => s.medianWireTxBytes != null);
   const width = 600;
   const height = 300;
 
@@ -520,6 +523,21 @@ function renderScenarioCharts(
       }),
     );
   }
+  if (hasRetained) {
+    // Not per-op either, and read against the peak above rather than on
+    // its own: that one is the most the run ever needed, this is how much
+    // of it was still held once it finished and everything collectable
+    // had been collected.
+    charts.push(
+      renderBarChart(summaries, {
+        title: 'Retained heap (KB, still held after the run)',
+        unit: 'KB',
+        width,
+        height,
+        valueOf: s => (s.medianRetainedHeapBytes ?? 0) / 1024,
+      }),
+    );
+  }
   if (hasWire) {
     // Per operation, unlike the two above: every call pulls the same rows
     // down again, so total bytes scale with how many calls fit in the time
@@ -531,6 +549,20 @@ function renderScenarioCharts(
         width,
         height,
         valueOf: s => (s.medianWireRxBytes ?? 0) / s.medianSamples / 1024,
+      }),
+    );
+  }
+  if (hasWireTx) {
+    // The other direction, and the only one a scenario that writes has:
+    // a COPY or a large parameter moves its bytes out, where the received
+    // figure sees nothing at all.
+    charts.push(
+      renderBarChart(summaries, {
+        title: 'Network sent (KB/op, lower is better)',
+        unit: 'KB/op',
+        width,
+        height,
+        valueOf: s => (s.medianWireTxBytes ?? 0) / s.medianSamples / 1024,
       }),
     );
   }
@@ -610,6 +642,16 @@ function renderScenarioTable(
       meta.reportWireBytes && s.medianWireRxBytes != null
         ? s.medianWireRxBytes / s.medianSamples / 1024
         : null;
+    const wireTxKbPerOp =
+      meta.reportWireBytes && s.medianWireTxBytes != null
+        ? s.medianWireTxBytes / s.medianSamples / 1024
+        : null;
+    // Read against the peak above rather than on its own: what the run
+    // needed at its worst, and how much of that it never gave back.
+    const retainedKb =
+      s.medianRetainedHeapBytes != null
+        ? s.medianRetainedHeapBytes / 1024
+        : null;
     return {
       label: LIB_LABELS[s.lib] ?? s.lib,
       version: s.libraryVersion,
@@ -623,7 +665,9 @@ function renderScenarioTable(
       mult,
       gcMsPerOp,
       peakHeapKb,
+      retainedKb,
       wireKbPerOp,
+      wireTxKbPerOp,
     };
   });
 
@@ -656,7 +700,9 @@ function renderScenarioTable(
   const bestMult = Math.max(...rowData.map(r => r.mult));
   const bestGcMsPerOp = definedOrNull(rowData.map(r => r.gcMsPerOp));
   const bestPeakHeapKb = definedOrNull(rowData.map(r => r.peakHeapKb));
+  const bestRetainedKb = definedOrNull(rowData.map(r => r.retainedKb));
   const bestWireKbPerOp = definedOrNull(rowData.map(r => r.wireKbPerOp));
+  const bestWireTxKbPerOp = definedOrNull(rowData.map(r => r.wireTxKbPerOp));
 
   /** Spread of the leader's own repeats for one column, as an absolute
    * value - the run-to-run wobble a difference has to beat to be real. */
@@ -714,12 +760,28 @@ function renderScenarioTable(
         ? run.stats.peakHeapGrowthBytes / 1024
         : null,
   );
+  const retainedBand = leaderSpread(
+    bestRetainedKb ?? NaN,
+    r => r.retainedKb,
+    run =>
+      run.stats.retainedHeapBytes != null
+        ? run.stats.retainedHeapBytes / 1024
+        : null,
+  );
   const wireBand = leaderSpread(
     bestWireKbPerOp ?? NaN,
     r => r.wireKbPerOp,
     run =>
       run.stats.wireRxBytes != null && run.stats.samples
         ? run.stats.wireRxBytes / run.stats.samples / 1024
+        : null,
+  );
+  const wireTxBand = leaderSpread(
+    bestWireTxKbPerOp ?? NaN,
+    r => r.wireTxKbPerOp,
+    run =>
+      run.stats.wireTxBytes != null && run.stats.samples
+        ? run.stats.wireTxBytes / run.stats.samples / 1024
         : null,
   );
   // vs.-slowest is a restatement of mean, so it ties exactly when mean
@@ -770,20 +832,33 @@ function renderScenarioTable(
             heapBand,
           )
         : '—';
-    const wireStr =
-      r.wireKbPerOp != null
+    const retainedStr =
+      r.retainedKb != null
+        ? boldIfBest(
+            r.retainedKb.toFixed(2),
+            r.retainedKb,
+            bestRetainedKb ?? NaN,
+            retainedBand,
+          )
+        : '—';
+    const wireCell = (
+      value: number | null,
+      best: number | null,
+      band: number,
+    ) =>
+      meta.reportWireBytes
         ? ' ' +
-          boldIfBest(
-            r.wireKbPerOp.toFixed(2),
-            r.wireKbPerOp,
-            bestWireKbPerOp ?? NaN,
-            wireBand,
-          ) +
+          (value != null
+            ? boldIfBest(value.toFixed(2), value, best ?? NaN, band)
+            : '—') +
           ' |'
         : '';
+    const wireStr =
+      wireCell(r.wireKbPerOp, bestWireKbPerOp, wireBand) +
+      wireCell(r.wireTxKbPerOp, bestWireTxKbPerOp, wireTxBand);
     return (
       `| ${r.label} (${r.version}) | ${meanStr} | ${p75Str} | ${p99Str} | ` +
-      `${opsStr} | ${multStr} | ${gcStr} | ${peakHeapStr} |${wireStr}`
+      `${opsStr} | ${multStr} | ${gcStr} | ${peakHeapStr} | ${retainedStr} |${wireStr}`
     );
   });
   // Libs this scenario disclosed as unsupported (see ScenarioMeta.
@@ -793,8 +868,8 @@ function renderScenarioTable(
     ([lib, reason]) => {
       const label = LIB_LABELS[lib] ?? lib;
       return (
-        `| ${label} | ${reason} | — | — | — | — | — | — |` +
-        (meta.reportWireBytes ? ' — |' : '')
+        `| ${label} | ${reason} | — | — | — | — | — | — | — |` +
+        (meta.reportWireBytes ? ' — | — |' : '')
       );
     },
   );
@@ -804,10 +879,10 @@ function renderScenarioTable(
     '',
     meta.description + (paramsText ? ` (${paramsText})` : ''),
     '',
-    '| Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) |' +
-      (meta.reportWireBytes ? ' Network (KB/op) |' : ''),
-    '|---|---:|---:|---:|---:|---:|---:|---:|' +
-      (meta.reportWireBytes ? '---:|' : ''),
+    '| Library | Mean (ms) | p75 (ms) | p99 (ms) | ops/sec | vs. slowest | GC (ms/op) | Peak Heap (KB) | Retained (KB) |' +
+      (meta.reportWireBytes ? ' Net in (KB/op) | Net out (KB/op) |' : ''),
+    '|---|---:|---:|---:|---:|---:|---:|---:|---:|' +
+      (meta.reportWireBytes ? '---:|---:|' : ''),
     ...rows,
     ...unsupportedRows,
     '',

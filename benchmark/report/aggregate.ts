@@ -16,7 +16,9 @@ export interface ScenarioLibSummary {
   medianGcCount?: number;
   medianGcDurationMs?: number;
   medianPeakHeapGrowthBytes?: number;
+  medianRetainedHeapBytes?: number;
   medianWireRxBytes?: number;
+  medianWireTxBytes?: number;
 }
 
 function median(values: number[]): number {
@@ -74,7 +76,11 @@ export function summarize(results: BenchResult[]): ScenarioLibSummary[] {
       medianPeakHeapGrowthBytes: medianOrUndefined(
         runs.map(r => r.stats.peakHeapGrowthBytes),
       ),
+      medianRetainedHeapBytes: medianOrUndefined(
+        runs.map(r => r.stats.retainedHeapBytes),
+      ),
       medianWireRxBytes: medianOrUndefined(runs.map(r => r.stats.wireRxBytes)),
+      medianWireTxBytes: medianOrUndefined(runs.map(r => r.stats.wireTxBytes)),
     });
   }
   return summaries;
