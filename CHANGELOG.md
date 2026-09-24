@@ -1,6 +1,19 @@
 ## Changelog
 
-### [v3.11.0](https://github.com/panates/postgrejs/compare/v3.10.1...v3.11.0) - 
+### [v3.11.1](https://github.com/panates/postgrejs/compare/v3.11.0...v3.11.1) - 
+
+#### 🪲 Fixes
+
+- fix(bench): count off-heap memory in Peak Heap @Eray Hanoğlu 
+
+#### ⚡️ Performance Improvments
+
+- perf: shift the instant instead of rebuilding a local Date from its parts @Eray Hanoğlu 
+- perf: build uuid and macaddr text in one pass instead of five @Eray Hanoğlu 
+- perf: stop asking whether a small money value round-trips @Eray Hanoğlu 
+- perf: write a pg_lsn without four strings a value @Eray Hanoğlu 
+
+### [v3.11.0](https://github.com/panates/postgrejs/compare/v3.10.1...v3.11.0) -  23 September 2026 
 
 #### 🚀 New Features
 
