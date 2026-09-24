@@ -14,7 +14,7 @@ export const Int2Type: DataType = {
   },
 
   encodeBinary(buf: SmartBuffer, v: number): void {
-    buf.writeInt16BE(assertInteger(fastParseInt(v), 'int2'));
+    buf.writeInt16BE(assertInteger(v, 'int2', -32768, 32767));
   },
 
   decodeBinary(v: Buffer, offset: number = 0): number {
