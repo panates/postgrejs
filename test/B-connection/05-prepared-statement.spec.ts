@@ -1,5 +1,5 @@
 import { expect } from 'expect';
-import { Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
+import { BindParam, Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 
 describe('PreparedStatement', () => {
   let connection: Connection;
@@ -22,6 +22,99 @@ describe('PreparedStatement', () => {
     // Connection must still be usable afterward.
     const r = await connection.query('select 2 as v');
     expect(r.rows?.[0]).toStrictEqual([2]);
+  });
+
+  describe('a BindParam in execute()', () => {
+    it('should use the value when it names the type the statement already is', async () => {
+      // It cannot change the type - Parse fixed that - so the only
+      // question is whether the value arrives. It used to reach the
+      // encoder as an object with no type and go out as `'' + v`: a text
+      // column took "[object Object]" and said nothing.
+      await connection.execute('create temp table bp_ok (v text)');
+      const stmt = await connection.prepare(
+        'insert into bp_ok (v) values ($1)',
+      );
+      try {
+        await stmt.execute({
+          params: [new BindParam(DataTypeOIDs.text, 'hello')],
+        });
+        const r = await connection.query('select v from bp_ok');
+        expect(r.rows?.[0]).toStrictEqual(['hello']);
+      } finally {
+        await stmt.close();
+        await connection.execute('drop table bp_ok');
+      }
+    });
+
+    it('should take it in a batch set too', async () => {
+      await connection.execute('create temp table bp_batch (v int4)');
+      const stmt = await connection.prepare(
+        'insert into bp_batch (v) values ($1)',
+        { paramTypes: [DataTypeOIDs.int4] },
+      );
+      try {
+        await stmt.executeBatch([
+          [new BindParam(DataTypeOIDs.int4, 1)],
+          [2],
+          [new BindParam(DataTypeOIDs.int4, 3)],
+        ]);
+        const r = await connection.query('select v from bp_batch order by v');
+        expect(r.rows).toStrictEqual([[1], [2], [3]]);
+      } finally {
+        await stmt.close();
+        await connection.execute('drop table bp_batch');
+      }
+    });
+
+    it('should refuse one that names a different type than the statement', async () => {
+      // Believing it would put int4 bytes where the server reads int2.
+      await connection.execute('create temp table bp_bad (v int2)');
+      const stmt = await connection.prepare(
+        'insert into bp_bad (v) values ($1)',
+      );
+      try {
+        await expect(
+          stmt.execute({ params: [new BindParam(DataTypeOIDs.int4, 1)] }),
+        ).rejects.toThrow(
+          /\$1 was given as int4 \(23\), but this prepared statement's \$1 is int2 \(21\)/,
+        );
+        // And the connection is still usable - nothing was sent.
+        const r = await connection.query('select 1 as v');
+        expect(r.rows?.[0]).toStrictEqual([1]);
+      } finally {
+        await stmt.close();
+        await connection.execute('drop table bp_bad');
+      }
+    });
+
+    it('should name a type this client has no name for by its oid', async () => {
+      // An enum is resolved by the server like any other type, and the
+      // message has to say which one even when the client only knows the
+      // number.
+      await connection.execute("create type bp_mood as enum ('ok', 'bad')");
+      const stmt = await connection.prepare('select $1::bp_mood as v');
+      try {
+        await expect(
+          stmt.execute({ params: [new BindParam(DataTypeOIDs.text, 'ok')] }),
+        ).rejects.toThrow(/but this prepared statement's \$1 is \d+\./);
+      } finally {
+        await stmt.close();
+        await connection.execute('drop type bp_mood');
+      }
+    });
+
+    it('should refuse one that disagrees with a type declared at prepare()', async () => {
+      const stmt = await connection.prepare('select $1 as v', {
+        paramTypes: [DataTypeOIDs.int4],
+      });
+      try {
+        await expect(
+          stmt.execute({ params: [new BindParam(DataTypeOIDs.text, 'x')] }),
+        ).rejects.toThrow(/cannot be changed per execution/);
+      } finally {
+        await stmt.close();
+      }
+    });
   });
 
   describe('resolvedParamTypes', () => {
