@@ -33,6 +33,7 @@ export class PreparedStatement
   private readonly _sql: string = '';
   private readonly _name: string = '';
   private readonly _paramTypes?: Maybe<OID>[];
+  private _resolvedParamTypes?: OID[];
   private _fields?: Protocol.RowDescription[];
   protected _onErrorSavePoint: string;
   private _refCount = 0;
@@ -59,12 +60,13 @@ export class PreparedStatement
       sql,
       options?.paramTypes,
     );
-    const { fields } = await intoCon.prepareOnce(
+    const { fields, resolvedParamTypes } = await intoCon.prepareOnce(
       sql,
       statement.paramTypes,
       statement.name!,
     );
     statement._fields = fields;
+    statement._resolvedParamTypes = resolvedParamTypes;
     statement._refCount = 1;
     return statement;
   }
@@ -83,6 +85,27 @@ export class PreparedStatement
 
   get paramTypes(): Maybe<Maybe<OID>[]> {
     return this._paramTypes;
+  }
+
+  /**
+   * What the server made of each parameter, in order, as its Describe
+   * answered - not what was asked for in `paramTypes`.
+   *
+   * A parameter the caller declared nothing for is resolved by the
+   * server from where it appears: the column it is inserted into, the
+   * operator it sits beside, the function it is passed to. It never
+   * looks at the value, which is still three messages away, so this is
+   * a property of the statement and does not change between executions.
+   *
+   * Useful for two things. It says what a parameter with no context
+   * became - `select $1` resolves to `text`, which is why an array
+   * there comes back as an array literal rather than an array. And it
+   * is the type to name with `new BindParam(oid, v)` for a caller who
+   * wants the binary encoding a large numeric array gives up by going
+   * out untyped (see `isUnspecifiedParam`).
+   */
+  get resolvedParamTypes(): Maybe<OID[]> {
+    return this._resolvedParamTypes;
   }
 
   async execute(options: QueryOptions = {}): Promise<QueryResult> {
