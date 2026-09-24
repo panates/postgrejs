@@ -3,6 +3,7 @@ import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import { formatDate } from '../util/format-datetime.js';
+import { utcPartsAsLocal } from '../util/local-date.js';
 import { parseDate } from '../util/parse-datetime.js';
 
 const timeShift = 946684800000;
@@ -49,11 +50,11 @@ export const DateType: DataType = {
     const t = v.readInt32BE(offset);
     if (t === 0x7fffffff) return Infinity;
     if (t === -0x80000000) return -Infinity;
-    // Shift from 2000 to 1970
-    let d = new Date(t * 1000 * 86400 + timeShift);
-    if (!options.utcDates)
-      d = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-    return d;
+    // Shift from 2000 to 1970. A date's wire value is exactly midnight
+    // UTC, so the local wall clock it stands for is local midnight -
+    // which is what the shift lands on.
+    const ms = t * 1000 * 86400 + timeShift;
+    return options.utcDates ? new Date(ms) : utcPartsAsLocal(ms);
   },
 
   decodeText(v: string, options: DataMappingOptions): Date | number {

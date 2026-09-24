@@ -6,7 +6,14 @@ describe('Parse connection string', () => {
   const oldEnv = { ...process.env };
 
   after(() => {
-    process.env = oldEnv;
+    // Key by key, and never `process.env = oldEnv`: assigning a plain
+    // object over it leaves Node writing to something it does not watch,
+    // so a later `process.env.TZ = ...` stops reaching the date cache -
+    // which is how a whole spec's worth of time-zone sweeps silently ran
+    // in the machine's own zone instead of the ones they named.
+    for (const k of Object.keys(process.env))
+      if (!(k in oldEnv)) delete process.env[k];
+    for (const [k, v] of Object.entries(oldEnv)) process.env[k] = v as string;
   });
 
   describe('Parse connection string', () => {

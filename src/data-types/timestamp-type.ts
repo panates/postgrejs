@@ -3,6 +3,7 @@ import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import { formatTimestamp } from '../util/format-datetime.js';
+import { utcPartsAsLocal } from '../util/local-date.js';
 import { parseDateTime } from '../util/parse-datetime.js';
 import { parsePgTimestampBuffer } from '../util/parse-pg-timestamp.js';
 
@@ -59,19 +60,8 @@ export const TimestampType: DataType = {
     if (lo === 0x00000000 && hi === -0x80000000) return -Infinity;
 
     // Shift from 2000 to 1970
-    let d = new Date((lo + hi * timeMul) / 1000 + timeShift);
-    if (!options.utcDates) {
-      d = new Date(
-        d.getUTCFullYear(),
-        d.getUTCMonth(),
-        d.getUTCDate(),
-        d.getUTCHours(),
-        d.getUTCMinutes(),
-        d.getUTCSeconds(),
-        d.getUTCMilliseconds(),
-      );
-    }
-    return d;
+    const ms = (lo + hi * timeMul) / 1000 + timeShift;
+    return options.utcDates ? new Date(ms) : utcPartsAsLocal(ms);
   },
   decodeText(v: string, options: DataMappingOptions): Date | number {
     return parseDateTime(v, options.utcDates, options.dateStyle);
