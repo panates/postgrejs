@@ -54,13 +54,15 @@ describe('temporalTypes', () => {
     });
   }
 
-  it('should keep a year the Date path moves by 1900', async () => {
+  it('should keep a year the Date path used to move by 1900', async () => {
     const r = await row("select '0044-03-15'::date d");
     expect(r.d.toString()).toStrictEqual('0044-03-15');
+    // The Date path answers the same year now - it used to come back as
+    // 1944, because `new Date(44, ...)` means 1944. See util/local-date.ts.
     const asDate = await row("select '0044-03-15'::date d", {
       temporalTypes: false,
     });
-    expect(asDate.d.getFullYear()).toStrictEqual(1944);
+    expect(asDate.d.getFullYear()).toStrictEqual(44);
   });
 
   it('should still answer Infinity for the sentinels', async () => {

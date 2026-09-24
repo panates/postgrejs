@@ -87,6 +87,19 @@ describe('MacaddrType / Macaddr8Type', () => {
       );
     });
 
+    it('should not let one value, or one type, reach into another', () => {
+      // Each type writes into a scratch buffer of its own that is reused
+      // per value; a string handed back earlier must not change when the
+      // next one is read, and the six-byte type must not be reading the
+      // eight-byte one's.
+      const first = decodeHex(MacaddrType, '08002b010203');
+      const wide = decodeHex(Macaddr8Type, '08002bfffe010203');
+      const second = decodeHex(MacaddrType, 'ffffffffffff');
+      expect(first).toStrictEqual('08:00:2b:01:02:03');
+      expect(wide).toStrictEqual('08:00:2b:ff:fe:01:02:03');
+      expect(second).toStrictEqual('ff:ff:ff:ff:ff:ff');
+    });
+
     it('should read from the offset it is given', () => {
       // Which is how it arrives: pointed into the shared row buffer.
       const buf = Buffer.from('ffff08002b010203ffff', 'hex');
