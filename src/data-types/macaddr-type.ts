@@ -2,6 +2,7 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import type { Maybe } from '../types.js';
+import { writeHexBytes } from '../util/hex-text.js';
 
 /**
  * `macaddr` and `macaddr8` share a file for the same reason `inet` and
@@ -39,6 +40,16 @@ function parseMacaddr(v: any, size: number): Maybe<Buffer> {
 }
 
 function createType(name: string, oid: number, size: number): DataType {
+  // The text this type writes, built once: `size` pairs of hex with a
+  // colon between them, and only the hex is rewritten per value. See
+  // util/hex-text.ts for why not `toString('hex')` per byte.
+  const text = Buffer.allocUnsafe(size * 3 - 1);
+  const positions: number[] = [];
+  let i: number;
+  for (i = 0; i < size; i++) {
+    positions.push(i * 3);
+    if (i) text[i * 3 - 1] = 58; /* : */
+  }
   return {
     name,
     oid,
@@ -61,11 +72,8 @@ function createType(name: string, oid: number, size: number): DataType {
     },
 
     decodeBinary(v: Buffer, offset: number = 0): string {
-      let out = v.toString('hex', offset, offset + 1);
-      let i: number;
-      for (i = 1; i < size; i++)
-        out += ':' + v.toString('hex', offset + i, offset + i + 1);
-      return out;
+      writeHexBytes(text, positions, v, offset, size);
+      return text.toString('latin1');
     },
 
     decodeText(v: string): string {
