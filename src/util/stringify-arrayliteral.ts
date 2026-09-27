@@ -146,6 +146,13 @@ const WRITE_BYTES_FROM = 16;
  *             2.7x       4.6x      3.5x
  * ```
  *
+ * What a caller waits for moves less than that, and the difference is
+ * worth knowing before quoting one: inserting the same 100 000-element
+ * array over a loopback connection is 14.21ms against 12.51ms, 1.14x,
+ * because the server's own parse of a 1.1MB literal is most of it. The
+ * allocation is gone either way - 10.10 MB a call to 0.00 - and a
+ * process that was collecting for it no longer is.
+ *
  * So the fast lane is integers, and everything else on this path - a
  * float, a bigint too large to be exact, anything a reader of the array
  * did not expect - falls back to its own text and is written as such.
