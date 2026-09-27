@@ -5,7 +5,7 @@ import type { Maybe, OID } from '../types.js';
 import { arrayLeaf } from '../util/array-leaf.js';
 import { encodeBinaryArray } from '../util/encode-binaryarray.js';
 import { formatDateParam } from '../util/format-datetime.js';
-import { stringifyArrayLiteral } from '../util/stringify-arrayliteral.js';
+import { writeArrayLiteral } from '../util/stringify-arrayliteral.js';
 import { Protocol } from './protocol.js';
 import type { SASL } from './sasl.js';
 import { SmartBuffer, type SmartBufferConfig } from './smart-buffer.js';
@@ -289,10 +289,9 @@ export class Frontend {
             }
             io.buffer.writeInt32BE(io.size - dataOffset, dataOffset - 4); // Update length
           } else if (typeof dt.encodeText === 'function') {
-            v = dt.elementsOID
-              ? stringifyArrayLiteral(v, queryOptions, dt.encodeText)
-              : dt.encodeText(v, queryOptions);
-            io.writeLString(v, 'utf8');
+            if (dt.elementsOID)
+              writeArrayLiteral(io, v, queryOptions, dt.encodeText);
+            else io.writeLString(dt.encodeText(v, queryOptions), 'utf8');
           }
         } else if (v instanceof Date) {
           // No declared type, so the server resolves it from the column
@@ -306,13 +305,11 @@ export class Frontend {
           // takes the element type from the column. `'' + v` would hand
           // it `a,b`, which is not one - the elements have to be quoted
           // and the braces written, and a nested array needs its own.
-          io.writeLString(
-            stringifyArrayLiteral(
-              v,
-              queryOptions,
-              arrayLeaf(v) instanceof Date ? formatDateParam : undefined,
-            ),
-            'utf8',
+          writeArrayLiteral(
+            io,
+            v,
+            queryOptions,
+            arrayLeaf(v) instanceof Date ? formatDateParam : undefined,
           );
         } else if (Buffer.isBuffer(v)) {
           // Set param format to binary

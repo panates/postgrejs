@@ -34,6 +34,64 @@ describe('Array parameters', () => {
   const one = async (sql: string, params: any[]) =>
     ((await conn.query(sql, { objectRows: true, params })).rows?.[0] as any).v;
 
+  describe('an array large enough to be written as bytes', () => {
+    // Past a threshold the literal is written straight into the send
+    // buffer rather than built as a string first (writeArrayLiteral).
+    // The unit tests pin that the two spell the same literal; these pin
+    // that the server reads what comes out of the new one.
+    it('should round-trip a thousand int4s, negatives and nulls included', async () => {
+      const value = Array.from({ length: 1000 }, (_, i) =>
+        i % 97 === 0 ? null : (i % 2 ? -1 : 1) * (2147483647 - i),
+      );
+      expect(await one('select $1::int4[] v', [value])).toStrictEqual(value);
+    });
+
+    it('should round-trip values past int32, which take the other lane', async () => {
+      const value = Array.from(
+        { length: 100 },
+        (_, i) => BigInt('9007199254740993') + BigInt(i),
+      );
+      expect(await one('select $1::int8[] v', [value])).toStrictEqual(value);
+    });
+
+    it('should round-trip floats, which keep the string path', async () => {
+      const value = Array.from({ length: 100 }, (_, i) => (i + 1) * 1.5);
+      expect(await one('select $1::float8[] v', [value])).toStrictEqual(value);
+    });
+
+    it('should round-trip text that needs quoting and escaping', async () => {
+      const value = Array.from({ length: 100 }, (_, i) =>
+        i % 3 === 0 ? `a"b${i}` : i % 3 === 1 ? `c\\d${i}` : `ölçüm ${i},{}`,
+      );
+      expect(await one('select $1::text[] v', [value])).toStrictEqual(value);
+    });
+
+    it('should round-trip an array that spans several write chunks', async () => {
+      // 64KB at a time is flushed into the send buffer; this is ~110KB
+      // of literal, so a boundary falls inside it.
+      const value = Array.from({ length: 10000 }, (_, i) => 2147383646 - i);
+      const back = await one('select $1::int4[] v', [value]);
+      expect(back).toHaveLength(value.length);
+      expect(back).toStrictEqual(value);
+    });
+
+    it('should round-trip a nested array', async () => {
+      const value = Array.from({ length: 20 }, (_row, r) =>
+        Array.from({ length: 30 }, (_col, c) => r * 30 + c),
+      );
+      expect(await one('select $1::int4[][] v', [value])).toStrictEqual(value);
+    });
+
+    it('should insert one into a column and read it back', async () => {
+      const value = Array.from({ length: 500 }, (_, i) => i * 7);
+      await conn.execute('delete from t_arrparam');
+      await conn.query('insert into t_arrparam (i4) values ($1)', {
+        params: [value],
+      });
+      expect(await one('select i4 v from t_arrparam', [])).toStrictEqual(value);
+    });
+  });
+
   describe('a comparison, which is where the declared type decided it', () => {
     const CASES: [string, any[]][] = [
       ['array[1.5,2.5]::numeric[]', [[1.5, 2.5]]],
