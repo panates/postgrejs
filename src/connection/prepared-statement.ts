@@ -1,4 +1,4 @@
-import { DataTypeOIDs } from '../constants.js';
+import { DataTypeNames, DataTypeOIDs } from '../constants.js';
 import { GlobalTypeMap } from '../data-type-map.js';
 import type { BatchResult } from '../interfaces/batch-result.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
@@ -17,6 +17,7 @@ import {
   refusesSavepoint,
 } from '../util/transaction-command.js';
 import { wrapRowDescription } from '../util/wrap-row-description.js';
+import { BindParam } from './bind-param.js';
 import type { Connection } from './connection.js';
 import { Cursor } from './cursor.js';
 import { getIntlConnection } from './intl-connection.js';
@@ -33,6 +34,7 @@ export class PreparedStatement
   private readonly _sql: string = '';
   private readonly _name: string = '';
   private readonly _paramTypes?: Maybe<OID>[];
+  private _resolvedParamTypes?: OID[];
   private _fields?: Protocol.RowDescription[];
   protected _onErrorSavePoint: string;
   private _refCount = 0;
@@ -59,12 +61,13 @@ export class PreparedStatement
       sql,
       options?.paramTypes,
     );
-    const { fields } = await intoCon.prepareOnce(
+    const { fields, resolvedParamTypes } = await intoCon.prepareOnce(
       sql,
       statement.paramTypes,
       statement.name!,
     );
     statement._fields = fields;
+    statement._resolvedParamTypes = resolvedParamTypes;
     statement._refCount = 1;
     return statement;
   }
@@ -83,6 +86,27 @@ export class PreparedStatement
 
   get paramTypes(): Maybe<Maybe<OID>[]> {
     return this._paramTypes;
+  }
+
+  /**
+   * What the server made of each parameter, in order, as its Describe
+   * answered - not what was asked for in `paramTypes`.
+   *
+   * A parameter the caller declared nothing for is resolved by the
+   * server from where it appears: the column it is inserted into, the
+   * operator it sits beside, the function it is passed to. It never
+   * looks at the value, which is still three messages away, so this is
+   * a property of the statement and does not change between executions.
+   *
+   * Useful for two things. It says what a parameter with no context
+   * became - `select $1` resolves to `text`, which is why an array
+   * there comes back as an array literal rather than an array. And it
+   * is the type to name with `new BindParam(oid, v)` for a caller who
+   * wants the binary encoding a large numeric array gives up by going
+   * out untyped (see `isUnspecifiedParam`).
+   */
+  get resolvedParamTypes(): Maybe<OID[]> {
+    return this._resolvedParamTypes;
   }
 
   async execute(options: QueryOptions = {}): Promise<QueryResult> {
@@ -178,6 +202,52 @@ export class PreparedStatement
    * holding a `Connection` never saw. Hard to provoke - `DEALLOCATE`
    * does not normally raise one - which is why there is no test for it.
    */
+  /**
+   * Takes the value out of a `BindParam`, and refuses one that names a
+   * type this statement is not.
+   *
+   * A prepared statement's parameter types are fixed by its Parse, so a
+   * `BindParam` here cannot change one: the Bind's format code says
+   * binary or text, and the server decodes with the type it already
+   * resolved. Naming a different one and being believed would read the
+   * bytes as something else - which is why the mismatch is an error
+   * rather than something to quietly honour.
+   *
+   * It used to be neither: nothing unwrapped the object, so it reached
+   * the encoder as a value with no type of its own and went out as
+   * `'' + v`. A text column took `"[object Object]"` and said nothing.
+   *
+   * What it is compared against is what the caller declared at
+   * `prepare()`, or failing that what the server resolved - which is the
+   * same type either way, and is why an agreeing `BindParam` is simply
+   * unwrapped. Where there is nothing to compare against, the value is
+   * taken as given.
+   */
+  protected _unwrapBindParams(params: Maybe<any[]>): Maybe<any[]> {
+    if (!params) return params;
+    let out: any[] | undefined;
+    const l = params.length;
+    let i: number;
+    let prm: any;
+    let expected: Maybe<OID>;
+    for (i = 0; i < l; i++) {
+      prm = params[i];
+      if (!(prm instanceof BindParam)) continue;
+      expected = this._paramTypes?.[i] ?? this._resolvedParamTypes?.[i];
+      if (expected != null && prm.oid !== expected)
+        throw new TypeError(
+          `Parameter $${i + 1} was given as ${typeLabel(prm.oid)}, but this ` +
+            `prepared statement's $${i + 1} is ${typeLabel(expected)}. A ` +
+            'prepared statement takes its parameter types at ' +
+            'prepare(sql, { paramTypes }), and they cannot be changed per ' +
+            'execution.',
+        );
+      out = out || params.slice();
+      out[i] = prm.value;
+    }
+    return out || params;
+  }
+
   protected _emitNotice(msg: any): void {
     this.emit('notice', msg);
     getIntlConnection(this.connection).emit('notice', msg);
@@ -193,7 +263,7 @@ export class PreparedStatement
         this.name!,
         this._fields,
         this.paramTypes,
-        paramSets,
+        paramSets.map(set => this._unwrapBindParams(set) as any[]),
         options,
       ),
     );
@@ -320,6 +390,7 @@ export class PreparedStatement
     savepoint?: string,
   ): Promise<QueryResult> {
     const intlCon = getIntlConnection(this.connection);
+    const params = this._unwrapBindParams(options.params);
     if (options.cursor && this._fields) {
       intlCon.ref();
       let portal: Maybe<Portal> = new Portal(this, 'P_' + ++portalCounter);
@@ -334,7 +405,7 @@ export class PreparedStatement
           typeMap,
         );
         const fields = await portal.bindAndRetrieveFields(
-          options.params,
+          params,
           options,
           columnFormat,
         );
@@ -372,7 +443,7 @@ export class PreparedStatement
       this.name!,
       this._fields,
       this.paramTypes,
-      options.params,
+      params,
       options,
       savepoint,
     );
@@ -507,4 +578,10 @@ export class PreparedStatement
   [Symbol.asyncDispose](): Promise<void> {
     return this.close();
   }
+}
+
+/** `int2 (21)` - the name when there is one, and always the oid. */
+function typeLabel(oid: OID): string {
+  const name = DataTypeNames[oid];
+  return name ? `${name} (${oid})` : String(oid);
 }

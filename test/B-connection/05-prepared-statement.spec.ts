@@ -1,5 +1,5 @@
 import { expect } from 'expect';
-import { Connection, DataFormat } from 'postgrejs';
+import { BindParam, Connection, DataFormat, DataTypeOIDs } from 'postgrejs';
 
 describe('PreparedStatement', () => {
   let connection: Connection;
@@ -22,6 +22,184 @@ describe('PreparedStatement', () => {
     // Connection must still be usable afterward.
     const r = await connection.query('select 2 as v');
     expect(r.rows?.[0]).toStrictEqual([2]);
+  });
+
+  describe('a BindParam in execute()', () => {
+    it('should use the value when it names the type the statement already is', async () => {
+      // It cannot change the type - Parse fixed that - so the only
+      // question is whether the value arrives. It used to reach the
+      // encoder as an object with no type and go out as `'' + v`: a text
+      // column took "[object Object]" and said nothing.
+      await connection.execute('create temp table bp_ok (v text)');
+      const stmt = await connection.prepare(
+        'insert into bp_ok (v) values ($1)',
+      );
+      try {
+        await stmt.execute({
+          params: [new BindParam(DataTypeOIDs.text, 'hello')],
+        });
+        const r = await connection.query('select v from bp_ok');
+        expect(r.rows?.[0]).toStrictEqual(['hello']);
+      } finally {
+        await stmt.close();
+        await connection.execute('drop table bp_ok');
+      }
+    });
+
+    it('should take it in a batch set too', async () => {
+      await connection.execute('create temp table bp_batch (v int4)');
+      const stmt = await connection.prepare(
+        'insert into bp_batch (v) values ($1)',
+        { paramTypes: [DataTypeOIDs.int4] },
+      );
+      try {
+        await stmt.executeBatch([
+          [new BindParam(DataTypeOIDs.int4, 1)],
+          [2],
+          [new BindParam(DataTypeOIDs.int4, 3)],
+        ]);
+        const r = await connection.query('select v from bp_batch order by v');
+        expect(r.rows).toStrictEqual([[1], [2], [3]]);
+      } finally {
+        await stmt.close();
+        await connection.execute('drop table bp_batch');
+      }
+    });
+
+    it('should refuse one that names a different type than the statement', async () => {
+      // Believing it would put int4 bytes where the server reads int2.
+      await connection.execute('create temp table bp_bad (v int2)');
+      const stmt = await connection.prepare(
+        'insert into bp_bad (v) values ($1)',
+      );
+      try {
+        await expect(
+          stmt.execute({ params: [new BindParam(DataTypeOIDs.int4, 1)] }),
+        ).rejects.toThrow(
+          /\$1 was given as int4 \(23\), but this prepared statement's \$1 is int2 \(21\)/,
+        );
+        // And the connection is still usable - nothing was sent.
+        const r = await connection.query('select 1 as v');
+        expect(r.rows?.[0]).toStrictEqual([1]);
+      } finally {
+        await stmt.close();
+        await connection.execute('drop table bp_bad');
+      }
+    });
+
+    it('should name a type this client has no name for by its oid', async () => {
+      // An enum is resolved by the server like any other type, and the
+      // message has to say which one even when the client only knows the
+      // number.
+      await connection.execute("create type bp_mood as enum ('ok', 'bad')");
+      const stmt = await connection.prepare('select $1::bp_mood as v');
+      try {
+        await expect(
+          stmt.execute({ params: [new BindParam(DataTypeOIDs.text, 'ok')] }),
+        ).rejects.toThrow(/but this prepared statement's \$1 is \d+\./);
+      } finally {
+        await stmt.close();
+        await connection.execute('drop type bp_mood');
+      }
+    });
+
+    it('should refuse one that disagrees with a type declared at prepare()', async () => {
+      const stmt = await connection.prepare('select $1 as v', {
+        paramTypes: [DataTypeOIDs.int4],
+      });
+      try {
+        await expect(
+          stmt.execute({ params: [new BindParam(DataTypeOIDs.text, 'x')] }),
+        ).rejects.toThrow(/cannot be changed per execution/);
+      } finally {
+        await stmt.close();
+      }
+    });
+  });
+
+  describe('resolvedParamTypes', () => {
+    it('should report what the server made of each parameter', async () => {
+      const stmt = await connection.prepare(
+        'select $1::int4 + $2::int8 as v, $3::text as t',
+      );
+      try {
+        expect(stmt.resolvedParamTypes).toStrictEqual([
+          DataTypeOIDs.int4,
+          DataTypeOIDs.int8,
+          DataTypeOIDs.text,
+        ]);
+      } finally {
+        await stmt.close();
+      }
+    });
+
+    it('should report the type the context gives a parameter with no cast', async () => {
+      // Nothing the client could have known: the server takes the type
+      // from the column, and this is the only place it says so. It is
+      // also the answer to why an untyped array of numbers is read as
+      // text where there is no context at all - `select $1` resolves to
+      // text, not to any array type.
+      await connection.execute(
+        'create temp table pt_resolve (a int2[], b timestamptz)',
+      );
+      const insert = await connection.prepare(
+        'insert into pt_resolve (a, b) values ($1, $2)',
+      );
+      const bare = await connection.prepare('select $1 as v');
+      try {
+        expect(insert.resolvedParamTypes).toStrictEqual([
+          DataTypeOIDs._int2,
+          DataTypeOIDs.timestamptz,
+        ]);
+        expect(bare.resolvedParamTypes).toStrictEqual([DataTypeOIDs.text]);
+      } finally {
+        await insert.close();
+        await bare.close();
+        await connection.execute('drop table pt_resolve');
+      }
+    });
+
+    it('should not change with the values a statement is executed on', async () => {
+      // The value is three messages away when the server answers, so the
+      // answer is a property of the statement. A caller reading it once
+      // and naming that type from then on is therefore safe - and the
+      // value that does not fit is refused either way.
+      await connection.execute('create temp table pt_range (v int2[])');
+      const stmt = await connection.prepare(
+        'insert into pt_range (v) values ($1)',
+      );
+      try {
+        const first = stmt.resolvedParamTypes;
+        expect(first).toStrictEqual([DataTypeOIDs._int2]);
+        await stmt.execute({ params: [[1, 2]] });
+        await expect(stmt.execute({ params: [[40000]] })).rejects.toThrow(
+          /out of range for type smallint/,
+        );
+        expect(stmt.resolvedParamTypes).toStrictEqual(first);
+        // And the type it named is the one to declare, which a prepared
+        // statement takes at prepare() rather than per execute().
+        const named = await connection.prepare(
+          'insert into pt_range (v) values ($1)',
+          { paramTypes: [DataTypeOIDs._int2] },
+        );
+        await named.execute({ params: [[3, 4]] });
+        await named.close();
+        const r = await connection.query('select v from pt_range order by 1');
+        expect(r.rows).toStrictEqual([[[1, 2]], [[3, 4]]]);
+      } finally {
+        await stmt.close();
+        await connection.execute('drop table pt_range');
+      }
+    });
+
+    it('should be undefined for a statement with no parameters', async () => {
+      const stmt = await connection.prepare('select 1 as v');
+      try {
+        expect(stmt.resolvedParamTypes).toStrictEqual([]);
+      } finally {
+        await stmt.close();
+      }
+    });
   });
 
   it('should execute() a prepared statement multiple times with different params', async () => {

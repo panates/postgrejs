@@ -14,7 +14,7 @@ export const OidType: DataType = {
   },
 
   encodeBinary(buf: SmartBuffer, v: number): void {
-    buf.writeUInt32BE(assertInteger(fastParseInt(v), 'oid'));
+    buf.writeUInt32BE(assertInteger(v, 'oid', 0, 4294967295));
   },
 
   decodeBinary(v: Buffer, offset: number = 0): number {

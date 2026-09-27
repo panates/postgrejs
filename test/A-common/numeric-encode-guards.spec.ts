@@ -65,10 +65,67 @@ describe('numeric binary encode guards', () => {
     expect(encode(DataTypeOIDs.int4, '42').toString('hex')).toStrictEqual(
       '0000002a',
     );
-    // Truncating a float into an integer column is long-standing behaviour
-    // and stays - only "not a number at all" is refused.
-    expect(encode(DataTypeOIDs.int4, 3.7).toString('hex')).toStrictEqual(
-      '00000003',
+    expect(encode(DataTypeOIDs.int4, ' -42 ').toString('hex')).toStrictEqual(
+      'ffffffd6',
     );
+    // A bigint is an integer a caller can perfectly well have in hand for
+    // a narrower column, and the text path takes it.
+    expect(encode(DataTypeOIDs.int4, 42n).toString('hex')).toStrictEqual(
+      '0000002a',
+    );
+  });
+
+  /**
+   * Which encoding a value goes out as is not the caller's choice - it
+   * follows from whether the type was declared and which statement cache
+   * the query hit. So binary must refuse what the server refuses from
+   * text, rather than quietly storing something else.
+   */
+  describe('the two encodings agree about what an integer is', () => {
+    for (const [typeName, oid] of INTEGERS) {
+      it(`should refuse a fractional value for "${typeName}"`, () => {
+        // `'1.5'::int4` is 22P02 on the server, and this used to store 1 -
+        // or -2 for -1.5, which was a floor rather than a truncation.
+        expect(() => encode(oid, 1.5)).toThrow(/is not an integer/);
+        expect(() => encode(oid, -1.5)).toThrow(/is not an integer/);
+        expect(() => encode(oid, '1.5')).toThrow(/is not an integer/);
+      });
+
+      it(`should refuse a string the server would not read as one for "${typeName}"`, () => {
+        // Every one of these used to encode: '0x10' as 0 (parseInt with a
+        // radix of 10 stops at the 'x'), '' as 0 through BigInt for int8,
+        // '1e3' as 1.
+        expect(() => encode(oid, '0x10')).toThrow(/is not an integer/);
+        expect(() => encode(oid, '')).toThrow();
+        expect(() => encode(oid, '1e3')).toThrow(/is not an integer/);
+      });
+    }
+
+    it('should refuse a value outside the type, naming it', () => {
+      expect(() => encode(DataTypeOIDs.int2, 40000)).toThrow(
+        /Cannot encode 40000 as int2: it is out of range \(-32768 to 32767\)/,
+      );
+      expect(() => encode(DataTypeOIDs.int4, 2 ** 40)).toThrow(/out of range/);
+      expect(() => encode(DataTypeOIDs.oid, -1)).toThrow(/out of range/);
+      expect(() => encode(DataTypeOIDs.int8, 2n ** 70n)).toThrow(
+        /out of range/,
+      );
+    });
+
+    it('should take the whole int8 range', () => {
+      expect(
+        encode(DataTypeOIDs.int8, 9223372036854775807n).toString('hex'),
+      ).toStrictEqual('7fffffffffffffff');
+      expect(
+        encode(DataTypeOIDs.int8, '-9223372036854775808').toString('hex'),
+      ).toStrictEqual('8000000000000000');
+    });
+
+    it('should refuse a fractional value for "xid" too', () => {
+      expect(() => encode(DataTypeOIDs.xid, 1.5)).toThrow(/is not an integer/);
+      expect(encode(DataTypeOIDs.xid, 42).toString('hex')).toStrictEqual(
+        '0000002a',
+      );
+    });
   });
 });

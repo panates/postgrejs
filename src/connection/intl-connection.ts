@@ -1498,16 +1498,27 @@ export class IntlConnection extends SafeEventEmitter {
    * a separately-awaited Sync, and fetches the RowDescription/NoData in the
    * same round trip so the caller can cache it (see executeReused()) rather
    * than every later execute() re-Describing its own portal.
+   *
+   * The Describe answers with the parameters too, and that answer is worth
+   * keeping: it is the only place the server says what it made of a
+   * parameter the client declared nothing for. `insert into t(v)
+   * values($1)` resolves `$1` from the column, not from the value - which
+   * is why it is stable across executions and why a caller who wants the
+   * binary encoding back can read it and name that type with BindParam.
    */
   async prepareOnce(
     sql: string,
     paramTypes: Maybe<Maybe<OID>[]>,
     statementName: string,
-  ): Promise<{ fields?: Protocol.RowDescription[] }> {
+  ): Promise<{
+    fields?: Protocol.RowDescription[];
+    resolvedParamTypes?: OID[];
+  }> {
     this.assertConnected();
     this.ref();
     try {
       let fields: Protocol.RowDescription[] | undefined;
+      let resolvedParamTypes: OID[] | undefined;
       let error: Error | undefined;
 
       this.runningQueryCount++;
@@ -1527,8 +1538,10 @@ export class IntlConnection extends SafeEventEmitter {
                 // Not an error: handed over, and the loop carries on.
                 this.emit('notice', msg);
                 break;
-              case Protocol.BackendMessageCode.ParseComplete:
               case Protocol.BackendMessageCode.ParameterDescription:
+                resolvedParamTypes = msg.parameterIds;
+                break;
+              case Protocol.BackendMessageCode.ParseComplete:
               case Protocol.BackendMessageCode.NoData:
                 break;
               case Protocol.BackendMessageCode.RowDescription:
@@ -1556,7 +1569,7 @@ export class IntlConnection extends SafeEventEmitter {
           this.runningQueryCount--;
         });
 
-      return { fields };
+      return { fields, resolvedParamTypes };
     } finally {
       this.unref();
     }

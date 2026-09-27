@@ -38,8 +38,32 @@ import { arrayLeaf } from './array-leaf.js';
  * or of one of this client's own classes has one type it can be, so
  * naming it says nothing the server would have decided differently -
  * and it keeps the binary encoding, which the text literal gives up.
- * A caller who wants that back for a large numeric array names the type
- * with `new BindParam(DataTypeOIDs._float8, v)`.
+ *
+ * What that giving up costs, which the commit making this change put at
+ * nothing measurable and is not: inserting the same value over a
+ * loopback connection, alternating within each round, medians of nine -
+ *
+ * ```
+ *                  as text   as BindParam
+ * float8[]  1 000   2.33ms       0.91ms    2.6x
+ * float8[] 10 000  17.34ms       3.75ms    4.6x
+ * float8[] 100 000  143.0ms      26.9ms    5.3x
+ * int4[]   100 000   24.5ms      15.5ms    1.6x
+ * ```
+ *
+ * It grows with the array and with how wide an element's text is
+ * against its binary: a float8 is 8 bytes against about 19 characters,
+ * an int4 is 4 against up to 11 - and most of what a float8[] costs is
+ * the server's own parse of that text, not the writing of it. The
+ * original measurement was of the smallest of these shapes and read it
+ * as level; it is not, at any size.
+ *
+ * So this is a real price, paid for a correctness the client cannot buy
+ * any other way before the server has spoken. A caller who knows the
+ * column - and for a large numeric array that is worth knowing - names
+ * the type with `new BindParam(DataTypeOIDs._float8, v)` and gets the
+ * binary encoding back with nothing given up, since a named type is an
+ * answer rather than a guess.
  */
 export function isUnspecifiedParam(v: any): boolean {
   const x = arrayLeaf(v);

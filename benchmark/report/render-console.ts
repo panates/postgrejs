@@ -88,6 +88,10 @@ export function renderConsoleSummary(summaries: ScenarioLibSummary[]): void {
         s.medianPeakHeapGrowthBytes != null
           ? round(s.medianPeakHeapGrowthBytes / 1024, 1)
           : null,
+      'retained (KB)':
+        s.medianRetainedHeapBytes != null
+          ? round(s.medianRetainedHeapBytes / 1024, 1)
+          : null,
     }));
     printTable(rows, new Set(['lib', 'vs slowest']));
   }

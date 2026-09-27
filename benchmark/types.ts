@@ -46,10 +46,12 @@ export interface ScenarioMeta {
    */
   readonly unsupportedLibs?: Partial<Record<LibId, string>>;
   /**
-   * Report bytes-received-from-the-server for this scenario (a column and
-   * a chart). Worth it only where the wire size is itself part of what
-   * separates the libraries - a large blob or a large array, where one
-   * library reads binary and the others read text.
+   * Report the bytes this scenario moved, in each direction (a column and
+   * a chart per direction, and each one is left out when nothing moved
+   * that way). Worth it only where the wire size is itself part of what
+   * separates the libraries - a large blob or array read, where one
+   * library reads binary and the others read text, or a COPY, where the
+   * payload each library formats is the whole scenario.
    */
   readonly reportWireBytes?: boolean;
 }
@@ -89,15 +91,38 @@ export interface BenchResultStats {
   gcDurationMs?: number;
   peakHeapGrowthBytes?: number;
   /**
-   * Bytes received from the server during the run, counted at the socket
-   * (see worker.ts) so it is comparable across libraries. Only reported
-   * for scenarios that set ScenarioMeta.reportWireBytes - for everything
-   * else the payload is small and identical enough that the number says
-   * nothing, while for a large blob or array it is the whole point: the
-   * binary protocol and the text protocol put very different amounts of
-   * data on the wire for the same rows.
+   * What the run was still holding when it finished, against the same
+   * forced-GC baseline peakHeapGrowthBytes is measured from and after a
+   * second forced collection - so the two read together: the peak is the
+   * most the process ever needed, and this is how much of it never went
+   * away. A pool, a statement cache, a buffer that grew and was kept.
+   *
+   * They answer different questions and can disagree by orders of
+   * magnitude on the same scenario. A large peak with nothing retained is
+   * churn, which costs collector time; a figure that climbs with the call
+   * count is footprint, which does not go away. Reading a peak alone for
+   * the second question has produced a wrong answer before - a per-call
+   * gap was taken for a fixed cost when it was garbage all along.
+   *
+   * Needs --expose-gc for the same reason the peak does, and is undefined
+   * without it rather than measured against an unforced baseline.
+   */
+  retainedHeapBytes?: number;
+  /**
+   * Bytes received from and sent to the server during the run, counted at
+   * the socket (see worker.ts) so both are comparable across libraries.
+   * Only reported for scenarios that set ScenarioMeta.reportWireBytes -
+   * for everything else the payload is small and identical enough that the
+   * number says nothing, while for a large blob, a large array or a COPY
+   * it is the whole point: the binary protocol and the text protocol put
+   * very different amounts of data on the wire for the same rows.
+   *
+   * A scenario that writes has nothing to show in the received figure -
+   * which is why both directions are counted rather than only the one a
+   * fetch happens to use.
    */
   wireRxBytes?: number;
+  wireTxBytes?: number;
 }
 
 /** Which JS runtime actually executed this result's worker process - see

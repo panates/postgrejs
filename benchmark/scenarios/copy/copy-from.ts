@@ -108,6 +108,11 @@ being marked unsupported.`,
   unsupportedLibs: {
     bun: 'No COPY API',
   },
+  // The payload is the scenario: every library formats the same rows and
+  // pushes them, so what each one puts on the wire for them is the thing
+  // being compared. Counted rather than inferred from the format, which
+  // is all this table could do before the sent direction was measured.
+  reportWireBytes: true,
 };
 
 export const COPY_FROM_BINARY_SCENARIO: ScenarioMeta = {
@@ -134,6 +139,11 @@ part of it.`,
     warmupTime: 500,
     warmupIterations: 2,
   },
+  // What the format costs on the wire, against the text table's own
+  // figure for the same 200,000 rows - the difference between the two is
+  // the whole claim those tables make, and it was an estimate until both
+  // could be counted.
+  reportWireBytes: true,
   unsupportedLibs: {
     pg: 'No binary COPY encoding',
     postgres: 'No binary COPY encoding',

@@ -1,5 +1,4 @@
 import * as fs from 'node:fs';
-import net from 'node:net';
 import * as path from 'node:path';
 import { PerformanceObserver } from 'node:perf_hooks';
 import process from 'node:process';
@@ -29,6 +28,7 @@ import {
 } from '../scenarios/index.js';
 import type { BenchResult, LibId, ScenarioName } from '../types.js';
 import { usedBytes } from './heap-usage.js';
+import { installWireCounters, wireBytes } from './wire-bytes.js';
 
 function parseArgs(argv: string[]): Record<string, string> {
   const args: Record<string, string> = {};
@@ -43,22 +43,14 @@ interface GcStats {
   gcCount?: number;
   gcDurationMs?: number;
   peakHeapGrowthBytes?: number;
+  retainedHeapBytes?: number;
   wireRxBytes?: number;
+  wireTxBytes?: number;
 }
 
-// Bytes the server sent us, counted where they enter the process rather
-// than anywhere library-specific: Readable.push() is what the socket calls
-// with each incoming chunk, so this sees all three libraries' traffic
-// identically (and TLS sockets inherit it, though no scenario uses TLS).
 // Patched once at module load - the connections these scenarios measure
 // are opened later, by adapter.setup().
-let rxBytes = 0;
-const originalSocketPush = net.Socket.prototype.push;
-net.Socket.prototype.push = function (chunk: any, ...rest: any[]): boolean {
-  // push(null) signals EOF and carries no bytes.
-  if (chunk) rxBytes += chunk.length;
-  return originalSocketPush.call(this, chunk, ...rest);
-};
+installWireCounters();
 
 // How often to sample memory while the run is in flight. A before/after
 // snapshot only sees what's left over once everything is done - it can't
@@ -107,7 +99,7 @@ async function withGcStats(run: () => Promise<void>): Promise<GcStats> {
   });
   observer.observe({ entryTypes: ['gc'] });
 
-  const rxBefore = rxBytes;
+  const wireBefore = wireBytes();
   const heapBefore = gc ? (gc(), usedBytes()) : undefined;
   let peakHeapUsed = heapBefore ?? usedBytes();
   const sampler = setInterval(() => {
@@ -121,12 +113,29 @@ async function withGcStats(run: () => Promise<void>): Promise<GcStats> {
   clearInterval(sampler);
   observer.disconnect();
 
+  const wireAfter = wireBytes();
+
+  // What the run left behind once nothing is in flight, against the same
+  // baseline the peak is measured from: collect, then look. Peak says how
+  // much the process needed at its worst; this says how much of that it
+  // is still holding - a pool, a statement cache, a buffer it grew and
+  // kept. The two are answers to different questions and a scenario's
+  // numbers can be large in one and ~0 in the other, which is the point:
+  // garbage and footprint cost different things, and a high peak with
+  // nothing retained is churn rather than a leak.
+  const retainedHeapBytes =
+    heapBefore != null
+      ? (gc!(), Math.max(usedBytes() - heapBefore, 0))
+      : undefined;
+
   return {
     gcCount,
     gcDurationMs,
     peakHeapGrowthBytes:
       heapBefore != null ? Math.max(peakHeapUsed - heapBefore, 0) : undefined,
-    wireRxBytes: rxBytes - rxBefore,
+    retainedHeapBytes,
+    wireRxBytes: wireAfter.rx - wireBefore.rx,
+    wireTxBytes: wireAfter.tx - wireBefore.tx,
   };
 }
 
@@ -324,7 +333,10 @@ async function main(): Promise<void> {
   // wire I/O is implemented natively, not via the net.Socket.prototype.push
   // patch above), so rxBytes never moves for it - report "no data" rather
   // than a misleading 0 bytes received.
-  if (lib === 'bun') gcStats.wireRxBytes = undefined;
+  if (lib === 'bun') {
+    gcStats.wireRxBytes = undefined;
+    gcStats.wireTxBytes = undefined;
+  }
   // PerformanceObserver({entryTypes: ['gc']}) silently never fires under
   // Bun - confirmed live: forcing heavy allocation + global.gc() (which
   // itself doesn't throw) produces zero observed 'gc' entries under bun,
@@ -390,6 +402,10 @@ async function main(): Promise<void> {
     gcStats.peakHeapGrowthBytes != null
       ? `${(gcStats.peakHeapGrowthBytes / 1024).toFixed(1)}KB`
       : 'n/a';
+  const retainedText =
+    gcStats.retainedHeapBytes != null
+      ? `${(gcStats.retainedHeapBytes / 1024).toFixed(1)}KB`
+      : 'n/a';
   const gcText =
     gcStats.gcCount != null
       ? `${gcStats.gcCount}/${gcStats.gcDurationMs?.toFixed(1)}ms`
@@ -402,7 +418,8 @@ async function main(): Promise<void> {
       `ops/sec=${result.throughput.mean.toFixed(1)} ` +
       `samples=${result.latency.samplesCount} ` +
       `gc=${gcText} ` +
-      `peakHeap=${peakHeapText}`,
+      `peakHeap=${peakHeapText} ` +
+      `retained=${retainedText}`,
   );
 
   // Some adapters' pools/sockets can leave a stray timer/handle behind even
