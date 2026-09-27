@@ -6,18 +6,15 @@ import { fileURLToPath } from 'node:url';
 import { Connection } from 'postgrejs';
 import { getBenchDbConfig } from '../config.js';
 import { SCENARIO_NAMES, SCENARIOS } from '../scenarios/index.js';
-import type {
-  BenchResult,
-  BenchRuntime,
-  LibId,
-  ScenarioName,
-} from '../types.js';
+import type { BenchResult, BenchRuntime, ScenarioName } from '../types.js';
 import {
   groupByScenario,
   readResults,
   type ScenarioLibSummary,
   summarize,
 } from './aggregate.js';
+import { renderBarChart } from './bar-chart.js';
+import { LIB_ORDER } from './lib-order.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BENCHMARK_DIR = path.resolve(__dirname, '..');
@@ -29,36 +26,6 @@ const LIB_LABELS: Record<string, string> = {
   postgres: 'postgres (postgres.js)',
   bun: 'Bun.sql',
 };
-
-// Short labels for the chart's x-axis only - the full "(node-postgres)"/
-// "(postgres.js)" qualifiers from LIB_LABELS get clipped at this chart's
-// width, and the table right above every chart already carries the full
-// name plus installed version, so the qualifier isn't needed here again.
-const CHART_LIB_LABELS: Record<string, string> = {
-  postgrejs: 'PostgreJS',
-  pg: 'pg',
-  postgres: 'postgres',
-  bun: 'Bun.sql',
-};
-
-// Fixed library order, used by both the charts and the tables: a library
-// sits in the same position in every scenario, so a reader scanning down
-// BENCHMARKS.md can compare it scenario-to-scenario without hunting for it
-// in a ranking that reshuffles per scenario.
-//
-// The tables used to sort by mean instead, which quietly overstated what
-// the measurement can resolve: ordering a 2.434 ms above a 2.458 ms reads
-// as "this one won" when the two are a percent apart and a repeat of the
-// same run can swap them. Several scenarios here are within that margin,
-// and the differences that remain are visible in the numbers themselves -
-// which are still printed in full - without the row order asserting a
-// verdict on top of them. See renderScenarioTable()'s tie handling for the
-// same reasoning applied to the bolding.
-//
-// `bun` only ever appears in the separate Bun report (see main()) - listed
-// last here so it never displaces the other three's order if it's ever run
-// alongside them.
-const LIB_ORDER: LibId[] = ['postgrejs', 'pg', 'postgres', 'bun'];
 
 /** Smallest relative gap that can still count as a real difference, used
  * as a floor under the data-derived tie band in renderScenarioTable(). One
@@ -342,100 +309,6 @@ function renderEnvironment(
 // color rather than reading as just another same-colored bar chart.
 const HIGHER_IS_BETTER_COLOR = '#f2a900';
 
-/** GitHub renders ```mermaid fences natively, so a chart here is plain
- * committed text - no image files to generate/regenerate/gitignore.
- * Shared by the latency/throughput/GC/heap charts below - only the
- * title/unit/value-per-library, canvas width, and (for ops/sec) bar color
- * differ. */
-function renderBarChart(
-  summaries: ScenarioLibSummary[],
-  opts: {
-    title: string;
-    unit: string;
-    valueOf: (s: ScenarioLibSummary) => number;
-    width?: number;
-    height?: number;
-    color?: string;
-  },
-): string {
-  const byLib = new Map(summaries.map(s => [s.lib, s]));
-  const ordered = LIB_ORDER.map(lib => byLib.get(lib)).filter(
-    (s): s is ScenarioLibSummary => !!s,
-  );
-  const xAxis = ordered.map(s => CHART_LIB_LABELS[s.lib] ?? s.lib);
-  const values = ordered.map(opts.valueOf);
-  const bars = values.map(v => v.toFixed(4));
-  // Without an explicit range, xychart-beta auto-scales the value axis to
-  // fit the data tightly (roughly [min, max] of the bars, not anchored at
-  // 0) - for a scenario where every library lands within a few percent of
-  // each other (e.g. Sequential Execution), that tight window makes
-  // trivial differences look like one bar is a sliver next to another.
-  // Anchoring at 0 (extended to whichever side of 0 the data actually
-  // falls on) keeps bar length honestly proportional to the actual
-  // values. Heap Δ in particular is often *negative* (a run that nets out
-  // shrinking the heap) - Math.min/max each include a literal 0 candidate
-  // so an all-positive series still anchors its floor at 0 and an
-  // all-negative one anchors its ceiling at 0, rather than assuming
-  // every chart's data is non-negative like the latency/GC ones usually
-  // are. A flat all-zero series (e.g. no GC observed at all) would make
-  // both ends 0 too - xychart-beta needs a non-degenerate range, so that
-  // case floors the ceiling at a small positive number instead.
-  //
-  // The max headroom is 50%, not the ~10% you'd use for a plain chart:
-  // with chartOrientation set to horizontal below, this value axis runs
-  // left-to-right, so a bar reaching the real max value now stops at
-  // ~67% of the chart's width - deliberately leaving empty space on the
-  // right for GitHub's fixed-position pan/zoom overlay (see
-  // renderScenarioCharts) to sit over instead of over an actual bar.
-  const minValue = Math.min(...values, 0);
-  const maxValue = Math.max(...values, 0);
-  const yAxisMin = (minValue < 0 ? minValue * 1.1 : 0).toFixed(4);
-  const yAxisMax = (
-    maxValue > 0 ? maxValue * 1.5 : minValue < 0 ? 0 : 1
-  ).toFixed(4);
-  // Mermaid's xychart-beta defaults to a large canvas; the 'xyChart' init
-  // config (must be the first line inside the fence) resizes it. This
-  // width/height is the diagram's own internal coordinate system, not its
-  // rendered pixel size on github.com - GitHub renders every Mermaid
-  // diagram inside its own iframe, sized by whatever HTML container holds
-  // it (see renderScenarioCharts), so this number mainly sets the
-  // diagram's internal aspect ratio/proportions, not how big it ends up
-  // on screen. (xychart-beta's bar/gap ratio itself isn't configurable -
-  // checked mermaid's own resolved xyChart config schema live, no such
-  // option exists - so bar width can't be tuned separately from chart
-  // width.) Bar color is a THEME variable, not a top-level xyChart config
-  // key, hence the separate object.
-  //
-  // chartOrientation: 'horizontal' - GitHub's pan/zoom overlay is
-  // positioned by GitHub itself and can't be hidden, resized, or
-  // repositioned from here (confirmed against GitHub's own community
-  // discussions - no config, CSS, or directive controls it). What we CAN
-  // control is where the diagram's own content falls relative to that
-  // fixed position: with bars running left-to-right instead of bottom-
-  // to-top, and yAxisMax's 50% headroom above pushing every bar's real
-  // value well short of the chart's right edge (see yAxisMax's own
-  // comment), the overlay - which sits over roughly the same region
-  // either way - now lands on that empty margin instead of on a bar.
-  const initParts = [
-    `'xyChart': {'width': ${opts.width ?? 500}, 'height': ${opts.height ?? 260}, 'chartOrientation': 'horizontal'}`,
-  ];
-  if (opts.color) {
-    initParts.push(
-      `'themeVariables': {'xyChart': {'plotColorPalette': '${opts.color}'}}`,
-    );
-  }
-  return [
-    '```mermaid',
-    `%%{init: {${initParts.join(', ')}}}%%`,
-    'xychart-beta',
-    `    title "${opts.title}"`,
-    `    x-axis [${xAxis.map(x => JSON.stringify(x)).join(', ')}]`,
-    `    y-axis "${opts.unit}" ${yAxisMin} --> ${yAxisMax}`,
-    `    bar [${bars.join(', ')}]`,
-    '```',
-  ].join('\n');
-}
-
 // Mean latency and ops/sec are always available; GC/heap are only
 // rendered when at least one library in this scenario actually has that
 // data (older result files, or a run without --expose-gc for the heap
@@ -502,7 +375,10 @@ function renderScenarioCharts(
         unit: 'ms/op',
         width,
         height,
-        valueOf: s => (s.medianGcDurationMs ?? 0) / s.medianSamples,
+        valueOf: s =>
+          s.medianGcDurationMs != null
+            ? s.medianGcDurationMs / s.medianSamples
+            : null,
       }),
     );
   }
@@ -512,14 +388,19 @@ function renderScenarioCharts(
     // run, so it isn't divided by sample count (that would shrink the
     // number for a library that simply completes more iterations, even
     // though the peak footprint it needs isn't really tied to how many of
-    // them finished). Floored at 0 in worker.ts, so always non-negative.
+    // them finished). Floored at 0 in worker.ts, so always non-negative -
+    // and a library that could not be measured at all is left out of the
+    // chart by renderBarChart() rather than drawn at zero.
     charts.push(
       renderBarChart(summaries, {
         title: 'Peak heap growth (KB, max memory reached)',
         unit: 'KB',
         width,
         height,
-        valueOf: s => (s.medianPeakHeapGrowthBytes ?? 0) / 1024,
+        valueOf: s =>
+          s.medianPeakHeapGrowthBytes != null
+            ? s.medianPeakHeapGrowthBytes / 1024
+            : null,
       }),
     );
   }
@@ -534,7 +415,10 @@ function renderScenarioCharts(
         unit: 'KB',
         width,
         height,
-        valueOf: s => (s.medianRetainedHeapBytes ?? 0) / 1024,
+        valueOf: s =>
+          s.medianRetainedHeapBytes != null
+            ? s.medianRetainedHeapBytes / 1024
+            : null,
       }),
     );
   }
@@ -548,7 +432,10 @@ function renderScenarioCharts(
         unit: 'KB/op',
         width,
         height,
-        valueOf: s => (s.medianWireRxBytes ?? 0) / s.medianSamples / 1024,
+        valueOf: s =>
+          s.medianWireRxBytes != null
+            ? s.medianWireRxBytes / s.medianSamples / 1024
+            : null,
       }),
     );
   }
@@ -562,7 +449,10 @@ function renderScenarioCharts(
         unit: 'KB/op',
         width,
         height,
-        valueOf: s => (s.medianWireTxBytes ?? 0) / s.medianSamples / 1024,
+        valueOf: s =>
+          s.medianWireTxBytes != null
+            ? s.medianWireTxBytes / s.medianSamples / 1024
+            : null,
       }),
     );
   }
@@ -585,8 +475,13 @@ function renderScenarioCharts(
   // more '\n' here is what turns that single line break into an actual
   // blank line, which a heading directly after a raw HTML block needs to
   // be recognized as a heading rather than swallowed into that block.
+  // A chart with nothing measurable left in it renders as an empty string
+  // (see renderBarChart) - wrapping that would leave a stray empty box.
   return (
-    charts.map(c => `<div ${cellStyle}>\n\n${c}\n\n</div>`).join('\n') + '\n'
+    charts
+      .filter(c => c)
+      .map(c => `<div ${cellStyle}>\n\n${c}\n\n</div>`)
+      .join('\n') + '\n'
   );
 }
 
