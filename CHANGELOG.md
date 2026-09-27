@@ -1,6 +1,33 @@
 ## Changelog
 
-### [v3.11.1](https://github.com/panates/postgrejs/compare/v3.11.0...v3.11.1) - 
+### [v3.12.0](https://github.com/panates/postgrejs/compare/v3.11.1...v3.12.0) - 
+
+#### Breaking Changes :warning:
+
+- fix!: refuse what the server refuses instead of storing another number @Eray Hanoğlu  
+
+#### 🚀 New Features
+
+- feat(benchmark): count the bytes sent, and what a run keeps @Eray Hanoğlu 
+- feat: report the parameter types the server resolved @Eray Hanoğlu 
+
+#### 🪲 Fixes
+
+- fix(benchmark): a figure nobody could measure is not a bar of zero @Eray Hanoğlu 
+- fix: take the value out of a BindParam handed to a prepared statement @Eray Hanoğlu 
+
+#### 📖 Documentation Changes
+
+- docs(benchmark): update benchmarks to include new memory and network metrics @Eray Hanoğlu 
+- docs: say what an untyped numeric array actually costs @Eray Hanoğlu 
+- docs(benchmark): say what Peak Heap is not, and what survives a re-run @Eray Hanoğlu 
+- docs(benchmark): Retained is a working set, not a permanent footprint @Eray Hanoğlu 
+
+#### ⚡️ Performance Improvments
+
+- perf: stop quoting and re-escaping every element of an array literal @Eray Hanoğlu 
+
+### [v3.11.1](https://github.com/panates/postgrejs/compare/v3.11.0...v3.11.1) -  24 September 2026 
 
 #### 🪲 Fixes
 
