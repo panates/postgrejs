@@ -378,6 +378,10 @@ const BUILT_IN: [string, OID, OID, OID, OID, OID, DataType][] = [
   ],
 ];
 
+/**
+ * Every range and multirange type, built from the types they are ranges
+ * of, and registered together.
+ */
 export const RangeTypes: DataType[] = [];
 for (const [
   name,

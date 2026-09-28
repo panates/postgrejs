@@ -171,10 +171,16 @@ export interface DatabaseConnectionParams {
   debugLogger?: DebugLogger;
 }
 
+/**
+ * Which server in a list is acceptable, checked after connecting - the
+ * same values `libpq` takes, and how a client finds the primary.
+ */
 export type TargetSessionAttrs =
   'read-write' | 'read-only' | 'primary' | 'standby' | 'prefer-standby';
 
+/** Options passed down to the socket itself. */
 export interface SocketOptions {
+  /** Whether TCP keep-alive is turned on. */
   keepAlive?: boolean;
 }
 
@@ -190,6 +196,10 @@ export interface SocketOptions {
 export type ConnectionMappingDefaults = DataMappingOptions &
   Pick<QueryOptions, 'objectRows' | 'rowDecoder' | 'typeMap' | 'columnFormat'>;
 
+/**
+ * Everything a `Connection` can be given: where the server is, how to
+ * talk to it, and the defaults every statement on it inherits.
+ */
 export interface ConnectionConfiguration
   extends DatabaseConnectionParams, SocketOptions, ConnectionMappingDefaults {
   buffer?: SmartBufferConfig;
@@ -209,6 +219,10 @@ export interface ConnectionConfiguration
   pipeline?: boolean;
 }
 
+/**
+ * A connection's configuration, plus how many of them to keep and how
+ * long an idle one lives.
+ */
 export interface PoolConfiguration
   extends ConnectionConfiguration, LPoolConfiguration {
   /**

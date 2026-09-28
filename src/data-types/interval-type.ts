@@ -23,6 +23,13 @@ function toInterval(v: any): Interval {
   );
 }
 
+/**
+ * Reads an interval as the server writes one, in any of the output
+ * styles `IntervalStyle` selects.
+ *
+ * @param v The value's text.
+ * @returns The interval, with months, days and microseconds kept apart.
+ */
 export function parseIntervalText(v: string): Interval {
   const m = INTERVAL_PATTERN.exec(v);
   if (!m) {

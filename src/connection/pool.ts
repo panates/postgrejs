@@ -29,7 +29,9 @@ import type { PreparedStatement } from './prepared-statement.js';
  */
 export type PoolPipelineOptions = Pick<QueryOptions, 'pipeline'>;
 
+/** What `Pool.query()` takes - a connection's own options, since it runs on one. */
 export type PoolQueryOptions = QueryOptions;
+/** What `Pool.execute()` takes, for the same reason. */
 export type PoolScriptExecuteOptions = ScriptExecuteOptions;
 
 /**

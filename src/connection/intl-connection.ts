@@ -273,6 +273,14 @@ function preparedCacheKey(
   return paramTypes?.length ? sql + '\u0000' + paramTypes.join(',') : sql;
 }
 
+/**
+ * The internals `Connection` and `Pool` are both built on.
+ *
+ * Holds the socket, the session's state, the prepared statement cache
+ * and the reference count that decides when a connection may go back to
+ * its pool. Not part of the public API: `Connection` is the handle a
+ * caller holds, and this is what it and the pool share underneath.
+ */
 export class IntlConnection extends SafeEventEmitter {
   /**
    * Server-side prepared statements this connection has built, keyed by
@@ -2426,6 +2434,12 @@ export class IntlConnection extends SafeEventEmitter {
   }
 }
 
+/**
+ * The internals behind a `Connection`.
+ *
+ * @param connection The handle.
+ * @returns What it wraps.
+ */
 export function getIntlConnection(connection: Connection): IntlConnection {
   return (connection as any)._intlCon as IntlConnection;
 }

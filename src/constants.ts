@@ -210,6 +210,7 @@ export const DataTypeOIDs = {
   _int8multirange: 6157,
 };
 
+/** The name of each type by its OID, for reporting a column's type back to a caller. */
 export const DataTypeNames: Record<string, string> = {
   [DataTypeOIDs.bool]: 'bool',
   [DataTypeOIDs.bytea]: 'bytea',
