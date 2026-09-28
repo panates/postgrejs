@@ -40,11 +40,15 @@ const StaticCopyDoneBuffer = Buffer.from([
   0x04,
 ]);
 
+/** How a `Frontend` builds its messages - the buffer it writes them into. */
 export interface FrontendOptions {
+  /** The send buffer's own configuration. */
   buffer?: SmartBufferConfig;
 }
 
+/** What each message the client sends is built from. */
 export namespace Frontend {
+  /** The startup packet: who is connecting, to what, and any session settings to carry with it. */
   export interface StartupMessageArgs {
     user: string;
     database: string;
@@ -52,6 +56,7 @@ export namespace Frontend {
     [index: string]: string;
   }
 
+  /** A Bind: which statement, which portal, the parameters and the formats to read the result in. */
   export interface BindMessageArgs {
     typeMap: DataTypeMap;
     statement?: string;
@@ -68,22 +73,26 @@ export namespace Frontend {
     columnFormat?: Protocol.DataFormat | Protocol.DataFormat[];
   }
 
+  /** A Parse: the SQL, the name to give it, and any parameter types to declare. */
   export interface ParseMessageArgs {
     statement?: string;
     sql: string;
     paramTypes?: Maybe<OID>[];
   }
 
+  /** A Describe: of a statement (`S`) or of a portal (`P`). */
   export interface DescribeMessageArgs {
     type: 'P' | 'S';
     name?: string;
   }
 
+  /** An Execute: which portal, and how many rows to stop at. */
   export interface ExecuteMessageArgs {
     portal?: string;
     fetchCount?: number;
   }
 
+  /** A Close: of a statement (`S`) or of a portal (`P`). */
   export interface CloseMessageArgs {
     type: 'P' | 'S';
     name?: string;
@@ -114,6 +123,13 @@ export namespace Frontend {
   }
 }
 
+/**
+ * Builds the client's messages, into one buffer it keeps and reuses.
+ *
+ * Each method returns the bytes of one message; the socket writes them,
+ * often several at a time so a statement costs one round trip rather
+ * than one per message.
+ */
 export class Frontend {
   private _io: SmartBuffer;
 

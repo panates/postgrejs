@@ -86,6 +86,14 @@ const PSS_HASHES: Record<string, string> = {
   '2.16.840.1.101.3.4.2.3': 'sha512',
 };
 
+/**
+ * The hash a certificate was signed with, for `tls-server-end-point`
+ * channel binding.
+ *
+ * @param der The server's certificate, as DER.
+ * @returns The Node digest name to bind with - SHA-256 where the
+ * signature's own hash is MD5 or SHA-1, as the RFC requires.
+ */
 export function signatureHashOfCertificate(der: Buffer): string {
   let index = expectSequence(der, 0).index; // Certificate
   const tbs = readLength(der, index + 1); // tbsCertificate's own header

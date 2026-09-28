@@ -19,12 +19,17 @@ import { SASL } from './sasl.js';
 const DEFAULT_PORT_NUMBER = 5432;
 const COMMAND_RESULT_PATTERN = /^([^\d]+)(?: (\d+)(?: (\d+))?)?$/;
 
+/**
+ * What a sender registers to receive the messages its statement
+ * provokes, until it calls `done`.
+ */
 export type CaptureCallback = (
   code: Protocol.BackendMessageCode,
   msg: any,
   done: (err: Maybe<Error>, result?: any) => void,
 ) => void | Promise<void>;
 
+/** A socket-level failure, with the code the platform gave it. */
 export interface SocketError extends Error {
   code: string;
 }
@@ -35,6 +40,11 @@ interface CaptureEntry {
   reject: (err: Error) => void;
 }
 
+/**
+ * The connected socket: the handshake, the authentication, TLS where it
+ * is asked for, and a queue that pairs each response with whoever sent
+ * the statement that caused it.
+ */
 export class PgSocket extends SafeEventEmitter {
   private _state = ConnectionState.CLOSED;
   /**

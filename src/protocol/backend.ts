@@ -30,6 +30,12 @@ declare type ParseCallback = (
   data?: any,
 ) => void;
 
+/**
+ * Reads the server's messages out of the bytes as they arrive.
+ *
+ * Keeps whatever a chunk left half-finished, so a message split across
+ * reads - or several in one read - comes out whole exactly once.
+ */
 export class Backend {
   private readonly _headerBuf = Buffer.allocUnsafe(HEADER_LENGTH);
   private _headerFilled = 0;

@@ -1,9 +1,13 @@
 import { FlexyBuffer } from 'flexy-buffer';
 import * as os from 'os';
 
+/** How a `SmartBuffer` grows, how far, and when it gives the pages back. */
 export interface SmartBufferConfig {
+  /** Bytes added at a time when it has to grow. */
   pageSize?: number;
+  /** The most it may ever hold. */
   maxLength?: number;
+  /** Idle milliseconds before the grown capacity is released. */
   houseKeepMs?: number;
 }
 

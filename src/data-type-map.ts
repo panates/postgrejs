@@ -95,6 +95,21 @@ import type { DataType } from './interfaces/data-type.js';
 import type { OID } from './types.js';
 import { arrayLeaf } from './util/array-leaf.js';
 
+/**
+ * Which `DataType` answers for which OID.
+ *
+ * `GlobalTypeMap` is the one every connection uses unless it was given
+ * its own, and it already holds every type this client knows. A caller
+ * registers into it to add a type - a PostGIS geometry, a composite of
+ * their own - or copies it and registers into the copy to change one
+ * type for one connection without touching anyone else's.
+ *
+ * ```ts
+ * const typeMap = new DataTypeMap(GlobalTypeMap);
+ * typeMap.register(MyGeometryType);
+ * const connection = new Connection({ ...config, typeMap });
+ * ```
+ */
 export class DataTypeMap {
   protected _inferScalars: DataType[] = [];
   protected _inferArrays: DataType[] = [];
@@ -124,10 +139,25 @@ export class DataTypeMap {
     }
   }
 
+  /**
+   * The type registered for an OID.
+   *
+   * @param oid The type to look up.
+   * @returns Its `DataType`, or `undefined` when nothing is registered -
+   * in which case values of that type come back as raw `Buffer`s.
+   */
   get(oid: OID): DataType {
     return this._itemsByOID[oid];
   }
 
+  /**
+   * Registers a type, or replaces the one already holding its OID.
+   *
+   * The array counterpart is its own registration: register both to have
+   * both read and written.
+   *
+   * @param dataTypes The type, or several at once.
+   */
   register(dataTypes: DataType | DataType[]): void {
     dataTypes = Array.isArray(dataTypes) ? dataTypes : [dataTypes];
     for (const t of dataTypes) {
@@ -212,6 +242,14 @@ export class DataTypeMap {
   }
 }
 
+/**
+ * The map every connection reads unless it was given one of its own -
+ * already holding every type this client knows.
+ *
+ * Registering here changes what every connection in the process does,
+ * which is what makes it the place for a type the whole application
+ * shares, and the wrong place for one connection's exception.
+ */
 export const GlobalTypeMap = new DataTypeMap();
 
 GlobalTypeMap.register([OidType, ArrayOidType]);
