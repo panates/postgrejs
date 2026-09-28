@@ -6,7 +6,11 @@ import type { QueryOptions } from '../interfaces/query-options.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { AnyParseFunction, Maybe, Row } from '../types.js';
 import type { RowDecoder } from '../util/row-decoder.js';
-import { resolveRowDecoder, resolveRowType } from '../util/row-decoder.js';
+import {
+  dataRowBytes,
+  resolveRowDecoder,
+  resolveRowType,
+} from '../util/row-decoder.js';
 import type { Portal, PortalExecuteResult } from './portal.js';
 import type { PreparedStatement } from './prepared-statement.js';
 
@@ -183,14 +187,24 @@ export class Cursor extends SafeEventEmitter implements AsyncDisposable {
             const rowLen = rows.length;
             let i: number;
             for (i = 0; i < rowLen; i++) {
-              const { data, columnCount } = rows[i];
-              rows[i] = rowDecoder.decode(
-                parsers,
-                data,
-                columnCount,
-                this._queryOptions,
-                fields,
-              );
+              const raw = rows[i];
+              rows[i] = rowDecoder.decodeAt
+                ? rowDecoder.decodeAt(
+                    parsers,
+                    raw.buffer,
+                    raw.offset,
+                    raw.len,
+                    raw.columnCount,
+                    this._queryOptions,
+                    fields,
+                  )
+                : rowDecoder.decode(
+                    parsers,
+                    dataRowBytes(raw),
+                    raw.columnCount,
+                    this._queryOptions,
+                    fields,
+                  );
             }
           }
           this._rows.push(...rows);

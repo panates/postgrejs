@@ -198,6 +198,51 @@ describe('query() (Extended Query)', () => {
       expect(codes).toStrictEqual(direct.rows?.map(r => r[0]));
     });
 
+    it('should keep working for a decoder that only implements decode()', async () => {
+      // decodeAt() is optional: a decoder written before it existed, or
+      // one that wants a Buffer of its own, gets the row cut out for it
+      // exactly as it always did.
+      class OnlyDecode extends RowDecoder {
+        decode(
+          parsers: any[],
+          data: Buffer,
+          columnCount: number,
+          options: any,
+        ): any {
+          const row: any[] = [];
+          let offset = 0;
+          for (let i = 0; i < columnCount; i++) {
+            const len = data.readInt32BE(offset);
+            offset += 4;
+            if (len < 0) row.push(null);
+            else {
+              row.push(parsers[i](data, offset, len, options));
+              offset += len;
+            }
+          }
+          // Reading from zero is the contract for this method, and the
+          // row must start there whatever the socket buffer looked like.
+          return { first: row[0], width: data.length };
+        }
+      }
+      const result = await connection.query(
+        'select code from countries order by code',
+        { rowDecoder: new OnlyDecode() },
+      );
+      const direct = await connection.query(
+        'select code from countries order by code',
+      );
+      expect(result.rows?.map((r: any) => r.first)).toStrictEqual(
+        direct.rows?.map(r => r[0]),
+      );
+      // Its own buffer, ending where the row ends - a longer one would
+      // mean it was handed the socket's.
+      const codes = direct.rows?.map(r => String(r[0])) ?? [];
+      expect(result.rows?.map((r: any) => r.width)).toStrictEqual(
+        codes.map(c => 4 + Buffer.byteLength(c)),
+      );
+    });
+
     it('should still read a money column, which cannot be decoded on arrival', async () => {
       // The one thing that has to be asked before a row can be read is
       // the server's money format, which costs a round trip - so those

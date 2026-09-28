@@ -190,7 +190,12 @@ export namespace Protocol {
   /** One row, still as the bytes it arrived in - the values are read out of `data` by the column parsers. */
   export interface DataRowMessage {
     columnCount: number;
-    data: Buffer;
+    /** The read buffer the row's values sit in. */
+    buffer: Buffer;
+    /** Where they start in it. */
+    offset: number;
+    /** How many bytes they run for. */
+    len: number;
   }
 
   /** An error or a notice, with every field the server chose to send. `code` is the SQLSTATE and is the part to branch on. */

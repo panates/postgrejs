@@ -2,6 +2,7 @@ import { expect } from 'expect';
 import type { AnyParseFunction } from '../../src/types.js';
 import {
   ArrayRowDecoder,
+  dataRowBytes,
   DEFAULT_ARRAY_ROW_DECODER,
   DEFAULT_OBJECT_ROW_DECODER,
   ObjectRowDecoder,
@@ -57,6 +58,114 @@ describe('ObjectRowDecoder', () => {
       fields,
     );
     expect(row).toStrictEqual({ id: '1', name: 'ada' });
+  });
+});
+
+describe('decodeAt()', () => {
+  /**
+   * A row arrives inside the socket's own read buffer, and a decoder
+   * that reads it there costs no view of its own - which is the whole
+   * point, since a Buffer view is about a hundred bytes of object even
+   * when it shares every byte it points at.
+   */
+  const padded = (values: string[], pad: number) =>
+    Buffer.concat([Buffer.alloc(pad, 0xaa), rowBuffer(values)]);
+
+  it('should read a row that does not start at the beginning', () => {
+    const buffer = padded(['1', 'ada'], 37);
+    const len = buffer.length - 37;
+    expect(
+      new ArrayRowDecoder().decodeAt(
+        [echoParser, echoParser],
+        buffer,
+        37,
+        len,
+        2,
+        {},
+        fields,
+      ),
+    ).toStrictEqual(['1', 'ada']);
+    expect(
+      new ObjectRowDecoder().decodeAt(
+        [echoParser, echoParser],
+        buffer,
+        37,
+        len,
+        2,
+        {},
+        fields,
+      ),
+    ).toStrictEqual({ id: '1', name: 'ada' });
+  });
+
+  it('should answer exactly what decode() answers for the same row', () => {
+    for (const values of [
+      ['1', 'ada'],
+      ['', ''],
+      ['x'.repeat(300), 'y'],
+    ]) {
+      const bare = rowBuffer(values);
+      const buffer = padded(values, 11);
+      expect(
+        new ArrayRowDecoder().decodeAt(
+          [echoParser, echoParser],
+          buffer,
+          11,
+          bare.length,
+          2,
+          {},
+          fields,
+        ),
+      ).toStrictEqual(
+        new ArrayRowDecoder().decode(
+          [echoParser, echoParser],
+          bare,
+          2,
+          {},
+          fields,
+        ),
+      );
+    }
+  });
+
+  it('should not read past its own row', () => {
+    // The buffer holds the next row too - reading one column too many
+    // would return its bytes rather than fail, which is why the parsers
+    // are handed a length at all.
+    const first = rowBuffer(['1', 'ada']);
+    const buffer = Buffer.concat([first, rowBuffer(['2', 'grace'])]);
+    expect(
+      new ArrayRowDecoder().decodeAt(
+        [echoParser, echoParser],
+        buffer,
+        0,
+        first.length,
+        2,
+        {},
+        fields,
+      ),
+    ).toStrictEqual(['1', 'ada']);
+    expect(
+      new ArrayRowDecoder().decodeAt(
+        [echoParser, echoParser],
+        buffer,
+        first.length,
+        buffer.length - first.length,
+        2,
+        {},
+        fields,
+      ),
+    ).toStrictEqual(['2', 'grace']);
+  });
+
+  it('should cut the row out when something does want a Buffer of its own', () => {
+    const buffer = padded(['1', 'ada'], 9);
+    const bytes = dataRowBytes({
+      buffer,
+      offset: 9,
+      len: buffer.length - 9,
+    });
+    expect(bytes).toStrictEqual(rowBuffer(['1', 'ada']));
   });
 });
 

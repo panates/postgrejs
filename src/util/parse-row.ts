@@ -9,6 +9,7 @@ import type { AnyParseFunction } from '../types.js';
  * @param data The row's own bytes, from the DataRow message.
  * @param columnCount How many values it holds.
  * @param options Passed to each parser.
+ * @param start Where the row's values begin in `data`.
  * @returns The values, in column order.
  */
 export function parseRow(
@@ -16,9 +17,10 @@ export function parseRow(
   data: Buffer,
   columnCount: number,
   options: DataMappingOptions,
+  start = 0,
 ): any[] {
   const row = new Array(columnCount);
-  let offset = 0;
+  let offset = start;
   let len: number;
   let i: number;
   for (i = 0; i < columnCount; i++) {
@@ -148,6 +150,7 @@ function getObjectRowFactory(
  * @param columnCount How many values it holds.
  * @param options Passed to each parser.
  * @param fields The columns, whose names become the keys.
+ * @param start Where the row's values begin in `data`.
  * @returns The row as an object.
  */
 export function parseObjectRow(
@@ -156,6 +159,7 @@ export function parseObjectRow(
   columnCount: number,
   options: DataMappingOptions,
   fields: FieldInfo[],
+  start = 0,
 ): object {
   // A compiled factory is built against `fields`, so it can only be used
   // when the row really does have one value per field.
@@ -165,7 +169,7 @@ export function parseObjectRow(
       : null;
   if (factory) {
     const values = new Array(columnCount);
-    let offset = 0;
+    let offset = start;
     let len: number;
     let i: number;
     for (i = 0; i < columnCount; i++) {
@@ -186,6 +190,7 @@ export function parseObjectRow(
     columnCount,
     options,
     fields,
+    start,
   );
 }
 
@@ -195,9 +200,10 @@ function parseObjectRowByAssignment(
   columnCount: number,
   options: DataMappingOptions,
   fields: FieldInfo[],
+  start = 0,
 ): object {
   const row = {};
-  let offset = 0;
+  let offset = start;
   let len: number;
   let i: number;
   let value: any;

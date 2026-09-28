@@ -41,9 +41,47 @@ export abstract class RowDecoder {
     options: DataMappingOptions,
     fields: FieldInfo[],
   ): any;
+
+  /**
+   * The same, reading the row where it already is: `buffer` is the
+   * socket's own read buffer and the row's values run for `len` bytes
+   * from `offset`.
+   *
+   * Optional, and what a decoder implements when it has no use for a
+   * `Buffer` of its own - which is every decoder that reads its values
+   * and does not keep them. Implementing it means no view is built for
+   * the row at all; a decoder that only implements `decode()` still gets
+   * one, exactly as before.
+   */
+  decodeAt?(
+    parsers: AnyParseFunction[],
+    buffer: Buffer,
+    offset: number,
+    len: number,
+    columnCount: number,
+    options: DataMappingOptions,
+    fields: FieldInfo[],
+  ): any;
 }
 
 /** Reads each row into an array of values, in column order. */
+/**
+ * A row's bytes as a `Buffer` of their own.
+ *
+ * For the paths that set a row aside and read it later, and for a
+ * caller's decoder that only implements `decode()`.
+ *
+ * @param msg The row as it arrived.
+ * @returns A view of just its values.
+ */
+export function dataRowBytes(msg: {
+  buffer: Buffer;
+  offset: number;
+  len: number;
+}): Buffer {
+  return msg.buffer.subarray(msg.offset, msg.offset + msg.len);
+}
+
 export class ArrayRowDecoder extends RowDecoder {
   override readonly rowType = 'array' as const;
 
@@ -54,6 +92,17 @@ export class ArrayRowDecoder extends RowDecoder {
     options: DataMappingOptions,
   ): any[] {
     return parseRow(parsers, data, columnCount, options);
+  }
+
+  override decodeAt(
+    parsers: AnyParseFunction[],
+    buffer: Buffer,
+    offset: number,
+    _len: number,
+    columnCount: number,
+    options: DataMappingOptions,
+  ): any[] {
+    return parseRow(parsers, buffer, columnCount, options, offset);
   }
 }
 
@@ -69,6 +118,25 @@ export class ObjectRowDecoder extends RowDecoder {
     fields: FieldInfo[],
   ): object {
     return parseObjectRow(parsers, data, columnCount, options, fields);
+  }
+
+  override decodeAt(
+    parsers: AnyParseFunction[],
+    buffer: Buffer,
+    offset: number,
+    _len: number,
+    columnCount: number,
+    options: DataMappingOptions,
+    fields: FieldInfo[],
+  ): object {
+    return parseObjectRow(
+      parsers,
+      buffer,
+      columnCount,
+      options,
+      fields,
+      offset,
+    );
   }
 }
 

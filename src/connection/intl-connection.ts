@@ -58,6 +58,7 @@ import {
 import { getParsers } from '../util/get-parsers.js';
 import { resolveColumnFormats } from '../util/resolve-column-formats.js';
 import {
+  dataRowBytes,
   resolveRowDecoder,
   resolveRowType,
   type RowDecoder,
@@ -1049,7 +1050,7 @@ export class IntlConnection extends SafeEventEmitter {
                 }
                 const row: any = rowDecoder.decode(
                   parsers!,
-                  msg.data,
+                  dataRowBytes(msg),
                   msg.columnCount,
                   options,
                   current.fields!,
@@ -1457,13 +1458,23 @@ export class IntlConnection extends SafeEventEmitter {
                 if (streaming && parsers && resultFields) {
                   try {
                     rows.push(
-                      rowDecoder.decode(
-                        parsers,
-                        msg.data,
-                        msg.columnCount,
-                        options,
-                        resultFields,
-                      ),
+                      rowDecoder.decodeAt
+                        ? rowDecoder.decodeAt(
+                            parsers,
+                            msg.buffer,
+                            msg.offset,
+                            msg.len,
+                            msg.columnCount,
+                            options,
+                            resultFields,
+                          )
+                        : rowDecoder.decode(
+                            parsers,
+                            dataRowBytes(msg),
+                            msg.columnCount,
+                            options,
+                            resultFields,
+                          ),
                     );
                   } catch (e: any) {
                     // A decoder of the caller's own can throw. Recorded
@@ -1526,7 +1537,7 @@ export class IntlConnection extends SafeEventEmitter {
           for (i = 0; i < l; i++) {
             rows[i] = rowDecoder.decode(
               parsers,
-              rows[i].data,
+              dataRowBytes(rows[i]),
               rows[i].columnCount,
               options,
               resultFields,
@@ -1853,7 +1864,7 @@ export class IntlConnection extends SafeEventEmitter {
                     for (i = 0; i < l; i++) {
                       rows[i] = rowDecoder.decode(
                         parsers,
-                        rows[i].data,
+                        dataRowBytes(rows[i]),
                         rows[i].columnCount,
                         options,
                         resultFields,
@@ -2012,7 +2023,7 @@ export class IntlConnection extends SafeEventEmitter {
                   for (i = 0; i < l; i++) {
                     pendingRows[i] = rowDecoder.decode(
                       parsers,
-                      pendingRows[i].data,
+                      dataRowBytes(pendingRows[i]),
                       pendingRows[i].columnCount,
                       options,
                       resultFields,
@@ -2161,13 +2172,23 @@ export class IntlConnection extends SafeEventEmitter {
                 if (streaming) {
                   try {
                     rows.push(
-                      rowDecoder.decode(
-                        parsers!,
-                        msg.data,
-                        msg.columnCount,
-                        options,
-                        resultFields!,
-                      ),
+                      rowDecoder.decodeAt
+                        ? rowDecoder.decodeAt(
+                            parsers!,
+                            msg.buffer,
+                            msg.offset,
+                            msg.len,
+                            msg.columnCount,
+                            options,
+                            resultFields!,
+                          )
+                        : rowDecoder.decode(
+                            parsers!,
+                            dataRowBytes(msg),
+                            msg.columnCount,
+                            options,
+                            resultFields!,
+                          ),
                     );
                   } catch (e: any) {
                     if (!error) error = e;
@@ -2222,7 +2243,7 @@ export class IntlConnection extends SafeEventEmitter {
           for (i = 0; i < l; i++) {
             rows[i] = rowDecoder.decode(
               parsers,
-              rows[i].data,
+              dataRowBytes(rows[i]),
               rows[i].columnCount,
               options,
               resultFields,
@@ -2311,7 +2332,7 @@ export class IntlConnection extends SafeEventEmitter {
       for (k = 0; k < l; k++)
         out[k] = rowDecoder.decode(
           d.parsers,
-          d.raw[k].data,
+          dataRowBytes(d.raw[k]),
           d.raw[k].columnCount,
           opts,
           d.fields,

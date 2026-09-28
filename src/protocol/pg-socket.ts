@@ -791,13 +791,15 @@ export class PgSocket extends SafeEventEmitter {
         " current_setting('transaction_read_only') as b",
       (code, msg, done) => {
         if (code === Protocol.BackendMessageCode.DataRow) {
-          // Two text columns, each length-prefixed within the row buffer.
-          const data: Buffer = msg.data;
-          const aLen = data.readInt32BE(0);
-          const a = data.toString('utf8', 4, 4 + aLen);
-          const bOffset = 4 + aLen;
-          const bLen = data.readInt32BE(bOffset);
-          const b = data.toString('utf8', bOffset + 4, bOffset + 4 + bLen);
+          // Two text columns, each length-prefixed, read where the row
+          // already sits in the read buffer.
+          const buffer: Buffer = msg.buffer;
+          const start: number = msg.offset;
+          const aLen = buffer.readInt32BE(start);
+          const a = buffer.toString('utf8', start + 4, start + 4 + aLen);
+          const bOffset = start + 4 + aLen;
+          const bLen = buffer.readInt32BE(bOffset);
+          const b = buffer.toString('utf8', bOffset + 4, bOffset + 4 + bLen);
           this._standbyState = { standby: a === 'true', readOnly: b === 'on' };
         } else if (code === Protocol.BackendMessageCode.ReadyForQuery) {
           done(undefined);
