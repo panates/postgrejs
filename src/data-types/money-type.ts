@@ -69,19 +69,25 @@ export function moneyToString(minorUnits: bigint, scale: number): string {
 
 /**
  * Below this many minor units the decimal has at most fifteen
- * significant digits, which a double both holds and prints back exactly
- * - so the round trip below can only agree, and asking it is the most
- * expensive thing in the decode: measured over values that vary,
- * `parseFloat` plus the comparison is 241 ns against 113 ns without it,
- * on a decode whose string-building is 109 ns of that.
- *
- * The scale bound is the other half: the test is about *printed* digits,
- * and JavaScript switches to exponential notation below 1e-6, which
- * PostgreSQL never writes. At scale 6 the smallest non-zero value is
- * exactly 1e-6, and no currency has more.
+ * significant digits, which a double both holds and prints back exactly.
  */
+/* So the round trip below can only agree, and asking it is the most
+   expensive thing in the decode: measured over values that vary,
+   parseFloat plus the comparison is 241 ns against 113 ns without it, on
+   a decode whose string-building is 109 ns of that.
+
+   The scale bound is the other half: the test is about *printed* digits,
+   and JavaScript switches to exponential notation below 1e-6, which
+   PostgreSQL never writes. At scale 6 the smallest non-zero value is
+   exactly 1e-6, and no currency has more. */
 const FAITHFUL_LIMIT = 1000000000000000n; // 10^15
 
+/**
+ * Whether this value is small enough that a double is exact for it.
+ *
+ * @param minorUnits The amount, in the currency's smallest unit.
+ * @param scale How many decimal places that currency has.
+ */
 function isFaithful(minorUnits: bigint, scale: number): boolean {
   return (
     scale <= 6 && minorUnits < FAITHFUL_LIMIT && minorUnits > -FAITHFUL_LIMIT

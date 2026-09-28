@@ -5,19 +5,16 @@ import { arrayLeaf } from './array-leaf.js';
 
 /**
  * What a number's own text looks like: digits, one optional dot, an
- * optional exponent, an optional leading minus. Nothing in it is special
- * to the array literal grammar and it cannot be read as `NULL`, so an
- * element that matches goes out bare - `{1,2}` rather than `{"1","2"}`,
- * which is what the server itself prints and what every other client
- * writes.
- *
- * Deliberately narrower than "has no special characters": it is applied
- * only to what a JS number or bigint encoded to, and matching it is the
- * evidence that the encoder really did produce a number's text. `NaN`
- * and `Infinity` fail it and stay quoted (both forms parse the same, so
- * this costs nothing), and so does anything an unexpected encoder made
- * of a number - a date type handed a timestamp, say.
+ * optional exponent, an optional leading minus. An element that matches
+ * goes out bare - `{1,2}` rather than `{"1","2"}`, which is what the
+ * server itself prints and what every other client writes.
  */
+/* Deliberately narrower than "has no special characters": it is applied
+   only to what a JS number or bigint encoded to, and matching it is the
+   evidence that the encoder really did produce a number's text. NaN and
+   Infinity fail it and stay quoted - both forms parse the same, so that
+   costs nothing - and so does anything an unexpected encoder made of a
+   number, a date type handed a timestamp say. */
 const BARE_NUMBER = /^-?\d+(\.\d+)?([eE][-+]?\d+)?$/;
 
 export function stringifyArrayLiteral(
@@ -73,30 +70,28 @@ export function stringifyArrayLiteral(
   return writeDim(value, 0);
 }
 
-/**
- * Backslash and double quote are the only two characters the literal
- * grammar gives meaning to inside a quoted element, and neither is in
- * most values - so they are looked for before anything is rewritten. The
- * two `replace()` calls each walk the string and build another one even
- * when they change nothing, which for a column of ordinary text was
- * half the cost of writing the literal.
- */
+/** Quotes one element, escaping the two characters that need it. */
+/* Backslash and double quote are the only two the literal grammar gives
+   meaning to inside a quoted element, and neither is in most values - so
+   they are looked for before anything is rewritten. The two replace()
+   calls each walk the string and build another one even when they change
+   nothing, which for a column of ordinary text was half the cost of
+   writing the literal. */
 function escapeArrayItem(str: string): string {
   return str.indexOf('\\') < 0 && str.indexOf('"') < 0
     ? '"' + str + '"'
     : '"' + str.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 }
 
-/**
- * How many bytes are written into `io` at a time by writeArrayLiteral().
- *
- * Bounded rather than grown to fit: a 100 000-element array is 1.1MB of
- * literal, and a scratch sized to the largest one ever written would
- * hold that for the life of the process. Flushing every 64KB keeps this
- * constant, and what it flushes into is the connection's own buffer,
- * which already knows how to grow and to hand its pages back when idle.
- */
+/** How many bytes writeArrayLiteral() writes into `io` at a time. */
+/* Bounded rather than grown to fit: a 100 000-element array is 1.1MB of
+   literal, and a scratch sized to the largest one ever written would
+   hold that for the life of the process. Flushing every 64KB keeps this
+   constant, and what it flushes into is the connection's own buffer,
+   which already knows how to grow and to hand its pages back when
+   idle. */
 const CHUNK = 64 * 1024;
+/** The scratch itself, reused by every call. */
 const chunk = Buffer.allocUnsafe(CHUNK);
 /**
  * Whether the digit lane applies to this value - see writeArrayLiteral().
@@ -115,56 +110,59 @@ function isInt32(v: any): boolean {
 /** Digits, written backwards, before they are copied out forwards. */
 const DIGITS = new Uint8Array(24);
 
-/**
- * Below this many elements the literal is built as a string instead -
- * see writeArrayLiteral() for where the number comes from.
- */
+/** Below this many elements the literal is built as a string instead. */
+/* Writing bytes wins from about a hundred elements up and loses below
+   it: Buffer.write() has a per-call cost that `+=` does not, and for a
+   handful of short elements that cost is the whole of the work. The
+   number is where the two met when measured, so it is a floor against a
+   small regression rather than a tuned parameter. */
 const WRITE_BYTES_FROM = 16;
 
 /**
- * Writes an array of numbers as a length-prefixed literal, straight into
- * `io`, without building the literal as a string first.
+ * Writes an array as a length-prefixed literal, straight into `io`,
+ * without building the literal as a string first.
  *
- * The string was never wanted: `writeLString()` encoded it to UTF-8 and
- * threw it away. For a 100 000-element `int4[]` it is 1.1MB, built out
- * of ~200 000 rope nodes, flattened once and encoded once - counted with
- * `--trace-gc` over 100 calls, that step collects 10.1 MB a call.
+ * The text is the one `stringifyArrayLiteral()` returns, so what reaches
+ * the server is the same either way. Only an array of numbers with no
+ * element encoder takes this path - the untyped-parameter case, and the
+ * only one where a numeric array becomes a literal at all, since a
+ * declared one keeps the binary encoding. Anything else, and anything
+ * under `WRITE_BYTES_FROM` elements, is handed to the string path.
  *
- * The saving is not in avoiding the string, though. Writing bytes
- * through `Buffer.write()` per element is *slower* than letting V8 build
- * a rope and flatten it once - measured at 1.1x to 1.35x slower across
- * every size and type, which is why this is not simply the byte-writing
- * version of stringifyArrayLiteral(). What pays is never producing the
- * element's text at all: an integer's digits go into the buffer from the
- * number itself, with no string and no per-element call. Against the
- * string path on an `int4[]`, medians of alternating runs:
- *
- * ```
- * elements      64      1 000    100 000
- * string      2.38 us   22.2 us   3180 us
- * digits      0.88 us    4.8 us    917 us
- *             2.7x       4.6x      3.5x
- * ```
- *
- * What a caller waits for moves less than that, and the difference is
- * worth knowing before quoting one: inserting the same 100 000-element
- * array over a loopback connection is 14.21ms against 12.51ms, 1.14x,
- * because the server's own parse of a 1.1MB literal is most of it. The
- * allocation is gone either way - 10.10 MB a call to 0.00 - and a
- * process that was collecting for it no longer is.
- *
- * So the fast lane is integers, and everything else on this path - a
- * float, a bigint too large to be exact, anything a reader of the array
- * did not expect - falls back to its own text and is written as such.
- *
- * Which is also why this is only taken for an array of numbers with no
- * element encoder: that is the untyped-parameter case
- * (`isUnspecifiedParam`), and it is the only one where a numeric array
- * becomes a literal at all - a declared numeric array keeps the binary
- * encoding. A `text[]` keeps the string path, where it is level or
- * better, and so does anything under WRITE_BYTES_FROM elements, where
- * the per-call setup is the whole of the work.
+ * @param io The buffer to write into - the connection's own.
+ * @param value The array to write.
+ * @param options Passed to the element encoder, when there is one.
+ * @param encode The element type's own text encoder, if the type was
+ * declared.
  */
+/* The string was never wanted: writeLString() encoded it to UTF-8 and
+   threw it away. For a 100 000-element int4[] it is 1.1MB, built out of
+   ~200 000 rope nodes, flattened once and encoded once - counted with
+   --trace-gc over 100 calls, that step collects 10.1 MB a call.
+
+   The saving is not in avoiding the string, though. Writing bytes
+   through Buffer.write() per element is *slower* than letting V8 build a
+   rope and flatten it once - 1.1x to 1.35x slower across every size and
+   type, which is why this is not simply the byte-writing version of
+   stringifyArrayLiteral(). What pays is never producing the element's
+   text at all: an integer's digits go into the buffer from the number
+   itself, with no string and no per-element call. Against the string
+   path on an int4[], medians of alternating runs:
+
+     elements      64      1 000    100 000
+     string      2.38 us   22.2 us   3180 us
+     digits      0.88 us    4.8 us    917 us
+                 2.7x       4.6x      3.5x
+
+   What a caller waits for moves less, and the difference is worth
+   knowing before quoting one: inserting the same array over a loopback
+   connection is 14.21ms against 12.51ms, 1.14x, because the server's own
+   parse of a 1.1MB literal is most of it. The allocation is gone either
+   way - 10.10 MB a call to 0.00.
+
+   So the fast lane is integers, and everything else on this path - a
+   float, a bigint too large to be exact, anything a reader of the array
+   did not expect - falls back to its own text and is written as such. */
 export function writeArrayLiteral(
   io: {
     buffer: Buffer;
