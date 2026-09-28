@@ -6,26 +6,49 @@ import type { Connection } from './connection.js';
 import { getIntlConnection } from './intl-connection.js';
 import type { PreparedStatement } from './prepared-statement.js';
 
+/** What one Execute of a portal answered with. */
 export interface PortalExecuteResult {
+  /**
+   * The message that ended it: CommandComplete when the rows ran out,
+   * PortalSuspended when the fetch limit stopped it first.
+   */
   code: Protocol.BackendMessageCode;
+  /** The rows, still raw - the caller decodes them. */
   rows?: Protocol.DataRowMessage[];
+  /** The command tag, when the portal ran to completion. */
   command?: string;
+  /** What the tag reported, for the commands that report one. */
   rowCount?: number;
 }
 
+/**
+ * One execution of a prepared statement, named on the server so it can
+ * be executed a batch at a time.
+ *
+ * What a `Cursor` is built on: a portal holds the bound parameters and
+ * the position in the result, so `execute()` can be called again for the
+ * next batch. It lives inside the transaction that created it - implicit
+ * or otherwise - and is gone when that ends.
+ */
 export class Portal {
   private readonly _statement: PreparedStatement;
   private readonly _name?: string;
 
+  /**
+   * @param statement The statement this portal binds.
+   * @param name What the server will know the portal by.
+   */
   constructor(statement: PreparedStatement, name: string) {
     this._statement = statement;
     this._name = name;
   }
 
+  /** The connection the portal lives on. */
   get connection(): Connection {
     return this._statement.connection;
   }
 
+  /** What the server knows this portal by. */
   get name(): Maybe<string> {
     return this._name;
   }
@@ -92,6 +115,20 @@ export class Portal {
     }
   }
 
+  /**
+   * Runs the portal, for up to `fetchCount` rows.
+   *
+   * Called again for each batch: the result's `code` says which happened
+   * - PortalSuspended when the limit stopped it and there is more,
+   * CommandComplete when the rows ran out.
+   *
+   * @param fetchCount How many rows to ask for; every remaining row when
+   * it is absent or zero.
+   * @returns The raw rows and how the execution ended.
+   * @throws DatabaseError When the server refuses it - `34000` when the
+   * portal is gone, which is what another statement on the connection
+   * does to it.
+   */
   async execute(fetchCount?: number): Promise<PortalExecuteResult> {
     const intoCon = getIntlConnection(this.connection);
     intoCon.ref();
