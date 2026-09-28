@@ -34,6 +34,13 @@ function parseByteaEscape(input: string): Buffer {
   return Buffer.from(output, 'binary');
 }
 
+/**
+ * Reads a `bytea`'s text form into its bytes.
+ *
+ * @param v The value as the server wrote it - `\\x` hex, or the older
+ * escape form.
+ * @returns The bytes.
+ */
 export function parseBytea(v: string): Buffer {
   // PostgreSQL's default bytea_output is "hex" (`\x`-prefixed) - check the
   // two marker chars directly rather than a regex test, and hex-decode
@@ -62,6 +69,14 @@ const HEX_NIBBLE = (() => {
 // format via a single 'latin1' string conversion - its own grammar (\ddd
 // octal triplets, ASCII digits, or a literal backslash) is pure ASCII, same
 // as the hex path, so 'latin1' is safe there too.
+/**
+ * The same, straight from the wire bytes - no string is made.
+ *
+ * @param buf The buffer holding the value.
+ * @param offset Where it starts.
+ * @param len How many bytes it runs for.
+ * @returns The decoded bytes.
+ */
 export function parseByteaBuffer(
   buf: Buffer,
   offset: number,

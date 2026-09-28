@@ -2,6 +2,15 @@ import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
 import type { AnyParseFunction } from '../types.js';
 
+/**
+ * Reads one row into an array of values.
+ *
+ * @param parsers One per column, already chosen for its format.
+ * @param data The row's own bytes, from the DataRow message.
+ * @param columnCount How many values it holds.
+ * @param options Passed to each parser.
+ * @returns The values, in column order.
+ */
 export function parseRow(
   parsers: AnyParseFunction[],
   data: Buffer,
@@ -131,6 +140,16 @@ function getObjectRowFactory(
   return factory;
 }
 
+/**
+ * Reads one row into an object keyed by column name.
+ *
+ * @param parsers One per column, already chosen for its format.
+ * @param data The row's own bytes, from the DataRow message.
+ * @param columnCount How many values it holds.
+ * @param options Passed to each parser.
+ * @param fields The columns, whose names become the keys.
+ * @returns The row as an object.
+ */
 export function parseObjectRow(
   parsers: AnyParseFunction[],
   data: Buffer,

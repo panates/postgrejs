@@ -25,6 +25,15 @@ function fillTimeArgs(m: RegExpMatchArray, args: DateArgs): void {
   }
 }
 
+/**
+ * Reads a `date` as the server wrote it.
+ *
+ * @param str The value's text.
+ * @param utc Whether to build the Date in UTC rather than locally.
+ * @param dateStyle The session's DateStyle, when it is not ISO - which
+ * is what says whether `01/02/2024` is January or February.
+ * @returns The date, or ±Infinity for the two that are not dates.
+ */
 export function parseDate(
   str: string,
   utc?: boolean,
@@ -52,6 +61,14 @@ export function parseDate(
   return new Date(...args);
 }
 
+/**
+ * Reads a `timestamp` (without time zone) as the server wrote it.
+ *
+ * @param str The value's text.
+ * @param utc Whether to build the Date in UTC rather than locally.
+ * @param dateStyle The session's DateStyle, when it is not ISO.
+ * @returns The timestamp, or ±Infinity.
+ */
 export function parseDateTime(
   str: string,
   utc?: boolean,
@@ -94,6 +111,15 @@ export function parseDateTime(
   return new Date(...args);
 }
 
+/**
+ * Reads a `timestamptz` as the server wrote it, offset included.
+ *
+ * @param str The value's text.
+ * @param utc Whether to build the Date in UTC rather than locally, for
+ * a value that carries no offset.
+ * @param dateStyle The session's DateStyle, when it is not ISO.
+ * @returns The instant, or ±Infinity.
+ */
 export function parseDateTimeTz(
   str: string,
   utc?: boolean,

@@ -43,6 +43,7 @@ export abstract class RowDecoder {
   ): any;
 }
 
+/** Reads each row into an array of values, in column order. */
 export class ArrayRowDecoder extends RowDecoder {
   override readonly rowType = 'array' as const;
 
@@ -56,6 +57,7 @@ export class ArrayRowDecoder extends RowDecoder {
   }
 }
 
+/** Reads each row into an object keyed by column name. */
 export class ObjectRowDecoder extends RowDecoder {
   override readonly rowType = 'object' as const;
 
@@ -70,7 +72,9 @@ export class ObjectRowDecoder extends RowDecoder {
   }
 }
 
+/** The array decoder every query shares - it holds no state. */
 export const DEFAULT_ARRAY_ROW_DECODER = new ArrayRowDecoder();
+/** The object decoder every query shares - it holds no state. */
 export const DEFAULT_OBJECT_ROW_DECODER = new ObjectRowDecoder();
 
 interface RowDecoderOptions {

@@ -6,6 +6,16 @@ import type { EncodeTextFunction } from '../types.js';
 import { escapeLiteral } from './escape-literal.js';
 import { formatDateParam } from './format-datetime.js';
 
+/**
+ * Renders an array as the `ARRAY[...]` an SQL statement can carry.
+ *
+ * For the `sql` tag, which puts values into the text rather than sending
+ * them as parameters.
+ *
+ * @param arr The array, nested to any depth.
+ * @param options Passed to the element encoder.
+ * @returns The literal, cast to the element type it was built for.
+ */
 export function stringifyArrayForSQL(
   v: any[],
   options?: DataMappingOptions,
@@ -54,6 +64,13 @@ function stringifyObjectForSQL(
   return escapeLiteral(JSON.stringify(v)) + '::json';
 }
 
+/**
+ * Renders one value as the literal an SQL statement can carry.
+ *
+ * @param v The value.
+ * @param options Passed to the type's own text encoder.
+ * @returns The literal, quoted and escaped as the value needs.
+ */
 export function stringifyValueForSQL(
   v: any,
   options?: DataMappingOptions,

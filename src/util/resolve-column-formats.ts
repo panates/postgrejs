@@ -13,6 +13,7 @@ import {
 
 const DataFormat = Protocol.DataFormat;
 
+/** What decides the per-column format codes a Bind asks for. */
 export interface ColumnFormatOptions extends DataMappingOptions {
   columnFormat?: Protocol.DataFormat | Protocol.DataFormat[];
 }

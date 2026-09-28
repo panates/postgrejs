@@ -17,6 +17,15 @@ import { arrayLeaf } from './array-leaf.js';
    number, a date type handed a timestamp say. */
 const BARE_NUMBER = /^-?\d+(\.\d+)?([eE][-+]?\d+)?$/;
 
+/**
+ * Renders an array as the literal the server parses - `{1,2,{3,4}}`.
+ *
+ * @param value The array, nested to any depth.
+ * @param options Passed to the element encoder.
+ * @param encode The element type's own text encoder, when the type is
+ * known; without one each element is taken as it stringifies.
+ * @returns The literal.
+ */
 export function stringifyArrayLiteral(
   value: any[],
   options?: DataMappingOptions,
