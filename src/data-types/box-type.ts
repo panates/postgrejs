@@ -12,6 +12,7 @@ const BOX_PATTERN2 =
 const BOX_PATTERN3 =
   /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 
+/** `box`, as a {@link Box}. Its array literal separates elements with a semicolon rather than a comma, which is what `arraySeparator` is for. */
 export const BoxType: DataType = {
   name: 'box',
   oid: DataTypeOIDs.box,
@@ -71,6 +72,7 @@ export const BoxType: DataType = {
   },
 };
 
+/** The `_box` array of {@link BoxType}. */
 export const ArrayBoxType: DataType = {
   ...BoxType,
   name: '_box',

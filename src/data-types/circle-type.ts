@@ -13,6 +13,7 @@ const CIRCLE_PATTERN3 =
   /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\) *, *(-?\d+\.?\d*)$/;
 const CIRCLE_PATTERN4 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 
+/** `circle`, as a {@link Circle} - a centre point and a radius, named as PostgreSQL names them. */
 export const CircleType: DataType = {
   name: 'circle',
   oid: DataTypeOIDs.circle,
@@ -68,6 +69,7 @@ export const CircleType: DataType = {
   },
 };
 
+/** The `_circle` array of {@link CircleType}. */
 export const ArrayCircleType: DataType = {
   ...CircleType,
   name: '_circle',

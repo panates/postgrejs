@@ -10,6 +10,7 @@ import { parsePgTimestampBuffer } from '../util/parse-pg-timestamp.js';
 const timeShift = 946684800000;
 const timeMul = 4294967296;
 
+/** `timestamp` (without time zone), as a `Date` reading that wall clock locally - or in UTC with `utcDates`. */
 export const TimestampType: DataType = {
   name: 'timestamp',
   oid: DataTypeOIDs.timestamp,
@@ -99,6 +100,7 @@ export const TimestampType: DataType = {
   },
 };
 
+/** The `_timestamp` array of {@link TimestampType}. */
 export const ArrayTimestampType: DataType = {
   ...TimestampType,
   name: '_timestamp',

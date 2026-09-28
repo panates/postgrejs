@@ -2,6 +2,7 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
+/** `varchar`, `text`, `name` and the other string types, as strings. */
 export const VarcharType: DataType = {
   name: 'varchar',
   oid: DataTypeOIDs.varchar,
@@ -38,6 +39,7 @@ export const VarcharType: DataType = {
   },
 };
 
+/** The `_varchar` array of {@link VarcharType}. */
 export const ArrayVarcharType: DataType = {
   ...VarcharType,
   name: '_varchar',

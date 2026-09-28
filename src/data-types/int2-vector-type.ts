@@ -6,6 +6,7 @@ import { decodeBinaryArray } from '../util/decode-binaryarray.js';
 import { encodeBinaryArray } from '../util/encode-binaryarray.js';
 import { fastParseInt } from '../util/fast-parseint.js';
 
+/** `int2vector`, the catalog's own list of column numbers, as an array of numbers. Subscripted from 0, unlike every ordinary array. */
 export const Int2VectorType: DataType = {
   name: 'int2vector',
   oid: DataTypeOIDs.int2vector,
@@ -76,6 +77,7 @@ export const Int2VectorType: DataType = {
   },
 };
 
+/** The `_int2vector` array of {@link Int2VectorType}. */
 export const ArrayInt2VectorType: DataType = {
   ...Int2VectorType,
   name: '_int2vector',

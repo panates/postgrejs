@@ -230,6 +230,7 @@ function decode(v: Buffer, offset: number): string {
   return isCidr || bits !== size * 8 ? text + '/' + bits : text;
 }
 
+/** `inet`, as a string - an address, with the netmask only when it is not the full width. */
 export const InetType: DataType = {
   name: 'inet',
   oid: DataTypeOIDs.inet,
@@ -272,6 +273,7 @@ export const InetType: DataType = {
   },
 };
 
+/** The `_inet` array of {@link InetType}. */
 export const ArrayInetType: DataType = {
   ...InetType,
   name: '_inet',
@@ -279,6 +281,7 @@ export const ArrayInetType: DataType = {
   elementsOID: DataTypeOIDs.inet,
 };
 
+/** `cidr`, as a string. The same wire format as {@link InetType}; a network always prints its netmask. */
 export const CidrType: DataType = {
   ...InetType,
   name: 'cidr',
@@ -289,6 +292,7 @@ export const CidrType: DataType = {
   },
 };
 
+/** The `_cidr` array of {@link CidrType}. */
 export const ArrayCidrType: DataType = {
   ...CidrType,
   name: '_cidr',

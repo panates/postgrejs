@@ -8,6 +8,7 @@ import { parseTime, STRICT_TIME_PATTERN } from '../util/parse-time.js';
 
 const timeMul = 4294967296;
 
+/** `time`, as a `Date` on the epoch day carrying that clock time. */
 export const TimeType: DataType = {
   name: 'time',
   oid: DataTypeOIDs.time,
@@ -76,6 +77,7 @@ export const TimeType: DataType = {
   },
 };
 
+/** The `_time` array of {@link TimeType}. */
 export const ArrayTimeType: DataType = {
   ...TimeType,
   name: '_time',

@@ -4,6 +4,7 @@ import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import { assertInteger } from '../util/assert-integer.js';
 import { fastParseInt, fastParseIntBuffer } from '../util/fast-parseint.js';
 
+/** `int2` (smallint), as a number. */
 export const Int2Type: DataType = {
   name: 'int2',
   oid: DataTypeOIDs.int2,
@@ -31,6 +32,7 @@ export const Int2Type: DataType = {
   },
 };
 
+/** The `_int2` array of {@link Int2Type}. */
 export const ArrayInt2Type: DataType = {
   ...Int2Type,
   name: '_int2',

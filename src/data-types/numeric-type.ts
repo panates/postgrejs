@@ -49,6 +49,7 @@ function toNumberOrNumeric(s: string): number | Numeric {
   return String(n) === trimTrailingZeros(s) ? n : new Numeric(s);
 }
 
+/** `numeric`, as a number while one is exact, a {@link Numeric} when it is not, and a string with `decimalAsString`. */
 export const NumericType: DataType = {
   name: 'numeric',
   oid: DataTypeOIDs.numeric,
@@ -235,6 +236,7 @@ export const NumericType: DataType = {
   },
 };
 
+/** The `_numeric` array of {@link NumericType}. */
 export const ArrayNumericType: DataType = {
   ...NumericType,
   name: '_numeric',

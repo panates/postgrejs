@@ -7,6 +7,7 @@ import { fastParseIntBuffer } from '../util/fast-parseint.js';
 
 const maxSafeInteger = BigInt(Number.MAX_SAFE_INTEGER);
 
+/** `int8` (bigint), as a number while one is exact and a `BigInt` beyond that. */
 export const Int8Type: DataType = {
   name: 'int8',
   oid: DataTypeOIDs.int8,
@@ -52,6 +53,7 @@ export const Int8Type: DataType = {
   },
 };
 
+/** The `_int8` array of {@link Int8Type}. */
 export const ArrayInt8Type: DataType = {
   ...Int8Type,
   name: '_int8',

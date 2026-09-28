@@ -4,6 +4,7 @@ import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import { assertInteger } from '../util/assert-integer.js';
 import { fastParseInt, fastParseIntBuffer } from '../util/fast-parseint.js';
 
+/** `oid`, as a number. */
 export const OidType: DataType = {
   name: 'oid',
   oid: DataTypeOIDs.oid,
@@ -29,6 +30,7 @@ export const OidType: DataType = {
   },
 };
 
+/** The `_oid` array of {@link OidType}. */
 export const ArrayOidType: DataType = {
   ...OidType,
   name: '_oid',

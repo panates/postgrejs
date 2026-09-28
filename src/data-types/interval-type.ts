@@ -49,6 +49,7 @@ export function parseIntervalText(v: string): Interval {
   });
 }
 
+/** `interval`, as an {@link Interval}: months, days and microseconds kept apart, because the server keeps them apart and a month is not a fixed number of days. */
 export const IntervalType: DataType = {
   name: 'interval',
   oid: DataTypeOIDs.interval,
@@ -90,6 +91,7 @@ export const IntervalType: DataType = {
   },
 };
 
+/** The `_interval` array of {@link IntervalType}. */
 export const ArrayIntervalType: DataType = {
   ...IntervalType,
   name: '_interval',

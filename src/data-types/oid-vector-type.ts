@@ -82,6 +82,7 @@ export const OidVectorType: DataType = {
   },
 };
 
+/** The `_oidvector` array of {@link OidVectorType}. */
 export const ArrayOidVectorType: DataType = {
   ...OidVectorType,
   name: '_oidvector',

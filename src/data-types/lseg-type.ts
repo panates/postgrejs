@@ -14,6 +14,7 @@ const LSEG_PATTERN3 =
 const LSEG_PATTERN4 =
   /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 
+/** `lseg`, as a {@link LineSegment}. */
 export const LsegType: DataType = {
   name: 'lseg',
   oid: DataTypeOIDs.lseg,
@@ -76,6 +77,7 @@ export const LsegType: DataType = {
   },
 };
 
+/** The `_lseg` array of {@link LsegType}. */
 export const ArrayLsegType: DataType = {
   ...LsegType,
   name: '_lseg',

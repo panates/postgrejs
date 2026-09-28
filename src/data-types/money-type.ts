@@ -250,6 +250,7 @@ function toExactMinor(v: any, scale: number): bigint {
   return neg ? -out : out;
 }
 
+/** The `_money` array of {@link MoneyType}. */
 export const ArrayMoneyType: DataType = {
   ...MoneyType,
   name: '_money',

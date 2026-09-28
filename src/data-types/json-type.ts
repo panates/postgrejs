@@ -2,6 +2,7 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
+/** `json`, as the text the server stored - parsing it is the caller's to do, and their choice of parser. */
 export const JsonType: DataType = {
   name: 'json',
   oid: DataTypeOIDs.json,
@@ -45,6 +46,7 @@ function decodeJsonText(v: string): object | null {
   return v ? JSON.parse(v) : null;
 }
 
+/** The `_json` array of {@link JsonType}. */
 export const ArrayJsonType: DataType = {
   ...JsonType,
   name: '_json',
