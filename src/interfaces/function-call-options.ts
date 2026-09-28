@@ -1,5 +1,6 @@
 import type { DataFormat } from '../constants.js';
 
+/** How a `Connection.callFunction()` sends its arguments and reads back its result. */
 export interface FunctionCallOptions {
   /**
    * Format of each argument, applied positionally - omit for text (the

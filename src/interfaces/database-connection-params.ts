@@ -5,6 +5,14 @@ import type { DebugLogger } from '../types.js';
 import type { DataMappingOptions } from './data-mapping-options.js';
 import type { QueryOptions } from './query-options.js';
 
+/**
+ * Where the server is and how to log in.
+ *
+ * Every field is optional: what is left out is taken from the
+ * environment - `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
+ * and the rest, the same variables `psql` reads - and what neither
+ * gives falls back to PostgreSQL's own defaults.
+ */
 export interface DatabaseConnectionParams {
   /**
    * A whole connection string, as an alternative to the fields below -
@@ -16,11 +24,20 @@ export interface DatabaseConnectionParams {
    * by one that was left in the object.
    */
   connectionString?: string;
+  /** Host name, IP, or the directory of a unix socket. */
   host?: string;
+  /** Port the server listens on. */
   port?: number;
+  /** Role to connect as. */
   user?: string;
+  /**
+   * The password, or a function asked for one when the server wants it -
+   * which is where a rotating credential or a secret store goes.
+   */
   password?: string | (() => string | Promise<string>);
+  /** Database to connect to. */
   database?: string;
+  /** What this connection calls itself, shown in `pg_stat_activity`. */
   applicationName?: string;
   /**
    * Opens the connection in replication mode, which is what lets it run

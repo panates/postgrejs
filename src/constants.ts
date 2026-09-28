@@ -6,8 +6,16 @@ import DataFormat = Protocol.DataFormat;
 Symbol.asyncDispose ??= Symbol('Symbol.asyncDispose');
 
 export { DataFormat };
+/**
+ * What columns come back in unless something asks otherwise.
+ *
+ * Binary: fewer bytes on the wire and no text to parse for most types.
+ * A column named by `fetchAsString`, and the types that have no binary
+ * decoder, come back as text regardless.
+ */
 export const DEFAULT_COLUMN_FORMAT = DataFormat.binary;
 
+/** Where a connection is between `connect()` and `close()`. */
 export enum ConnectionState {
   CLOSED = 0,
   CONNECTING = 1,
@@ -16,6 +24,14 @@ export enum ConnectionState {
   CLOSING = 10,
 }
 
+/**
+ * Every type this client knows, by name, as `pg_type.oid` gives it - the
+ * scalar types and their array counterparts, which are named with a
+ * leading underscore the way the catalog names them.
+ *
+ * These are the numbers `BindParam`, `fetchAsString` and a
+ * `DataTypeMap`'s own registrations are written with.
+ */
 export const DataTypeOIDs = {
   bool: 16,
   bytea: 17,

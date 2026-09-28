@@ -6,7 +6,9 @@ import type { Maybe, OID } from '../types.js';
  * tagged templates without any conversion.
  */
 export interface PipelineRequest {
+  /** The statement text. */
   sql: string;
+  /** Its parameters, for `$1`, `$2` and so on. */
   params?: any[];
   /**
    * Parameter type OIDs for this statement. Per statement rather than per
