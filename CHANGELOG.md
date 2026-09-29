@@ -1,6 +1,35 @@
 # Changelog
 
-<!-- rman:documented-up-to 0374624800398623266a77bb55a566ff5fea8947 -->
+<!-- rman:documented-up-to 88f329a0dd21d246bd314f8bf581d6de153aa18d -->
+
+## v3.12.1 (2026-09-29)
+
+### ⚡ Performance and Optimizations
+
+- write an array of integers into the buffer instead of a string (1ddf061)
+- read a row as it arrives instead of setting it aside (1db2c02)
+- read a row where it lands, without a Buffer of its own (b2eb168)
+
+### 📚 Documentation
+
+- say what the array literal change is worth to a caller (770f6c7)
+- document Cursor, and keep the notes out of its TSDoc (3e033b2)
+- write down where the TSDoc ends and the notes begin (6298c88)
+- document what a Connection and a Pool offer a caller (f12d116)
+- document the rest of the public connection classes (ee348bf)
+- document the interfaces, the type aliases and the constants (e2f6a97)
+- take the measurements out of the util and data-type TSDoc (930489d)
+- say what every data type maps, and to what (74c19e2)
+- document the util layer's exports (b993f1f)
+- document the protocol layer and the type map (ea56cce)
+- the last twelve exports, and BindParam most of all (0f0f71d)
+- **benchmark:** cut the methodology from 2600 words to 600 (5f6b703)
+
+### 📦 Build System
+
+- move to rman, github-actions@v3 and the shared preset (8d207f9)
+
+---
 
 ## v3.12.0 (2026-09-27)
 

@@ -5,7 +5,7 @@ import DataFormat = Protocol.DataFormat;
 // @ts-ignore
 Symbol.asyncDispose ??= Symbol('Symbol.asyncDispose');
 
-export const version = '1';
+export const version = '3.12.1';
 
 export { DataFormat };
 /**
