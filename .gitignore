@@ -5,6 +5,7 @@ node_modules
 .claude
 graphify-out
 /test-*
+/docker/data
 
 # environment variables
 .env

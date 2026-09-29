@@ -1,6 +1,0 @@
-{
-  "template": "changelog-template",
-  "unreleased": true,
-  "commitLimit": false,
-  "ignoreCommitPattern": "\\bchore\\b"
-}
