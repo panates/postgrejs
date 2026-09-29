@@ -89,8 +89,10 @@ function createType(name: string, oid: number): DataType {
   };
 }
 
+/** `bit(n)`, as a string of `0`s and `1`s - its own text form, and the only lossless one for a length the server chose. */
 export const BitType: DataType = createType('bit', DataTypeOIDs.bit);
 
+/** The `_bit` array of {@link BitType}. */
 export const ArrayBitType: DataType = {
   ...BitType,
   name: '_bit',
@@ -98,8 +100,10 @@ export const ArrayBitType: DataType = {
   elementsOID: DataTypeOIDs.bit,
 };
 
+/** `varbit` (bit varying), as a string of `0`s and `1`s. */
 export const VarbitType: DataType = createType('varbit', DataTypeOIDs.varbit);
 
+/** The `_varbit` array of {@link VarbitType}. */
 export const ArrayVarbitType: DataType = {
   ...VarbitType,
   name: '_varbit',

@@ -30,6 +30,12 @@ declare type ParseCallback = (
   data?: any,
 ) => void;
 
+/**
+ * Reads the server's messages out of the bytes as they arrive.
+ *
+ * Keeps whatever a chunk left half-finished, so a message split across
+ * reads - or several in one read - comes out whole exactly once.
+ */
 export class Backend {
   private readonly _headerBuf = Buffer.allocUnsafe(HEADER_LENGTH);
   private _headerFilled = 0;
@@ -59,10 +65,16 @@ export class Backend {
         const bodyStart = pos + HEADER_LENGTH;
         const bodyEnd = bodyStart + (len - 4);
         if (bodyEnd <= dataLen) {
-          const io = new BufferReader(data.subarray(bodyStart, bodyEnd));
-          const parser = MessageParsers[code];
-          const v = parser && parser(io, code, len);
-          callback(code, v);
+          if (code === Protocol.BackendMessageCode.DataRow) {
+            // Straight out of the read buffer: no view of the body, no
+            // reader over it, and no view of the row's own bytes either.
+            callback(code, dataRowMessage(data, bodyStart, bodyEnd));
+          } else {
+            const io = new BufferReader(data.subarray(bodyStart, bodyEnd));
+            const parser = MessageParsers[code];
+            const v = parser && parser(io, code, len);
+            callback(code, v);
+          }
           pos = bodyEnd;
           continue;
         }
@@ -248,6 +260,28 @@ function parseCopyResponse(io: BufferReader): Protocol.CopyResponseMessage {
   return out;
 }
 
+/**
+ * One row, pointing into the read buffer rather than copying out of it.
+ *
+ * A consumer that needs a `Buffer` of its own - a caller's RowDecoder,
+ * or a path that sets the row aside and reads it later - builds the view
+ * with `dataRowBytes()`. The decoders that read the row in place never
+ * do, which is the point.
+ */
+function dataRowMessage(
+  buffer: Buffer,
+  bodyStart: number,
+  bodyEnd: number,
+): Protocol.DataRowMessage {
+  const offset = bodyStart + 2;
+  return {
+    columnCount: buffer.readUInt16BE(bodyStart),
+    buffer,
+    offset,
+    len: bodyEnd - offset,
+  };
+}
+
 function parseDataRow(
   io: BufferReader,
   code: Protocol.BackendMessageCode,
@@ -255,7 +289,7 @@ function parseDataRow(
 ): Protocol.DataRowMessage {
   const columnCount = io.readUInt16BE();
   const data = io.readBytes(len - 6);
-  return { columnCount, data };
+  return { columnCount, buffer: data, offset: 0, len: data.length };
 }
 
 function parseErrorResponse(io: BufferReader): Protocol.ErrorResponseMessage {

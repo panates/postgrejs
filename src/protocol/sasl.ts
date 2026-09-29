@@ -1,5 +1,9 @@
 import crypto from 'crypto';
 
+/**
+ * SCRAM-SHA-256, and the channel binding that ties it to the TLS
+ * connection underneath.
+ */
 export namespace SASL {
   const CLIENT_KEY = 'Client Key';
   const SERVER_KEY = 'Server Key';
@@ -14,6 +18,7 @@ export namespace SASL {
   const GS2_SUPPORTED_UNUSED = 'y,,';
   const GS2_BOUND = 'p=tls-server-end-point,,';
 
+  /** One exchange in progress: what was sent, and what is needed to check the reply. */
   export interface Session {
     username: string;
     mechanism: string;
@@ -56,6 +61,14 @@ export namespace SASL {
     } as Session;
   }
 
+  /**
+   * Answers the server's first SCRAM message.
+   *
+   * @param session The session started for this connection.
+   * @param password The password to prove knowledge of.
+   * @param serverData The server's message.
+   * @param channelBinding The binding data, when the mechanism uses it.
+   */
   export function continueSession(
     session: Session,
     password: string,
@@ -121,6 +134,15 @@ export namespace SASL {
       clientFinalMessageWithoutProof + ',p=' + clientProof;
   }
 
+  /**
+   * Checks the server's final message, which is what proves the server
+   * knew the password too.
+   *
+   * @param session The session in progress.
+   * @param data The server's final message.
+   * @throws Error When the signature does not match, meaning the server
+   * is not the one it claims to be.
+   */
   export function finalizeSession(session: Session, data: string) {
     let serverSignature = '';
 

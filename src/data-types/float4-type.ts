@@ -4,6 +4,7 @@ import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import { assertCoercedNumber } from '../util/assert-integer.js';
 import { fastParseFloatBuffer } from '../util/fast-parsefloat.js';
 
+/** `float4` (real), as a number - the shortest decimal that reads back as the same 32-bit float. */
 export const Float4Type: DataType = {
   name: 'float4',
   oid: DataTypeOIDs.float4,
@@ -32,6 +33,7 @@ export const Float4Type: DataType = {
   },
 };
 
+/** The `_float4` array of {@link Float4Type}. */
 export const ArrayFloat4Type: DataType = {
   ...Float4Type,
   name: '_float4',

@@ -2,6 +2,7 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
+/** `char` - the single-byte internal type, not `char(n)` - as a one-character string. */
 export const CharType: DataType = {
   name: 'char',
   oid: DataTypeOIDs.char,
@@ -48,6 +49,7 @@ export const CharType: DataType = {
   inferrable: false,
 };
 
+/** The `_char` array of {@link CharType}. */
 export const ArrayCharType: DataType = {
   ...CharType,
   name: '_char',

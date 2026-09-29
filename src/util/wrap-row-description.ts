@@ -15,6 +15,16 @@ for (const oid of Object.keys(DataTypeNames)) {
   DataTypeOIDByName[DataTypeNames[oid]] = Number(oid);
 }
 
+/**
+ * Turns the server's RowDescription into the `FieldInfo[]` a caller
+ * sees, naming each column's type and what it maps to.
+ *
+ * @param typeMap Where the types are registered.
+ * @param fields The columns, as the server described them.
+ * @param columnFormat What format they are coming back in.
+ * @param options The mapping options in force.
+ * @returns One FieldInfo per column, in order.
+ */
 export function wrapRowDescription(
   typeMap: DataTypeMap,
   fields: Protocol.RowDescription[],

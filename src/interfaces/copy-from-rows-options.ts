@@ -2,6 +2,10 @@ import type { DataTypeMap } from '../data-type-map.js';
 import type { OID } from '../types.js';
 import type { DataMappingOptions } from './data-mapping-options.js';
 
+/**
+ * What `copyFromRows()` takes: which columns the rows line up with, how
+ * to encode their values, and how to stop.
+ */
 export interface CopyFromRowsOptions extends DataMappingOptions {
   /** Type registry used to encode values; defaults to GlobalTypeMap. */
   typeMap?: DataTypeMap;

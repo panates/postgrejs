@@ -14,7 +14,9 @@ import { escapeIdentifier } from './escape-identifier.js';
 /** Default bytes accumulated before a CopyData message goes out. */
 export const DEFAULT_COPY_CHUNK_SIZE = 128 * 1024;
 
+/** One row to copy: values in column order, or keyed by column name. */
 export type CopyRow = any[] | Record<string, any>;
+/** Where `copyFromRows()` takes its rows from - an array, an iterable, an async one, or a stream. */
 export type CopyRowSource =
   Iterable<CopyRow> | AsyncIterable<CopyRow> | Readable;
 
@@ -46,6 +48,15 @@ export function buildProbeSql(table: string, columns?: string[]): string {
   return `select ${cols} from ${quoteQualifiedName(table)} where false`;
 }
 
+/**
+ * Writes the `COPY ... FROM STDIN (FORMAT binary)` the rows will be sent
+ * under.
+ *
+ * @param table The destination, optionally schema-qualified.
+ * @param columns Which columns the rows line up with; all of them when
+ * absent.
+ * @returns The statement.
+ */
 export function buildCopySql(table: string, columns?: string[]): string {
   const cols = columns?.length
     ? ' (' + columns.map(escapeIdentifier).join(', ') + ')'
@@ -66,6 +77,7 @@ function toValues(row: CopyRow, columns: string[]): any[] {
   return out;
 }
 
+/** What a copy in flight needs to keep between its chunks. */
 export interface CopyFromRowsContext {
   columns: string[];
   dataTypeIds: OID[];

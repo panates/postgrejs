@@ -40,6 +40,12 @@ export interface FetchAsStringSelector {
   ranges?: boolean;
 }
 
+/**
+ * How values are turned into JavaScript and back.
+ *
+ * Set on the connection to apply to everything it runs, or per call to
+ * apply to one - a call that says nothing takes the connection's.
+ */
 export interface DataMappingOptions {
   /**
    * Decode `numeric` and `money` into the exact decimal string they

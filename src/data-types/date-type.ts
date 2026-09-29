@@ -8,6 +8,7 @@ import { parseDate } from '../util/parse-datetime.js';
 
 const timeShift = 946684800000;
 
+/** `date`, as a `Date` at local midnight - or at UTC midnight with `utcDates`. */
 export const DateType: DataType = {
   name: 'date',
   oid: DataTypeOIDs.date,
@@ -84,6 +85,7 @@ export const DateType: DataType = {
   },
 };
 
+/** The `_date` array of {@link DateType}. */
 export const ArrayDateType: DataType = {
   ...DateType,
   name: '_date',

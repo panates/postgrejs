@@ -3,6 +3,7 @@ import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import { parseBytea, parseByteaBuffer } from '../util/parse-bytea.js';
 
+/** `bytea`, as a `Buffer`. The binary format is the bytes themselves; the text one is `\\x`-prefixed hex, at two characters a byte. */
 export const ByteaType: DataType = {
   name: 'bytea',
   oid: DataTypeOIDs.bytea,
@@ -31,6 +32,7 @@ export const ByteaType: DataType = {
   },
 };
 
+/** The `_bytea` array of {@link ByteaType}. */
 export const ArrayByteaType: DataType = {
   ...ByteaType,
   name: '_bytea',

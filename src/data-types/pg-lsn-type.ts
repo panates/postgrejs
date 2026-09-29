@@ -42,6 +42,7 @@ function writeHalf(value: number, p: number): number {
   return p;
 }
 
+/** `pg_lsn`, as the `16/B374D848` text the server prints - the spelling every tool and every catalog column uses. */
 export const PgLsnType: DataType = {
   name: 'pg_lsn',
   oid: DataTypeOIDs.pg_lsn,
@@ -83,6 +84,7 @@ export const PgLsnType: DataType = {
   },
 };
 
+/** The `_pg_lsn` array of {@link PgLsnType}. */
 export const ArrayPgLsnType: DataType = {
   ...PgLsnType,
   name: '_pg_lsn',

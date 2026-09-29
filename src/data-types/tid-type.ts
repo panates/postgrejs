@@ -16,6 +16,7 @@ import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
 const TID_PATTERN = /^\(\s*(\d+)\s*,\s*(\d+)\s*\)$/;
 
+/** `tid`, a physical row address, as the `(block,offset)` text the server prints. */
 export const TidType: DataType = {
   name: 'tid',
   oid: DataTypeOIDs.tid,
@@ -56,6 +57,7 @@ export const TidType: DataType = {
   },
 };
 
+/** The `_tid` array of {@link TidType}. */
 export const ArrayTidType: DataType = {
   ...TidType,
   name: '_tid',

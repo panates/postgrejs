@@ -2,6 +2,7 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
+/** `bool`, as a JavaScript boolean. Its text form is the `t`/`f` the server itself writes. */
 export const BoolType: DataType = {
   name: 'bool',
   oid: DataTypeOIDs.bool,
@@ -35,6 +36,7 @@ export const BoolType: DataType = {
   },
 };
 
+/** The `_bool` array of {@link BoolType}. */
 export const ArrayBoolType: DataType = {
   ...BoolType,
   name: '_bool',

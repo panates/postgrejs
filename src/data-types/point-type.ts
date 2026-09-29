@@ -8,6 +8,7 @@ import { Point } from './classes/geometric.js';
 const POINT_PATTERN1 = /^\( *(-?\d+\.?\d*) *, *(-?\d+\.?\d*) *\)$/;
 const POINT_PATTERN2 = /^(-?\d+\.?\d*) *, *(-?\d+\.?\d*)$/;
 
+/** `point`, as a {@link Point}. */
 export const PointType: DataType = {
   name: 'point',
   oid: DataTypeOIDs.point,
@@ -53,6 +54,7 @@ export const PointType: DataType = {
   },
 };
 
+/** The `_point` array of {@link PointType}. */
 export const ArrayPointType: DataType = {
   ...PointType,
   name: '_point',

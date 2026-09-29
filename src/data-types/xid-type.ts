@@ -71,8 +71,10 @@ function createUInt32Type(name: string, oid: number): DataType {
   };
 }
 
+/** `xid`, a 32-bit transaction id, as a number. */
 export const XidType: DataType = createUInt32Type('xid', DataTypeOIDs.xid);
 
+/** The `_xid` array of {@link XidType}. */
 export const ArrayXidType: DataType = {
   ...XidType,
   name: '_xid',
@@ -80,8 +82,10 @@ export const ArrayXidType: DataType = {
   elementsOID: DataTypeOIDs.xid,
 };
 
+/** `cid`, a command id within a transaction, as a number. */
 export const CidType: DataType = createUInt32Type('cid', DataTypeOIDs.cid);
 
+/** The `_cid` array of {@link CidType}. */
 export const ArrayCidType: DataType = {
   ...CidType,
   name: '_cid',
@@ -89,6 +93,7 @@ export const ArrayCidType: DataType = {
   elementsOID: DataTypeOIDs.cid,
 };
 
+/** `xid8`, the 64-bit transaction id, as a number while one is exact and a `BigInt` beyond. */
 export const Xid8Type: DataType = {
   name: 'xid8',
   oid: DataTypeOIDs.xid8,
@@ -131,6 +136,7 @@ export const Xid8Type: DataType = {
   },
 };
 
+/** The `_xid8` array of {@link Xid8Type}. */
 export const ArrayXid8Type: DataType = {
   ...Xid8Type,
   name: '_xid8',

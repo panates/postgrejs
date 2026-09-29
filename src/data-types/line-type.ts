@@ -8,6 +8,7 @@ import { Line } from './classes/geometric.js';
 const LINE_PATTERN =
   /^\{ *(-?[\d.]+(?:e[-+]?\d+)?) *, *(-?[\d.]+(?:e[-+]?\d+)?) *, *(-?[\d.]+(?:e[-+]?\d+)?) *\}$/i;
 
+/** `line`, as a {@link Line} - the `A`, `B` and `C` of `Ax + By + C = 0`, which is how the server stores it. */
 export const LineType: DataType = {
   name: 'line',
   oid: DataTypeOIDs.line,
@@ -58,6 +59,7 @@ export const LineType: DataType = {
   },
 };
 
+/** The `_line` array of {@link LineType}. */
 export const ArrayLineType: DataType = {
   ...LineType,
   name: '_line',

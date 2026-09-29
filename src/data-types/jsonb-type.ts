@@ -2,6 +2,7 @@ import { DataTypeOIDs } from '../constants.js';
 import type { DataType } from '../interfaces/data-type.js';
 import type { SmartBuffer } from '../protocol/smart-buffer.js';
 
+/** `jsonb`, as text. The binary form carries a version byte the value itself does not. */
 export const JsonbType: DataType = {
   name: 'jsonb',
   oid: DataTypeOIDs.jsonb,
@@ -49,6 +50,7 @@ function decodeJsonbText(v: string): object | null {
   return v ? JSON.parse(v) : null;
 }
 
+/** The `_jsonb` array of {@link JsonbType}. */
 export const ArrayJsonbType: DataType = {
   ...JsonbType,
   name: '_jsonb',

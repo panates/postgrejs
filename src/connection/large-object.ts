@@ -5,11 +5,15 @@ import type { Connection } from './connection.js';
 
 /** Open modes, as PostgreSQL's own INV_READ / INV_WRITE constants. */
 export const LargeObjectMode = {
+  /** Open for reading only. */
   read: 0x00040000,
+  /** Open for writing only. */
   write: 0x00020000,
+  /** Open for both. */
   readWrite: 0x00060000,
 } as const;
 
+/** How a large object's `readable()`/`writable()` move their bytes. */
 export interface LargeObjectStreamOptions {
   /**
    * Bytes per round trip (default 65536). Each chunk is its own `loread`
@@ -38,6 +42,10 @@ export interface LargeObjectStreamOptions {
  * the caller started, which stays theirs to finish.
  */
 export class LargeObject {
+  /**
+   * What this object is called, and the only way back to it: a large
+   * object belongs to no row, so the oid is what a caller stores.
+   */
   readonly oid: number;
   protected readonly _connection: Connection;
   protected readonly _fd: number;
@@ -45,6 +53,16 @@ export class LargeObject {
   protected readonly _ownsTransaction: boolean;
   protected _closed = false;
 
+  /**
+   * Built by `Connection.createLargeObject()`/`openLargeObject()`, which
+   * are what open the descriptor this wraps.
+   *
+   * @param connection The connection the descriptor lives on.
+   * @param oid The large object's own identifier.
+   * @param fd The open descriptor, valid for this transaction only.
+   * @param ownsTransaction Whether opening it started the transaction,
+   * and so whether `close()` should commit.
+   */
   constructor(
     connection: Connection,
     oid: number,

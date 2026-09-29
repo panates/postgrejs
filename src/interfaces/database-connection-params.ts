@@ -5,6 +5,14 @@ import type { DebugLogger } from '../types.js';
 import type { DataMappingOptions } from './data-mapping-options.js';
 import type { QueryOptions } from './query-options.js';
 
+/**
+ * Where the server is and how to log in.
+ *
+ * Every field is optional: what is left out is taken from the
+ * environment - `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
+ * and the rest, the same variables `psql` reads - and what neither
+ * gives falls back to PostgreSQL's own defaults.
+ */
 export interface DatabaseConnectionParams {
   /**
    * A whole connection string, as an alternative to the fields below -
@@ -16,11 +24,20 @@ export interface DatabaseConnectionParams {
    * by one that was left in the object.
    */
   connectionString?: string;
+  /** Host name, IP, or the directory of a unix socket. */
   host?: string;
+  /** Port the server listens on. */
   port?: number;
+  /** Role to connect as. */
   user?: string;
+  /**
+   * The password, or a function asked for one when the server wants it -
+   * which is where a rotating credential or a secret store goes.
+   */
   password?: string | (() => string | Promise<string>);
+  /** Database to connect to. */
   database?: string;
+  /** What this connection calls itself, shown in `pg_stat_activity`. */
   applicationName?: string;
   /**
    * Opens the connection in replication mode, which is what lets it run
@@ -154,10 +171,16 @@ export interface DatabaseConnectionParams {
   debugLogger?: DebugLogger;
 }
 
+/**
+ * Which server in a list is acceptable, checked after connecting - the
+ * same values `libpq` takes, and how a client finds the primary.
+ */
 export type TargetSessionAttrs =
   'read-write' | 'read-only' | 'primary' | 'standby' | 'prefer-standby';
 
+/** Options passed down to the socket itself. */
 export interface SocketOptions {
+  /** Whether TCP keep-alive is turned on. */
   keepAlive?: boolean;
 }
 
@@ -173,6 +196,10 @@ export interface SocketOptions {
 export type ConnectionMappingDefaults = DataMappingOptions &
   Pick<QueryOptions, 'objectRows' | 'rowDecoder' | 'typeMap' | 'columnFormat'>;
 
+/**
+ * Everything a `Connection` can be given: where the server is, how to
+ * talk to it, and the defaults every statement on it inherits.
+ */
 export interface ConnectionConfiguration
   extends DatabaseConnectionParams, SocketOptions, ConnectionMappingDefaults {
   buffer?: SmartBufferConfig;
@@ -192,6 +219,10 @@ export interface ConnectionConfiguration
   pipeline?: boolean;
 }
 
+/**
+ * A connection's configuration, plus how many of them to keep and how
+ * long an idle one lives.
+ */
 export interface PoolConfiguration
   extends ConnectionConfiguration, LPoolConfiguration {
   /**

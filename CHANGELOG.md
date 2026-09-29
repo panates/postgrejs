@@ -1,1453 +1,1796 @@
-## Changelog
+# Changelog
 
-### [v3.12.0](https://github.com/panates/postgrejs/compare/v3.11.1...v3.12.0) - 
+<!-- rman:documented-up-to 0374624800398623266a77bb55a566ff5fea8947 -->
 
-#### Breaking Changes :warning:
+## v3.12.0 (2026-09-27)
 
-- fix!: refuse what the server refuses instead of storing another number @Eray Hanoğlu  
+### ✨ Features
 
-#### 🚀 New Features
+- report the parameter types the server resolved (06af711)
+- **benchmark:** count the bytes sent, and what a run keeps (9a99a43)
 
-- feat(benchmark): count the bytes sent, and what a run keeps @Eray Hanoğlu 
-- feat: report the parameter types the server resolved @Eray Hanoğlu 
+### 🐛 Bug Fixes
 
-#### 🪲 Fixes
+- refuse what the server refuses instead of storing another number (59244b9)
+- take the value out of a BindParam handed to a prepared statement (1d4a4d7)
+- **benchmark:** a figure nobody could measure is not a bar of zero (3c1cb81)
 
-- fix(benchmark): a figure nobody could measure is not a bar of zero @Eray Hanoğlu 
-- fix: take the value out of a BindParam handed to a prepared statement @Eray Hanoğlu 
+### ⚡ Performance and Optimizations
 
-#### 📖 Documentation Changes
+- stop quoting and re-escaping every element of an array literal (279674c)
 
-- docs(benchmark): update benchmarks to include new memory and network metrics @Eray Hanoğlu 
-- docs: say what an untyped numeric array actually costs @Eray Hanoğlu 
-- docs(benchmark): say what Peak Heap is not, and what survives a re-run @Eray Hanoğlu 
-- docs(benchmark): Retained is a working set, not a permanent footprint @Eray Hanoğlu 
+### 📚 Documentation
 
-#### ⚡️ Performance Improvments
+- say what an untyped numeric array actually costs (d169626)
+- **benchmark:** say what Peak Heap is not, and what survives a re-run (2a8905c)
+- **benchmark:** Retained is a working set, not a permanent footprint (9e9d308)
+- **benchmark:** update benchmarks to include new memory and network metrics (de26413)
 
-- perf: stop quoting and re-escaping every element of an array literal @Eray Hanoğlu 
+---
 
-### [v3.11.1](https://github.com/panates/postgrejs/compare/v3.11.0...v3.11.1) -  24 September 2026 
+## v3.11.1 (2026-09-24)
 
-#### 🪲 Fixes
+### 🐛 Bug Fixes
 
-- fix(bench): count off-heap memory in Peak Heap @Eray Hanoğlu 
+- **bench:** count off-heap memory in Peak Heap (f074d7a)
 
-#### ⚡️ Performance Improvments
+### ⚡ Performance and Optimizations
 
-- perf: shift the instant instead of rebuilding a local Date from its parts @Eray Hanoğlu 
-- perf: build uuid and macaddr text in one pass instead of five @Eray Hanoğlu 
-- perf: stop asking whether a small money value round-trips @Eray Hanoğlu 
-- perf: write a pg_lsn without four strings a value @Eray Hanoğlu 
+- build uuid and macaddr text in one pass instead of five (0805b4d)
+- shift the instant instead of rebuilding a local Date from its parts (5611a89)
+- stop asking whether a small money value round-trips (cc79c56)
+- write a pg_lsn without four strings a value (1db1a3a)
 
-### [v3.11.0](https://github.com/panates/postgrejs/compare/v3.10.1...v3.11.0) -  23 September 2026 
+---
 
-#### 🚀 New Features
+## v3.11.0 (2026-09-23)
 
-- feat: add isMultiStatement(), so a caller can tell which of the two to use @Eray Hanoğlu 
+### ✨ Features
 
-#### 🛠 Refactoring and Updates
+- add isMultiStatement(), so a caller can tell which of the two to use (0db1d44)
 
-- refactor: rename `multi-statement` to `is-multi-statement` for clarity @Eray Hanoğlu 
+### 🔧 Refactoring
 
-### [v3.10.1](https://github.com/panates/postgrejs/compare/v3.10.0...v3.10.1) -  22 September 2026 
+- rename `multi-statement` to `is-multi-statement` for clarity (36b8ab3)
 
-#### 🚀 New Features
+### 🧹 Chores
 
-- feat: accept `connectionString`, and answer a key from another client @Eray Hanoğlu 
+- update dependencies (fc829b9)
 
-### [v3.10.0](https://github.com/panates/postgrejs/compare/v3.9.0...v3.10.0) -  22 September 2026 
+---
 
-#### Breaking Changes :warning:
+## v3.10.1 (2026-09-22)
 
-- feat!: serialise the value classes as their fields @Eray Hanoğlu  
+### ✨ Features
 
-#### 🚀 New Features
+- accept `connectionString`, and answer a key from another client (cbdd635)
 
-- feat: decode the date/time types into Temporal values on request @Eray Hanoğlu 
-- feat: let fetchAsString ask for a scalar without its arrays @Eray Hanoğlu 
-- feat: decode money and numeric as their exact decimal string on request @Eray Hanoğlu 
-- feat: let fetchAsString name an array column by its element type @Eray Hanoğlu 
-- feat: report a lost connection on 'error', not only on 'close' @Eray Hanoğlu 
-- feat: name Circle's radius `radius`, as pg does @Eray Hanoğlu 
+---
 
-#### 🪲 Fixes
+## v3.10.0 (2026-09-22)
 
-- fix: stop declaring an element type for an array of numbers @Eray Hanoğlu 
-- fix: sign only the interval components that have one, and add toPostgres() @Eray Hanoğlu 
-- fix: read the database out of a `postgresql://` URL @Eray Hanoğlu 
+### ✨ Features
 
-#### 📖 Documentation Changes
+- let fetchAsString name an array column by its element type (313c71e)
+- name Circle's radius `radius`, as pg does (8d30acc)
+- decode the date/time types into Temporal values on request (de11e96)
+- let fetchAsString ask for a scalar without its arrays (423977d)
+- serialise the value classes as their fields (ac5ba39)
+- decode money and numeric as their exact decimal string on request (605e91e)
+- report a lost connection on 'error', not only on 'close' (93b07c3)
 
-- docs: name the migration note after the release it is for @Eray Hanoğlu 
+### 🐛 Bug Fixes
 
-### [v3.9.0](https://github.com/panates/postgrejs/compare/v3.8.0...v3.9.0) -  22 September 2026 
+- sign only the interval components that have one, and add toPostgres() (3d84fb5)
+- read the database out of a `postgresql://` URL (ffbd971)
+- stop declaring an element type for an array of numbers (660aa54)
 
-#### 🚀 New Features
+### 📚 Documentation
 
-- feat: decode money, by asking the server what a minor unit is @Eray Hanoğlu 
-- feat: pipeline by default, and let a connection opt out of it @Eray Hanoğlu 
-- feat: take the transaction's modes on startTransaction() @Eray Hanoğlu 
-- feat: let a connection answer the data-mapping options once @Eray Hanoğlu 
-- feat: keep the server's own error text on serverMessage @Eray Hanoğlu 
+- name the migration note after the release it is for (e0caa73)
 
-#### 🪲 Fixes
+---
 
-- fix: read a text date in the DateStyle the server said it wrote @Eray Hanoğlu 
-- fix: let SET TRANSACTION run with rollbackOnError on @Eray Hanoğlu 
-- fix: ask for money's scale on the two paths that decoded before asking @Eray Hanoğlu 
-- fix: name a statement once, not once per caller in a burst @Eray Hanoğlu 
-- fix: keep a pooled connection unshared unless the caller asks @Eray Hanoğlu 
-- fix: type an array from the first value inside it, not from value[0] @Eray Hanoğlu 
-- fix: answer an empty statement instead of raising @Eray Hanoğlu 
+## v3.9.0 (2026-09-22)
 
-#### 📖 Documentation Changes
+### ✨ Features
 
-- docs: list the ORM adapters that run on this client @Eray Hanoğlu 
+- pipeline by default, and let a connection opt out of it (4e9a609)
+- keep the server's own error text on serverMessage (e413ae9)
+- decode money, by asking the server what a minor unit is (285097e)
+- let a connection answer the data-mapping options once (ecad270)
+- take the transaction's modes on startTransaction() (4703ec4)
 
-#### 🛠 Refactoring and Updates
+### 🐛 Bug Fixes
 
-- refactor: let a row decoder declare its own rowType @Eray Hanoğlu 
+- answer an empty statement instead of raising (3a60510)
+- type an array from the first value inside it, not from value[0] (49c045d)
+- keep a pooled connection unshared unless the caller asks (be0ef23)
+- let SET TRANSACTION run with rollbackOnError on (a89fcf3)
+- ask for money's scale on the two paths that decoded before asking (3ed2812)
+- name a statement once, not once per caller in a burst (2c4f52d)
+- read a text date in the DateStyle the server said it wrote (4c1154b)
 
-#### ⚡️ Performance Improvments
+### ⚡ Performance and Optimizations
 
-- perf: walk fewer types to infer a parameter, and write once per statement @Eray Hanoğlu 
-- perf: stop paying for a text row twice @Eray Hanoğlu 
+- stop paying for a text row twice (fe151e4)
+- walk fewer types to infer a parameter, and write once per statement (96bc78d)
 
-#### 💬 General Changes
+### 🔧 Refactoring
 
-- bench: regenerate the reports, and pin the adapter's options @Eray Hanoğlu 
+- let a row decoder declare its own rowType (b4f564b)
 
-### [v3.8.0](https://github.com/panates/postgrejs/compare/v3.7.0...v3.8.0) -  21 September 2026 
+### 📚 Documentation
 
-#### 🚀 New Features
+- list the ORM adapters that run on this client (b5465a3)
 
-- feat: deliver server notices to the connection @Eray Hanoğlu 
+### 💬 General Changes
 
-#### 🪲 Fixes
+- regenerate the reports, and pin the adapter's options (98f08e5)
 
-- fix: send a string parameter unspecified, so the column decides @Eray Hanoğlu 
-- fix: send a Date parameter unspecified, so the column decides @Eray Hanoğlu 
-- fix: write a lower bound of 1 for an ordinary binary array @Eray Hanoğlu 
+---
 
-#### 🧪 Changes to Test Assests
+## v3.8.0 (2026-09-21)
 
-- test: skip the types PostgreSQL 12 does not have @Eray Hanoğlu 
+### ✨ Features
 
-### [v3.7.0](https://github.com/panates/postgrejs/compare/v3.6.1...v3.7.0) -  20 September 2026 
+- deliver server notices to the connection (8ecf16e)
 
-#### Breaking Changes :warning:
+### 🐛 Bug Fixes
 
-- feat!: decode a numeric that a double cannot hold into a Numeric @Eray Hanoğlu  
-- build: let the changelog template see a breaking change @Eray Hanoğlu  
+- write a lower bound of 1 for an ordinary binary array (1ace8fe)
+- send a Date parameter unspecified, so the column decides (1c3891a)
+- send a string parameter unspecified, so the column decides (cd52507)
 
-#### 🚀 New Features
+### 🧪 Tests
 
-- feat: decode the network types @Eray Hanoğlu 
-- feat: decode line, path and polygon @Eray Hanoğlu 
-- feat: decode the system columns, and name the types that cannot be @Eray Hanoğlu 
-- feat: decode the range and multirange types @Eray Hanoğlu 
-- feat: decode the geometric types into classes of their own @Eray Hanoğlu 
-- feat: decode tsvector and tsquery @Eray Hanoğlu 
-- feat: decode interval @Eray Hanoğlu 
-- feat: decode bit, varbit and jsonpath @Eray Hanoğlu 
-- feat: decode timetz @Eray Hanoğlu 
-- feat: decode refcursor, pg_node_tree and the snapshot types @Eray Hanoğlu 
-- feat: add unknownTypesAsString @Eray Hanoğlu 
-- feat: let a decoded value carry the type it came from @Eray Hanoğlu 
-- feat: reject the in-flight query with ConnectionLostError too @Eray Hanoğlu 
+- skip the types PostgreSQL 12 does not have (35aeca7)
 
-#### 🪲 Fixes
+---
 
-- fix: write an object as its own SQL literal, not as json @Eray Hanoğlu 
-- fix: complete the type OID table, and check it against the catalog @Eray Hanoğlu 
-- fix: recover when a recreated type invalidates a cached statement @Eray Hanoğlu 
-- fix: keep a quoted empty element when parsing an array literal @Eray Hanoğlu 
+## v3.7.0 (2026-09-20)
 
-#### 📖 Documentation Changes
+### ✨ Features
 
-- docs: cut the Features list back down @Eray Hanoğlu 
-- docs: drop the Features section @Eray Hanoğlu 
-- docs: bring the data type counts up to what is registered @Eray Hanoğlu 
-- docs: give the documentation link its own heading @Eray Hanoğlu 
+- add unknownTypesAsString (3a05c68)
+- reject the in-flight query with ConnectionLostError too (b8a8a42)
+- decode interval (0278099)
+- decode the range and multirange types (2478a3a)
+- let a decoded value carry the type it came from (e867eba)
+- decode the geometric types into classes of their own (d3465de)
+- decode the network types (3964092)
+- decode timetz (7b0d63b)
+- decode bit, varbit and jsonpath (25b7806)
+- decode tsvector and tsquery (318d846)
+- decode line, path and polygon (37e3607)
+- decode the system columns, and name the types that cannot be (d8d8431)
+- decode a numeric that a double cannot hold into a Numeric (42ad546)
+- decode refcursor, pg_node_tree and the snapshot types (244e9b8)
 
-#### ⚡️ Performance Improvments
+### 🐛 Bug Fixes
 
-- perf: build a numeric's digits without a concatenation per digit @Eray Hanoğlu 
+- keep a quoted empty element when parsing an array literal (a87afb7)
+- recover when a recreated type invalidates a cached statement (4eb2de7)
+- write an object as its own SQL literal, not as json (6a7d354)
+- complete the type OID table, and check it against the catalog (ce83df0)
 
-### [v3.6.1](https://github.com/panates/postgrejs/compare/v3.6.0...v3.6.1) -  20 September 2026 
+### ⚡ Performance and Optimizations
 
-#### 🚀 New Features
+- build a numeric's digits without a concatenation per digit (be0f26c)
 
-- feat: report a pooled connection that dies @Eray Hanoğlu 
+### 📚 Documentation
 
-#### 🛠 Refactoring and Updates
+- bring the data type counts up to what is registered (2426563)
+- cut the Features list back down (370f8b8)
+- drop the Features section (bc277fe)
+- give the documentation link its own heading (9996dce)
 
-- refactor: give a lost connection its own error type @Eray Hanoğlu 
+### 📦 Build System
 
-#### 💬 General Changes
+- let the changelog template see a breaking change (475e92f)
 
-- ci: pin the runner image and stop naming the PostgreSQL it ships @Eray Hanoğlu 
+### 🧹 Chores
 
-### [v3.6.0](https://github.com/panates/postgrejs/compare/v3.5.0...v3.6.0) -  20 September 2026 
+- regenerate the changelog for the moved tag (538dbb3)
 
-#### Breaking Changes :warning:
+---
 
-- feat!: fetch every row by default instead of the first 100 @Eray Hanoğlu  
+## v3.6.1 (2026-09-20)
 
-#### 🚀 New Features
+### ✨ Features
 
-- feat: make fetchAsString request text from the server @Eray Hanoğlu 
+- report a pooled connection that dies (5e5efc3)
 
-#### 🪲 Fixes
+### 🔧 Refactoring
 
-- fix: decode float4 as the number the server would print @Eray Hanoğlu 
-- fix: report rowsAffected for MERGE @Eray Hanoğlu 
-- fix: quote LISTEN channel names instead of restricting them @Eray Hanoğlu 
-- fix: stop a pooled cursor's connection going back into the pool @Eray Hanoğlu 
-- fix: stop inferring "char" for one-character strings @Eray Hanoğlu 
-- fix: copy both indexes when a DataTypeMap is built from another @Eray Hanoğlu 
-- fix: emit 'notification' once per NOTIFY @Eray Hanoğlu 
-- fix: accept single-character savepoint names @Eray Hanoğlu 
+- give a lost connection its own error type (a619e1c)
 
-#### 📖 Documentation Changes
+### 🤖 Continuous Integration
 
-- docs: record what 3.6 changes for existing code @Eray Hanoğlu 
+- pin the runner image and stop naming the PostgreSQL it ships (805667b)
 
-### [v3.5.0](https://github.com/panates/postgrejs/compare/v3.4.0...v3.5.0) -  16 September 2026 
+---
 
-#### 🚀 New Features
+## v3.6.0 (2026-09-20)
 
-- feat: add transaction(fn) and let a Cursor be iterated with for await @Eray Hanoğlu 
+### ✨ Features
 
-#### 📖 Documentation Changes
+- make fetchAsString request text from the server (4ae2c92)
+- fetch every row by default instead of the first 100 (f806b58)
 
-- docs: refresh Unit of Work after pipeline() started reusing statements @Eray Hanoğlu 
-- docs: record scoped transactions and cursor iteration in the README @Eray Hanoğlu 
-- docs: stop signing commits on the assistant's behalf @Eray Hanoğlu 
-- docs: note that pipeline() reuses cached prepared statements @Eray Hanoğlu 
+### 🐛 Bug Fixes
 
-#### ⚡️ Performance Improvments
+- copy both indexes when a DataTypeMap is built from another (cb564c9)
+- accept single-character savepoint names (2c78ff2)
+- stop inferring "char" for one-character strings (aa64ff1)
+- decode float4 as the number the server would print (1113f06)
+- report rowsAffected for MERGE (bb8590f)
+- stop a pooled cursor's connection going back into the pool (32a3020)
+- emit 'notification' once per NOTIFY (efee7fd)
+- quote LISTEN channel names instead of restricting them (d05813c)
 
-- perf: let pipeline() bind to the connection's cached statements @Eray Hanoğlu 
+### 📚 Documentation
 
-### [v3.4.0](https://github.com/panates/postgrejs/compare/v3.3.0...v3.4.0) -  16 September 2026 
+- record what 3.6 changes for existing code (28478e9)
 
-- feat: add PreparedStatement.executeBatch() for multi-set execution
+---
 
-#### 🚀 New Features
+## v3.5.0 (2026-09-16)
 
-- feat: add copyFromRows() for binary COPY bulk loading @Eray Hanoğlu 
-- feat: add Connection.pipeline() for many statements in one round trip @Eray Hanoğlu 
-- feat: reuse prepared statements for repeated queries @Eray Hanoğlu 
+### ✨ Features
 
-#### 🪲 Fixes
+- add transaction(fn) and let a Cursor be iterated with for await (220c547)
 
-- fix: refuse values that have no numeric reading instead of storing zero @Eray Hanoğlu 
+### ⚡ Performance and Optimizations
 
-#### 📖 Documentation Changes
+- let pipeline() bind to the connection's cached statements (3ef598b)
 
-- docs: regenerate both benchmark reports from an interleaved run @Eray Hanoğlu 
-- docs: refresh the Node report and correct a stale asymmetry note @Eray Hanoğlu 
-- docs: record statement-level rollback in the README @Eray Hanoğlu 
-- docs: record the prepared statement cache in the README @Eray Hanoğlu 
-- docs: list pipeline() in the feature list and comparison table @Eray Hanoğlu 
-- docs: list binary COPY in the feature list and comparison table @Eray Hanoğlu 
-- docs: list batch execution in the feature list and comparison table @Eray Hanoğlu 
+### 📚 Documentation
 
-#### ⚡️ Performance Improvments
+- note that pipeline() reuses cached prepared statements (1176a0b)
+- stop signing commits on the assistant's behalf (8150e98)
+- record scoped transactions and cursor iteration in the README (74f2d3b)
+- refresh Unit of Work after pipeline() started reusing statements (45535c2)
 
-- perf: carry the rollbackOnError savepoint in the statement's own round trip @Eray Hanoğlu 
-- perf: let the prepared statement cache serve queries inside a transaction @Eray Hanoğlu 
+---
 
-#### 💬 General Changes
+## v3.4.0 (2026-09-16)
 
-- bench: add Bulk Load scenarios for text and binary COPY @Eray Hanoğlu 
-- bench: add Unit of Work scenario for pipeline() @Eray Hanoğlu 
-- bench: stop measuring postgres.js on an unprepared path @Eray Hanoğlu 
-- bench: interleave repeats instead of running them back to back @Eray Hanoğlu 
-- ci: pin GITHUB_TOKEN to read-only in the test and qc workflows @Eray Hanoğlu 
+### ✨ Features
 
-### [v3.3.0](https://github.com/panates/postgrejs/compare/v3.2.0...v3.3.0) -  14 September 2026 
+- add PreparedStatement.executeBatch() for multi-set execution (c41a9d7)
+- add copyFromRows() for binary COPY bulk loading (cbee65c)
+- add Connection.pipeline() for many statements in one round trip (5b1a0ba)
+- reuse prepared statements for repeated queries (96f55ed)
 
-#### Breaking Changes :warning:
+### 🐛 Bug Fixes
 
-- feat!: give decodeBinary the value's length, not a slice of it @Eray Hanoğlu  
+- refuse values that have no numeric reading instead of storing zero (7cd60a5)
 
-#### 🚀 New Features
+### ⚡ Performance and Optimizations
 
-- feat: add first-class Bun support with dedicated benchmark suite @Eray Hanoğlu 
-- feat: add pluggable RowDecoder for custom row decoding @Eray Hanoğlu 
+- carry the rollbackOnError savepoint in the statement's own round trip (eb58a04)
+- let the prepared statement cache serve queries inside a transaction (cae0ccf)
 
-#### 🪲 Fixes
+### 📚 Documentation
 
-- fix: return the actual instant when decoding timestamptz from binary @Eray Hanoğlu 
-- fix: point coverage badge at dev instead of the abandoned master branch @Eray Hanoğlu 
+- list batch execution in the feature list and comparison table (62faa88)
+- list binary COPY in the feature list and comparison table (ab7c4b7)
+- list pipeline() in the feature list and comparison table (e976836)
+- record the prepared statement cache in the README (1f8d114)
+- refresh the Node report and correct a stale asymmetry note (376bf61)
+- regenerate both benchmark reports from an interleaved run (a483ddd)
+- record statement-level rollback in the README (753e58f)
 
-#### 📖 Documentation Changes
+### 🤖 Continuous Integration
 
-- docs: refresh both benchmark reports on 3.3.0 @Eray Hanoğlu 
-- docs: document Bun support and the Bun benchmark report in the README @Eray Hanoğlu 
-- docs: cover the Bun benchmarks in the README's speed section too @Eray Hanoğlu 
-- docs: document RowDecoder's data-immutability contract @Eray Hanoğlu 
+- pin GITHUB_TOKEN to read-only in the test and qc workflows (bfed005)
 
-#### ⚡️ Performance Improvments
+### 🧹 Chores
 
-- perf: decode timestamps from the wire bytes instead of a string @Eray Hanoğlu 
-- perf: build object rows from a compiled literal instead of per-column assignment @Eray Hanoğlu 
-- perf: decode float and numeric text without materialising a string @Eray Hanoğlu 
-- perf: decode PostgreSQL's own timestamp text shape without the engine parser @Eray Hanoğlu 
-- perf: write protocol messages immediately instead of deferring a tick @Eray Hanoğlu 
+- add contributors to package.json (9dface6)
+- regenerate the 3.4.0 changelog at the release tip (dfea0a4)
+- move the 3.4.0 changelog forward to the benchmark work (dd22acf)
+- move the 3.4.0 changelog forward to the transaction work (3354444)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- bench: report near-ties as ties instead of ranking them @Eray Hanoğlu 
-- bench: stop measuring type-declaration policy in the Extended Query scenarios @Eray Hanoğlu 
-- bench: stop one stalled repeat from making every result a tie @Eray Hanoğlu 
-- bench: document why concurrent Simple Query varies its literal @Eray Hanoğlu 
+- add Bulk Load scenarios for text and binary COPY (bfc33f9)
+- add Unit of Work scenario for pipeline() (08a23a9)
+- stop measuring postgres.js on an unprepared path (050c422)
+- interleave repeats instead of running them back to back (0cf94b5)
 
-### [v3.2.0](https://github.com/panates/postgrejs/compare/v3.1.3...v3.2.0) -  12 September 2026 
+---
 
-#### 🛠 Refactoring and Updates
+## v3.3.0 (2026-09-14)
 
-- refactor: build SmartBuffer/BufferReader on top of flexy-buffer @Eray Hanoğlu 
+### ✨ Features
 
-### [v3.1.3](https://github.com/panates/postgrejs/compare/v3.1.2...v3.1.3) -  11 September 2026 
+- add first-class Bun support with dedicated benchmark suite (8291ff6)
+- add pluggable RowDecoder for custom row decoding (900e3ec)
+- give decodeBinary the value's length, not a slice of it (e98b9aa)
 
-#### 🪲 Fixes
+### 🐛 Bug Fixes
 
-- fix: reset transaction depth after prepareTransaction() @Eray Hanoğlu 
+- point coverage badge at dev instead of the abandoned master branch (ba742bf)
+- return the actual instant when decoding timestamptz from binary (65f2cb6)
 
-### [v3.1.2](https://github.com/panates/postgrejs/compare/v3.1.1...v3.1.2) -  11 September 2026 
+### ⚡ Performance and Optimizations
 
-#### 💬 General Changes
+- decode PostgreSQL's own timestamp text shape without the engine parser (9f162da)
+- build object rows from a compiled literal instead of per-column assignment (7e4a042)
+- decode float and numeric text without materialising a string (7668938)
+- decode timestamps from the wire bytes instead of a string (b2ab630)
+- write protocol messages immediately instead of deferring a tick (7847ba7)
 
-- update: adjust README logo image width for consistency @Eray Hanoğlu 
+### 📚 Documentation
 
-### [v3.1.1](https://github.com/panates/postgrejs/compare/v3.1.0...v3.1.1) -  10 September 2026 
+- document RowDecoder's data-immutability contract (1bb5a0e)
+- document Bun support and the Bun benchmark report in the README (ba2df21)
+- cover the Bun benchmarks in the README's speed section too (a1f0ca9)
+- refresh both benchmark reports on 3.3.0 (0534765)
 
-#### 🪲 Fixes
+### 🧹 Chores
 
-- fix: skip long-cancel-key length assertion below PostgreSQL 18 @Eray Hanoğlu 
-- fix: drop the runner's Chrome apt source before installing PostgreSQL in CI @Eray Hanoğlu 
+- add differentiator keywords to package.json (3f3ab5a)
+- update dependencies and clean up removed transient packages in `package-lock.json` (f5902b0)
+- update WebStorm run configs for bench:bun (914b7e4)
+- drop the stale local flexy-buffer entry from package-lock.json (d3ea1b7)
+- point the bench:bun run config at simple-query-execute (403758e)
+- point the benchmark run configs at the scenarios last under study (4e13743)
 
-#### 📖 Documentation Changes
+### 💬 General Changes
 
-- docs: update README for protocol 3.2 support and feature comparison @Eray Hanoğlu 
+- stop measuring type-declaration policy in the Extended Query scenarios (46afe7c)
+- document why concurrent Simple Query varies its literal (29ad741)
+- report near-ties as ties instead of ranking them (5ae6360)
+- stop one stalled repeat from making every result a tie (e4ae975)
 
-#### 💬 General Changes
+---
 
-- update: change homepage URLs to use the new domain @Eray Hanoğlu 
+## v3.2.0 (2026-09-12)
 
-### [v3.1.0](https://github.com/panates/postgrejs/compare/v3.0.4...v3.1.0) -  9 September 2026 
+### 🔧 Refactoring
 
-#### 🚀 New Features
+- build SmartBuffer/BufferReader on top of flexy-buffer (60f281d)
 
-- feat: implement the legacy Function Call sub-protocol ('F'/'V') @Eray Hanoğlu 
-- feat: support protocol 3.2's longer cancellation key (PostgreSQL 18+) @Eray Hanoğlu 
+---
 
-#### 🪲 Fixes
+## v3.1.3 (2026-09-11)
 
-- fix: correctly parse NegotiateProtocolVersion and expose it on Connection @Eray Hanoğlu 
+### 🐛 Bug Fixes
 
-### [v3.0.4](https://github.com/panates/postgrejs/compare/v3.0.3...v3.0.4) -  9 September 2026 
+- reset transaction depth after prepareTransaction() (45426dc)
 
-### [v3.0.3](https://github.com/panates/postgrejs/compare/v3.0.2...v3.0.3) -  8 September 2026 
+---
 
-### [v3.0.2](https://github.com/panates/postgrejs/compare/v3.0.1...v3.0.2) -  7 September 2026 
+## v3.1.2 (2026-09-11)
 
-#### 🚀 New Features
+### 💬 General Changes
 
-- feat: add Docker setup for PostgreSQL with SSL support @Eray Hanoğlu 
-- feat: support nested startTransaction()/commit() and savepoint()/releaseSavepoint() @Eray Hanoğlu 
-- feat: make execute()/query() timing an opt-in, default-off option @Eray Hanoğlu 
+- adjust README logo image width for consistency (d15bf6c)
 
-#### 🪲 Fixes
+---
 
-- fix: raise warmup for Simple Query benchmark, regenerate BENCHMARKS.md @Eray Hanoğlu 
-- fix: enlarge benchmark charts so GitHub's Mermaid overlay doesn't swallow them @Eray Hanoğlu 
-- fix: replace deprecated substr() with substring() @Eray Hanoğlu 
+## v3.1.1 (2026-09-10)
 
-#### ⚡️ Performance Improvments
+### 🐛 Bug Fixes
 
-- perf: remove needless async wrapping and coercion from execute()/query() hot path @Eray Hanoğlu 
-- perf: hoist loop-invariant reads in Frontend/numeric encoders @Eray Hanoğlu 
+- drop the runner's Chrome apt source before installing PostgreSQL in CI (151779f)
+- skip long-cancel-key length assertion below PostgreSQL 18 (41fd4cb)
 
-### [v3.0.1](https://github.com/panates/postgrejs/compare/v3.0.0...v3.0.1) -  7 September 2026 
+### 📚 Documentation
 
-- Dev
-- Dev
-- Dev
-- Dev
-- dev: Removed path filter
-- Dev
-- Dev
-- fix missing quotes in exception
-- Don't fail if husky is not present
-- Dev
-- Dev
+- update README for protocol 3.2 support and feature comparison (c857d14)
 
-#### 🚀 New Features
+### 💬 General Changes
 
-- feat: make async caller-stack capture an opt-out, per-call overridable option @Eray Hanoğlu 
-- feat: exact-match --scenario/--lib by default, glob with a leading/trailing * @Eray Hanoğlu 
+- change homepage URLs to use the new domain (7c70c14)
 
-#### 🪲 Fixes
+---
 
-- fix: LISTEN dropped for extra channels, lost after Pool reconnect, double 'close' emit @Eray Hanoğlu 
-- fix: cancel() ignored multi-host failover and direct TLS negotiation @Eray Hanoğlu 
-- fix: default omitted day-of-month to 1, not 0, when parsing dates @Eray Hanoğlu 
-- fix: numeric encodeBinary() silently corrupts magnitudes &gt;= 1e21 @Eray Hanoğlu 
-- fix: benchmark console summary leaked every scenario ever run @Eray Hanoğlu 
-- fix: LogicalReplication.close() never actually drops a permanent slot it created @Eray Hanoğlu 
-- fix: JsonType.encodeText() throws on a bigint value @Eray Hanoğlu 
-- fix: restore execute()'s timing, and switch it to performance.now() @Eray Hanoğlu 
-- fix: skip numeric Infinity/-Infinity tests on PostgreSQL &lt; 14 @Eray Hanoğlu 
-- fix: skip direct-negotiation SSL test on PostgreSQL &lt; 17 @Eray Hanoğlu 
-- fix: avoid a rare race in the cancel() test's own cleanup @Eray Hanoğlu 
-- fix: correct stale contact and copyright holder in project docs @Eray Hanoğlu 
-- fix: header link/image attributes in README @Eray Hanoğlu 
+## v3.1.0 (2026-09-09)
 
-#### 📖 Documentation Changes
+### ✨ Features
 
-- docs: rewrite benchmark scenario descriptions as readable paragraphs @Eray Hanoğlu 
-- docs: capitalize PostgreJS consistently, rebuild BENCHMARKS.md for 3.0.0 @Eray Hanoğlu 
-- docs: add a v2-to-v3 migration guide @Eray Hanoğlu 
-- docs: expand CONTRIBUTING.md with a full contributor workflow @Eray Hanoğlu 
-- docs: rewrite README intro to lead with speed, memory, and features @Eray Hanoğlu 
-- docs: expand CLAUDE.md with project orientation and testing techniques @Eray Hanoğlu 
-- docs: tailor issue templates to a PostgreSQL driver @Eray Hanoğlu 
-- docs: document local SCRAM/MD5 test setup in CONTRIBUTING.md @Eray Hanoğlu 
+- implement the legacy Function Call sub-protocol ('F'/'V') (c39890f)
+- support protocol 3.2's longer cancellation key (PostgreSQL 18+) (421aa5c)
 
-#### 🛠 Refactoring and Updates
+### 🐛 Bug Fixes
 
-- refactor: remove dead Portal/PgSocket message-send methods @Eray Hanoğlu 
-- refactor: remove dead SmartBuffer.fill(), add full coverage @Eray Hanoğlu 
-- refactor: remove dead BufferReader.moveBy()/moveTo(), add full coverage @Eray Hanoğlu 
+- correctly parse NegotiateProtocolVersion and expose it on Connection (2c4f6db)
 
-#### 🧪 Changes to Test Assests
+---
 
-- test: cover pure utility functions, wire-protocol messages, and SASL/cert parsing @Eray Hanoğlu 
-- test: add full coverage for copy-stream.ts @Eray Hanoğlu 
-- test: add full coverage for the pgoutput logical-replication decoder @Eray Hanoğlu 
-- test: add direct unit coverage for LogicalReplication's pure logic @Eray Hanoğlu 
-- test: add full coverage for the remaining small scalar data types @Eray Hanoğlu 
-- test: add full coverage for frontend.ts wire-message builders @Eray Hanoğlu 
-- test: add full coverage for parse-row.ts @Eray Hanoğlu 
-- test: add full coverage for get-parsers.ts @Eray Hanoğlu 
-- test: add full coverage for LsegType @Eray Hanoğlu 
-- test: add full coverage for CircleType @Eray Hanoğlu 
-- test: raise connection-config.ts branch coverage @Eray Hanoğlu 
-- test: raise sql-tag.ts branch coverage, mark one path unreachable @Eray Hanoğlu 
-- test: raise cursor.ts coverage @Eray Hanoğlu 
-- test: add full coverage for OidVectorType @Eray Hanoğlu 
-- test: add full coverage for Int2VectorType @Eray Hanoğlu 
-- test: add coverage for the encodeText() pass-throughs on temporal types @Eray Hanoğlu 
-- test: raise large-object.ts coverage @Eray Hanoğlu 
-- test: raise prepared-statement.ts coverage @Eray Hanoğlu 
-- test: add full coverage for SafeEventEmitter @Eray Hanoğlu 
-- test: add full coverage for CharType @Eray Hanoğlu 
-- test: add full coverage for BoolType.encodeText() @Eray Hanoğlu 
+## v3.0.4 (2026-09-09)
 
-#### ⚡️ Performance Improvments
+### 🧹 Chores
 
-- perf: skip the instanceof check on plain string SQL in execute() @Eray Hanoğlu 
+- update BENCHMARKS.md for refreshed performance data and adjusted chart dimensions (3006176)
+- update run configuration and regenerate BENCHMARKS.md with refreshed performance data (82831e7)
+- update dependencies and adjust tsconfig for compatibility (e78d125)
 
-## [v3.0.0](https://github.com/panates/postgrejs/compare/v2.23.1...v3.0.0) -  6 September 2026 
+---
 
-#### Breaking Changes :warning:
+## v3.0.3 (2026-09-08)
 
-- refactor: name data type methods decode* to pair with encode* @Eray Hanoğlu  
+### 🧹 Chores
 
-#### 🚀 New Features
+- improve chart rendering for better GitHub compatibility and layout responsiveness (2e4f350)
 
-- feat: bulk import and export with COPY TO STDOUT / COPY FROM STDIN @Eray Hanoğlu 
-- feat: stream row changes with LogicalReplication @Eray Hanoğlu 
-- feat: build statements with the sql tag @Eray Hanoğlu 
-- feat: opt-in query pipelining for Pool.query() and Pool.execute() @Eray Hanoğlu 
-- feat: cancel queries and time them out with an AbortSignal @Eray Hanoğlu 
-- feat: large object API @Eray Hanoğlu 
-- feat: try several hosts and pick one by role @Eray Hanoğlu 
-- feat: SCRAM channel binding, and report what the server says when auth fails @Eray Hanoğlu 
-- feat: direct TLS negotiation, and only negotiate TLS when asked @Eray Hanoğlu 
-- feat: two-phase commit with prepareTransaction and commitPrepared @Eray Hanoğlu 
+---
 
-#### 🪲 Fixes
+## v3.0.2 (2026-09-07)
 
-- fix: jsonb text encoder wrote the binary version header, and add the last binary encoders @Eray Hanoğlu 
-- fix: oidvector was registered as a second array type of oid @Eray Hanoğlu 
-- fix: prototype pollution via a query result column named "__proto__" @Eray Hanoğlu 
-- fix: float4 precision loss and sslmode=prefer incorrectly requiring SSL @Eray Hanoğlu 
-- fix: numeric NaN/Infinity/-Infinity decode as 0 in binary format @Eray Hanoğlu 
-- fix: int4 OID auto-detection accepts values outside the 32-bit range @Eray Hanoğlu 
-- fix: preserve caller stack traces in async error handling @Eray Hanoğlu 
-- fix: PreparedStatement.close() not idempotent, re-sends CLOSE+SYNC @Eray Hanoğlu 
-- fix: midnight timestamps mis-detected as date instead of timestamp @Eray Hanoğlu 
-- fix: array literal parser treats apostrophe as a quote character @Eray Hanoğlu 
-- fix: TLS downgrade, credential decoding, and data-corruption bugs found in audit @Eray Hanoğlu 
-- fix: ParameterDescription parameter count read as Int32 instead of Int16 @Eray Hanoğlu 
-- fix: hang instead of an error when the server asks for GSSAPI or SSPI @Eray Hanoğlu 
-- fix: escapeLiteral silently passes through embedded NUL bytes @Eray Hanoğlu 
-- fix: char OID auto-detection matches multi-byte characters, crashing bind @Eray Hanoğlu 
-- fix: CopyInResponse message code is 'g' rather than 'G' @Eray Hanoğlu 
+### ✨ Features
 
-#### 📖 Documentation Changes
+- add Docker setup for PostgreSQL with SSL support notest (b76e6e2)
+- make execute()/query() timing an opt-in, default-off option (e710694)
+- support nested startTransaction()/commit() and savepoint()/releaseSavepoint() (5513cf0)
 
-- docs: record multi-host connections in the comparison @Eray Hanoğlu 
-- docs: count encoder and decoder coverage per wire format @Eray Hanoğlu 
-- docs: add a feature comparison table and correct stale claims @Eray Hanoğlu 
-- docs: record direct TLS negotiation, and drop the example section @Eray Hanoğlu 
-- docs: record class member order and loop-hoisting conventions @Eray Hanoğlu 
-- docs: native bindings are partial, not a plain yes @Eray Hanoğlu 
-- docs: correct two names in the comparison table @Eray Hanoğlu 
-- docs: record two-phase commit and drop the callback API row @Eray Hanoğlu 
+### 🐛 Bug Fixes
 
-#### 🌸 Tidying of Code eg Whitespace
+- enlarge benchmark charts so GitHub's Mermaid overlay doesn't swallow them (e282b79)
+- replace deprecated substr() with substring() (3f35396)
+- raise warmup for Simple Query benchmark, regenerate BENCHMARKS.md (7aa7ee6)
 
-- style: sort imports and align a comment left over from the decode* rename @Eray Hanoğlu 
+### ⚡ Performance and Optimizations
 
-#### ⚡️ Performance Improvments
+- hoist loop-invariant reads in Frontend/numeric encoders (b37e9e4)
+- remove needless async wrapping and coercion from execute()/query() hot path (a58e09e)
 
-- perf: rewrite the request/response pipeline and decode rows without per-column slices @Eray Hanoğlu 
-- perf: reassemble backend messages in one allocation instead of concatenating every chunk @Eray Hanoğlu 
+---
 
-#### 💬 General Changes
+## v3.0.1 (2026-09-07)
 
-- doc: Rebuild BENCHMARKS.md @Eray Hanoğlu 
-- doc: Updated README.md @Eray Hanoğlu 
-- dev: Removed unused `init-pg.ts`, adjusted imports, and updated path in tsconfig @Eray Hanoğlu 
-- doc: Remove outdated and unused badges from README.md @Eray Hanoğlu 
-- doc: correct grammar in connection.ts method comments @Eray Hanoğlu 
-- dev: Added CLAUDE.md with graphify usage rules @Eray Hanoğlu 
-- dev: Updated test matrix to include Node 26 and Postgres 18 @Eray Hanoğlu 
-- dev: Changed import extension for `env.js` in init-pg.ts @Eray Hanoğlu 
-- dev: Updated gitignore to include claude and graphify @Eray Hanoğlu 
-- dev: Broadened eslint disable rule in bigint-methods.ts @Eray Hanoğlu 
+### ✨ Features
 
-### [v2.23.1](https://github.com/panates/postgrejs/compare/v2.23.0...v2.23.1) -  7 July 2026 
+- exact-match --scenario/--lib by default, glob with a leading/trailing * (c35a53c)
+- make async caller-stack capture an opt-out, per-call overridable option (85036c4)
 
-#### 💬 General Changes
+### 🐛 Bug Fixes
 
-- dev: Updated dependencies and switched to `import type` for cleaner type imports @Eray Hanoğlu 
-- dev: Minor lint issue @Eray Hanoğlu 
-- dev: Updated action/chechout version @Eray Hanoğlu 
-- dev: Minor lint issue @Eray Hanoğlu 
-- dev: Set min node test version to 20 @Eray Hanoğlu 
+- cancel() ignored multi-host failover and direct TLS negotiation (c046941)
+- benchmark console summary leaked every scenario ever run (930de06)
+- restore execute()'s timing, and switch it to performance.now() (8d92283)
+- default omitted day-of-month to 1, not 0, when parsing dates (721cd04)
+- LISTEN dropped for extra channels, lost after Pool reconnect, double 'close' emit (ed10a84)
+- JsonType.encodeText() throws on a bigint value (bfef8a8)
+- avoid a rare race in the cancel() test's own cleanup (87abad3)
+- numeric encodeBinary() silently corrupts magnitudes >= 1e21 (20a9c22)
+- LogicalReplication.close() never actually drops a permanent slot it created (90955eb)
+- header link/image attributes in README (dc8d480)
+- correct stale contact and copyright holder in project docs (500f1b5)
+- skip direct-negotiation SSL test on PostgreSQL < 17 (a7058e4)
+- skip numeric Infinity/-Infinity tests on PostgreSQL < 14 (1a80bdc)
 
-### [v2.23.0](https://github.com/panates/postgrejs/compare/v2.22.9...v2.23.0) -  3 April 2026 
+### ⚡ Performance and Optimizations
 
-#### 🛠 Refactoring and Updates
+- skip the instanceof check on plain string SQL in execute() (4c6ca23)
 
-- dev: Updated deps to support latest TypeScript and NodeJS. @Eray Hanoğlu 
-- dev: Updated deps to support latest TypeScript and NodeJS. @Eray Hanoğlu 
+### 🔧 Refactoring
 
-### [v2.22.9](https://github.com/panates/postgrejs/compare/v2.22.8...v2.22.9) -  4 December 2025 
+- remove dead Portal/PgSocket message-send methods (6b65637)
+- remove dead BufferReader.moveBy()/moveTo(), add full coverage (aa82756)
+- remove dead SmartBuffer.fill(), add full coverage (a6c38cf)
 
-### [v2.22.8](https://github.com/panates/postgrejs/compare/v2.22.7...v2.22.8) -  27 October 2025 
+### 📚 Documentation
 
-#### 🪲 Fixes
+- capitalize PostgreJS consistently, rebuild BENCHMARKS.md for 3.0.0 (040d503)
+- rewrite benchmark scenario descriptions as readable paragraphs (c1fc39f)
+- document local SCRAM/MD5 test setup in CONTRIBUTING.md (086ec90)
+- expand CONTRIBUTING.md with a full contributor workflow (35c83dc)
+- tailor issue templates to a PostgreSQL driver (48adbd7)
+- add a v2-to-v3 migration guide (ce32dac)
+- rewrite README intro to lead with speed, memory, and features (0c6866f)
+- expand CLAUDE.md with project orientation and testing techniques (99e2be3)
 
-- fix: SmartBuffer grows when offset isn't at last @Eray Hanoğlu 
+### 🧪 Tests
 
-#### 💬 General Changes
+- cover pure utility functions, wire-protocol messages, and SASL/cert parsing (23ee21b)
+- raise sql-tag.ts branch coverage, mark one path unreachable (72984b8)
+- add full coverage for SafeEventEmitter (603aa92)
+- add full coverage for the pgoutput logical-replication decoder (1bc9e6c)
+- add full coverage for Int2VectorType (f3db0ec)
+- add full coverage for OidVectorType (0835b57)
+- add full coverage for LsegType (8ccfa19)
+- add full coverage for CharType (069ecf1)
+- raise connection-config.ts branch coverage (c56310f)
+- raise prepared-statement.ts coverage (aea3be9)
+- add full coverage for get-parsers.ts (f414562)
+- add full coverage for CircleType (723a050)
+- add full coverage for the remaining small scalar data types (a78120f)
+- add coverage for the encodeText() pass-throughs on temporal types (021e400)
+- add full coverage for parse-row.ts (1dbf82d)
+- raise large-object.ts coverage (18c78a6)
+- add full coverage for frontend.ts wire-message builders (e1a097b)
+- raise cursor.ts coverage (63caed8)
+- add full coverage for BoolType.encodeText() (91868a7)
+- add full coverage for copy-stream.ts (91070bc)
+- add direct unit coverage for LogicalReplication's pure logic (473d582)
 
-- dev: npm Trusted publishing update @Eray Hanoğlu 
+### 🧹 Chores
 
-### [v2.22.7](https://github.com/panates/postgrejs/compare/v2.22.6...v2.22.7) -  21 October 2025 
+- default the benchmark run config to the simple-query scenario (6ac84ea)
+- relicense from MIT to BSD 3-Clause (5e2b453)
+- strip explanatory comments from the row-buffer decode change (82e8c6d)
+- use the new glob syntax in the benchmark run config (9515a88)
+- fix istanbul-ignore comments this project's c8 doesn't honor (3b2ec4c)
+- mark stringifyArrayLiteral's leaf-level array branch unreachable (6335e50)
+- remove docker-compose setup, update benchmark paths and regenerate numbers (da41a91)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- dev: Removed path filter @Eray Hanoğlu 
+- Merge remote-tracking branch 'origin/main' into dev (f88c6cc)
 
-### [v2.22.6](https://github.com/panates/postgrejs/compare/v2.22.5...v2.22.6) -  12 August 2025 
+---
 
-- fix: Fixed applicationName connection option has no effect issue. closes #51
+## v3.0.0 (2026-09-06)
 
-### [v2.22.5](https://github.com/panates/postgrejs/compare/v2.22.4...v2.22.5) -  6 August 2025 
+### ✨ Features
 
-#### 🪲 Fixes
+- opt-in query pipelining for Pool.query() and Pool.execute() (41d98ff)
+- bulk import and export with COPY TO STDOUT / COPY FROM STDIN (89cd28a)
+- cancel queries and time them out with an AbortSignal (12e84f1)
+- build statements with the sql tag (1c6dfb4)
+- two-phase commit with prepareTransaction and commitPrepared (1aa7095)
+- try several hosts and pick one by role (3ec07fe)
+- direct TLS negotiation, and only negotiate TLS when asked (a3b6544)
+- SCRAM channel binding, and report what the server says when auth fails (fb69574)
+- stream row changes with LogicalReplication (2146275)
+- large object API (94fc89b)
 
-- fix: Fixed global setup issue @Eray Hanoğlu 
-- fix: Fixed node version in "if" condition @Eray Hanoğlu 
+### 🐛 Bug Fixes
 
-#### 💬 General Changes
+- TLS downgrade, credential decoding, and data-corruption bugs found in audit (b1f8f1c)
+- float4 precision loss and sslmode=prefer incorrectly requiring SSL (8b5aa9d)
+- array literal parser treats apostrophe as a quote character (9fd6d9a)
+- int4 OID auto-detection accepts values outside the 32-bit range (18e63bd)
+- char OID auto-detection matches multi-byte characters, crashing bind (7609bff)
+- midnight timestamps mis-detected as date instead of timestamp (e449395)
+- numeric NaN/Infinity/-Infinity decode as 0 in binary format (4670fa4)
+- prototype pollution via a query result column named "__proto__" (c85d76e)
+- escapeLiteral silently passes through embedded NUL bytes (ffade2b)
+- PreparedStatement.close() not idempotent, re-sends CLOSE+SYNC (b83349a)
+- ParameterDescription parameter count read as Int32 instead of Int16 (299d8d4)
+- CopyInResponse message code is 'g' rather than 'G' (ce611d2)
+- jsonb text encoder wrote the binary version header, and add the last binary encoders (c99af41)
+- oidvector was registered as a second array type of oid (af1f672)
+- hang instead of an error when the server asks for GSSAPI or SSPI (ed2fc63)
+- preserve caller stack traces in async error handling (95ef02e)
 
-- dev: Updated workflows @Eray Hanoğlu 
-- dev: Typing fixes and script fix @Eray Hanoğlu 
-- dev: Added "paths" filter @Eray Hanoğlu 
-- dev: Typing fixes and script fix @Eray Hanoğlu 
-- dev: Added publishConfig @Eray Hanoğlu 
+### ⚡ Performance and Optimizations
 
-### [v2.22.4](https://github.com/panates/postgrejs/compare/v2.22.3...v2.22.4) -  8 April 2025 
+- reassemble backend messages in one allocation instead of concatenating every chunk (25465c8)
+- rewrite the request/response pipeline and decode rows without per-column slices (fabbe36)
 
-#### 💬 General Changes
+### 🔧 Refactoring
 
-- dev: Moved from jest to mocha/c8 @Eray Hanoğlu 
+- name data type methods decode* to pair with encode* (c0d65a3)
 
-### [v2.22.3](https://github.com/panates/postgrejs/compare/v2.22.2...v2.22.3) -  22 January 2025 
+### 📚 Documentation
 
-#### 🛠 Refactoring and Updates
+- record class member order and loop-hoisting conventions (a65bfeb)
+- add a feature comparison table and correct stale claims (1bb3919)
+- record two-phase commit and drop the callback API row (ccf9a0a)
+- record multi-host connections in the comparison (1106831)
+- correct two names in the comparison table (0068377)
+- record direct TLS negotiation, and drop the example section (a41046c)
+- count encoder and decoder coverage per wire format (90e4c31)
+- native bindings are partial, not a plain yes (eaae3f7)
 
-- refactor: Updated dependencies @Eray Hanoğlu 
-- refactor: Fixed typescript check @Eray Hanoğlu 
+### 🧹 Chores
 
-#### 💬 General Changes
+- Updated dependencies (9d401d6)
+- ignore benchmark output and correct the CI path filter (0c74ae4)
+- add a benchmark suite comparing postgrejs, pg and postgres.js (affab97)
 
-- dev: Moved to ESLing 9 @Eray Hanoğlu 
-- ci: Fix purge pg error @Eray Hanoğlu 
-- ci: Fix purge pg error @Eray Hanoğlu 
-- ci: Fix purge pg error @Eray Hanoğlu 
-- ci: Fix purge pg error @Eray Hanoğlu 
+### 🎨 Code Style
 
-### [v2.22.2](https://github.com/panates/postgrejs/compare/v2.22.1...v2.22.2) -  4 November 2024 
+- sort imports and align a comment left over from the decode* rename (983255f)
 
-#### 🚀 New Features
+### 💬 General Changes
 
-- refactor: Improved displaying error line @Eray Hanoğlu 
+- Broadened eslint disable rule in bigint-methods.ts (d7ef074)
+- Merge pull request #62 from panates/dev (7beff66)
+- Changed import extension for `env.js` in init-pg.ts (78118b9)
+- Removed unused `init-pg.ts`, adjusted imports, and updated path in tsconfig (87adb5d)
+- Updated test matrix to include Node 26 and Postgres 18 (99f4802)
+- Added CLAUDE.md with graphify usage rules (5c80923)
+- correct grammar in connection.ts method comments (a0a0580)
+- Updated gitignore to include claude and graphify (e2b392c)
+- Remove outdated and unused badges from README.md (af9b312)
+- Rebuild BENCHMARKS.md (a97b02f)
+- Updated README.md (de2ea31)
 
-#### 🛠 Refactoring and Updates
+---
 
-- refactor: Improved displaying error line @Eray Hanoğlu 
+## v2.23.1 (2026-07-07)
 
-### [v2.22.1](https://github.com/panates/postgrejs/compare/v2.22.0...v2.22.1) -  16 October 2024 
+### 💬 General Changes
 
-### [v2.22.0](https://github.com/panates/postgrejs/compare/v2.21.1...v2.22.0) -  15 October 2024 
+- Set min node test version to 20 (f727b24)
+- Minor lint issue (2663cd1)
+- Updated action/chechout version (32978d3)
+- Merge pull request #61 from panates/dev (ef16733)
+- Updated dependencies and switched to `import type` for cleaner type imports (91d3c1e)
 
-### [v2.21.1](https://github.com/panates/postgrejs/compare/v2.21.0...v2.21.1) -  20 September 2024 
+---
 
-#### 🪲 Fixes
+## v2.23.0 (2026-04-03)
 
-- fix: Fixed error messages not showing issue @Eray Hanoğlu 
-- fix: unix socket connection issue @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v2.21.0](https://github.com/panates/postgrejs/compare/v2.20.0...v2.21.0) -  14 September 2024 
+- Merge pull request #55 from panates/dev (13ee66c)
+- Updated deps to support latest TypeScript and NodeJS. refactor: Removed cjs package support (d6fa916)
 
-- Abort connections/queries on close
+---
 
-#### 💬 General Changes
+## v2.22.9 (2025-12-04)
 
-- Abort pending operations when the socket closes @Rob Hulswit 
-- Throw exception when trying to run query on a connection that is not yeat ready or closing/closed @Rob Hulswit 
+### 🧹 Chores
 
-### [v2.20.0](https://github.com/panates/postgrejs/compare/v2.19.0...v2.20.0) -  14 September 2024 
+- Updated deps (7121302)
+- Code format (fae4584)
 
-- Add encodeAsNull
-- Adds enough type information to be compatible with noImplicitAny: true
+---
 
-### [v2.19.0](https://github.com/panates/postgrejs/compare/v2.18.1...v2.19.0) -  20 August 2024 
+## v2.22.8 (2025-10-27)
 
-#### 💬 General Changes
+### 🐛 Bug Fixes
 
-- Fixed compatibility for "Node16" and "NodeNext" moduleResolution options @Eray Hanoğlu 
-- Fixed compatibility for "Node16" and "NodeNext" moduleResolution options @Eray Hanoğlu 
+- SmartBuffer grows when offset isn't at last (449cfb9)
 
-### [v2.18.1](https://github.com/panates/postgrejs/compare/v2.18.0...v2.18.1) -  12 August 2024 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Merge pull request #54 from panates/dev (3c54434)
+- npm Trusted publishing update (838c9d2)
 
-- Applied publint to check package.json @Eray Hanoğlu 
+---
 
-### [v2.18.0](https://github.com/panates/postgrejs/compare/v2.17.1...v2.18.0) -  12 August 2024 
+## v2.22.7 (2025-10-21)
 
-#### 🪲 Fixes
+### 🧹 Chores
 
-- Fix: Added package.json in esm directory which overwrite "type" property to "module" @Eray Hanoğlu 
+- Updated dependencies (6685d23)
 
-### [v2.17.1](https://github.com/panates/postgrejs/compare/v2.17.0...v2.17.1) -  12 August 2024 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Merge pull request #52 from panates/dev (ed3d791)
+- Removed path filter (d4c0cc0)
 
-- Updated dependencies @Eray Hanoğlu 
+---
 
-### [v2.17.0](https://github.com/panates/postgrejs/compare/v2.16.0...v2.17.0) -  12 August 2024 
+## v2.22.6 (2025-08-12)
 
-#### 💬 General Changes
+### 🐛 Bug Fixes
 
-- Rollback to ES2020 @Eray Hanoğlu 
-- Rollback to ES2020 @Eray Hanoğlu 
+- Fixed applicationName connection option has no effect issue. closes #51 (81ccc2e)
 
-### [v2.16.0](https://github.com/panates/postgrejs/compare/v2.15.4...v2.16.0) -  9 August 2024 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Merge pull request #50 from panates/dev (79507bd)
 
-- Made ready for Node16 moduleResolution @Eray Hanoğlu 
+---
 
-### [v2.15.4](https://github.com/panates/postgrejs/compare/v2.15.3...v2.15.4) -  3 August 2024 
+## v2.22.5 (2025-08-06)
 
-#### 💬 General Changes
+### 🐛 Bug Fixes
 
-- Added "tslib" to dependencies @Eray Hanoğlu 
+- Fixed global setup issue (3add4c4)
+- Fixed node version in "if" condition (0734910)
 
-### [v2.15.3](https://github.com/panates/postgrejs/compare/v2.15.2...v2.15.3) -  3 August 2024 
+### 🧹 Chores
 
-#### 💬 General Changes
+- Updated dependencies (cbae2ad)
 
-- Added "tslib" to dependencies @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v2.15.2](https://github.com/panates/postgrejs/compare/v2.15.1...v2.15.2) -  28 July 2024 
+- Updated workflows (adde40a)
+- Typing fixes and script fix (20e96e3)
+- Added publishConfig (a88da87)
+- Added "paths" filter (fa199ee)
+- fix missing quotes in exception (08f44e4)
+- Don't fail if husky is not present (306d957)
 
-#### 💬 General Changes
+---
 
-- Updated dependencies @Eray Hanoğlu 
+## v2.22.4 (2025-04-08)
 
-### [v2.15.1](https://github.com/panates/postgrejs/compare/v2.12.0...v2.15.1) -  22 July 2024 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Moved from jest to mocha/c8 dev: Updated dependencies (9f3e061)
 
-- Changed package name to `postgrejs` @Eray Hanoğlu 
-- Updated readme @Eray Hanoğlu 
-- Implemented `sqlmode` query parameter for connection string and added `requireSSL` option to connection options. Now the driver tries SSL connection as a first choice. @Eray Hanoğlu 
-- Updated readme @Eray Hanoğlu 
+---
 
-### [v2.12.0](https://github.com/panates/postgrejs/compare/v2.11.2...v2.12.0) -  12 July 2024 
+## v2.22.3 (2025-01-22)
 
-#### 💬 General Changes
+### 🔧 Refactoring
 
-- Update dependencies @Eray Hanoğlu 
-- Implemented `sqlmode` query parameter for connection string and added `requireSSL` option to connection options. Now the driver tries SSL connection as a first choice. @Eray Hanoğlu 
-- Update dependencies @Eray Hanoğlu 
-- Update dependencies @Eray Hanoğlu 
-- Added executor: node/default @Eray Hanoğlu 
-- Added root @Eray Hanoğlu 
+- Fixed typescript check (8e2b843)
+- Updated dependencies (8a1eafc)
 
-### [v2.11.2](https://github.com/panates/postgrejs/compare/v2.11.1...v2.11.2) -  29 June 2024 
+### 🤖 Continuous Integration
 
-### [v2.11.1](https://github.com/panates/postgrejs/compare/v2.11.0...v2.11.1) -  29 June 2024 
+- Fix purge pg error (0c69a55)
 
-#### 💬 General Changes
+### 🧹 Chores
 
-- Migrated eslint config to @panates/eslint-config @Eray Hanoğlu 
-- Migrated eslint config to @panates/eslint-config @Eray Hanoğlu 
-- Updated Node version @Eray Hanoğlu 
+- Updated test workflow (a8248fe)
+- Updated dependencies (89a61c7)
 
-### [v2.11.0](https://github.com/panates/postgrejs/compare/v2.10.7...v2.11.0) -  23 April 2024 
+### 💬 General Changes
 
-- Implement js disposal
+- Moved to ESLing 9 (ce0306a)
 
-#### 💬 General Changes
+---
 
-- Updated dependencies @Eray Hanoğlu 
-- Implement TC39 Explicit Resource Management proposal @Eray Hanoğlu 
-- Implement TC39 Explicit Resource Management proposal @Eray Hanoğlu 
+## v2.22.2 (2024-11-04)
 
-### [v2.10.7](https://github.com/panates/postgrejs/compare/v2.10.6...v2.10.7) -  22 April 2024 
+### 🔧 Refactoring
 
-- Prepare for formatting application + minor docs updates
+- Improved displaying error line feat: Added "query" and "execute" events (3a6bbe9)
 
-#### 💬 General Changes
+### 🧹 Chores
 
-- Added prettier formatting @Eray Hanoğlu 
-- Remove developer content from the README and into CONTRIBUTING.md @Jacob Roberts 
-- Add basic documentation on running the test suite. Add rimraf as dependency since its referenced by the scripts. Update the lockfile. Start to prepare for proper prettier formatting @Jacob Roberts 
-- Added prettier formatting @Eray Hanoğlu 
-- Added prettier formatting @Eray Hanoğlu 
-- Added prettier formatting @Eray Hanoğlu 
-- Expose DatabaseError @Eray Hanoğlu 
-- Remove duplicated root in .editorconfig @Jacob Roberts 
-- Use the README.md from master @Jacob Roberts 
-- Added prettier formatting @Eray Hanoğlu 
+- Improved displaying error line (d9145f0)
 
-### [v2.10.6](https://github.com/panates/postgrejs/compare/v2.10.5...v2.10.6) -  14 March 2024 
+---
 
-#### 💬 General Changes
+## v2.22.1 (2024-10-16)
 
-- Updated dependencies @Eray Hanoğlu 
-- Updated dependencies @Eray Hanoğlu 
+### 🧹 Chores
 
-### [v2.10.5](https://github.com/panates/postgrejs/compare/v2.10.4...v2.10.5) -  15 January 2024 
+- Updated config (2980be5)
 
-#### 💬 General Changes
+---
 
-- Updated dependencies @Eray Hanoğlu 
+## v2.22.0 (2024-10-15)
 
-### [v2.10.4](https://github.com/panates/postgrejs/compare/v2.10.3...v2.10.4) -  12 January 2024 
+### 🧹 Chores
 
-#### 💬 General Changes
+- Added test-reporter workflow (ff4b555)
+- Updated jest config (7a54fcc)
+- Updated dependencies (1c7aac5)
 
-- Updated dependencies @Eray Hanoğlu 
+---
 
-### [v2.10.3](https://github.com/panates/postgrejs/compare/v2.10.2...v2.10.3) -  12 January 2024 
+## v2.21.1 (2024-09-20)
 
-- Update database-connection-params.ts
+### 🐛 Bug Fixes
 
-#### 💬 General Changes
+- Fixed error messages not showing issue (b1ac9be)
+- unix socket connection issue (1653631)
 
-- Updated dependencies @Eray Hanoğlu 
-- Minor typing change @Eray Hanoğlu 
+### 🧹 Chores
 
-### [v2.10.2](https://github.com/panates/postgrejs/compare/v2.10.1...v2.10.2) -  8 January 2024 
+- Move CI from circleci to GitHub Actions (e5e6d4d)
+- Move CI from circleci to GitHub Actions #3 (187f12f)
+- Move CI from circleci to GitHub Actions #4 (6c260f5)
+- Move CI from circleci to GitHub Actions #5 (dbe687e)
+- Move CI from circleci to GitHub Actions #6 (af38576)
+- Move CI from circleci to GitHub Actions #7 (8bacf98)
+- Move CI from circleci to GitHub Actions #8 (d5e2af2)
+- Move CI from circleci to GitHub Actions #9 (b7211e9)
+- Move CI from circleci to GitHub Actions #10 (8144035)
+- Move CI from circleci to GitHub Actions #11 (a758c38)
+- Move CI from circleci to GitHub Actions #12 (2088d6a)
+- Move CI from circleci to GitHub Actions #13 (31e94bb)
+- Added coveralls support (9deda5f)
+- Added node 16, 20,  pg 16 (7458917)
+- updated ci urls (f8ccd6f)
+- updated dependencies (0166983)
 
-#### 💬 General Changes
+---
 
-- Updated dependencies @Eray Hanoğlu 
+## v2.21.0 (2024-09-14)
 
-### [v2.10.1](https://github.com/panates/postgrejs/compare/v2.10.0...v2.10.1) -  9 November 2023 
+### 🧹 Chores
 
-#### 💬 General Changes
+- fixed lint issues (f13dab2)
 
-- Fixed: Some times server response invalid message to prepare statement message. @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v2.10.0](https://github.com/panates/postgrejs/compare/v2.9.1...v2.10.0) -  9 November 2023 
+- Merge pull request #41 from WebHare/abort-on-close (bf4a487)
 
-#### 💬 General Changes
+---
 
-- Fixed: Error stack do not show caller function. @Eray Hanoğlu 
-- Improved error message handling for more understandable to humans. @Eray Hanoğlu 
+## v2.20.0 (2024-09-14)
 
-### [v2.9.1](https://github.com/panates/postgrejs/compare/v2.9.0...v2.9.1) -  3 October 2023 
+### 🧹 Chores
 
-- export numberBytesToString
+- Typing improvements (d414463)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Added int2Vector data type with binary protocol @Eray Hanoğlu 
+- Adds enough type information to be compatible with noImplicitAny: true (3b7b847)
+- Add encodeAsNull (cb4e96b)
+- Abort pending operations when the socket closes (705063a)
+- Throw exception when trying to run query on a connection that is not yeat ready or closing/closed (96bd55b)
 
-### [v2.9.0](https://github.com/panates/postgrejs/compare/v2.8.1...v2.9.0) -  3 October 2023 
+---
 
-- Feature/add types
+## v2.19.0 (2024-08-20)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Added int2Vector data type with binary protocol @Eray Hanoğlu 
-- Support int2 and oid vector types @Arnold Hendriks 
-- Add OID for tid array @Rob Hulswit 
+- Fixed compatibility for "Node16" and "NodeNext" moduleResolution options (47b8fe6)
 
-### [v2.8.1](https://github.com/panates/postgrejs/compare/v2.8.0...v2.8.1) -  3 October 2023 
+---
 
-- Support 'debug' events on pgSocket
+## v2.18.1 (2024-08-12)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Updated dependencies @Eray Hanoğlu 
-- Updated dependencies @Eray Hanoğlu 
-- Add ability to configure buffer size @Eray Hanoğlu 
-- Minor fix for logging @Eray Hanoğlu 
+- Applied publint to check package.json (8ce6bf1)
 
-### [v2.8.0](https://github.com/panates/postgrejs/compare/v2.7.2...v2.8.0) -  24 September 2023 
+---
 
-#### 💬 General Changes
+## v2.18.0 (2024-08-12)
 
-- Add ability to configure buffer size @Eray Hanoğlu 
-- Updated config @Eray Hanoğlu 
-- Updated node versions @Eray Hanoğlu 
-- Updated config @Eray Hanoğlu 
-- Updated node versions @Eray Hanoğlu 
-- Updated config @Eray Hanoğlu 
-- Updated node versions @Eray Hanoğlu 
+### 🐛 Bug Fixes
 
-### [v2.7.2](https://github.com/panates/postgrejs/compare/v2.7.1...v2.7.2) -  10 September 2023 
+- Added package.json in esm directory which overwrite "type" property to "module" (831bb08)
 
-#### 🪲 Fixes
+### 🧹 Chores
 
-- Fix: Make concurrency explicit, prevents power-tasks from invoking os.cpus @Eray Hanoğlu 
+- Updated dependencies (f3cfc97)
 
-#### 💬 General Changes
+---
 
-- Updated badge url @Eray Hanoğlu 
+## v2.17.1 (2024-08-12)
 
-### [v2.7.1](https://github.com/panates/postgrejs/compare/v2.7.0...v2.7.1) -  3 August 2023 
+### 💬 General Changes
 
-- export SmartBuffer
+- Updated dependencies (06fad33)
 
-#### 💬 General Changes
+---
 
-- Updated dependencies @Eray Hanoğlu 
-- Fallback to "unknown" IOD, if can't determine data type @Eray Hanoğlu 
-- Export SmartBuffer fully @Eray Hanoğlu 
+## v2.17.0 (2024-08-12)
 
-### [v2.7.0](https://github.com/panates/postgrejs/compare/v2.6.1...v2.7.0) -  1 August 2023 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Rollback to ES2020 (279aed6)
 
-- Restructure files according to current Panates standards @Eray Hanoğlu 
-- Renames DatabaseConnectionParams.onErrorRollback to rollbackOnError @Eray Hanoğlu 
+---
 
-### [v2.6.1](https://github.com/panates/postgrejs/compare/v2.6.0...v2.6.1) -  1 August 2023 
+## v2.16.0 (2024-08-09)
 
-- START is also a transaction command (equivalent to BEGIN)
+### 💬 General Changes
 
-#### 💬 General Changes
+- Made ready for Node16 moduleResolution (6632dc0)
 
-- Now DataTypeMap.determine method lookup for data-types in reverse order. So last registered data-type returns first. @Eray Hanoğlu 
-- Now DataTypeMap.determine method lookup for data-types in reverse order. So last registered data-type returns first. @Eray Hanoğlu 
-- Now DataTypeMap.determine method lookup for data-types in reverse order. So last registered data-type returns first. @Eray Hanoğlu 
+---
 
-### [v2.6.0](https://github.com/panates/postgrejs/compare/v2.5.10...v2.6.0) -  1 August 2023 
+## v2.15.4 (2024-08-03)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Not DataTypeMap.determine method lookup for data-types in reverse order. So last registered data-type returns first. @Eray Hanoğlu 
-- Fixed typing for new eslint rules @Eray Hanoğlu 
-- Fixed typing for new eslint rules @Eray Hanoğlu 
+- Added "tslib" to dependencies Updated dependencies (5ddf563)
 
-### [v2.5.10](https://github.com/panates/postgrejs/compare/v2.5.9...v2.5.10) -  26 July 2023 
+---
 
-- Fix 2 typos in DOCUMENTATION.md
+## v2.15.3 (2024-08-03)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Updated dependencies @Eray Hanoğlu 
-- Added code of conduct document @Eray Hanoğlu 
-- Updated config @Eray Hanoğlu 
+- Added "tslib" to dependencies Updated dependencies (6744420)
 
-### [v2.5.9](https://github.com/panates/postgrejs/compare/v2.5.8...v2.5.9) -  17 May 2023 
+---
 
-#### 💬 General Changes
+## v2.15.2 (2024-07-28)
 
-- Fixed missing files."typings" @Eray Hanoğlu 
+### 🧹 Chores
 
-### [v2.5.8](https://github.com/panates/postgrejs/compare/v2.5.7...v2.5.8) -  17 May 2023 
+- Updated (526e6be)
+- Updated homepage (b4304a7)
+- Minor change (76e0d0f)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Optimized build @Eray Hanoğlu 
+- Updated dependencies Updated homepage address in package.json (164644d)
 
-### [v2.5.7](https://github.com/panates/postgrejs/compare/v2.5.6...v2.5.7) -  16 May 2023 
+---
 
-#### 💬 General Changes
+## v2.15.1 (2024-07-22)
 
-- Optimized build @Eray Hanoğlu 
+### 🧹 Chores
 
-### [v2.5.6](https://github.com/panates/postgrejs/compare/v2.5.5...v2.5.6) -  16 May 2023 
+- Updated readme (c581284)
+- Updated (a90a646)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Removed vulnerable "debug" package @Eray Hanoğlu 
-- Updated dependencies @Eray Hanoğlu 
-- Fixed examples for cursor usage @Eray Hanoğlu 
-- Updated config @Eray Hanoğlu 
+- Implemented `sqlmode` query parameter for connection string and added `requireSSL` option to connection options. Now the driver tries SSL connection as a first choice. (3a27e85)
+- Changed package name to `postgrejs` (5ec4852)
+- Updated readme (72f6a1b)
 
-### [v2.5.5](https://github.com/panates/postgrejs/compare/v2.5.3...v2.5.5) -  22 February 2023 
+---
 
-- Fix dbpool documentation example
+## v2.12.0 (2024-07-12)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Added auto changelog generation @Eray Hanoğlu 
-- Updated examples @Eray Hanoğlu 
-- Added auto changelog generation @Eray Hanoğlu 
+- Added root (81c1028)
+- Update dependencies (acdf4dd)
+- Added executor: node/default (2932861)
+- Implemented `sqlmode` query parameter for connection string and added `requireSSL` option to connection options. Now the driver tries SSL connection as a first choice. (5fc7e31)
 
-### [v2.5.3](https://github.com/panates/postgrejs/compare/v2.5.2...v2.5.3) -  20 February 2023 
+---
 
-#### 💬 General Changes
+## v2.11.1 (2024-06-29)
 
-- Updated dependencies @Eray Hanoğlu 
-- Updated dependencies @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v2.5.2](https://github.com/panates/postgrejs/compare/v2.5.1...v2.5.2) -  2 December 2022 
+- Updated Node version (3fde2b9)
+- Migrated eslint config to @panates/eslint-config Moved to @panates/tsconfig (718f5fd)
 
-#### 💬 General Changes
+---
 
-- Updated dependencies @Eray Hanoğlu 
+## v2.11.0 (2024-04-23)
 
-### [v2.5.1](https://github.com/panates/postgrejs/compare/v2.5.0...v2.5.1) -  5 October 2022 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Implement TC39 Explicit Resource Management proposal (cd5efa4)
+- Updated dependencies (9dcf2c2)
 
-- Updated documentation @Eray Hanoğlu 
-- Added LISTEN/NOTIFY feature @Eray Hanoğlu 
+---
 
-### [v2.5.0](https://github.com/panates/postgrejs/compare/v2.4.1...v2.5.0) -  4 October 2022 
+## v2.10.7 (2024-04-22)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Added LISTEN/NOTIFY feature @Eray Hanoğlu 
+- Added prettier formatting (5e157f5)
+- Add basic documentation on running the test suite. Add rimraf as dependency since its referenced by the scripts. Update the lockfile. Start to prepare for proper prettier formatting (4ca7b54)
+- Remove developer content from the README and into CONTRIBUTING.md (58c2ce8)
+- Use the README.md from master (ac3f7b8)
+- Remove duplicated root in .editorconfig (a514ad5)
+- Expose DatabaseError (5f1bbd2)
 
-### [v2.4.1](https://github.com/panates/postgrejs/compare/v2.4.0...v2.4.1) -  23 September 2022 
+---
 
-#### 💬 General Changes
+## v2.10.6 (2024-03-14)
 
-- Updated dependencies @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v2.4.0](https://github.com/panates/postgrejs/compare/v2.3.0...v2.4.0) -  22 September 2022 
+- Updated dependencies (e0cf321)
 
-#### 💬 General Changes
+---
 
-- Fixed exports for multi module support @Eray Hanoğlu 
+## v2.10.5 (2024-01-15)
 
-### [v2.3.0](https://github.com/panates/postgrejs/compare/v2.2.0...v2.3.0) -  17 September 2022 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Updated dependencies (f7b0db8)
 
-- Updated lightning-pool to v4.0 @Eray Hanoğlu 
+---
 
-### [v2.2.0](https://github.com/panates/postgrejs/compare/v2.1.5...v2.2.0) -  17 September 2022 
+## v2.10.4 (2024-01-12)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Updated eslint and jest @Eray Hanoğlu 
+- Updated dependencies (efc17f2)
 
-### [v2.1.5](https://github.com/panates/postgrejs/compare/v2.1.4...v2.1.5) -  29 August 2022 
+---
 
-#### 💬 General Changes
+## v2.10.3 (2024-01-12)
 
-- Updated eslint config @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v2.1.4](https://github.com/panates/postgrejs/compare/v2.1.3...v2.1.4) -  6 July 2022 
+- Update database-connection-params.ts (d3c09dd)
+- Minor typing change (f036aa8)
+- Updated dependencies (b1ec82a)
 
-#### 💬 General Changes
+---
 
-- Updated dependencies @Eray Hanoğlu 
-- Updated readme @Eray Hanoğlu 
-- Fixed typing @Eray Hanoğlu 
+## v2.10.2 (2024-01-08)
 
-### [v2.1.3](https://github.com/panates/postgrejs/compare/v2.1.2...v2.1.3) -  28 June 2022 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Updated dependencies (33a8272)
 
-- Updated dependencies @Eray Hanoğlu 
+---
 
-### [v2.1.2](https://github.com/panates/postgrejs/compare/v2.1.1...v2.1.2) -  24 June 2022 
+## v2.10.1 (2023-11-09)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Updated dependencies @Eray Hanoğlu 
+- Some times server response invalid message to prepare statement message. (bb7a0c8)
 
-### [v2.1.1](https://github.com/panates/postgrejs/compare/v2.1.0...v2.1.1) -  21 June 2022 
+---
 
-#### 💬 General Changes
+## v2.10.0 (2023-11-09)
 
-- Added prettier code style @Eray Hanoğlu 
-- Moved prettier to devDependencies @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v2.1.0](https://github.com/panates/postgrejs/compare/v2.0.4...v2.1.0) -  21 June 2022 
+- Improved error message handling for more understandable to humans. (d9bbcb0)
+- Error stack do not show caller function. (08a1a8f)
 
-#### 💬 General Changes
+---
 
-- Added .js extensions to import statements for esm module support @Eray Hanoğlu 
-- Moved from putil-taskqueue to power-tasks @Eray Hanoğlu 
-- Added husky git hooks @Eray Hanoğlu 
+## v2.9.1 (2023-10-03)
 
-### [v2.0.4](https://github.com/panates/postgrejs/compare/v2.0.3...v2.0.4) -  17 June 2022 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Added int2Vector data type with binary protocol (94a9a3b)
 
-- Update dependencies @Eray Hanoğlu 
+---
 
-### [v2.0.3](https://github.com/panates/postgrejs/compare/v2.0.2...v2.0.3) -  28 May 2022 
+## v2.9.0 (2023-10-03)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Update dependencies @Eray Hanoğlu 
+- export numberBytesToString (9b28ea5)
+- Support int2 and oid vector types (ce27006)
+- Add OID for tid array (d99e3ee)
+- Added int2Vector data type with binary protocol (55bd87e)
 
-### [v2.0.2](https://github.com/panates/postgrejs/compare/v2.0.1...v2.0.2) -  11 May 2022 
+---
 
-#### 💬 General Changes
+## v2.8.1 (2023-10-03)
 
-- Added json casting for object values @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v2.0.1](https://github.com/panates/postgrejs/compare/v2.0.0...v2.0.1) -  8 May 2022 
+- Add ability to configure buffer size (30d18c6)
+- Updated dependencies (51998d4)
+- Support 'debug' events on pgSocket (99538c7)
+- Minor fix for logging (1af9e94)
 
-#### 💬 General Changes
+---
 
-- Updated dependencies and documentation @Eray Hanoğlu 
-- Updated config @Eray Hanoğlu 
-- Updated dependencies and documentation @Eray Hanoğlu 
-- Fixed cover script @Eray Hanoğlu 
-- Updated config @Eray Hanoğlu 
+## v2.8.0 (2023-09-24)
 
-## [v2.0.0](https://github.com/panates/postgrejs/compare/v1.21.6...v2.0.0) -  3 March 2022 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Updated node versions (49c6eac)
+- Updated config (8792c63)
+- Add ability to configure buffer size (34d822a)
 
-- Added jsonb data type support @Eray Hanoğlu 
-- Added ESM module support @Eray Hanoğlu 
-- Updated dependencies @Eray Hanoğlu 
-- Update issue templates @Eray Hanoglu 
-- Updated dependencies @Eray Hanoğlu 
-- Added ESM module support @Eray Hanoğlu 
+---
 
-### [v1.21.6](https://github.com/panates/postgrejs/compare/v1.21.5...v1.21.6) -  22 February 2022 
+## v2.7.2 (2023-09-10)
 
-#### 💬 General Changes
+### 🐛 Bug Fixes
 
-- Updated dependencies @Eray Hanoğlu 
+- Make concurrency explicit, prevents power-tasks from invoking os.cpus (20038b0)
 
-### [v1.21.5](https://github.com/panates/postgrejs/compare/v1.21.4...v1.21.5) -  3 January 2022 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Updated badge url (b9335ed)
 
-- Updated dependencies @Eray Hanoğlu 
+---
 
-### [v1.21.4](https://github.com/panates/postgrejs/compare/v1.21.3...v1.21.4) -  13 December 2021 
+## v2.7.1 (2023-08-03)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Updated readme @Eray Hanoğlu 
+- export SmartBuffer (3ebe0fb)
+- Fallback to "unknown" IOD, if can't determine data type (b0807e3)
+- Export SmartBuffer fully (8fca283)
+- Updated dependencies (114ffb9)
 
-### [v1.21.3](https://github.com/panates/postgrejs/compare/v1.21.2...v1.21.3) -  13 December 2021 
+---
 
-#### 💬 General Changes
+## v2.7.0 (2023-08-01)
 
-- Updated dependencies @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v1.21.2](https://github.com/panates/postgrejs/compare/v1.21.1...v1.21.2) -  12 October 2021 
+- Restructure files according to current Panates standards (58875b3)
+- Renames DatabaseConnectionParams.onErrorRollback to rollbackOnError Added "debug" event to Connection and Pool classes (dc50fb1)
 
-#### 💬 General Changes
+---
 
-- Updated dependencies @Eray Hanoğlu 
-- Updated dependencies @Eray Hanoğlu 
+## v2.6.1 (2023-08-01)
 
-### [v1.21.1](https://github.com/panates/postgrejs/compare/v1.21.0...v1.21.1) -  2 October 2021 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Fixed typing for new eslint rules (f6e0d11)
+- START is also a transaction command (equivalent to BEGIN) (9424025)
+- Now DataTypeMap.determine method lookup for data-types in reverse order. So last registered data-type returns first. Improved builtin data types .isType methods (f2a20eb)
 
-- Updated dependencies @Eray Hanoğlu 
-- Fixed: float numbers are recognized as bigint @Eray Hanoğlu 
+---
 
-### [v1.21.0](https://github.com/panates/postgrejs/compare/v1.20.0...v1.21.0) -  23 September 2021 
+## v2.5.10 (2023-07-26)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- + Added releaseSavepoint() method @Eray Hanoğlu 
+- Added code of conduct document (9a64826)
+- Fix 2 typos in DOCUMENTATION.md (af25532)
+- Updated config (9655d4f)
+- Updated dependencies (2a21190)
 
-### [v1.20.0](https://github.com/panates/postgrejs/compare/v1.19.0...v1.20.0) -  21 September 2021 
+---
 
-### [v1.19.0](https://github.com/panates/postgrejs/compare/v1.18.4...v1.19.0) -  21 September 2021 
+## v2.5.9 (2023-05-17)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- + Added onErrorRollback functionality for better transaction management @Eray Hanoğlu 
+- Fixed missing files."typings" (eabb616)
 
-### [v1.18.4](https://github.com/panates/postgrejs/compare/v1.18.3...v1.18.4) -  14 September 2021 
+---
 
-#### 💬 General Changes
+## v2.5.8 (2023-05-17)
 
-- Fixed: Needs type casting of uuid[] types @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v1.18.3](https://github.com/panates/postgrejs/compare/v1.18.2...v1.18.3) -  8 September 2021 
+- Optimized build (e8305f9)
 
-#### 💬 General Changes
+---
 
-- Fixed invalid constructing of DatabaseError @Eray Hanoğlu 
+## v2.5.7 (2023-05-16)
 
-### [v1.18.2](https://github.com/panates/postgrejs/compare/v1.18.1...v1.18.2) -  7 September 2021 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Optimized build (17d029b)
 
-- Updated dependencies @Eray Hanoğlu 
+---
 
-### [v1.18.1](https://github.com/panates/postgrejs/compare/v1.18.0...v1.18.1) -  11 August 2021 
+## v2.5.6 (2023-05-16)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Fixed database error properties exists in parent msg object. @Eray Hanoğlu 
+- Fixed examples for cursor usage (5971341)
+- Removed vulnerable "debug" package (019b3f4)
+- Updated config (6edd12e)
+- Updated dependencies (afce5f7)
 
-### [v1.18.0](https://github.com/panates/postgrejs/compare/v1.17.0...v1.18.0) -  1 August 2021 
+---
 
-### [v1.17.0](https://github.com/panates/postgrejs/compare/v1.16.7...v1.17.0) -  1 August 2021 
+## v2.5.5 (2023-02-22)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Updated dependencies @Eray Hanoğlu 
-- Added lineNr, colNr and line properties to DatabaseError @Eray Hanoğlu 
+- Updated examples (94e092a)
+- Added auto changelog generation (0c7fc22)
 
-### [v1.16.7](https://github.com/panates/postgrejs/compare/v1.16.6...v1.16.7) -  3 July 2021 
+---
 
-#### 💬 General Changes
+## v2.5.3 (2023-02-20)
 
-- Fixed: throws "operator does not exist: integer = json" if bind param is null or undefined @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v1.16.6](https://github.com/panates/postgrejs/compare/v1.16.5...v1.16.6) -  3 July 2021 
+- Updated dependencies (b8501a2)
+- Fix dbpool documentation example (b5ee509)
 
-- Fix simple readme example
+---
 
-#### 💬 General Changes
+## v2.5.2 (2022-12-02)
 
-- Updated dependencies @Eray Hanoğlu 
-- Update README.md @Eray Hanoglu 
+### 💬 General Changes
 
-### [v1.16.5](https://github.com/panates/postgrejs/compare/v1.16.4...v1.16.5) -  19 April 2021 
+- Updated dependencies (20abfde)
 
-#### 💬 General Changes
+---
 
-- Updated dependencies @Eray Hanoğlu 
-- Updated readme @Eray Hanoğlu 
+## v2.5.1 (2022-10-05)
 
-### [v1.16.4](https://github.com/panates/postgrejs/compare/v1.16.3...v1.16.4) -  8 April 2021 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Added LISTEN/NOTIFY feature (73cb33b)
+- Updated documentation (38093f6)
 
-- Updated dependencies @Eray Hanoğlu 
-- Detect time format strings @Eray Hanoğlu 
+---
 
-### [v1.16.3](https://github.com/panates/postgrejs/compare/v1.16.2...v1.16.3) -  7 April 2021 
+## v2.5.0 (2022-10-04)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Updated doc @Eray Hanoğlu 
+- Added LISTEN/NOTIFY feature (f0ac754)
 
-### [v1.16.2](https://github.com/panates/postgrejs/compare/v1.16.1...v1.16.2) -  7 April 2021 
+---
 
-#### 💬 General Changes
+## v2.4.1 (2022-09-23)
 
-- Fixed time data type issue @Eray Hanoğlu 
-- Added missed type mappings @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v1.16.1](https://github.com/panates/postgrejs/compare/v1.16.0...v1.16.1) -  6 April 2021 
+- Updated dependencies (bebcd28)
 
-- Fixed unused variable issue
+---
 
-### [v1.16.0](https://github.com/panates/postgrejs/compare/v1.15.1...v1.16.0) -  6 April 2021 
+## v2.4.0 (2022-09-22)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Added Time data type @Eray Hanoğlu 
+- Fixed exports for multi module support (e40dabe)
 
-### [v1.15.1](https://github.com/panates/postgrejs/compare/v1.15.0...v1.15.1) -  19 March 2021 
+---
 
-#### 💬 General Changes
+## v2.3.0 (2022-09-17)
 
-- Use default config @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v1.15.0](https://github.com/panates/postgrejs/compare/v1.14.2...v1.15.0) -  7 March 2021 
+- Updated lightning-pool to v4.0 Updated CircleCI config (4ae3adf)
 
-#### 💬 General Changes
+---
 
-- Added "name" (OID:19) data type to data type map @Eray Hanoğlu 
+## v2.2.0 (2022-09-17)
 
-### [v1.14.2](https://github.com/panates/postgrejs/compare/v1.14.1...v1.14.2) -  5 March 2021 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Updated eslint and jest (229d394)
 
-- Dont add COMMIT to execute sql if not in transaction. @Eray Hanoğlu 
+---
 
-### [v1.14.1](https://github.com/panates/postgrejs/compare/v1.14.0...v1.14.1) -  16 February 2021 
+## v2.1.5 (2022-08-29)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Now can detect uuid value when binding parameters @Eray Hanoğlu 
+- Updated eslint config (5ad54ee)
 
-### [v1.14.0](https://github.com/panates/postgrejs/compare/v1.13.2...v1.14.0) -  15 February 2021 
+---
 
-#### 💬 General Changes
+## v2.1.4 (2022-07-06)
 
-- Added support for UUID data type @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v1.13.2](https://github.com/panates/postgrejs/compare/v1.13.1...v1.13.2) -  31 January 2021 
+- Fixed typing (70a7076)
+- Updated readme (145afed)
+- Updated dependencies (15ad62c)
 
-#### 💬 General Changes
+---
 
-- Updated dependencies @Eray Hanoğlu 
+## v2.1.3 (2022-06-28)
 
-### [v1.13.1](https://github.com/panates/postgrejs/compare/v1.13.0...v1.13.1) -  30 January 2021 
+### 💬 General Changes
 
-### [v1.13.0](https://github.com/panates/postgrejs/compare/v1.12.1...v1.13.0) -  28 January 2021 
+- Updated dependencies Updated README (8cef3fa)
 
-#### 💬 General Changes
+---
 
-- Added fetchAsString option for Date, Timestamp and TimestampTz @Eray Hanoğlu 
+## v2.1.2 (2022-06-24)
 
-### [v1.12.1](https://github.com/panates/postgrejs/compare/v1.12.0...v1.12.1) -  28 January 2021 
+### 💬 General Changes
 
-### [v1.12.0](https://github.com/panates/postgrejs/compare/v1.11.4...v1.12.0) -  28 January 2021 
+- Updated dependencies Updated README (ddeb02c)
 
-#### 💬 General Changes
+---
 
-- Added fetchAsString option for Date, Timestamp and TimestampTz @Eray Hanoğlu 
-- Set test schema @Eray Hanoğlu 
-- Set test schema @Eray Hanoğlu 
+## v2.1.1 (2022-06-21)
 
-### [v1.11.4](https://github.com/panates/postgrejs/compare/v1.11.3...v1.11.4) -  24 December 2020 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Added prettier code style (c0b732e)
+- Moved prettier to devDependencies (eecec11)
 
-- Check if fetchCount value between unsigned inter range @Eray Hanoğlu 
+---
 
-### [v1.11.3](https://github.com/panates/postgrejs/compare/v1.11.2...v1.11.3) -  24 December 2020 
+## v2.1.0 (2022-06-21)
 
-### [v1.11.2](https://github.com/panates/postgrejs/compare/v1.11.1...v1.11.2) -  24 December 2020 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Added husky git hooks (d61fc2a)
+- Added .js extensions to import statements for esm module support (dd884f1)
+- Moved from putil-taskqueue to power-tasks (7782551)
 
-- Fixed: Does not determine data type in register order. @Eray Hanoğlu 
+---
 
-### [v1.11.1](https://github.com/panates/postgrejs/compare/v1.11.0...v1.11.1) -  10 December 2020 
+## v2.0.4 (2022-06-17)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Calling fetch of a closed cursor will not throw anymore @Eray Hanoğlu 
+- Update dependencies Added default exports for both commonjs and esm (4b34c8b)
 
-### [v1.11.0](https://github.com/panates/postgrejs/compare/v1.10.1...v1.11.0) -  10 December 2020 
+---
 
-#### 💬 General Changes
+## v2.0.3 (2022-05-28)
 
-- Updated dependencies @Eray Hanoğlu 
-- Automatically convert BigInt numbers to formal number if value in safe integer range @Eray Hanoğlu 
-- Updated dependencies @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v1.10.1](https://github.com/panates/postgrejs/compare/v1.10.0...v1.10.1) -  9 December 2020 
+- Update dependencies (b2ee542)
 
-#### 💬 General Changes
+---
 
-- Fixed: Wrong message sending when parameters contains null values @Eray Hanoğlu 
+## v2.0.2 (2022-05-11)
 
-### [v1.10.0](https://github.com/panates/postgrejs/compare/v1.9.2...v1.10.0) -  5 December 2020 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Added json casting for object values (b95766a)
 
-- Added "numeric" data type @Eray Hanoğlu 
-- Added "numeric" data type @Eray Hanoğlu 
+---
 
-### [v1.9.2](https://github.com/panates/postgrejs/compare/v1.9.1...v1.9.2) -  25 November 2020 
+## v2.0.1 (2022-05-08)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Added "debug" package @Eray Hanoğlu 
+- Updated config (9fa5d12)
+- Fixed cover script (ff3dbef)
+- Updated dependencies and documentation (f7f93d6)
 
-### [v1.9.1](https://github.com/panates/postgrejs/compare/v1.9.0...v1.9.1) -  24 November 2020 
+---
 
-#### 💬 General Changes
+## v2.0.0 (2022-03-03)
 
-- Added "debug" package @Eray Hanoğlu 
-- Added "debug" package @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v1.9.0](https://github.com/panates/postgrejs/compare/v1.8.1...v1.9.0) -  20 November 2020 
+- Added jsonb data type support Migrated from mocha to jest Migrated from travis to circleci (9b77962)
+- Added ESM module support (97857e3)
+- Updated dependencies (b43ae89)
 
-#### 💬 General Changes
+---
 
-- Changed ConnectionConfiguration.searchPath to "schema" @Eray Hanoğlu 
-- Changed ConnectionConfiguration.searchPath to "schema" @Eray Hanoğlu 
+## v1.21.6 (2022-02-22)
 
-### [v1.8.1](https://github.com/panates/postgrejs/compare/v1.8.0...v1.8.1) -  20 November 2020 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Update issue templates (f84ec38)
+- Updated dependencies (b8f05e2)
 
-- Added rowType to all result interfaces @Eray Hanoğlu 
+---
 
-### [v1.8.0](https://github.com/panates/postgrejs/compare/v1.7.1...v1.8.0) -  20 November 2020 
+## v1.21.5 (2022-01-03)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Added rowType to all result interfaces @Eray Hanoğlu 
+- Updated dependencies (66da42d)
 
-### [v1.7.1](https://github.com/panates/postgrejs/compare/v1.7.0...v1.7.1) -  20 November 2020 
+---
 
-### [v1.7.0](https://github.com/panates/postgrejs/compare/v1.6.0...v1.7.0) -  20 November 2020 
+## v1.21.4 (2021-12-13)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Linted for code quality @Eray Hanoğlu 
-- Added rowType getter to Cursor @Eray Hanoğlu 
+- Updated readme (d5af7cd)
 
-### [v1.6.0](https://github.com/panates/postgrejs/compare/v1.5.1...v1.6.0) -  20 November 2020 
+---
 
-#### 💬 General Changes
+## v1.21.3 (2021-12-13)
 
-- Improved auto-commit operations by detecting sql is a transaction command @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v1.5.1](https://github.com/panates/postgrejs/compare/v1.5.0...v1.5.1) -  19 November 2020 
+- Updated dependencies (20fc14c)
 
-#### 💬 General Changes
+---
 
-- Fixex: query() does not return fields property if cursor option is true @Eray Hanoğlu 
+## v1.21.2 (2021-10-12)
 
-### [v1.5.0](https://github.com/panates/postgrejs/compare/v1.4.0...v1.5.0) -  19 November 2020 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Updated dependencies (68cdfed)
 
-- Added autoCommit option for connection.execute() and connection.query() methods. @Eray Hanoğlu 
+---
 
-### [v1.4.0](https://github.com/panates/postgrejs/compare/v1.3.1...v1.4.0) -  19 November 2020 
+## v1.21.1 (2021-10-02)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Fixed: Missed sendSyncMessage after parse query. @Eray Hanoğlu 
-- Fixed: Missed sendSyncMessage @Eray Hanoğlu 
+- float numbers are recognized as bigint (1c19df4)
+- Updated dependencies (5b4638b)
 
-### [v1.3.1](https://github.com/panates/postgrejs/compare/v1.3.0...v1.3.1) -  19 November 2020 
+---
 
-#### 💬 General Changes
+## v1.21.0 (2021-09-23)
 
-- Updated dependencies @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v1.3.0](https://github.com/panates/postgrejs/compare/v1.2.3...v1.3.0) -  19 November 2020 
+- + Added releaseSavepoint() method (9fc61c9)
 
-#### 💬 General Changes
+---
 
-- Updated lightning-pool to new major version 3.0 @Eray Hanoğlu 
-- Updated roadmap @Eray Hanoğlu 
+## v1.19.0 (2021-09-21)
 
-### [v1.2.3](https://github.com/panates/postgrejs/compare/v1.2.2...v1.2.3) -  17 November 2020 
+### 💬 General Changes
 
-#### 💬 General Changes
+- + Added onErrorRollback functionality for better transaction management (f92b65b)
 
-- Added sessionParameters getter @Eray Hanoğlu 
+---
 
-### [v1.2.2](https://github.com/panates/postgrejs/compare/v1.2.1...v1.2.2) -  17 November 2020 
+## v1.18.4 (2021-09-14)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Added isClosed property @Eray Hanoğlu 
-- Added isClosed property @Eray Hanoğlu 
+- Needs type casting of uuid[] types (b6b1b45)
 
-### [v1.2.1](https://github.com/panates/postgrejs/compare/v1.2.0...v1.2.1) -  17 November 2020 
+---
 
-#### 💬 General Changes
+## v1.18.3 (2021-09-08)
 
-- Major changes for FieldInfo @Eray Hanoğlu 
-- Expose Cursor class @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v1.2.0](https://github.com/panates/postgrejs/compare/v1.1.1...v1.2.0) -  17 November 2020 
+- Fixed invalid constructing of DatabaseError (e904539)
 
-#### 💬 General Changes
+---
 
-- Major changes for FieldInfo @Eray Hanoğlu 
+## v1.18.2 (2021-09-07)
 
-### [v1.1.1](https://github.com/panates/postgrejs/compare/v1.1.0...v1.1.1) -  16 November 2020 
+### 💬 General Changes
 
-#### 💬 General Changes
+- Updated dependencies (27d747f)
 
-- Added dataTypeName to FieldInfo @Eray Hanoğlu 
+---
 
-### [v1.1.0](https://github.com/panates/postgrejs/compare/v1.0.5...v1.1.0) -  16 November 2020 
+## v1.18.1 (2021-08-11)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Added elementDataTypeId and mappedType properties to FieldInfo @Eray Hanoğlu 
+- Fixed database error properties exists in parent msg object. (6d5ad49)
 
-### [v1.0.5](https://github.com/panates/postgrejs/compare/v1.0.4...v1.0.5) -  16 November 2020 
+---
 
-#### 💬 General Changes
+## v1.17.0 (2021-08-01)
 
-- Added fetch() method to cursor @Eray Hanoğlu 
-- Added ability to get processId and secretKey @Eray Hanoğlu 
+### 💬 General Changes
 
-### [v1.0.4](https://github.com/panates/postgrejs/compare/v1.0.3...v1.0.4) -  16 November 2020 
+- Added lineNr, colNr and line properties to DatabaseError (950bfb0)
+- Updated dependencies (5e6a902)
 
-#### 💬 General Changes
+---
 
-- Added ability to get processId and secretKey @Eray Hanoğlu 
+## v1.16.7 (2021-07-03)
 
-### [v1.0.3](https://github.com/panates/postgrejs/compare/v1.0.2...v1.0.3) -  16 November 2020 
+### 💬 General Changes
 
-#### 💬 General Changes
+- throws "operator does not exist: integer = json" if bind param is null or undefined (f57bd9e)
 
-- Fixed wrong repository address @Eray Hanoğlu 
+---
 
-### [v1.0.2](https://github.com/panates/postgrejs/compare/v1.0.1...v1.0.2) -  16 November 2020 
+## v1.16.6 (2021-07-03)
 
-#### 💬 General Changes
+### 💬 General Changes
 
-- Test fixed @Eray Hanoğlu 
-- DOCUMENTATION.md is missing in files property @Eray Hanoğlu 
+- Fix simple readme example (8c9608d)
+- Update README.md (5bac71d)
+- Updated dependencies (7298b3c)
 
-### v1.0.1
+---
 
-#### 💬 General Changes
+## v1.16.5 (2021-04-19)
 
-- ScriptExecutor test passing @Eray Hanoğlu 
-- Initial commit @Eray Hanoğlu 
-- Beta 1 commit @Eray Hanoğlu 
-- Data types implementation and tests done @Eray Hanoğlu 
-- Added int64 support for node&lt;12 @Eray Hanoğlu 
-- Beta 2 commit @Eray Hanoğlu 
-- Implemented extended query @Eray Hanoğlu 
-- 1.0 stable @Eray Hanoğlu 
-- Added house keeping ability to SmartBuffer @Eray Hanoğlu 
-- Beta 1 commit @Eray Hanoğlu 
-- Updated travis url @Eray Hanoğlu 
-- Initial commit @Eray Hanoglu 
-- Added int64 support for node&lt;12 @Eray Hanoğlu 
-- Beta 1 commit @Eray Hanoğlu 
-- Implemented extended query @Eray Hanoğlu 
+### 💬 General Changes
+
+- Updated readme (efbc574)
+- Updated dependencies (c7e0bb0)
+
+---
+
+## v1.16.4 (2021-04-08)
+
+### 💬 General Changes
+
+- Detect time format strings (14f8871)
+- Updated dependencies (8e916c6)
+
+---
+
+## v1.16.3 (2021-04-07)
+
+### 💬 General Changes
+
+- Updated doc (54b72be)
+
+---
+
+## v1.16.2 (2021-04-07)
+
+### 💬 General Changes
+
+- Added missed type mappings (f45124a)
+- Fixed time data type issue (bf80893)
+
+---
+
+## v1.16.1 (2021-04-06)
+
+### 💬 General Changes
+
+- Fixed unused variable issue (47fcb75)
+
+---
+
+## v1.16.0 (2021-04-06)
+
+### 💬 General Changes
+
+- Added Time data type (127fb81)
+
+---
+
+## v1.15.1 (2021-03-19)
+
+### 💬 General Changes
+
+- Use default config (6f3e692)
+
+---
+
+## v1.15.0 (2021-03-07)
+
+### 💬 General Changes
+
+- Added "name" (OID:19) data type to data type map (6f56e2d)
+
+---
+
+## v1.14.2 (2021-03-05)
+
+### 💬 General Changes
+
+- Dont add COMMIT to execute sql if not in transaction. (8f57c30)
+
+---
+
+## v1.14.1 (2021-02-16)
+
+### 💬 General Changes
+
+- Now can detect uuid value when binding parameters (72a4ba0)
+
+---
+
+## v1.14.0 (2021-02-15)
+
+### 💬 General Changes
+
+- Added support for UUID data type (d3cfbfd)
+
+---
+
+## v1.13.2 (2021-01-31)
+
+### 💬 General Changes
+
+- Updated dependencies (ffddee3)
+
+---
+
+## v1.13.0 (2021-01-28)
+
+### 💬 General Changes
+
+- Added fetchAsString option for Date, Timestamp and TimestampTz (1d77cd1)
+
+---
+
+## v1.12.0 (2021-01-28)
+
+### 💬 General Changes
+
+- Set test schema (ec18c02)
+- Added fetchAsString option for Date, Timestamp and TimestampTz (18fa21c)
+
+---
+
+## v1.11.4 (2020-12-24)
+
+### 💬 General Changes
+
+- Check if fetchCount value between unsigned inter range (cc35ee3)
+
+---
+
+## v1.11.2 (2020-12-24)
+
+### 💬 General Changes
+
+- Does not determine data type in register order. (e27ea7a)
+
+---
+
+## v1.11.1 (2020-12-10)
+
+### 💬 General Changes
+
+- Calling fetch of a closed cursor will not throw anymore (bacb630)
+
+---
+
+## v1.11.0 (2020-12-10)
+
+### 💬 General Changes
+
+- Automatically convert BigInt numbers to formal number if value in safe integer range (110c544)
+- Updated dependencies (f1e23d4)
+
+---
+
+## v1.10.1 (2020-12-09)
+
+### 💬 General Changes
+
+- Wrong message sending when parameters contains null values (59e5bf4)
+
+---
+
+## v1.10.0 (2020-12-05)
+
+### 💬 General Changes
+
+- Added "numeric" data type (a0a6068)
+
+---
+
+## v1.9.2 (2020-11-25)
+
+### 💬 General Changes
+
+- Added "debug" package (f365962)
+
+---
+
+## v1.9.1 (2020-11-24)
+
+### 💬 General Changes
+
+- Added "debug" package (618a239)
+
+---
+
+## v1.9.0 (2020-11-20)
+
+### 💬 General Changes
+
+- Changed ConnectionConfiguration.searchPath to "schema" (e6df86b)
+
+---
+
+## v1.8.1 (2020-11-20)
+
+### 💬 General Changes
+
+- Added rowType to all result interfaces (edfaec6)
+
+---
+
+## v1.8.0 (2020-11-20)
+
+### 💬 General Changes
+
+- Added rowType to all result interfaces (4bc26a7)
+
+---
+
+## v1.7.0 (2020-11-20)
+
+### 💬 General Changes
+
+- Added rowType getter to Cursor (045a2a2)
+- Linted for code quality (73dad79)
+
+---
+
+## v1.6.0 (2020-11-20)
+
+### 💬 General Changes
+
+- Improved auto-commit operations by detecting sql is a transaction command (ab8e698)
+
+---
+
+## v1.5.1 (2020-11-19)
+
+### 💬 General Changes
+
+- query() does not return fields property if cursor option is true (6acec29)
+
+---
+
+## v1.5.0 (2020-11-19)
+
+### 💬 General Changes
+
+- Added autoCommit option for connection.execute() and connection.query() methods. (d75e939)
+
+---
+
+## v1.4.0 (2020-11-19)
+
+### 💬 General Changes
+
+- Missed sendSyncMessage (356af56)
+- Missed sendSyncMessage after parse query. Check in transaction to prevent unnecessary transaction start/commit/rollback queries. (d8a906e)
+
+---
+
+## v1.3.1 (2020-11-19)
+
+### 💬 General Changes
+
+- Updated dependencies (c413990)
+
+---
+
+## v1.3.0 (2020-11-19)
+
+### 💬 General Changes
+
+- Updated roadmap (b0605e3)
+- Updated lightning-pool to new major version 3.0 (1ae9f50)
+
+---
+
+## v1.2.3 (2020-11-17)
+
+### 💬 General Changes
+
+- Added sessionParameters getter (4599db8)
+
+---
+
+## v1.2.2 (2020-11-17)
+
+### 💬 General Changes
+
+- Added isClosed property (c9b54f7)
+
+---
+
+## v1.2.1 (2020-11-17)
+
+### 💬 General Changes
+
+- Major changes for FieldInfo (32d2e08)
+- Expose Cursor class (1dc2de1)
+
+---
+
+## v1.2.0 (2020-11-17)
+
+### 💬 General Changes
+
+- Major changes for FieldInfo Added DataTypeNames map Changed DataTypeOIDs keys to original postgres names (982d8ec)
+
+---
+
+## v1.1.1 (2020-11-16)
+
+### 💬 General Changes
+
+- Added dataTypeName to FieldInfo (6a9227d)
+
+---
+
+## v1.1.0 (2020-11-16)
+
+### 💬 General Changes
+
+- Added elementDataTypeId and mappedType properties to FieldInfo (b554f07)
+
+---
+
+## v1.0.5 (2020-11-16)
+
+### 💬 General Changes
+
+- Added ability to get processId and secretKey (95bc84f)
+- Added fetch() method to cursor (4c98b80)
+
+---
+
+## v1.0.4 (2020-11-16)
+
+### 💬 General Changes
+
+- Added ability to get processId and secretKey (acaf2d5)
+
+---
+
+## v1.0.3 (2020-11-16)
+
+### 💬 General Changes
+
+- Fixed wrong repository address (ae3b149)
+
+---
+
+## v1.0.2 (2020-11-16)
+
+### 💬 General Changes
+
+- Test fixed (0754ee8)
+- DOCUMENTATION.md is missing in files property (2d24c5f)
+
+---
+
+## v1.0.1 (2020-11-16)
+
+### 💬 General Changes
+
+- Initial commit (441d590)
+- Implemented extended query (7dea1f0)
+- Data types implementation and tests done (6ba0ed5)
+- ScriptExecutor test passing (79ee783)
+- Beta 1 commit (86195d8)
+- Added int64 support for node<12 (8637e98)
+- Added house keeping ability to SmartBuffer (efc4fff)
+- Updated travis url (3e3b661)
+- Beta 2 commit (17d3eb6)
+- 1.0 stable (df5c83e)

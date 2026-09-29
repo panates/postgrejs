@@ -141,6 +141,146 @@ describe('query() (Extended Query)', () => {
     expect(result.rows[0]).toStrictEqual({ code: 'CA', name: 'CANADA' });
   });
 
+  describe('a row is read as it arrives', () => {
+    // Rows are decoded in the message loop rather than collected and
+    // walked again, which puts a caller's own decoder inside that loop.
+    // What that changes is where its exceptions surface and what its
+    // `data` is a view of; neither may change what the caller sees.
+
+    it('should report a decoder that throws, and leave the connection usable', async () => {
+      class ThrowsOnThird extends RowDecoder {
+        seen = 0;
+        decode() {
+          if (++this.seen === 3) throw new Error('decoder gave up');
+          return this.seen;
+        }
+      }
+      await expect(
+        connection.query('select * from countries order by code', {
+          rowDecoder: new ThrowsOnThird(),
+        }),
+      ).rejects.toThrow('decoder gave up');
+      // The rest of the response was still drained, so the next query is
+      // answered rather than reading someone else's rows.
+      const after = await connection.query('select 42 as v');
+      expect(after.rows?.[0]).toStrictEqual([42]);
+    });
+
+    it('should let a decoder keep its row and read it later, as documented', async () => {
+      // RowDecoder's contract says `data` can be retained and decoded
+      // whenever the caller likes. It is a view into the socket's own
+      // buffer, and decoding on arrival must not make that view go stale
+      // behind a caller who kept it.
+      const kept: { data: Buffer; columnCount: number; parsers: any[] }[] = [];
+      class Defers extends RowDecoder {
+        decode(
+          parsers: any[],
+          data: Buffer,
+          columnCount: number,
+        ): Record<string, any> {
+          kept.push({ data, columnCount, parsers });
+          return { deferred: kept.length };
+        }
+      }
+      const result = await connection.query(
+        'select code from countries order by code',
+        { rowDecoder: new Defers() },
+      );
+      expect(result.rows?.length).toBeGreaterThan(1);
+      // Read them only now, every row at once, well after the call.
+      const codes = kept.map(({ data, parsers }) => {
+        const len = data.readInt32BE(0);
+        return parsers[0](data, 4, len, {});
+      });
+      const direct = await connection.query(
+        'select code from countries order by code',
+      );
+      expect(codes).toStrictEqual(direct.rows?.map(r => r[0]));
+    });
+
+    it('should keep working for a decoder that only implements decode()', async () => {
+      // decodeAt() is optional: a decoder written before it existed, or
+      // one that wants a Buffer of its own, gets the row cut out for it
+      // exactly as it always did.
+      class OnlyDecode extends RowDecoder {
+        decode(
+          parsers: any[],
+          data: Buffer,
+          columnCount: number,
+          options: any,
+        ): any {
+          const row: any[] = [];
+          let offset = 0;
+          for (let i = 0; i < columnCount; i++) {
+            const len = data.readInt32BE(offset);
+            offset += 4;
+            if (len < 0) row.push(null);
+            else {
+              row.push(parsers[i](data, offset, len, options));
+              offset += len;
+            }
+          }
+          // Reading from zero is the contract for this method, and the
+          // row must start there whatever the socket buffer looked like.
+          return { first: row[0], width: data.length };
+        }
+      }
+      const result = await connection.query(
+        'select code from countries order by code',
+        { rowDecoder: new OnlyDecode() },
+      );
+      const direct = await connection.query(
+        'select code from countries order by code',
+      );
+      expect(result.rows?.map((r: any) => r.first)).toStrictEqual(
+        direct.rows?.map(r => r[0]),
+      );
+      // Its own buffer, ending where the row ends - a longer one would
+      // mean it was handed the socket's.
+      const codes = direct.rows?.map(r => String(r[0])) ?? [];
+      expect(result.rows?.map((r: any) => r.width)).toStrictEqual(
+        codes.map(c => 4 + Buffer.byteLength(c)),
+      );
+    });
+
+    it('should still read a money column, which cannot be decoded on arrival', async () => {
+      // The one thing that has to be asked before a row can be read is
+      // the server's money format, which costs a round trip - so those
+      // rows are the ones still set aside and read afterwards. On its own
+      // connection, because a connection that has already asked no longer
+      // takes that path and the test would pass without touching it.
+      const fresh = new Connection(connection.config);
+      await fresh.connect();
+      const result = await fresh
+        .query(
+          "select '1234.56'::money as m, 2 as n from generate_series(1, 20) i",
+          { objectRows: true },
+        )
+        .finally(() => fresh.close(0));
+      expect(result.rows?.length).toStrictEqual(20);
+      expect((result.rows?.[0] as any).n).toStrictEqual(2);
+      expect(typeof (result.rows?.[0] as any).m).toStrictEqual('number');
+      expect((result.rows?.[0] as any).m).toStrictEqual(1234.56);
+    });
+
+    it('should read many rows the same as it always did', async () => {
+      // The path this changed is every ordinary query's, so the thing
+      // worth pinning is that a result of some size still comes back
+      // exactly as its own SQL describes it.
+      const result = await connection.query(
+        'select i, i * 2 as double, i::text as t from generate_series(1, 500) i',
+        { objectRows: true },
+      );
+      expect(result.rows?.length).toStrictEqual(500);
+      expect(result.rows?.[0]).toStrictEqual({ i: 1, double: 2, t: '1' });
+      expect(result.rows?.[499]).toStrictEqual({
+        i: 500,
+        double: 1000,
+        t: '500',
+      });
+    });
+  });
+
   it('should limit number of returning rows with "fetchCount" property', async () => {
     const result = await connection.query(`select * from customers`, {
       fetchCount: 10,

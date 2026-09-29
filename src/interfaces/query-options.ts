@@ -4,6 +4,13 @@ import type { DataTypeMap } from '../data-type-map.js';
 import type { RowDecoder } from '../util/row-decoder.js';
 import type { DataMappingOptions } from './data-mapping-options.js';
 
+/**
+ * What `query()` and `execute()` take: the parameters, the shape of the
+ * rows, how much of the result to read, and how to stop.
+ *
+ * Everything a `DataMappingOptions` carries applies here too, and a value
+ * left out falls back to the connection's own setting.
+ */
 export interface QueryOptions extends DataMappingOptions {
   /**
    * Specifies weather execute query in auto-commit mode

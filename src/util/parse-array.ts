@@ -1,5 +1,13 @@
 import type { Maybe } from '../types.js';
 
+/**
+ * Reads an array literal - `{1,2,{3,4}}` - into a nested array.
+ *
+ * @param s The literal, as the server wrote it.
+ * @param opts `transform` reads each element's text into a value, and
+ * `separator` is for the types that do not use a comma.
+ * @returns The array, or `undefined` when there was no literal.
+ */
 export function parsePostgresArray(
   s: string,
   opts?: {

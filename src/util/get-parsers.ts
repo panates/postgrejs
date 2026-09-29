@@ -15,6 +15,15 @@ const DefaultColumnParser: AnyParseFunction = (data, offset, len) =>
 const DefaultTextColumnParser: AnyParseFunction = (data, offset, len) =>
   data.toString('utf8', offset, offset + len);
 
+/**
+ * Chooses one parser per column, for the format that column is coming
+ * back in.
+ *
+ * @param typeMap Where the types are registered.
+ * @param fields The columns, as the server described them.
+ * @param options `fetchAsString` and the rest of the mapping options.
+ * @returns One parser per column, in order.
+ */
 export function getParsers(
   typeMap: DataTypeMap,
   fields: Protocol.RowDescription[],

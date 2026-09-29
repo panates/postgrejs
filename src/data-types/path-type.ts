@@ -71,6 +71,7 @@ function toPoints(v: any, name: string): Point[] {
   );
 }
 
+/** `path`, as a {@link Path}: the points, and whether the path is closed. */
 export const PathType: DataType = {
   name: 'path',
   oid: DataTypeOIDs.path,
@@ -120,6 +121,7 @@ export const PathType: DataType = {
   },
 };
 
+/** The `_path` array of {@link PathType}. */
 export const ArrayPathType: DataType = {
   ...PathType,
   name: '_path',
@@ -127,6 +129,7 @@ export const ArrayPathType: DataType = {
   elementsOID: DataTypeOIDs.path,
 };
 
+/** `polygon`, as a {@link Polygon}. */
 export const PolygonType: DataType = {
   name: 'polygon',
   oid: DataTypeOIDs.polygon,
@@ -170,6 +173,7 @@ export const PolygonType: DataType = {
   },
 };
 
+/** The `_polygon` array of {@link PolygonType}. */
 export const ArrayPolygonType: DataType = {
   ...PolygonType,
   name: '_polygon',

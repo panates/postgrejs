@@ -1,6 +1,13 @@
 import type { Row } from '../types.js';
 import type { FieldInfo } from './field-info.js';
 
+/**
+ * What one statement answered with: its rows, what its columns were, and
+ * what the server said it did.
+ *
+ * `QueryResult` is this plus a cursor; a script's results are a list of
+ * these, one per statement in it.
+ */
 export interface CommandResult {
   /**
    * Name of the command (INSERT, SELECT, UPDATE, etc.)

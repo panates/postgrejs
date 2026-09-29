@@ -2,14 +2,25 @@ import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { FieldInfo } from '../interfaces/field-info.js';
 import type { AnyParseFunction } from '../types.js';
 
+/**
+ * Reads one row into an array of values.
+ *
+ * @param parsers One per column, already chosen for its format.
+ * @param data The row's own bytes, from the DataRow message.
+ * @param columnCount How many values it holds.
+ * @param options Passed to each parser.
+ * @param start Where the row's values begin in `data`.
+ * @returns The values, in column order.
+ */
 export function parseRow(
   parsers: AnyParseFunction[],
   data: Buffer,
   columnCount: number,
   options: DataMappingOptions,
+  start = 0,
 ): any[] {
   const row = new Array(columnCount);
-  let offset = 0;
+  let offset = start;
   let len: number;
   let i: number;
   for (i = 0; i < columnCount; i++) {
@@ -32,29 +43,27 @@ export function parseRow(
 
 type ObjectRowFactory = (values: any[]) => object;
 
-/**
- * Rows decoded against one `FieldInfo[]` before compiling a factory for it.
- *
- * Compiling costs ~0.8µs when the engine can reuse its own compilation
- * cache for identical source and several µs when it can't, against ~0.1µs
- * saved per row - so a query returning a handful of rows would pay more
- * than it ever got back. Since wrapRowDescription() builds a fresh fields
- * array per query, a single-row query executed in a loop would otherwise
- * recompile on every call. Waiting a few rows keeps that case free while
- * giving up well under 1% of the win on a result worth compiling for.
- */
+/** Rows decoded against one `FieldInfo[]` before compiling a factory for it. */
+/* Compiling costs ~0.8µs when the engine can reuse its own compilation
+   cache for identical source and several µs when it cannot, against
+   ~0.1µs saved per row - so a query returning a handful of rows would
+   pay more than it ever got back. Since wrapRowDescription() builds a
+   fresh fields array per query, a single-row query executed in a loop
+   would otherwise recompile on every call. Waiting a few rows keeps that
+   case free while giving up well under 1% of the win on a result worth
+   compiling for. */
 const OBJECT_ROW_FACTORY_THRESHOLD = 8;
 
 /**
- * Holds only factories that were actually compiled - never the row counts
- * leading up to one. Writing a fresh key here costs ~67ns plus the garbage
- * it leaves behind, which a single-row query (a new fields array every
- * time, never looked up again) would pay on every call for nothing.
- *
- * Keyed weakly, so a finished query's factory goes away with its fields;
- * an entry earns its keep only when the same fields array is decoded
- * against again after something else interrupted it.
+ * The compiled factories, keyed weakly by the fields they were built
+ * for, so a finished query's factory goes away with them.
  */
+/* Only factories that were actually compiled go in here, never the row
+   counts leading up to one: writing a fresh key costs ~67ns plus the
+   garbage it leaves behind, which a single-row query - a new fields
+   array every time, never looked up again - would pay on every call for
+   nothing. An entry earns its keep only when the same fields array is
+   decoded against again after something else interrupted it. */
 const objectRowFactories = new WeakMap<FieldInfo[], ObjectRowFactory>();
 
 // Rows of one result arrive in a run, so a single entry in front of the
@@ -72,17 +81,18 @@ let memoDeclined = false;
  * Compiles a function that builds this query's row object in one shot,
  * from a single object literal with every column name in it.
  *
- * Assigning the columns one at a time instead (`row[name] = value`) walks
- * the object through one hidden-class transition per column, per row -
- * measured at ~6.8x the cost of handing the engine a literal whose shape
- * it can lay out once and reuse for every row of the result.
- *
- * Returns null when that isn't possible, leaving the caller on the
- * assignment path: a column named `__proto__` would set the prototype
- * rather than become an own property if it appeared as a literal key, and
- * Function construction itself can be unavailable (a Content-Security-
- * Policy without 'unsafe-eval').
+ * @param fields The columns to build the literal from.
+ * @param columnCount How many of them the rows carry.
+ * @returns The factory, or `null` when this shape cannot be compiled -
+ * a column named `__proto__`, or a runtime with Function construction
+ * disabled - which leaves the caller on the assignment path.
  */
+/* Assigning the columns one at a time instead (row[name] = value) walks
+   the object through one hidden-class transition per column, per row -
+   ~6.8x the cost of handing the engine a literal whose shape it can lay
+   out once and reuse for every row of the result. A `__proto__` key in a
+   literal sets the prototype rather than becoming an own property, which
+   is why that one is refused rather than escaped. */
 function buildObjectRowFactory(
   fields: FieldInfo[],
   columnCount: number,
@@ -132,12 +142,24 @@ function getObjectRowFactory(
   return factory;
 }
 
+/**
+ * Reads one row into an object keyed by column name.
+ *
+ * @param parsers One per column, already chosen for its format.
+ * @param data The row's own bytes, from the DataRow message.
+ * @param columnCount How many values it holds.
+ * @param options Passed to each parser.
+ * @param fields The columns, whose names become the keys.
+ * @param start Where the row's values begin in `data`.
+ * @returns The row as an object.
+ */
 export function parseObjectRow(
   parsers: AnyParseFunction[],
   data: Buffer,
   columnCount: number,
   options: DataMappingOptions,
   fields: FieldInfo[],
+  start = 0,
 ): object {
   // A compiled factory is built against `fields`, so it can only be used
   // when the row really does have one value per field.
@@ -147,7 +169,7 @@ export function parseObjectRow(
       : null;
   if (factory) {
     const values = new Array(columnCount);
-    let offset = 0;
+    let offset = start;
     let len: number;
     let i: number;
     for (i = 0; i < columnCount; i++) {
@@ -168,6 +190,7 @@ export function parseObjectRow(
     columnCount,
     options,
     fields,
+    start,
   );
 }
 
@@ -177,9 +200,10 @@ function parseObjectRowByAssignment(
   columnCount: number,
   options: DataMappingOptions,
   fields: FieldInfo[],
+  start = 0,
 ): object {
   const row = {};
-  let offset = 0;
+  let offset = start;
   let len: number;
   let i: number;
   let value: any;

@@ -1,6 +1,14 @@
 import type { BatchCommandResult } from '../interfaces/batch-result.js';
 import { Protocol } from './protocol.js';
 
+/**
+ * An error the server reported, with every field it sent.
+ *
+ * `code` is the five-character SQLSTATE and is the thing to branch on -
+ * `23505` for a unique violation, `40P01` for a deadlock - since the
+ * message is localized and may be reworded between releases. `detail`,
+ * `hint`, `position` and the rest are there when the server sent them.
+ */
 export class DatabaseError extends Error {
   /**
    * Which entry of a multi-statement submission the server rejected -

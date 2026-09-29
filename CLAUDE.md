@@ -61,6 +61,37 @@ contributor workflow (lint/compile/test commands, commit message convention, PR 
 
 ## Code style
 
+### Comments: TSDoc, and the notes under it
+
+A declaration gets a TSDoc block that answers the caller's question - what it is for, what its
+parameters and return mean, what it throws, an example where one earns its place - with
+`@param`/`@returns` and every other tag **inside** that block.
+
+Everything else this codebase writes down - why a thing is the way it is, what was measured, what
+was tried and thrown away, which branch cannot currently fire - goes in a plain block comment
+**between the TSDoc and the declaration**:
+
+```ts
+/**
+ * What a caller needs.
+ *
+ * @param n How many.
+ */
+/* Why it is the way it is: the measurement, the alternative that lost,
+   the constraint nobody would guess. */
+export function take(n: number): void {}
+```
+
+Measured, so it is not a matter of taste: both orders reach the emitted `.d.ts` identically, the
+plain block is stripped from it either way, and the language service shows the same hover text for
+both. The order is for readers - the caller stops at the first block, the maintainer keeps going,
+and a note that runs to twenty lines of measurements does not push the contract away from the code
+it describes. A note that is genuinely about the *contract* rather than the implementation is
+better as the TSDoc's last paragraph than as a block underneath it.
+
+Line comments inside a function body stay where they are; this is about what sits above a
+declaration.
+
 ### Class member order
 
 Declare members in this order, with non-public ones always at the bottom rather than next to the code that uses them:

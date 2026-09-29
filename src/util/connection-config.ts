@@ -48,6 +48,16 @@ function checkForeignKeys(config: object): void {
   }
 }
 
+/**
+ * Resolves what a caller passed into the configuration a connection is
+ * opened with.
+ *
+ * @param config An object, a connection string, or nothing at all.
+ * @returns The configuration, with the environment and PostgreSQL's own
+ * defaults filling what was left out.
+ * @throws Error When a field is named that no configuration has, which
+ * is usually a typo and is reported with what was probably meant.
+ */
 export function getConnectionConfig(
   config?: ConnectionConfiguration | string,
 ): ConnectionConfiguration {
@@ -140,6 +150,13 @@ function splitHosts(
  */
 const DATABASE_PATH_SCHEMES = ['pg:', 'postgres:', 'postgresql:'];
 
+/**
+ * Reads a `postgres://` URL, or the `host=... port=...` keyword form,
+ * into a configuration.
+ *
+ * @param str The connection string.
+ * @returns What it named.
+ */
 export function parseConnectionString(str: string): ConnectionConfiguration {
   if (str.startsWith('/')) str = 'socket:/' + str;
 

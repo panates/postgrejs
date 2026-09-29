@@ -23,6 +23,13 @@ function toInterval(v: any): Interval {
   );
 }
 
+/**
+ * Reads an interval as the server writes one, in any of the output
+ * styles `IntervalStyle` selects.
+ *
+ * @param v The value's text.
+ * @returns The interval, with months, days and microseconds kept apart.
+ */
 export function parseIntervalText(v: string): Interval {
   const m = INTERVAL_PATTERN.exec(v);
   if (!m) {
@@ -49,6 +56,7 @@ export function parseIntervalText(v: string): Interval {
   });
 }
 
+/** `interval`, as an {@link Interval}: months, days and microseconds kept apart, because the server keeps them apart and a month is not a fixed number of days. */
 export const IntervalType: DataType = {
   name: 'interval',
   oid: DataTypeOIDs.interval,
@@ -90,6 +98,7 @@ export const IntervalType: DataType = {
   },
 };
 
+/** The `_interval` array of {@link IntervalType}. */
 export const ArrayIntervalType: DataType = {
   ...IntervalType,
   name: '_interval',

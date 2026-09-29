@@ -1,12 +1,22 @@
 import { fastParseInt } from './fast-parseint.js';
 
 // noinspection RegExpUnnecessaryNonCapturingGroup
+/** A time as the server writes one: two digits a part, colons in place. */
 export const STRICT_TIME_PATTERN =
   /^([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])(?:\.(\d+))?(?:(Z)|(?:([+-])([01]?[0-9]|2[0-3]):?([0-5][0-9])?))?$/;
 // noinspection RegExpUnnecessaryNonCapturingGroup
+/** The same, loosened for what a caller might pass as a parameter - the colons and the seconds may be left out. */
 export const TIME_PATTERN =
   /^([01][0-9]|2[0-3]):?([0-5][0-9]):?([0-5][0-9])?(?:\.(\d+))?(?:(Z)|(?:([+-])([01]?[0-9]|2[0-3]):?([0-5][0-9])?))?$/;
 
+/**
+ * Reads a time of day into a Date on the epoch day.
+ *
+ * @param str The value's text.
+ * @param parseTimeZone Whether an offset in the text should be applied.
+ * @param utc Whether to build the Date in UTC rather than locally.
+ * @returns A Date carrying that clock time.
+ */
 export function parseTime(
   str: string,
   parseTimeZone?: boolean,

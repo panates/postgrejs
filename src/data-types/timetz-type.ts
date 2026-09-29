@@ -136,6 +136,7 @@ function formatTimeTz(micros: number, zone: number): string {
   return out;
 }
 
+/** `timetz`, as a string: the clock time and its offset, which a `Date` has nowhere to keep. */
 export const TimeTzType: DataType = {
   name: 'timetz',
   oid: DataTypeOIDs.timetz,
@@ -201,6 +202,7 @@ export const TimeTzType: DataType = {
   },
 };
 
+/** The `_timetz` array of {@link TimeTzType}. */
 export const ArrayTimeTzType: DataType = {
   ...TimeTzType,
   name: '_timetz',

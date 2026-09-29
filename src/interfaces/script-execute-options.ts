@@ -2,6 +2,10 @@ import type { DataTypeMap } from '../data-type-map.js';
 import type { RowDecoder } from '../util/row-decoder.js';
 import type { DataMappingOptions } from './data-mapping-options.js';
 
+/**
+ * What `execute()` takes for a script of several statements - how much of
+ * each result to keep, and how to read the rows it does.
+ */
 export interface ScriptExecuteOptions extends DataMappingOptions {
   /**
    * Specifies weather execute query in auto-commit mode

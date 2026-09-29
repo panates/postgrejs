@@ -1,8 +1,9 @@
 name: Test
 on:
+  # `PERSONAL_ACCESS_TOKEN` is gone: nothing here depends on a package from npm.pkg.github.com -
+  # measured, no dependency in the manifest carries a private scope and there is no .npmrc - so the
+  # token had nothing to authenticate.
   workflow_call:
-    secrets:
-      PERSONAL_ACCESS_TOKEN:
 
   # Can be run manually
   workflow_dispatch:
@@ -11,14 +12,24 @@ on:
   push:
     branches:
       - dev
+    # **No leading slash.** GitHub matches these against paths relative to the repository root, so
+    # they are anchored already and `/` is not in the documented filter syntax (`*`, `**`, `?`, `+`,
+    # `[]`, `!`, `\`). `'/src/**'` and `'/test/**'` therefore matched nothing at all: a push to dev
+    # touching only source did not run the tests, silently, which is the failure worth ruling out -
+    # a filter that matches too much costs a minute of CI, one that matches too little costs a
+    # release nobody tested.
     paths:
-      - src/**/*.*
-      - package.json
-      - test/**/*.*
-      - support/**/*.*
-      - .mocharc.cjs
-      - .c8rc.json
-      - /tsconfig*.json
+      # This file itself: a change to how the tests run is a reason to run them.
+      - '.github/workflows/test.yml'
+      - 'src/**'
+      - 'test/**'
+      # How anything is compiled, run or measured.
+      - '**/tsconfig*.json'
+      - '**/.mocharc.*'
+      - '.c8rc.json'
+      - '**/package.json'
+      - 'package-lock.json'
+      - 'support/**'
 
 # The workflow only ever reads the repository: it checks out, installs, and
 # runs tests. Anything it publishes goes out through a separate credential -
@@ -37,17 +48,20 @@ concurrency:
 jobs:
   test:
     name: Node v${{ matrix.node }} on PostgreSQL v${{ matrix.postgres }}
+    # **The "was this a merge from dev" half is gone from here, and that is not a relaxation.** It
+    # was a second copy of release.yml's condition - and in a `workflow_call` `github.event_name` is
+    # the *caller's* event (`push`), so the identical guard was evaluated twice on every release, in
+    # two files that had to be kept in step by hand. The decision lives once now, in release.yml,
+    # and is answered by the API (`pr-source.yaml@v3`) rather than by parsing a commit message,
+    # which only ever recognised one of the three merge buttons this repository has enabled.
+    #
+    # It was also wrong here on its own terms: this workflow's own trigger is a push to `dev`, where
+    # a merge into `dev` from any branch whose name contains `/dev` skipped the tests entirely.
     if: >
       github.event_name == 'workflow_dispatch' ||
       (
         github.event_name == 'push' &&
-        !(
-          contains(github.event.head_commit.message, 'no-test') ||
-          ( 
-            startsWith(github.event.head_commit.message, 'Merge pull request') &&
-            contains(github.event.head_commit.message, '/dev')
-          )
-        )
+        !contains(github.event.head_commit.message, 'no-test')
       )
     strategy:
       fail-fast: false
@@ -157,20 +171,32 @@ jobs:
           sudo -u postgres psql -c "grant all on database postgrejs_test to postgrejs_test;"
           sudo -u postgres psql -c "alter database postgrejs_test owner to postgrejs_test;"
 
+      # `@v2`: `install: 'ci'` installs exactly what the lockfile pins, where `@v1` deleted
+      # `package-lock.json` first and installed whatever resolved that morning - so what CI tested
+      # was a dependency set nobody had pinned. `token` is gone with PERSONAL_ACCESS_TOKEN (see the
+      # top of this file), and `rman-version` replaces `@v1`'s unpinned `npm i rman -g`.
       - name: Setup Environment
-        uses: panates/gh-setup-node@v1
+        uses: panates/gh-setup-node@v2
         with:
           node-version: ${{ matrix.node }}
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          rman-version: '2'
+          install: 'ci'
 
+      # **The preset's own commands, not npm scripts.** `lint` and `check` were root scripts
+      # (`eslint .` and `dpdm ...`); they are commands `@panates/rman-preset` contributes now, so
+      # every repository extending it spells them the same way and pins the flags in one place -
+      # `--exit-code circular:1` above all, without which dpdm reports a cycle and still exits 0.
       - name: Run linter test
-        run: npm run lint
+        run: rman lint
 
       - name: Run circular dependency test
-        run: npm run check
+        run: rman check
 
-      - name: Run compile test
-        run: npm run compile
+      # Was `npm run compile`, which is the same `tsc -b ... --noEmit` under a name that read like
+      # a build. The preset contributes no typecheck command - it builds with `tsc -b` and this is
+      # the no-emit half - so it stays an npm script.
+      - name: Run type check
+        run: npm run typecheck
 
       - name: Run unit tests
         run: npm run citest
@@ -193,17 +219,12 @@ jobs:
 
   test-bun:
     name: Bun on PostgreSQL v18
+    # See the "test" job above for why this is no longer the release's merge guard as well.
     if: >
       github.event_name == 'workflow_dispatch' ||
       (
         github.event_name == 'push' &&
-        !(
-          contains(github.event.head_commit.message, 'no-test') ||
-          (
-            startsWith(github.event.head_commit.message, 'Merge pull request') &&
-            contains(github.event.head_commit.message, '/dev')
-          )
-        )
+        !contains(github.event.head_commit.message, 'no-test')
       )
     # Pinned for the same reason as the "test" job above.
     runs-on: ubuntu-24.04
@@ -293,10 +314,10 @@ jobs:
       # happens under Bun, to prove the published package works there too
       # (Bun's own installer isn't exercised here, npm's is).
       - name: Setup Environment
-        uses: panates/gh-setup-node@v1
+        uses: panates/gh-setup-node@v2
         with:
           node-version: '22'
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          install: 'ci'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

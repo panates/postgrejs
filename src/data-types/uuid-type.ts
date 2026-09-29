@@ -17,6 +17,7 @@ const POSITIONS = [0, 2, 4, 6, 9, 11, 14, 16, 19, 21, 24, 26, 28, 30, 32, 34];
 const GUID_PATTERN =
   /^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$/;
 
+/** `uuid`, as its canonical 36-character text. */
 export const UuidType: DataType = {
   name: 'uuid',
   oid: DataTypeOIDs.uuid,
@@ -54,6 +55,7 @@ export const UuidType: DataType = {
   },
 };
 
+/** The `_uuid` array of {@link UuidType}. */
 export const ArrayUuidType: DataType = {
   ...UuidType,
   name: '_uuid',

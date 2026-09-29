@@ -13,6 +13,7 @@ import { BufferReader } from './buffer-reader.js';
 /** Microseconds since 2000-01-01, which is how this protocol tells time. */
 const PG_EPOCH_MS = Date.UTC(2000, 0, 1);
 
+/** One column of a replicated table, as the stream declared it. */
 export interface PgOutputColumn {
   name: string;
   dataTypeId: number;
@@ -21,6 +22,12 @@ export interface PgOutputColumn {
   isKey: boolean;
 }
 
+/**
+ * A replicated table, declared once and then referred to by id.
+ *
+ * The stream sends this before the first change to that table and not
+ * again, so a decoder has to remember it.
+ */
 export interface PgOutputRelation {
   relationId: number;
   schema: string;
@@ -29,6 +36,7 @@ export interface PgOutputRelation {
   columns: PgOutputColumn[];
 }
 
+/** Any message the `pgoutput` plugin sends, decoded. */
 export type PgOutputMessage =
   | { kind: 'begin'; finalLsn: bigint; commitTime: Date; xid: number }
   | { kind: 'commit'; commitLsn: bigint; endLsn: bigint; commitTime: Date }
@@ -56,6 +64,13 @@ export type PgOutputMessage =
  */
 export type TupleValues = Record<string, string | null>;
 
+/**
+ * Reads the `pgoutput` logical replication stream.
+ *
+ * Keeps the relations the stream declares, so each change can be
+ * reported with the table and column names it belongs to rather than
+ * the ids the wire uses.
+ */
 export class PgOutputDecoder {
   protected readonly _relations = new Map<number, PgOutputRelation>();
 

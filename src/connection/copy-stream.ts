@@ -33,6 +33,7 @@ export class CopyToStream extends Readable {
   protected _settled = false;
   protected _paused = false;
 
+  /** @param socket The socket the copy is running on. */
   constructor(socket: PgSocket) {
     super();
     this._socket = socket;
@@ -157,6 +158,7 @@ export class CopyFromStream extends Writable {
   protected _copyEnded = false;
   protected _settled = false;
 
+  /** @param socket The socket the copy is running on. */
   constructor(socket: PgSocket) {
     super();
     this._socket = socket;

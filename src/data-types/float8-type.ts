@@ -4,6 +4,7 @@ import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import { assertCoercedNumber } from '../util/assert-integer.js';
 import { fastParseFloatBuffer } from '../util/fast-parsefloat.js';
 
+/** `float8` (double precision), as a number. */
 export const Float8Type: DataType = {
   name: 'float8',
   oid: DataTypeOIDs.float8,
@@ -33,6 +34,7 @@ export const Float8Type: DataType = {
   },
 };
 
+/** The `_float8` array of {@link Float8Type}. */
 export const ArrayFloat8Type: DataType = {
   ...Float8Type,
   name: '_float8',

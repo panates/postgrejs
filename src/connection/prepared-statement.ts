@@ -26,6 +26,31 @@ import { Portal } from './portal.js';
 let statementCounter = 0;
 let portalCounter = 0;
 
+/**
+ * A statement parsed once by the server and executed as many times as
+ * the caller likes.
+ *
+ * Obtained from `Connection.prepare()` or `Pool.prepare()`. Each
+ * `execute()` then costs a Bind and an Execute instead of a full Parse,
+ * and the server plans it once - which is what makes it worth naming a
+ * statement that runs in a loop. `executeBatch()` goes further and sends
+ * every parameter set before waiting for any of them.
+ *
+ * ```ts
+ * const statement = await connection.prepare(
+ *   'update customers set city = $1 where id = $2',
+ * );
+ * await statement.execute({ params: ['Berlin', 1] });
+ * await statement.execute({ params: ['Paris', 2] });
+ * await statement.close();
+ * ```
+ *
+ * A statement holds a server-side name until `close()`, and one taken
+ * from a `Pool` holds that pool's connection with it, so it must be
+ * closed - `await using` does it at the end of the scope.
+ *
+ * Emits `close` and `notice`.
+ */
 export class PreparedStatement
   extends SafeEventEmitter
   implements AsyncDisposable
@@ -40,6 +65,13 @@ export class PreparedStatement
   private _refCount = 0;
   private _closed = false;
 
+  /**
+   * Builds the handle; `prepare()` is what sends anything.
+   *
+   * @param connection The connection this statement lives on.
+   * @param sql The statement text.
+   * @param paramTypes Declared parameter types, if the caller named any.
+   */
   constructor(connection: Connection, sql: string, paramTypes?: OID[]) {
     super();
     this._connection = connection;
@@ -49,6 +81,18 @@ export class PreparedStatement
     this._onErrorSavePoint = 'SP_' + Math.round(Math.random() * 100000000);
   }
 
+  /**
+   * Parses the statement on the server and describes it, in one round
+   * trip, so the first `execute()` already knows what its columns are.
+   *
+   * `Connection.prepare()` is the way to call this.
+   *
+   * @param connection The connection to prepare on.
+   * @param sql The statement text.
+   * @param options Declared parameter types.
+   * @returns The prepared statement.
+   * @throws DatabaseError When the server refuses to parse it.
+   */
   static async prepare(
     connection: Connection,
     sql: string,
@@ -72,18 +116,25 @@ export class PreparedStatement
     return statement;
   }
 
+  /** The connection this statement was prepared on. */
   get connection(): Connection {
     return this._connection;
   }
 
+  /** The name the server knows this statement by. */
   get name(): Maybe<string> {
     return this._name;
   }
 
+  /** The statement text, as it was prepared. */
   get sql(): string {
     return this._sql;
   }
 
+  /**
+   * The parameter types the caller declared at `prepare()`, if any -
+   * `resolvedParamTypes` is what the server made of them.
+   */
   get paramTypes(): Maybe<Maybe<OID>[]> {
     return this._paramTypes;
   }
@@ -109,10 +160,21 @@ export class PreparedStatement
     return this._resolvedParamTypes;
   }
 
+  /**
+   * Runs the statement once, with one set of parameters.
+   *
+   * Takes the same options `Connection.query()` does, minus the SQL -
+   * parameters, row shape, type mapping, `cursor`, a signal.
+   *
+   * @param options Parameters and how to read the result.
+   * @returns The rows, the command tag, and what the columns were.
+   * @throws DatabaseError When the server refuses the execution.
+   */
+  /* The options are merged with the connection's defaults here rather
+     than deeper down, because a cursor keeps them and decodes its own
+     rows with them long after this call is over. */
   async execute(options: QueryOptions = {}): Promise<QueryResult> {
     const intlCon = getIntlConnection(this.connection);
-    // Folded in here rather than deeper: a cursor keeps these options
-    // and decodes its own rows with them long after this call is over.
     options = intlCon.withDefaults(options);
     if (options.signal)
       return withAbortSignal(
@@ -368,6 +430,13 @@ export class PreparedStatement
     }
   }
 
+  /**
+   * Closes the statement on the server and releases what it was holding
+   * - the connection too, when it came from a pool.
+   *
+   * Idempotent, and deferred while a cursor of this statement is still
+   * open. Emits `close`.
+   */
   async close(): Promise<void> {
     if (this._closed) return;
     --this._refCount;

@@ -9,6 +9,7 @@ import { parsePgTimestampBuffer } from '../util/parse-pg-timestamp.js';
 const timeShift = 946684800000;
 const timeMul = 4294967296;
 
+/** `timestamptz`, as a `Date` at the instant it names, which is what the type stores. */
 export const TimestamptzType: DataType = {
   name: 'timestamptz',
   oid: DataTypeOIDs.timestamptz,
@@ -100,6 +101,7 @@ export const TimestamptzType: DataType = {
   },
 };
 
+/** The `_timestamptz` array of {@link TimestamptzType}. */
 export const ArrayTimestamptzType: DataType = {
   ...TimestamptzType,
   name: '_timestamptz',

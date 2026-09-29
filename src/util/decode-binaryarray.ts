@@ -2,6 +2,15 @@ import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import { BufferReader } from '../protocol/buffer-reader.js';
 import type { DecodeBinaryFunction, Nullable } from '../types.js';
 
+/**
+ * Reads an array out of the binary wire format, nested to whatever depth
+ * it declares.
+ *
+ * @param buf The value's own bytes.
+ * @param decode The element type's binary decoder.
+ * @param options Passed to it.
+ * @returns The array, with SQL NULLs as `null`.
+ */
 export function decodeBinaryArray<T = any>(
   buf: Buffer,
   offset: number,

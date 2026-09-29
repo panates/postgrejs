@@ -29,7 +29,9 @@ import type { PreparedStatement } from './prepared-statement.js';
  */
 export type PoolPipelineOptions = Pick<QueryOptions, 'pipeline'>;
 
+/** What `Pool.query()` takes - a connection's own options, since it runs on one. */
 export type PoolQueryOptions = QueryOptions;
+/** What `Pool.execute()` takes, for the same reason. */
 export type PoolScriptExecuteOptions = ScriptExecuteOptions;
 
 /**
@@ -45,11 +47,38 @@ export type PoolScriptExecuteOptions = ScriptExecuteOptions;
  * reports zero running queries.
  */
 interface PipelineSlot {
+  /** The connection once it is open. */
   connection?: Connection;
+  /** What everything waiting for this slot awaits. */
   promise: Promise<Connection>;
+  /** Queries handed to this slot that have not settled yet. */
   load: number;
 }
 
+/**
+ * A set of connections, handed out and taken back.
+ *
+ * Takes the same configuration a `Connection` does, plus how many to
+ * keep (`min`, `max`) and how long an idle one lives. Nothing connects
+ * until something is asked for.
+ *
+ * Most callers never hold a connection at all: `query()`, `execute()`
+ * and `transaction()` take one, use it and give it back, so the pool is
+ * a drop-in for a connection.
+ *
+ * ```ts
+ * const pool = new Pool({ host: 'localhost', database: 'mydb', max: 10 });
+ * const result = await pool.query('select * from customers');
+ * await pool.close();
+ * ```
+ *
+ * `acquire()` is for the cases that need one connection for several
+ * statements - a session setting, an advisory lock - and its connection
+ * must be released.
+ *
+ * Emits `connect`, `acquire`, `release`, `remove`, `close`, `error` and
+ * `terminate`.
+ */
 export class Pool extends SafeEventEmitter {
   protected readonly _pool: LightningPool<IntlConnection>;
   protected readonly _notificationListeners = new SafeEventEmitter();
@@ -65,8 +94,14 @@ export class Pool extends SafeEventEmitter {
   protected readonly _destroyReasons = new WeakMap<IntlConnection, Error>();
   protected _pipelineMaxQueries: number;
   protected _pipelineMaxConnections: number;
+  /** What this pool was built with, frozen. */
   readonly config: PoolConfiguration;
 
+  /**
+   * @param config How to reach the server and how many connections to
+   * keep - an object, a connection string, or nothing to take it all
+   * from the environment.
+   */
   constructor(config?: PoolConfiguration | string) {
     super();
     const cfg = getConnectionConfig(config) as PoolConfiguration;
@@ -192,6 +227,13 @@ export class Pool extends SafeEventEmitter {
     return this._pool.size;
   }
 
+  /**
+   * Opens the `min` connections now instead of waiting for the first
+   * caller to need one.
+   *
+   * Never required: a pool that is only used starts itself. Worth it
+   * where the first query should not pay for the handshake.
+   */
   start() {
     return this._pool.start();
   }
@@ -364,6 +406,17 @@ export class Pool extends SafeEventEmitter {
     }
   }
 
+  /**
+   * Prepares a statement on a connection of the pool's, which that
+   * statement keeps until it is closed.
+   *
+   * The connection is released by `close()` on the statement, so one
+   * that is never closed holds a connection out of the pool for good.
+   *
+   * @param sql The statement to prepare.
+   * @param options Declared parameter types.
+   * @returns The prepared statement, ready to execute.
+   */
   async prepare(
     sql: string,
     options?: StatementPrepareOptions,
@@ -376,21 +429,36 @@ export class Pool extends SafeEventEmitter {
     return statement;
   }
 
+  /**
+   * Gives a connection taken with `acquire()` back to the pool.
+   *
+   * @param connection The connection to release.
+   */
   release(connection: Connection): Promise<void> {
     return this._pool.releaseAsync(getIntlConnection(connection));
   }
 
+  /**
+   * Subscribes to a `NOTIFY` channel on a connection the pool keeps for
+   * notifications.
+   *
+   * A pooled connection cannot carry a subscription - it goes back to
+   * the pool and the next caller would receive them - so the first
+   * `listen()` opens one connection outside the pool and every channel
+   * shares it. `unListenAll()` closes it again.
+   *
+   * @param channel The channel to subscribe to.
+   * @param callback Called with each notification on it.
+   */
+  /* The channel name is normalized here as well as in
+     Connection.listen(), because this emitter's keys have to be the same
+     strings the inner connection registers or unListen() would miss
+     them. And the test below is per channel: it used to be enough that
+     the shared connection existed, so a second channel added after the
+     first was recorded here but never reached the server - the same root
+     cause as the one fixed one layer up. */
   async listen(channel: string, callback: NotificationCallback) {
-    // Folded here as well as in Connection.listen(): this emitter's keys
-    // have to be the same strings the inner connection registers, or
-    // unListen() would miss them.
     channel = normalizeChannelName(channel);
-    // Bug: _initNotificationConnection() only ever bootstraps the shared
-    // connection and registers every channel known at that moment - it
-    // returns immediately once that connection already exists, so a second,
-    // different channel added afterwards was recorded here but never
-    // reached the server at all (same root cause fixed in
-    // Connection.listen(), one layer up).
     const alreadyListening =
       !!this._notificationListeners.listenerCount(channel);
     this._notificationListeners.on(channel, callback);
@@ -401,6 +469,12 @@ export class Pool extends SafeEventEmitter {
     }
   }
 
+  /**
+   * Drops every callback on one channel, and closes the notification
+   * connection when it was the last one.
+   *
+   * @param channel The channel to unsubscribe from.
+   */
   async unListen(channel: string) {
     channel = normalizeChannelName(channel);
     this._notificationListeners.removeAllListeners(channel);
@@ -410,6 +484,10 @@ export class Pool extends SafeEventEmitter {
       await this._notificationConnection.unListen(channel);
   }
 
+  /**
+   * Drops every callback on every channel and closes the connection the
+   * pool was keeping for them.
+   */
   async unListenAll() {
     this._notificationListeners.removeAllListeners();
     if (this._notificationConnection) {

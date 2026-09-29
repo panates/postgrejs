@@ -91,12 +91,14 @@ function createType(name: string, oid: number, size: number): DataType {
   };
 }
 
+/** `macaddr`, as its six-group colon-separated text. */
 export const MacaddrType: DataType = createType(
   'macaddr',
   DataTypeOIDs.macaddr,
   6,
 );
 
+/** The `_macaddr` array of {@link MacaddrType}. */
 export const ArrayMacaddrType: DataType = {
   ...MacaddrType,
   name: '_macaddr',
@@ -104,12 +106,14 @@ export const ArrayMacaddrType: DataType = {
   elementsOID: DataTypeOIDs.macaddr,
 };
 
+/** `macaddr8`, as its eight-group colon-separated text. */
 export const Macaddr8Type: DataType = createType(
   'macaddr8',
   DataTypeOIDs.macaddr8,
   8,
 );
 
+/** The `_macaddr8` array of {@link Macaddr8Type}. */
 export const ArrayMacaddr8Type: DataType = {
   ...Macaddr8Type,
   name: '_macaddr8',

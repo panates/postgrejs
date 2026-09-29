@@ -19,12 +19,17 @@ import { SASL } from './sasl.js';
 const DEFAULT_PORT_NUMBER = 5432;
 const COMMAND_RESULT_PATTERN = /^([^\d]+)(?: (\d+)(?: (\d+))?)?$/;
 
+/**
+ * What a sender registers to receive the messages its statement
+ * provokes, until it calls `done`.
+ */
 export type CaptureCallback = (
   code: Protocol.BackendMessageCode,
   msg: any,
   done: (err: Maybe<Error>, result?: any) => void,
 ) => void | Promise<void>;
 
+/** A socket-level failure, with the code the platform gave it. */
 export interface SocketError extends Error {
   code: string;
 }
@@ -35,6 +40,11 @@ interface CaptureEntry {
   reject: (err: Error) => void;
 }
 
+/**
+ * The connected socket: the handshake, the authentication, TLS where it
+ * is asked for, and a queue that pairs each response with whoever sent
+ * the statement that caused it.
+ */
 export class PgSocket extends SafeEventEmitter {
   private _state = ConnectionState.CLOSED;
   /**
@@ -781,13 +791,15 @@ export class PgSocket extends SafeEventEmitter {
         " current_setting('transaction_read_only') as b",
       (code, msg, done) => {
         if (code === Protocol.BackendMessageCode.DataRow) {
-          // Two text columns, each length-prefixed within the row buffer.
-          const data: Buffer = msg.data;
-          const aLen = data.readInt32BE(0);
-          const a = data.toString('utf8', 4, 4 + aLen);
-          const bOffset = 4 + aLen;
-          const bLen = data.readInt32BE(bOffset);
-          const b = data.toString('utf8', bOffset + 4, bOffset + 4 + bLen);
+          // Two text columns, each length-prefixed, read where the row
+          // already sits in the read buffer.
+          const buffer: Buffer = msg.buffer;
+          const start: number = msg.offset;
+          const aLen = buffer.readInt32BE(start);
+          const a = buffer.toString('utf8', start + 4, start + 4 + aLen);
+          const bOffset = start + 4 + aLen;
+          const bLen = buffer.readInt32BE(bOffset);
+          const b = buffer.toString('utf8', bOffset + 4, bOffset + 4 + bLen);
           this._standbyState = { standby: a === 'true', readOnly: b === 'on' };
         } else if (code === Protocol.BackendMessageCode.ReadyForQuery) {
           done(undefined);

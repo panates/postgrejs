@@ -22,6 +22,12 @@ export function wantsDecimalString(
   return v === true || v.includes(oid);
 }
 
+/**
+ * Refuses a `decimalAsString` that names a type it cannot apply to.
+ *
+ * @param v The option as the caller wrote it.
+ * @throws TypeError When it names an OID outside the decimal types.
+ */
 export function validateDecimalAsString(v: Maybe<boolean | OID[]>): void {
   if (v === undefined || typeof v === 'boolean') return;
   if (!Array.isArray(v))

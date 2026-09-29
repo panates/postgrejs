@@ -4,6 +4,7 @@ import type { SmartBuffer } from '../protocol/smart-buffer.js';
 import { assertInteger } from '../util/assert-integer.js';
 import { fastParseInt, fastParseIntBuffer } from '../util/fast-parseint.js';
 
+/** `int4` (integer), as a number. */
 export const Int4Type: DataType = {
   name: 'int4',
   oid: DataTypeOIDs.int4,
@@ -34,6 +35,7 @@ export const Int4Type: DataType = {
   },
 };
 
+/** The `_int4` array of {@link Int4Type}. */
 export const ArrayInt4Type: DataType = {
   ...Int4Type,
   name: '_int4',

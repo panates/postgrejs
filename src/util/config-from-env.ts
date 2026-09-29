@@ -1,6 +1,16 @@
 import { toInt, toIntDef } from 'putil-varhelpers';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
 
+/**
+ * What the environment says about where to connect.
+ *
+ * The variables `psql` itself reads - `PGHOST`, `PGPORT`, `PGUSER`,
+ * `PGPASSWORD`, `PGDATABASE` and the rest - so a program configured for
+ * one is configured for the other.
+ *
+ * @returns Whatever the environment named; anything it did not is left
+ * out rather than defaulted here.
+ */
 export function configFromEnv(): ConnectionConfiguration {
   const env = process.env;
   const result: ConnectionConfiguration = {};

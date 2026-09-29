@@ -1,3 +1,4 @@
+import { updateErrorMessage } from '@jsopen/objects';
 import { ConnectionState, DataTypeOIDs } from '../constants.js';
 import type {
   CopyFromRowsOptions,
@@ -30,7 +31,9 @@ import { LargeObject, LargeObjectMode } from './large-object.js';
 import type { Pool } from './pool.js';
 import { PreparedStatement } from './prepared-statement.js';
 
+/** One `NOTIFY` as the server delivered it: its channel, payload and sender. */
 export type NotificationMessage = Protocol.NotificationResponseMessage;
+/** What `listen()` calls with each notification on its channel. */
 export type NotificationCallback = (msg: NotificationMessage) => any;
 
 const CAPTURE_STACK_TRACE_LIMIT = 5;
@@ -38,13 +41,45 @@ const CAPTURE_STACK_TRACE_LIMIT = 5;
 /** Names the savepoint a nested transaction() scope takes. */
 let transactionScopeCounter = 0;
 
+/**
+ * One session on one server.
+ *
+ * Built either from a configuration object, a connection string, or
+ * nothing at all - in which case the environment answers for it, the
+ * same variables `psql` reads (`PGHOST`, `PGDATABASE`, `PGUSER`, and the
+ * rest). `connect()` opens it and `close()` ends it; a connection taken
+ * from a `Pool` returns there instead.
+ *
+ * ```ts
+ * const connection = new Connection('postgres://localhost/mydb');
+ * await connection.connect();
+ * const result = await connection.query('select * from customers where id = $1', {
+ *   params: [42],
+ * });
+ * await connection.close();
+ * ```
+ *
+ * `await using` closes it at the end of the scope, and every query
+ * method accepts an `AbortSignal`.
+ *
+ * Emits `connecting`, `ready`, `close`, `terminate`, `error`, `notice`
+ * and `debug`.
+ */
 export class Connection extends SafeEventEmitter implements AsyncDisposable {
   protected _pool?: Pool;
   protected _intlCon: IntlConnection;
   protected _notificationListeners?: SafeEventEmitter;
   protected _closing = false;
 
+  /**
+   * @param pool The pool this connection belongs to.
+   * @param intlCon The internals it is a handle on.
+   */
   constructor(pool: Pool, intlCon: IntlConnection);
+  /**
+   * @param config How to reach the server - an object, a connection
+   * string, or nothing to take it all from the environment.
+   */
   constructor(config?: ConnectionConfiguration | string);
   constructor(arg0: any, arg1?: any) {
     super();
@@ -116,6 +151,12 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     return this._intlCon.secretKey;
   }
 
+  /**
+   * How many queries this connection is running right now.
+   *
+   * More than one only when they were pipelined; a connection answers
+   * them in order either way.
+   */
   get runningQueryCount(): number {
     return this._intlCon.runningQueryCount;
   }
@@ -256,6 +297,30 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     );
   }
 
+  /**
+   * Runs one statement and returns its result.
+   *
+   * Parameters are sent separately from the SQL - `$1`, `$2` and so on -
+   * so nothing has to be escaped into the text. A statement seen a few
+   * times is prepared and reused on this connection without being asked
+   * for, and `cursor: true` returns a `Cursor` instead of the rows.
+   *
+   * ```ts
+   * const result = await connection.query(
+   *   'select id, name from customers where city = $1',
+   *   { params: ['Berlin'], objectRows: true },
+   * );
+   * result.rows; // [{ id: 1, name: '...' }, ...]
+   * ```
+   *
+   * A statement built with the `sql` tag carries its own parameters and
+   * is passed on its own.
+   *
+   * @param sql The statement, or one built with the `sql` tag.
+   * @param options Parameters, row shape, type mapping, cursor, signal.
+   * @returns The rows, the command tag, and what the columns were.
+   * @throws DatabaseError When the server refuses the statement.
+   */
   async query(
     sql: string | QueryRequest,
     options?: QueryOptions,
@@ -479,6 +544,31 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     });
   }
 
+  /**
+   * Bulk-loads rows into a table over `COPY ... FROM STDIN`, in
+   * PostgreSQL's binary format.
+   *
+   * The fastest way to write many rows: one statement carrying a stream
+   * of them, instead of an INSERT or a bind per row. Values are encoded
+   * from their JavaScript types against the table's own columns, so
+   * nothing has to be formatted by the caller.
+   *
+   * ```ts
+   * await connection.copyFromRows('customers', [
+   *   [1, 'Ada', new Date()],
+   *   [2, 'Grace', new Date()],
+   * ]);
+   * ```
+   *
+   * `source` can be an array, an iterable, or an async iterable - a
+   * stream of rows is never held whole.
+   *
+   * @param table The destination table, optionally schema-qualified.
+   * @param source The rows to load.
+   * @param options Which columns, how to encode them, a signal.
+   * @returns How many rows the server took.
+   * @throws DatabaseError When a row is refused, which ends the copy.
+   */
   async copyFromRows(
     table: string,
     source: CopyRowSource,
@@ -501,6 +591,28 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     });
   }
 
+  /**
+   * Opens a `COPY ... FROM STDIN` and hands back the stream to write it
+   * into, for a payload the caller formats itself.
+   *
+   * `copyFromRows()` is the one to reach for when the rows are
+   * JavaScript values; this is for bytes already in the format the
+   * statement names - CSV a caller produced, or a binary payload from
+   * somewhere else.
+   *
+   * ```ts
+   * const stream = await connection.copyFrom(
+   *   'copy customers from stdin (format csv)',
+   * );
+   * stream.write('1,Ada\n');
+   * await stream.end();
+   * ```
+   *
+   * @param sql The `COPY ... FROM STDIN` statement.
+   * @returns A writable stream; `end()` completes the copy and resolves
+   * with what the server took.
+   * @throws DatabaseError When the statement itself is refused.
+   */
   async copyFrom(sql: string): Promise<CopyFromStream> {
     /* c8 ignore start */
     if (this.listenerCount('debug')) {
@@ -754,6 +866,27 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     );
   }
 
+  /**
+   * Subscribes to a `NOTIFY` channel, sending `LISTEN` the first time
+   * this connection hears of it.
+   *
+   * Several callbacks can share a channel; only the first costs a round
+   * trip. The channel name is quoted for the server, so it may be
+   * anything a string can hold.
+   *
+   * ```ts
+   * await connection.listen('order_placed', msg => {
+   *   console.log(msg.payload);
+   * });
+   * ```
+   *
+   * @param channel The channel to subscribe to.
+   * @param callback Called with each notification on it.
+   */
+  /* This used to test whether ANY channel had a listener rather than
+     this one, so a second channel added after the first never had its
+     own LISTEN sent and never received anything - verified live, only
+     the first channel ever appeared in pg_stat_activity's query text. */
   async listen(channel: string, callback: NotificationCallback) {
     channel = normalizeChannelName(channel);
     if (!this._notificationListeners) {
@@ -762,11 +895,6 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         this._handleNotification(msg),
       );
     }
-    // Bug: this used to check whether ANY channel already had a listener,
-    // not this one specifically - so a second, different channel added
-    // after the first never got its own LISTEN sent at all, and never
-    // received a notification for it (verified live: only the first
-    // channel ever showed up in pg_stat_activity's query text).
     const alreadyListening =
       !!this._notificationListeners.listenerCount(channel);
     this._notificationListeners.on(channel, callback);
@@ -776,6 +904,13 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       );
   }
 
+  /**
+   * Drops every callback on one channel and sends `UNLISTEN` for it.
+   *
+   * Does nothing when the channel was never listened to.
+   *
+   * @param channel The channel to unsubscribe from.
+   */
   async unListen(channel: string) {
     channel = normalizeChannelName(channel);
     if (this._notificationListeners?.listenerCount(channel)) {
@@ -786,6 +921,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     }
   }
 
+  /** Drops every callback on every channel, with one `UNLISTEN *`. */
   async unListenAll() {
     if (this._notificationListeners?.eventNames().length) {
       this._notificationListeners.removeAllListeners();
@@ -956,6 +1092,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         err.message += `\n${String(err.lineNr - 1).padStart(3)}| ${lines[err.lineNr - 2]}`;
       err.message += `\n${String(err.lineNr).padStart(3)}| ${err.line}\n    .${'-'.repeat(Math.max(err.colNr - 1, 0))}^`;
     }
+    updateErrorMessage(err, err.message);
     return err;
   }
 

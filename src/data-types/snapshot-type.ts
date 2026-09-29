@@ -92,11 +92,13 @@ function createType(name: string, oid: number): DataType {
   };
 }
 
+/** `pg_snapshot`, as the `xmin:xmax:xip_list` text it is written as. */
 export const PgSnapshotType: DataType = createType(
   'pg_snapshot',
   DataTypeOIDs.pg_snapshot,
 );
 
+/** The `_pg_snapshot` array of {@link PgSnapshotType}. */
 export const ArrayPgSnapshotType: DataType = {
   ...PgSnapshotType,
   name: '_pg_snapshot',
@@ -104,11 +106,13 @@ export const ArrayPgSnapshotType: DataType = {
   elementsOID: DataTypeOIDs.pg_snapshot,
 };
 
+/** `txid_snapshot`, the older spelling of {@link PgSnapshotType}, as the same text. */
 export const TxidSnapshotType: DataType = createType(
   'txid_snapshot',
   DataTypeOIDs.txid_snapshot,
 );
 
+/** The `_txid_snapshot` array of {@link TxidSnapshotType}. */
 export const ArrayTxidSnapshotType: DataType = {
   ...TxidSnapshotType,
   name: '_txid_snapshot',

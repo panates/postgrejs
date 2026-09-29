@@ -41,6 +41,14 @@ function coerce(v: Date | number | string): Date | string {
   return v instanceof Date ? v : new Date(v);
 }
 
+/**
+ * Renders a value as the `YYYY-MM-DD` a `date` parameter goes out as.
+ *
+ * @param v The date, an epoch milliseconds, or text to pass through.
+ * @param options `utcDates` decides which clock its components are read
+ * from.
+ * @returns The date's text.
+ */
 export function formatDate(
   v: Date | number | string,
   options?: DataMappingOptions,
@@ -51,6 +59,14 @@ export function formatDate(
   return `${pad(p.year, 4)}-${pad(p.month)}-${pad(p.day)}`;
 }
 
+/**
+ * Renders a value as the `HH:MM:SS.mmm` a `time` parameter goes out as.
+ *
+ * @param v The time, an epoch milliseconds, or text to pass through.
+ * @param options `utcDates` decides which clock its components are read
+ * from.
+ * @returns The time's text.
+ */
 export function formatTime(
   v: Date | number | string,
   options?: DataMappingOptions,
@@ -61,6 +77,16 @@ export function formatTime(
   return `${pad(p.hour)}:${pad(p.minute)}:${pad(p.second)}.${pad(p.ms, 3)}`;
 }
 
+/**
+ * Renders a value as the `YYYY-MM-DD HH:MM:SS.mmm` a `timestamp`
+ * parameter goes out as.
+ *
+ * @param v The timestamp, an epoch milliseconds, or text to pass
+ * through.
+ * @param options `utcDates` decides which clock its components are read
+ * from.
+ * @returns The timestamp's text.
+ */
 export function formatTimestamp(
   v: Date | number | string,
   options?: DataMappingOptions,

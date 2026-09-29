@@ -16,13 +16,18 @@ import { IntlConnection } from './intl-connection.js';
 const PG_EPOCH_MS = Date.UTC(2000, 0, 1);
 const DEFAULT_KEEPALIVE_MS = 10000;
 
+/** What happened to a row, as the replication stream reports it. */
 export type ChangeCommand = 'insert' | 'update' | 'delete' | 'truncate';
 
+/** One row change, decoded from the `pgoutput` stream. */
 export interface Change {
+  /** Which of the four it was. */
   command: ChangeCommand;
   /** Schema-qualified, e.g. `public.users`. */
   table: string;
+  /** The schema on its own, for a caller who does not want it qualified. */
   schema: string;
+  /** The table's own description, as the stream declared it. */
   relation: PgOutputRelation;
   /** The row after the change; absent for delete and truncate. */
   row?: TupleValues;
@@ -38,6 +43,10 @@ export interface Change {
   timestamp?: Date;
 }
 
+/**
+ * How to subscribe: everything a connection takes, plus which
+ * publication to follow and which slot to follow it in.
+ */
 export interface LogicalReplicationOptions extends ConnectionConfiguration {
   /** Publication(s) to subscribe to; they must already exist on the server. */
   publication: string | string[];
@@ -85,6 +94,7 @@ export interface LogicalReplicationOptions extends ConnectionConfiguration {
  * caller has to remember to acknowledge anything.
  */
 export class LogicalReplication extends SafeEventEmitter {
+  /** What this subscription was built with. */
   readonly options: LogicalReplicationOptions;
   protected _intlCon?: IntlConnection;
   protected readonly _decoder = new PgOutputDecoder();
@@ -101,6 +111,11 @@ export class LogicalReplication extends SafeEventEmitter {
   protected _commitTime?: Date;
   protected _streamDone?: Promise<any>;
 
+  /**
+   * @param options The publication to follow, the slot to follow it in,
+   * and how to reach the server.
+   * @throws TypeError When no publication is named.
+   */
   constructor(options: LogicalReplicationOptions) {
     super();
     if (!options.publication)

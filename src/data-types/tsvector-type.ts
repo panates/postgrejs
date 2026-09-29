@@ -191,6 +191,7 @@ function printQuery(
     : out;
 }
 
+/** `tsvector`, as its own text - the lexemes with their positions and weights. */
 export const TsVectorType: DataType = {
   name: 'tsvector',
   oid: DataTypeOIDs.tsvector,
@@ -217,6 +218,7 @@ export const TsVectorType: DataType = {
   },
 };
 
+/** The `_tsvector` array of {@link TsVectorType}. */
 export const ArrayTsVectorType: DataType = {
   ...TsVectorType,
   name: '_tsvector',
@@ -224,6 +226,7 @@ export const ArrayTsVectorType: DataType = {
   elementsOID: DataTypeOIDs.tsvector,
 };
 
+/** `tsquery`, as its own text. */
 export const TsQueryType: DataType = {
   ...TsVectorType,
   name: 'tsquery',
@@ -237,6 +240,7 @@ export const TsQueryType: DataType = {
   },
 };
 
+/** The `_tsquery` array of {@link TsQueryType}. */
 export const ArrayTsQueryType: DataType = {
   ...TsQueryType,
   name: '_tsquery',

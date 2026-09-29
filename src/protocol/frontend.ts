@@ -5,7 +5,7 @@ import type { Maybe, OID } from '../types.js';
 import { arrayLeaf } from '../util/array-leaf.js';
 import { encodeBinaryArray } from '../util/encode-binaryarray.js';
 import { formatDateParam } from '../util/format-datetime.js';
-import { stringifyArrayLiteral } from '../util/stringify-arrayliteral.js';
+import { writeArrayLiteral } from '../util/stringify-arrayliteral.js';
 import { Protocol } from './protocol.js';
 import type { SASL } from './sasl.js';
 import { SmartBuffer, type SmartBufferConfig } from './smart-buffer.js';
@@ -40,11 +40,15 @@ const StaticCopyDoneBuffer = Buffer.from([
   0x04,
 ]);
 
+/** How a `Frontend` builds its messages - the buffer it writes them into. */
 export interface FrontendOptions {
+  /** The send buffer's own configuration. */
   buffer?: SmartBufferConfig;
 }
 
+/** What each message the client sends is built from. */
 export namespace Frontend {
+  /** The startup packet: who is connecting, to what, and any session settings to carry with it. */
   export interface StartupMessageArgs {
     user: string;
     database: string;
@@ -52,6 +56,7 @@ export namespace Frontend {
     [index: string]: string;
   }
 
+  /** A Bind: which statement, which portal, the parameters and the formats to read the result in. */
   export interface BindMessageArgs {
     typeMap: DataTypeMap;
     statement?: string;
@@ -68,22 +73,26 @@ export namespace Frontend {
     columnFormat?: Protocol.DataFormat | Protocol.DataFormat[];
   }
 
+  /** A Parse: the SQL, the name to give it, and any parameter types to declare. */
   export interface ParseMessageArgs {
     statement?: string;
     sql: string;
     paramTypes?: Maybe<OID>[];
   }
 
+  /** A Describe: of a statement (`S`) or of a portal (`P`). */
   export interface DescribeMessageArgs {
     type: 'P' | 'S';
     name?: string;
   }
 
+  /** An Execute: which portal, and how many rows to stop at. */
   export interface ExecuteMessageArgs {
     portal?: string;
     fetchCount?: number;
   }
 
+  /** A Close: of a statement (`S`) or of a portal (`P`). */
   export interface CloseMessageArgs {
     type: 'P' | 'S';
     name?: string;
@@ -114,6 +123,13 @@ export namespace Frontend {
   }
 }
 
+/**
+ * Builds the client's messages, into one buffer it keeps and reuses.
+ *
+ * Each method returns the bytes of one message; the socket writes them,
+ * often several at a time so a statement costs one round trip rather
+ * than one per message.
+ */
 export class Frontend {
   private _io: SmartBuffer;
 
@@ -289,10 +305,9 @@ export class Frontend {
             }
             io.buffer.writeInt32BE(io.size - dataOffset, dataOffset - 4); // Update length
           } else if (typeof dt.encodeText === 'function') {
-            v = dt.elementsOID
-              ? stringifyArrayLiteral(v, queryOptions, dt.encodeText)
-              : dt.encodeText(v, queryOptions);
-            io.writeLString(v, 'utf8');
+            if (dt.elementsOID)
+              writeArrayLiteral(io, v, queryOptions, dt.encodeText);
+            else io.writeLString(dt.encodeText(v, queryOptions), 'utf8');
           }
         } else if (v instanceof Date) {
           // No declared type, so the server resolves it from the column
@@ -306,13 +321,11 @@ export class Frontend {
           // takes the element type from the column. `'' + v` would hand
           // it `a,b`, which is not one - the elements have to be quoted
           // and the braces written, and a nested array needs its own.
-          io.writeLString(
-            stringifyArrayLiteral(
-              v,
-              queryOptions,
-              arrayLeaf(v) instanceof Date ? formatDateParam : undefined,
-            ),
-            'utf8',
+          writeArrayLiteral(
+            io,
+            v,
+            queryOptions,
+            arrayLeaf(v) instanceof Date ? formatDateParam : undefined,
           );
         } else if (Buffer.isBuffer(v)) {
           // Set param format to binary

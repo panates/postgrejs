@@ -16,6 +16,7 @@ import type { SmartBuffer } from '../protocol/smart-buffer.js';
 /** The only format the server has ever written, and the one it reads. */
 const JSONPATH_VERSION = 1;
 
+/** `jsonpath`, as text. */
 export const JsonPathType: DataType = {
   name: 'jsonpath',
   oid: DataTypeOIDs.jsonpath,
@@ -57,6 +58,7 @@ export const JsonPathType: DataType = {
   },
 };
 
+/** The `_jsonpath` array of {@link JsonPathType}. */
 export const ArrayJsonPathType: DataType = {
   ...JsonPathType,
   name: '_jsonpath',

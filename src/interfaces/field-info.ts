@@ -1,3 +1,11 @@
+/**
+ * One column of a result, as the server described it and this client
+ * mapped it.
+ *
+ * The server's half - name, type OID, table and column - comes from the
+ * RowDescription; `jsType`, the element type of an array and the fixed
+ * size are what the type map made of it.
+ */
 export interface FieldInfo {
   /**
    * Name of the field
