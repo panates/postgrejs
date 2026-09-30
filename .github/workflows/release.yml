@@ -30,6 +30,14 @@ jobs:
 
   test:
     needs: source
+    # Declared here as well as at the top of test.yml, for the same reason the release job below
+    # declares its own: a reusable workflow's token is capped by the job that calls it, and a caller
+    # without a `permissions` block takes the repository default - which is org-wide, and can be
+    # widened without anyone editing this file (CodeQL alert #13). `contents: read` is what the
+    # tests need and all they need; it matches what test.yml already narrows itself to, so this
+    # changes nothing about how the job runs today, it only stops the ceiling moving.
+    permissions:
+      contents: read
     # **`head-ref != 'dev'` is an exact comparison, which the old `contains(msg, '/dev')` was not** -
     # a pull request from `develop` or `dev-hotfix` used to skip the tests it should have run.
     #
