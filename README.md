@@ -62,7 +62,7 @@ PostgreJS is a driver, not a framework, so what you build on top of it stays you
       <a href="https://www.sqbjs.org"><img src="https://www.postgrejs.com/img/sqb-logo.svg" alt="SQB" height="60"></a><br><br>
       <b><a href="https://www.sqbjs.org">SQB</a></b><br>
       <a href="https://www.npmjs.com/package/@sqb/postgres"><code>@sqb/postgres</code></a><br>
-      <sub>native driver</sub>
+      <sub>first-party adapter</sub>
     </td>
     <td align="center" width="230" valign="top">
       <a href="https://kysely.dev"><img src="https://www.postgrejs.com/img/kysely-logo.svg" alt="Kysely" height="60"></a><br><br>
