@@ -1,6 +1,32 @@
 # Changelog
 
-<!-- rman:documented-up-to 88f329a0dd21d246bd314f8bf581d6de153aa18d -->
+<!-- rman:documented-up-to 2f09a3de2b3cc32810b4d3883f876663ec304589 -->
+
+## v3.12.2 (2026-10-05)
+
+### ⚡ Performance and Optimizations
+
+- **deps:** flexy-buffer 1.1.2, which stops arming a timer per message (36e8530)
+
+### 📚 Documentation
+
+- **readme:** stop calling the SQB integration a "native driver" (b6cb2d1)
+- **benchmark:** disclose the one default the harness turns off (0810e64)
+
+### 📦 Build System
+
+- adopt the shared Renovate config (3906384)
+
+### 🤖 Continuous Integration
+
+- pin the release workflow's test job to a read-only token (77cebe3)
+
+### 🧹 Chores
+
+- sync lockfile (9f5d52d)
+- Updated deps (45791d8)
+
+---
 
 ## v3.12.1 (2026-09-29)
 
