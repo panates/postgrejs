@@ -57,6 +57,7 @@ import {
 } from '../util/fetch-as-string.js';
 import { getParsers } from '../util/get-parsers.js';
 import { resolveColumnFormats } from '../util/resolve-column-formats.js';
+import { resolvedBindTypes } from '../util/resolved-bind-type.js';
 import {
   dataRowBytes,
   resolveRowDecoder,
@@ -144,6 +145,11 @@ function reportsRowsAffected(command: Maybe<string>): boolean {
 interface PreparedCacheEntry {
   name: string;
   fields?: Protocol.RowDescription[];
+  /* What the server made of the parameters, kept so a later Bind can
+     encode a Date against the type the column actually is - see
+     `resolvedBindTypes()`. The Describe that fetched `fields` answers
+     with these in the same round trip; they used to be dropped here. */
+  resolvedParamTypes?: OID[];
 }
 
 /**
@@ -1200,7 +1206,7 @@ export class IntlConnection extends SafeEventEmitter {
         return await this.executeReused(
           cached.name,
           cached.fields,
-          paramTypes,
+          resolvedBindTypes(paramTypes, params, cached.resolvedParamTypes),
           params,
           options,
           savepoint,
@@ -1283,8 +1289,12 @@ export class IntlConnection extends SafeEventEmitter {
   ): Promise<PreparedCacheEntry> {
     const name = 'C_' + ++this._preparedCounter;
     return (async () => {
-      const { fields } = await this.prepareOnce(sql, paramTypes, name);
-      const entry: PreparedCacheEntry = { name, fields };
+      const { fields, resolvedParamTypes } = await this.prepareOnce(
+        sql,
+        paramTypes,
+        name,
+      );
+      const entry: PreparedCacheEntry = { name, fields, resolvedParamTypes };
       await this._evictPreparedIfFull();
       this._preparedCache.set(key, entry);
       return entry;
