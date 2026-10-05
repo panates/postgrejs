@@ -68,12 +68,13 @@ Deliberate, and worth knowing before reading a row:
 - **Row shape**: PostgreJS is set to `objectRows: true` everywhere so its rows match what the others return by default. The one normalisation in the suite.
 - **Type decoding**: no custom parsers or overrides anywhere - each library decodes as it does out of the box, which is what a caller gets.
 - **Pooling, pipelining and prepared statements**: each library uses its own mechanism and its own defaults. The numbers compare libraries as they ship, not one dial turned for all three.
+- **One PostgreJS default is turned off**: `asyncErrorHandling`, which captures a caller-preserving async stack on every call so a failure points at the line that made it. `pg` and `postgres.js` have no equivalent, so leaving it on would charge one library for a feature the others do not offer. It stays on by default in the library; it is off only here, and it is worth about 0.5-1.0 KB a call on a small statement.
 - **`pg-native`** is out of scope: it needs a system libpq and native compilation, which CI cannot assume. It could be added later behind its own flag.
 - A scenario that needs more warmup or more repeats than the rest says so in its own description.
 
 ## Environment
 
-- Run date: 2026-09-29T06:10:29.113Z
+- Run date: 2026-10-05T17:29:57.699Z
 - Runtime: Node.js v24.15.0
 - OS: Darwin 25.6.0 (darwin/arm64)
 - CPU: Apple M5 Pro (18 logical cores)
