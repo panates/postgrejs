@@ -1,6 +1,9 @@
 import { expect } from 'expect';
 import { arrayLeaf } from '../../src/util/array-leaf.js';
-import { isUnspecifiedParam } from '../../src/util/unspecified-param.js';
+import {
+  isUnspecifiedParam,
+  needsNumericParam,
+} from '../../src/util/unspecified-param.js';
 
 /**
  * Which values go out with no declared type. Pinned here because the
@@ -68,6 +71,41 @@ describe('isUnspecifiedParam()', () => {
     expect(isUnspecifiedParam([null, null])).toStrictEqual(false);
     expect(isUnspecifiedParam(null)).toStrictEqual(false);
     expect(isUnspecifiedParam(undefined)).toStrictEqual(false);
+  });
+});
+
+describe('needsNumericParam()', () => {
+  it('should claim a finite non-integer', () => {
+    expect(needsNumericParam(12.34)).toStrictEqual(true);
+    expect(needsNumericParam(-0.5)).toStrictEqual(true);
+    expect(needsNumericParam(1e-7)).toStrictEqual(true);
+    expect(needsNumericParam(Math.PI)).toStrictEqual(true);
+  });
+
+  it('should leave an integer, which determine() already types usefully', () => {
+    expect(needsNumericParam(12)).toStrictEqual(false);
+    expect(needsNumericParam(-3)).toStrictEqual(false);
+    expect(needsNumericParam(0)).toStrictEqual(false);
+    expect(needsNumericParam(-0)).toStrictEqual(false);
+    // Integral however large it prints: Number.isInteger says so.
+    expect(needsNumericParam(1e21)).toStrictEqual(false);
+  });
+
+  it('should leave a non-finite number to float8', () => {
+    // numeric only grew Infinity in PostgreSQL 14, and float8 carries
+    // all three on every version this client supports.
+    expect(needsNumericParam(NaN)).toStrictEqual(false);
+    expect(needsNumericParam(Infinity)).toStrictEqual(false);
+    expect(needsNumericParam(-Infinity)).toStrictEqual(false);
+  });
+
+  it('should leave anything that is not a number', () => {
+    expect(needsNumericParam(1n)).toStrictEqual(false);
+    expect(needsNumericParam('1.5')).toStrictEqual(false);
+    expect(needsNumericParam([1.5])).toStrictEqual(false);
+    expect(needsNumericParam(null)).toStrictEqual(false);
+    expect(needsNumericParam(undefined)).toStrictEqual(false);
+    expect(needsNumericParam(new Date())).toStrictEqual(false);
   });
 });
 

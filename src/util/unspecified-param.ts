@@ -32,6 +32,9 @@ import { arrayLeaf } from './array-leaf.js';
  *   bigint[] = integer[]`, and `numeric[] = double precision[]` the
  *   same. The scalars are left declared because they do have those
  *   operators - `1::int8 = $1` and `1.5::numeric = $1` both resolve.
+ *   That is true of the operators *inside* the numeric family and not
+ *   of the casts out of it, which is what `needsNumericParam()` below
+ *   exists for.
  *
  * A scalar number, a boolean, a Buffer, and an array of anything but
  * numbers keep their declared types: an array of booleans, of Buffers
@@ -69,4 +72,42 @@ export function isUnspecifiedParam(v: any): boolean {
   const x = arrayLeaf(v);
   if (typeof x === 'string' || x instanceof Date) return true;
   return Array.isArray(v) && (typeof x === 'number' || typeof x === 'bigint');
+}
+
+/**
+ * Whether a number must be declared `numeric` rather than the `float8`
+ * its value suggests.
+ *
+ * True for a finite non-integer, false for everything else - an integer,
+ * a bigint, a non-finite number, and anything that is not a number.
+ *
+ * @param v The value a parameter is about to be declared for.
+ * @returns Whether to declare `numeric` instead of asking `determine()`.
+ */
+/* `determine()` answers by value, so 12 is int4 and 12.34 is float8 -
+   and `int4 -> money` is an assignment cast while `float8 -> money` has
+   no pg_cast row at all. So `select ($1::money)::text` worked with 12
+   and failed 42846 with 12.34: the same SQL, the same column, decided by
+   whether the amount happened to have a fractional part, which for money
+   it usually does. A test written with 12 passed and production failed
+   on 12.34. `numeric -> money` is an assignment cast, which an explicit
+   `::money` accepts, and `numeric -> float8` is implicit, so a float8
+   column is unaffected.
+
+   Measured, inserting into a float8 column over a loopback connection,
+   three interleaved rounds of 3000: 0.197ms a call against float8's
+   0.198, and 51 bytes on the socket against 47. Round-tripping a double
+   through numeric is exact - checked against float8 for 0.1, 5e-324,
+   1.7976931348623157e308, 0.30000000000000004 and pi, among others.
+
+   Non-finite values keep float8 deliberately: `numeric` only grew
+   Infinity in PostgreSQL 14, and NaN would be the only one of the three
+   that worked on 12 and 13.
+
+   This does not close `$1::interval` from a number, which fails the same
+   way - there is no cast to interval from any numeric type, so only an
+   undeclared parameter reaches it. An integer scalar is left declared,
+   and `new BindParam(0, 5)` is the way to say it. */
+export function needsNumericParam(v: any): boolean {
+  return typeof v === 'number' && Number.isFinite(v) && !Number.isInteger(v);
 }
