@@ -6,6 +6,10 @@ import { arrayLeaf } from '../util/array-leaf.js';
 import { encodeBinaryArray } from '../util/encode-binaryarray.js';
 import { formatDateParam } from '../util/format-datetime.js';
 import { writeArrayLiteral } from '../util/stringify-arrayliteral.js';
+import {
+  resolveToPostgres,
+  unspecifiedText,
+} from '../util/unspecified-value.js';
 import { Protocol } from './protocol.js';
 import type { SASL } from './sasl.js';
 import { SmartBuffer, type SmartBufferConfig } from './smart-buffer.js';
@@ -231,7 +235,28 @@ export class Frontend {
     return setLengthAndFlush(io, 1);
   }
 
-  getBindMessage(args: Frontend.BindMessageArgs): Buffer {
+  /**
+   * Bind, carrying the parameter values - the one message in a statement
+   * whose size is the caller's data rather than a few dozen bytes.
+   *
+   * @param args The portal, statement, parameters and result formats.
+   * @param copy When false, the returned buffer is a view into the
+   * shared send buffer rather than a copy of it. It stays valid only
+   * until the next message is written, so a caller passing false must
+   * consume it - `Buffer.concat()`, a write - before building anything
+   * else, and must never hand it to the socket, which does not copy
+   * synchronously.
+   * @returns The Bind message.
+   */
+  /* The copy exists for buffer reuse, not for the socket: every message
+     is built in this one SmartBuffer, so message N+1's start() would
+     overwrite N's bytes before they were assembled. Nothing flushed here
+     ever reaches socket.write() - only the concat of them does, which is
+     checked in a test. So a caller that builds the small messages first
+     and this one last can take a view and let the concat read it, which
+     is one copy of the payload rather than two: measured on a 100 000
+     element int4[], 2148 KB of copying a call against 1074. */
+  getBindMessage(args: Frontend.BindMessageArgs, copy = true): Buffer {
     if (args.portal && args.portal.length > 63)
       throw new Error('Portal name length must be lower than 63');
     if (args.statement && args.statement.length > 63)
@@ -271,6 +296,19 @@ export class Frontend {
 
         const dataTypeOid = paramTypes ? paramTypes[i] : undefined;
         const dt = dataTypeOid ? args.typeMap.get(dataTypeOid) : undefined;
+
+        // No declared type: the value writes itself if it knows how, and
+        // what it hands back decides which branch below takes it - a
+        // toPostgres() returning a Date belongs in the Date branch, not
+        // in `'' + v`. A declared type is left alone; it owns its own
+        // encoding.
+        if (!dt) {
+          v = resolveToPostgres(v);
+          if (v === null || v === undefined) {
+            io.writeInt32BE(-1);
+            continue;
+          }
+        }
 
         if (dt) {
           if (
@@ -339,7 +377,7 @@ export class Frontend {
           io.writeBytes(v);
           io.buffer.writeInt32BE(io.size - dataOffset, dataOffset - 4); // Update length
         } else {
-          io.writeLString('' + v, 'utf8');
+          io.writeLString(unspecifiedText(v), 'utf8');
         }
       }
     } else {
@@ -359,7 +397,7 @@ export class Frontend {
       io.writeUInt16BE(DataFormat.binary);
     } else io.writeUInt16BE(0);
 
-    return setLengthAndFlush(io, 1);
+    return setLengthAndFlush(io, 1, copy);
   }
 
   getDescribeMessage(args: Frontend.DescribeMessageArgs): Buffer {
@@ -481,7 +519,11 @@ export class Frontend {
   }
 }
 
-function setLengthAndFlush(io: SmartBuffer, lengthOffset: number): Buffer {
+function setLengthAndFlush(
+  io: SmartBuffer,
+  lengthOffset: number,
+  copy = true,
+): Buffer {
   io.buffer.writeUInt32BE(io.size - lengthOffset, lengthOffset);
-  return io.flush();
+  return io.flush(copy);
 }

@@ -23,7 +23,10 @@ import { normalizeChannelName } from '../util/channel-name.js';
 import type { CopyRowSource } from '../util/copy-from-rows.js';
 import { escapeIdentifier } from '../util/escape-identifier.js';
 import { QueryRequest } from '../util/sql-tag.js';
-import { isUnspecifiedParam } from '../util/unspecified-param.js';
+import {
+  isUnspecifiedParam,
+  needsNumericParam,
+} from '../util/unspecified-param.js';
 import { BindParam } from './bind-param.js';
 import type { CopyFromStream, CopyToStream } from './copy-stream.js';
 import { IntlConnection } from './intl-connection.js';
@@ -961,7 +964,12 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
           // out as is written in getBindMessage().
           isUnspecifiedParam(prm)
           ? 0
-          : typeMap.determine(prm),
+          : // A non-integer is declared numeric rather than the float8
+            // its value suggests - see `needsNumericParam()` for the
+            // cast that makes the difference, and what it costs.
+            needsNumericParam(prm)
+            ? DataTypeOIDs.numeric
+            : typeMap.determine(prm),
     );
 
     // A money parameter is written as an int64 of minor units, so the

@@ -38,7 +38,14 @@ export const DateType: DataType = {
       ? v.getTime()
       : v.getTime() - v.getTimezoneOffset() * 60 * 1000;
     n = (n - timeShift) / 1000 / 86400;
-    const t = Math.trunc(n + Number.EPSILON);
+    /* Floor, not trunc: a date before 2000-01-01 makes `n` negative, and
+       truncation there rounds *towards* the epoch - every pre-2000
+       instant with a time of day was stored one day late, silently.
+       `1999-12-31T22:00Z` under TZ=UTC went in as 2000-01-01 where the
+       text path, and `pg`, both say 1999-12-31. The epsilon stays: it is
+       what keeps an exact midnight from landing a hair under its own
+       day and flooring to the one before. */
+    const t = Math.floor(n + Number.EPSILON);
     buf.writeInt32BE(t);
   },
 

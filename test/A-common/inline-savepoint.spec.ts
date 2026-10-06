@@ -10,17 +10,40 @@ import { PgSocket } from '../../src/protocol/pg-socket.js';
  * the server is happy with that shape is covered by the integration tests.
  */
 describe('Inline savepoint framing', () => {
-  function capture(args: any): string {
+  /**
+   * The messages as they sit in the single buffer handed to `_send`,
+   * split back apart on the protocol's own framing: one type byte, then
+   * an int32 length that counts itself.
+   */
+  /* Split rather than read off an array of per-message buffers, which is
+     what `_send` used to be given: the Bind is assembled from a view of
+     the shared send buffer now, so the concat happens before `_send`
+     sees anything. The bytes are the same either way, and they are what
+     this file is about. */
+  function messages(args: any): Buffer[] {
     const socket: any = new PgSocket({});
-    let sent: Buffer[] = [];
+    let sent: Buffer = Buffer.alloc(0);
     socket._send = (data: Buffer | Buffer[]) => {
-      sent = Array.isArray(data) ? data : [data];
+      sent = Array.isArray(data) ? Buffer.concat(data) : data;
       return true;
     };
     // The returned promise stays pending: nothing answers a stubbed socket,
     // and only what was written matters here.
     void socket.sendBindExecuteMessages(args, () => undefined);
-    return sent.map(b => String.fromCharCode(b.readUInt8(0))).join('');
+    const out: Buffer[] = [];
+    let p = 0;
+    while (p < sent.length) {
+      const len = sent.readInt32BE(p + 1);
+      out.push(sent.subarray(p, p + 1 + len));
+      p += 1 + len;
+    }
+    return out;
+  }
+
+  function capture(args: any): string {
+    return messages(args)
+      .map(b => String.fromCharCode(b.readUInt8(0)))
+      .join('');
   }
 
   const baseArgs = {
@@ -56,31 +79,17 @@ describe('Inline savepoint framing', () => {
   });
 
   it('should put the given SQL in the Parse message', () => {
-    const socket: any = new PgSocket({});
-    let sent: Buffer[] = [];
-    socket._send = (data: Buffer | Buffer[]) => {
-      sent = Array.isArray(data) ? data : [data];
-      return true;
-    };
-    void socket.sendBindExecuteMessages(
-      { ...baseArgs, before: 'SAVEPOINT SP_42', after: 'RELEASE SP_42' },
-      () => undefined,
-    );
+    const sent = messages({
+      ...baseArgs,
+      before: 'SAVEPOINT SP_42',
+      after: 'RELEASE SP_42',
+    });
     expect(sent[0].toString('utf8')).toContain('SAVEPOINT SP_42');
     expect(sent[5].toString('utf8')).toContain('RELEASE SP_42');
   });
 
   it('should name no statement or portal for the wrapping messages', () => {
-    const socket: any = new PgSocket({});
-    let sent: Buffer[] = [];
-    socket._send = (data: Buffer | Buffer[]) => {
-      sent = Array.isArray(data) ? data : [data];
-      return true;
-    };
-    void socket.sendBindExecuteMessages(
-      { ...baseArgs, before: 'SAVEPOINT SP_1' },
-      () => undefined,
-    );
+    const sent = messages({ ...baseArgs, before: 'SAVEPOINT SP_1' });
     // Parse: int32 length, then the statement name as a C string - empty,
     // so the very next byte after the header is the terminator. Same for
     // the Bind that follows it, whose portal and statement names are both
