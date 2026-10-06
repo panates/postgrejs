@@ -1,6 +1,25 @@
 # Changelog
 
-<!-- rman:documented-up-to 2f09a3de2b3cc32810b4d3883f876663ec304589 -->
+<!-- rman:documented-up-to 0907b73e649ac971b5756a9f1e5b6c9e41ff8ee9 -->
+
+## v3.12.3 (2026-10-06)
+
+### 🐛 Bug Fixes
+
+- declare a non-integer parameter numeric, not float8 (341f343)
+- write an undeclared parameter the way pg writes one (a11a9af)
+- a pre-2000 date was encoded a day late (4f0b251)
+
+### ⚡ Performance and Optimizations
+
+- bind a reused Date against the type the server resolved (11cfb77)
+- assemble a statement from a view of the Bind, not a copy of it (3e217e6)
+
+### 🧹 Chores
+
+- sync lockfile (61890c9)
+
+---
 
 ## v3.12.2 (2026-10-05)
 
