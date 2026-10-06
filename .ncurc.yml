@@ -1,3 +1,0 @@
-peer: true
-dep: prod,dev,optional,peer
-rejectVersion: "/(\\|\\|)|(&&)|>|<|^[0-9]/"
