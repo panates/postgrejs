@@ -165,7 +165,10 @@ describe('Array parameters', () => {
       expect(
         await one("select array['a','b']::text[] = $1 v", [['a', 'b']]),
       ).toStrictEqual(true);
-      const d = new Date(Date.UTC(2024, 5, 15));
+      // Local midnight, not an instant written in UTC: the date this
+      // client sends is the one on the local clock, so `Date.UTC(...)`
+      // names a different day west of Greenwich.
+      const d = new Date(2024, 5, 15);
       expect(
         await one("select array['2024-06-15'::date] = $1 v", [[d]]),
       ).toStrictEqual(true);

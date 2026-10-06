@@ -45,7 +45,12 @@ describe('Date parameters', () => {
     });
 
     it('should answer time for a Date on the epoch day', () => {
-      expect(name(new Date('1970-01-01T05:00:00Z'))).toStrictEqual('time');
+      // Built from local parts, like the `date` case below: both
+      // predicates read the local clock (`getFullYear`/`getDate` for
+      // this one, `getHours` for that one), so an instant written in UTC
+      // lands on a different wall clock in every zone - `05:00Z` is
+      // local midnight at UTC-5, where DateType claims it first.
+      expect(name(new Date(1970, 0, 1, 5))).toStrictEqual('time');
     });
 
     it('should answer date for local midnight on the epoch day', () => {
