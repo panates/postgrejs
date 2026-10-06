@@ -1,6 +1,18 @@
 # Changelog
 
-<!-- rman:documented-up-to 0907b73e649ac971b5756a9f1e5b6c9e41ff8ee9 -->
+<!-- rman:documented-up-to cc1e73d397f4033f796986c2e81192076ac4c7f4 -->
+
+## v3.13.0 (2026-10-06)
+
+### 🧪 Tests
+
+- build the two zone-sensitive date cases from local parts (26f92ce)
+
+### 🧹 Chores
+
+- remove unused `.ncurc.yml` configuration file (27f7305)
+
+---
 
 ## v3.12.3 (2026-10-06)
 
