@@ -97,6 +97,14 @@ describe('writeArrayLiteral()', () => {
       'a ragged nested array',
       ints(20, r => (r === 7 ? [1, 2] : ints(20, c => r * c))),
     ],
+    [
+      'plain objects among the numbers, which go out as JSON',
+      [1, { a: 1 }, { b: [1, 2] }, ...ints(20, i => i)],
+    ],
+    [
+      'a value that writes itself',
+      [1, { toPostgres: () => 'custom:1' }, ...ints(20, i => i)],
+    ],
     ['exactly the threshold', ints(16, i => i)],
     ['one short of it', ints(15, i => i)],
     ['an empty array', []],

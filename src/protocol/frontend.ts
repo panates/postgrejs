@@ -6,6 +6,10 @@ import { arrayLeaf } from '../util/array-leaf.js';
 import { encodeBinaryArray } from '../util/encode-binaryarray.js';
 import { formatDateParam } from '../util/format-datetime.js';
 import { writeArrayLiteral } from '../util/stringify-arrayliteral.js';
+import {
+  resolveToPostgres,
+  unspecifiedText,
+} from '../util/unspecified-value.js';
 import { Protocol } from './protocol.js';
 import type { SASL } from './sasl.js';
 import { SmartBuffer, type SmartBufferConfig } from './smart-buffer.js';
@@ -293,6 +297,19 @@ export class Frontend {
         const dataTypeOid = paramTypes ? paramTypes[i] : undefined;
         const dt = dataTypeOid ? args.typeMap.get(dataTypeOid) : undefined;
 
+        // No declared type: the value writes itself if it knows how, and
+        // what it hands back decides which branch below takes it - a
+        // toPostgres() returning a Date belongs in the Date branch, not
+        // in `'' + v`. A declared type is left alone; it owns its own
+        // encoding.
+        if (!dt) {
+          v = resolveToPostgres(v);
+          if (v === null || v === undefined) {
+            io.writeInt32BE(-1);
+            continue;
+          }
+        }
+
         if (dt) {
           if (
             typeof dt.encodeAsNull === 'function' &&
@@ -360,7 +377,7 @@ export class Frontend {
           io.writeBytes(v);
           io.buffer.writeInt32BE(io.size - dataOffset, dataOffset - 4); // Update length
         } else {
-          io.writeLString('' + v, 'utf8');
+          io.writeLString(unspecifiedText(v), 'utf8');
         }
       }
     } else {

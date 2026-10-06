@@ -2,6 +2,7 @@ import type { DataMappingOptions } from '../interfaces/data-mapping-options.js';
 import type { EncodeTextFunction } from '../types.js';
 import { arrayCalculateDim } from './array-calculatedim.js';
 import { arrayLeaf } from './array-leaf.js';
+import { unspecifiedText } from './unspecified-value.js';
 
 /**
  * What a number's own text looks like: digits, one optional dot, an
@@ -71,7 +72,11 @@ export function stringifyArrayLiteral(
       // applied to a value that really was a number.
       const isNumber = typeof x === 'number' || typeof x === 'bigint';
       if (encode) x = encode(x, options || {});
-      const s = '' + x;
+      // With an encoder the element's text is the type's to produce;
+      // without one this is an undeclared array, where a value that
+      // knows how to write itself does, and a plain object goes out as
+      // JSON rather than as `[object Object]`.
+      const s = encode ? '' + x : unspecifiedText(x);
       out += isNumber && BARE_NUMBER.test(s) ? s : escapeArrayItem(s);
     }
     return out + '}';
@@ -264,7 +269,9 @@ export function writeArrayLiteral(
       // of its spelling - the same rule the string path states: a
       // string's own text is quoted whatever it looks like.
       const isNumber = typeof x === 'number' || typeof x === 'bigint';
-      s = '' + x;
+      // This lane is only entered with no element encoder, so the same
+      // rules the string path applies without one apply here.
+      s = unspecifiedText(x);
       const bare = isNumber && BARE_NUMBER.test(s);
       if (!bare)
         s =
