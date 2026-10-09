@@ -98,6 +98,32 @@ Each adapter hands the compiled SQL straight to this client, with no `pg` left a
 compared query by query against the driver it replaces - and, where the project ships a suite of its own, run
 against that too. So adopting one is a change to how the connection is created and nothing else.
 
+### 🌍 Runs Where You Run
+
+<!-- Same card shape as the adapters above, for the same reason: GitHub strips CSS, and a table
+     is the one layout that survives everywhere the README is read. -->
+<table>
+  <tr>
+    <td align="center" width="230" valign="top">
+      <a href="https://www.postgrejs.com/docs/getting-started/benchmarks"><img src="https://www.postgrejs.com/img/nodejs-logo.svg" alt="Node.js" height="46"></a><br><br>
+      <b><a href="https://www.postgrejs.com/docs/getting-started/benchmarks">Node.js</a></b><br>
+    </td>
+    <td align="center" width="230" valign="top">
+      <a href="https://www.postgrejs.com/docs/getting-started/benchmarks-bun"><img src="https://www.postgrejs.com/img/bun-logo.svg" alt="Bun" height="46"></a><br><br>
+      <b><a href="https://www.postgrejs.com/docs/getting-started/benchmarks-bun">Bun</a></b><br>
+    </td>
+    <td align="center" width="230" valign="top">
+      <a href="https://www.postgrejs.com/docs/guides/cloudflare-workers"><img src="https://www.postgrejs.com/img/cloudflare-logo.svg" alt="Cloudflare Workers" height="46"></a><br><br>
+      <b><a href="https://www.postgrejs.com/docs/guides/cloudflare-workers">Cloudflare Workers</a></b><br>
+    </td>
+  </tr>
+</table>
+
+Node and Bun run **the same test suite** in CI on every push - Node across 20, 22, 24 and 26 against PostgreSQL 12,
+16 and 18, Bun against 18 - so neither is a target that merely ought to work. Workers is not in that matrix yet: it
+was measured by hand against PostgreSQL 18, a plain connection and a TLS one, and what the runtime does and does not
+allow is written down in [doc/CLOUDFLARE-WORKERS.md](doc/CLOUDFLARE-WORKERS.md).
+
 ## Installation
 
 ```bash
@@ -133,6 +159,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Packages to install               |           1            |    4 <sup>1</sup>     |        1         |
 | Module system                     |          ESM           |        ESM/CJS        |     ESM/CJS      |
 | Language                          |           TS           |    JS <sup>2</sup>    | JS <sup>3</sup>  |
+| Cloudflare Workers                |    ✅ <sup>28</sup>    |   🟡 <sup>29</sup>    | ✅ <sup>30</sup> |
 | ***Wire protocol***               |                        |                       |                  |
 | Protocol version                  |          3.2           |          3.0          |       3.0        |
 | Simple Query protocol             |           ✅           |          ✅           |        ✅        |
@@ -271,6 +298,25 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   input parser is what sorts and deduplicates a vector and what defines a query's grammar, so encoding either here
   would make the same text mean one thing written as a literal and another bound as a parameter. They are sent as
   text instead, which is exact.
+- <sup>28</sup> PostgreJS runs on workerd under `nodejs_compat` with nothing installed and no build of its own.
+  Measured end to end: a plain connection against PostgreSQL 18, and a TLS one against a managed PostgreSQL 18 whose
+  certificate comes from Let's Encrypt - the same server refusing the connection outright (`28000 connection is
+  insecure`) when `sslmode` is dropped, which is what makes the encrypted one mean something. TLS opens a socket of
+  the runtime's own and upgrades it with `startTls()`, since `tls.connect({ socket })` is not something workerd can
+  carry out. Three limits are the runtime's, and all three libraries have them: `ca`, `cert` and `rejectUnauthorized`
+  have nowhere to go (workerd's TLS options are `{ expectedServerHostname?: string }`, so a self-signed certificate
+  cannot be trusted and a local server cannot be reached over TLS at all); `sslnegotiation=direct` cannot announce the
+  `postgresql` ALPN protocol, and is refused by name here; and SCRAM channel binding has no server certificate to bind
+  to, so `channelBinding: 'require'` is refused and the default `prefer` authenticates without it. Hyperdrive is the
+  other way in, terminating TLS in Cloudflare's own network - checked here against its binding. See
+  [doc/CLOUDFLARE-WORKERS.md](doc/CLOUDFLARE-WORKERS.md).
+- <sup>29</sup> pg reaches workerd through `pg-cloudflare`, a separate package it carries as an optional dependency
+  and selects at runtime (`lib/stream.js`, on `navigator.userAgent`). That package wraps `cloudflare:sockets` and
+  upgrades with its own `startTls()`, so TLS is available where PostgreJS's is not - at the cost of a second package
+  and of nothing happening at all if it was not installed.
+- <sup>30</sup> postgres.js ships a build for the runtime: a `workerd` condition in `exports` pointing at `cf/`, whose
+  polyfills shim `net`/`tls` onto `cloudflare:sockets` including `startTls({ servername })`. One package, the right
+  code chosen by the resolver, TLS included.
 
 ## Benchmarks
 
@@ -302,6 +348,9 @@ you open an issue please provide version of NodeJS and PostgreSQL server.
 - Bun - the same test suite runs under Bun in CI against PostgreSQL 18 on every push, so Bun is a supported target
   rather than an untested coincidence. (Coverage is collected on the Node matrix only: `c8` instruments V8's
   coverage APIs, which JavaScriptCore doesn't have.)
+- Cloudflare Workers - with `nodejs_compat`, and without TLS: the runtime has no way to trust a server
+  certificate, so a database behind TLS is reached through Hyperdrive instead. See
+  [doc/CLOUDFLARE-WORKERS.md](doc/CLOUDFLARE-WORKERS.md).
 
 ## License
 
