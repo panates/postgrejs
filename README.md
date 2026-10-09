@@ -133,6 +133,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Packages to install               |           1            |    4 <sup>1</sup>     |        1         |
 | Module system                     |          ESM           |        ESM/CJS        |     ESM/CJS      |
 | Language                          |           TS           |    JS <sup>2</sup>    | JS <sup>3</sup>  |
+| Cloudflare Workers                |    🟡 <sup>28</sup>    |   🟡 <sup>29</sup>    | ✅ <sup>30</sup> |
 | ***Wire protocol***               |                        |                       |                  |
 | Protocol version                  |          3.2           |          3.0          |       3.0        |
 | Simple Query protocol             |           ✅           |          ✅           |        ✅        |
@@ -271,6 +272,21 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   input parser is what sorts and deduplicates a vector and what defines a query's grammar, so encoding either here
   would make the same text mean one thing written as a literal and another bound as a parameter. They are sent as
   text instead, which is exact.
+- <sup>28</sup> PostgreJS runs on workerd under `nodejs_compat` with nothing installed and no build of its own -
+  measured end to end against PostgreSQL 18 - **but without TLS**. The runtime's whole TLS surface is
+  `{ expectedServerHostname?: string }`, so nothing can say which certificate to trust, and `tls.connect()` there
+  cannot upgrade a connected socket, which is what PostgreSQL's SSLRequest negotiation is. A connection asking for TLS
+  is refused with an error that says so rather than failing as `Network connection lost.` or hanging, which is what
+  the three shapes do underneath. A database behind TLS is reached through Hyperdrive, which terminates TLS in
+  Cloudflare's own network and hands the Worker a plain connection - checked here against its binding. See
+  [doc/CLOUDFLARE-WORKERS.md](doc/CLOUDFLARE-WORKERS.md).
+- <sup>29</sup> pg reaches workerd through `pg-cloudflare`, a separate package it carries as an optional dependency
+  and selects at runtime (`lib/stream.js`, on `navigator.userAgent`). That package wraps `cloudflare:sockets` and
+  upgrades with its own `startTls()`, so TLS is available where PostgreJS's is not - at the cost of a second package
+  and of nothing happening at all if it was not installed.
+- <sup>30</sup> postgres.js ships a build for the runtime: a `workerd` condition in `exports` pointing at `cf/`, whose
+  polyfills shim `net`/`tls` onto `cloudflare:sockets` including `startTls({ servername })`. One package, the right
+  code chosen by the resolver, TLS included.
 
 ## Benchmarks
 
