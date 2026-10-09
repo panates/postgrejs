@@ -73,9 +73,52 @@ limit applies to any PostgreSQL driver that upgrades a socket the way the protoc
 
 ### Reaching a database that requires TLS
 
-Use [Hyperdrive](https://developers.cloudflare.com/hyperdrive/), which terminates TLS itself and
-gives the Worker a connection to speak plainly to. Connection pooling comes with it, which a
-Worker cannot do for itself - see below.
+Use [Hyperdrive](https://developers.cloudflare.com/hyperdrive/). It connects to the database from
+Cloudflare's own network and terminates TLS there, then hands the Worker a plain connection to
+speak to - which is the half this client already does. Connection pooling comes with it, which a
+Worker cannot do for itself; see below.
+
+Bind it and pass its connection string straight to the client:
+
+```jsonc
+// wrangler.jsonc
+"hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<your-config-id>" }]
+```
+
+```ts
+interface Env {
+  HYPERDRIVE: { connectionString: string };
+}
+
+export default {
+  async fetch(_req: Request, env: Env): Promise<Response> {
+    const db = new Connection(env.HYPERDRIVE.connectionString);
+    await db.connect();
+    try {
+      const r = await db.query('select current_database() as db', { objectRows: true });
+      return Response.json(r.rows![0]);
+    } finally {
+      await db.close();
+    }
+  },
+};
+```
+
+The string it hands over carries `sslmode=disable`, and that is the point rather than a weakening:
+the TLS that protects the database is the leg Hyperdrive holds, and the Worker's leg does not
+leave Cloudflare.
+
+`wrangler dev` serves the binding locally without an account - point it at any database with
+
+```sh
+export WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://user:pass@127.0.0.1:5432/db"
+```
+
+That is how the example above was checked here, end to end, against PostgreSQL 18. What it does
+not exercise is the deployed path - a Worker on Cloudflare reaching a real Hyperdrive config -
+since the local binding proxies straight to the string you give it. That leg is Hyperdrive's own
+protocol handling and is not specific to this client, but it is not something this document has
+measured.
 
 ## Other differences worth knowing
 
