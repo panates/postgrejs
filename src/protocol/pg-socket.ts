@@ -16,6 +16,7 @@ import { DatabaseError } from './database-error.js';
 import { Frontend } from './frontend.js';
 import { Protocol } from './protocol.js';
 import { SASL } from './sasl.js';
+import { WorkerdSocket } from './workerd-socket.js';
 
 const DEFAULT_PORT_NUMBER = 5432;
 const COMMAND_RESULT_PATTERN = /^([^\d]+)(?: (\d+)(?: (\d+))?)?$/;
@@ -46,6 +47,52 @@ interface CaptureEntry {
  * is asked for, and a queue that pairs each response with whoever sent
  * the statement that caused it.
  */
+/**
+ * What this client needs a socket to be, whoever provides one.
+ *
+ * `net.Socket`, its TLS upgrade, and `WorkerdSocket` all satisfy it.
+ */
+/* Structural rather than a union of those three: a union of their
+   `on()` overloads has no call signature TypeScript can agree on, and
+   naming the members used says more than the union would anyway - it is
+   the whole contract another runtime would have to meet. */
+interface ClientSocket {
+  readonly destroyed: boolean;
+  readonly writable: boolean;
+  write(data: any, cb?: (err?: Error | null) => void): boolean;
+  destroy(err?: Error): any;
+  end(...args: any[]): any;
+  pause(): any;
+  resume(): any;
+  cork(): void;
+  uncork(): void;
+  setNoDelay(enable?: boolean): any;
+  setKeepAlive(enable?: boolean): any;
+  setTimeout(ms: number, cb?: () => void): any;
+  connect(...args: any[]): any;
+  on(event: string, listener: (...args: any[]) => void): any;
+  once(event: string, listener: (...args: any[]) => void): any;
+  removeAllListeners(event?: string): any;
+}
+
+/**
+ * Whether a connection is going to ask for TLS at all.
+ *
+ * @param options The connection's own options.
+ * @returns True when any of the three ways of asking is set.
+ */
+/* Read in two places that have to agree: which socket to open, and
+   whether to negotiate once it is open. */
+function wantsTls(options: {
+  ssl?: unknown;
+  requireSSL?: unknown;
+  sslNegotiation?: string;
+}): boolean {
+  return (
+    !!options.ssl || !!options.requireSSL || options.sslNegotiation === 'direct'
+  );
+}
+
 export class PgSocket extends SafeEventEmitter {
   private _state = ConnectionState.CLOSED;
   /**
@@ -54,7 +101,8 @@ export class PgSocket extends SafeEventEmitter {
    * bare. Cleared by _reset().
    */
   private _closeReason?: Error;
-  private _socket?: net.Socket;
+  /** Whichever kind of socket this runtime connects with. */
+  private _socket?: ClientSocket;
   private _backend = new Backend();
   private _frontend: Frontend;
   private _sessionParameters: Record<string, string> = {};
@@ -117,7 +165,17 @@ export class PgSocket extends SafeEventEmitter {
     this._sessionAttrsChecked = false;
     this._state = ConnectionState.CONNECTING;
     const target = this._hosts[this._hostIndex];
-    const socket = (this._socket = new net.Socket());
+    /* Workerd cannot upgrade a `net.Socket`, and the socket that can be
+       upgraded has to be opened as one from the start - `secureTransport:
+       'starttls'` is a connect-time choice, not a later one. So the kind
+       of socket is decided here, by whether TLS is going to be asked for
+       at all. The plain path stays on `node:net`, which works there. */
+    const socket: ClientSocket = (this._socket =
+      isWorkerd() &&
+      wantsTls(this.options) &&
+      this.options.sslNegotiation !== 'direct'
+        ? new WorkerdSocket(true)
+        : new net.Socket());
 
     const errorHandler = (err: Error) => {
       this._state = ConnectionState.CLOSED;
@@ -172,14 +230,21 @@ export class PgSocket extends SafeEventEmitter {
    * speak the PostgreSQL protocol: the plain one, or its TLS upgrade.
    */
   protected _negotiateTls(
-    socket: net.Socket,
+    socket: ClientSocket,
     target: { host: string; port?: number },
-    onReady: (socket: net.Socket | tls.TLSSocket) => void,
+    onReady: (socket: ClientSocket) => void,
     onError: (err: Error) => void,
   ): void {
     const options = this.options;
     const startTls = () => {
-      const tlsOptions: tls.ConnectionOptions = { ...options.ssl, socket };
+      /* Only ever reached off workerd - the branch below hands that
+         runtime to its own upgrade - so the socket here is the
+         `net.Socket` `tls.connect()` wants, which the structural type
+         cannot say on its own. */
+      const tlsOptions: tls.ConnectionOptions = {
+        ...options.ssl,
+        socket: socket as net.Socket,
+      };
       if (target.host && net.isIP(target.host) === 0)
         tlsOptions.servername = target.host;
       if (options.sslNegotiation === 'direct')
@@ -188,40 +253,57 @@ export class PgSocket extends SafeEventEmitter {
       tlsSocket.once('error', onError);
       tlsSocket.once('secureConnect', () => onReady(tlsSocket));
     };
-    const wantsSSL =
-      !!options.ssl ||
-      !!options.requireSSL ||
-      options.sslNegotiation === 'direct';
-    if (!wantsSSL) return onReady(socket);
-    /* Refused here rather than attempted, because attempting it does not
-       fail in any way a caller can read: measured on workerd, the
-       `postgres` negotiation answers "Network connection lost." after
-       the server has already agreed to TLS, `rejectUnauthorized` reports
-       itself "not implemented", and `direct` hangs until the connect
-       timeout.
+    if (!wantsTls(options)) return onReady(socket);
+    /* Workerd upgrades through the socket it already has rather than by
+       wrapping it: `tls.connect({ socket })` does nothing it can carry
+       out, and measured, attempting it answers "Network connection
+       lost." after the server has already agreed to TLS. The exchange
+       either side of the upgrade is the same one as below - this branch
+       exists because the call in the middle is a different call.
 
-       The cause is this client's own: `tls.connect({ socket })` is not
-       something workerd can do, and upgrading there goes through the
-       runtime's own `socket.startTls()` instead - which is what pg (via
-       pg-cloudflare) and postgres.js (via its `cf/` build) call, and why
-       TLS works for them. Replacing this refusal with that call is the
-       work; until then saying so is better than the three failures
-       above.
-
-       One limit is not ours and would survive that work: workerd's TLS
+       One limit is the runtime's and no client escapes it: workerd's TLS
        options are `{ expectedServerHostname?: string }` and nothing
-       else, so no caller on this runtime - here or there - can say which
-       certificate to trust. A server whose certificate does not chain to
-       a public CA is out of reach for all of them. */
-    if (isWorkerd())
+       else, so nothing here can say which certificate to trust, and a
+       server whose certificate does not chain to a public CA cannot be
+       reached over TLS at all - which is every local PostgreSQL with a
+       self-signed certificate. */
+    /* Direct negotiation is TLS from the first byte, and PostgreSQL 17
+       only accepts it when the client announces the `postgresql`
+       protocol over ALPN. Workerd's socket options are
+       `{ secureTransport, allowHalfOpen }` - there is nowhere to say it,
+       and the server answers by closing, which surfaces as an internal
+       error with a reference number. Refused by name instead. */
+    if (isWorkerd() && options.sslNegotiation === 'direct')
       return onError(
         new Error(
-          'TLS is not supported on Cloudflare Workers by this client yet: upgrading a ' +
-            "connection there needs the runtime's own socket.startTls(), where this client " +
-            "uses Node's tls.connect(). Connect without TLS - through Hyperdrive, which " +
-            'terminates TLS itself - or run on Node.js or Bun.',
+          'sslNegotiation "direct" is not available on Cloudflare Workers: it needs the ' +
+            '"postgresql" ALPN protocol, which the runtime offers no way to announce. ' +
+            'Leave sslNegotiation unset to negotiate with SSLRequest instead.',
         ),
       );
+    if (socket instanceof WorkerdSocket) {
+      const upgrade = () => {
+        socket.once('error', onError);
+        socket.once('secureConnect', () => onReady(socket));
+        socket.startTls(
+          target.host && net.isIP(target.host) === 0 ? target.host : undefined,
+        );
+      };
+      socket.write(this._frontend.getSSLRequestMessage());
+      socket.readOnce((x?: Buffer) => {
+        const command = x?.toString();
+        if (command === 'S') return upgrade();
+        if (command === 'N') {
+          if (options.requireSSL)
+            return onError(
+              new Error('Server does not support SSL connections'),
+            );
+          return onReady(socket);
+        }
+        onError(new Error('Unexpected response from server: ' + command));
+      });
+      return;
+    }
     if (options.sslNegotiation === 'direct') {
       // Straight into the handshake: no SSLRequest, nothing in the clear.
       return startTls();
@@ -277,7 +359,7 @@ export class PgSocket extends SafeEventEmitter {
         socket.destroy();
         reject(err);
       };
-      const send = (readySocket: net.Socket | tls.TLSSocket) => {
+      const send = (readySocket: ClientSocket) => {
         readySocket.end(data, () => {
           readySocket.destroy();
           resolve();

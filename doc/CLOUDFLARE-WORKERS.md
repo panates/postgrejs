@@ -48,38 +48,47 @@ The `nodejs_compat` flag is required. Without it the bundle fails on the first `
 - Prepared statements, cursors, `COPY`, large objects - none of them touch the runtime
   differently from a query.
 
-## What does not yet: TLS
+## TLS
 
-**A connection asking for TLS is refused with an error rather than attempted.** Upgrading a
-connection on workerd goes through the runtime's own `socket.startTls()`; this client uses Node's
-`tls.connect({ socket })`, which workerd cannot do. Attempting it does not fail in any way a
-caller can read - measured, the three shapes answer `Network connection lost.` after the server
-has already agreed to TLS, `rejectUnauthorized` reports itself *not implemented*, and
-`sslnegotiation=direct` hangs until the connect timeout. So `ssl`, `requireSSL` and
-`sslNegotiation` all raise:
+A connection asking for TLS opens a socket of the runtime's own and upgrades it with
+`startTls()`, because `tls.connect({ socket })` is not something workerd can carry out. The
+exchange either side of the upgrade is the same one as everywhere else: `SSLRequest`, the server's
+`S`, then the handshake.
 
-> TLS is not supported on Cloudflare Workers by this client yet: upgrading a connection there
-> needs the runtime's own socket.startTls(), where this client uses Node's tls.connect(). Connect
-> without TLS - through Hyperdrive, which terminates TLS itself - or run on Node.js or Bun.
+Two limits come with it, and neither is this client's to lift.
 
-This is a gap here rather than a limit of the platform: `pg` reaches `startTls()` through
-`pg-cloudflare`, and postgres.js through the `cf/` build its `exports` selects, and TLS works for
-both.
-
-### The one limit that is the platform's
-
-Workerd's entire TLS surface is
+**The certificate has to chain to a public CA.** Workerd's entire TLS surface is
 
 ```ts
 type TlsOptions = { expectedServerHostname?: string }
 ```
 
-so nothing on this runtime can say which certificate to trust - not this client, and not the two
-above, which drop `ca`, `cert` and `rejectUnauthorized` on the floor. A server whose certificate
-does not chain to a public CA is therefore out of reach for every one of them, and a local
-PostgreSQL with a self-signed certificate - the usual development setup - cannot be reached over
-TLS at all. Checked by hand against workerd's own `startTls()`: the server agrees to TLS and the
-handshake still dies.
+so nothing on this runtime can say which certificate to trust - not this client, and not `pg` or
+postgres.js, which drop `ca`, `cert` and `rejectUnauthorized` on the floor for the same reason.
+A `ca` of your own, a client certificate, and `rejectUnauthorized: false` are all accepted by the
+API here and ignored there. In particular **a local PostgreSQL with a self-signed certificate
+cannot be reached over TLS at all**, which is most development setups.
+
+**`sslNegotiation: 'direct'` is refused by name.** TLS from the first byte needs the `postgresql`
+ALPN protocol announced in the handshake, and the runtime's socket options are
+`{ secureTransport, allowHalfOpen }` - there is nowhere to say it. Left to try, the server answers
+by closing and workerd reports an internal error with a reference number, so the client raises
+this instead:
+
+> sslNegotiation "direct" is not available on Cloudflare Workers: it needs the "postgresql" ALPN
+> protocol, which the runtime offers no way to announce. Leave sslNegotiation unset to negotiate
+> with SSLRequest instead.
+
+### What has and has not been checked
+
+Measured here: the plain path end to end, and the TLS path as far as the certificate - the server
+agrees to TLS, `startTls()` runs, and the handshake then fails against the self-signed certificate
+the local server presents, which is the only answer possible for it.
+
+**Not measured: a successful TLS connection.** That needs a database whose certificate chains to a
+public CA, and there was none to hand. The upgrade itself is the same call `pg` and postgres.js
+make, and the leg before it is checked, but the handshake completing is a claim this page does not
+make.
 
 ### Reaching a database that requires TLS
 
