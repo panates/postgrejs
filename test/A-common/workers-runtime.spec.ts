@@ -5,10 +5,11 @@ import { isWorkerd } from '../../src/util/runtime.js';
 
 /**
  * What this client does differently on Cloudflare's workerd, where a
- * plain connection works unchanged but TLS cannot: the runtime's whole
- * TLS surface is `{ expectedServerHostname?: string }`, so there is no
- * way to say which certificate to trust, and `tls.connect()` there
- * cannot upgrade an already-connected socket at all.
+ * plain connection works unchanged but TLS does not: upgrading there
+ * goes through the runtime's own `socket.startTls()`, and this client
+ * calls Node's `tls.connect({ socket })`, which workerd cannot do. A gap
+ * here rather than a limit of the platform - `pg` and postgres.js both
+ * reach `startTls()` and their TLS works.
  */
 describe('Cloudflare Workers', () => {
   const realNavigator = (globalThis as any).navigator;
@@ -70,7 +71,8 @@ describe('Cloudflare Workers', () => {
         // Measured on workerd, these three answer "Network connection
         // lost.", "option is not implemented", and nothing at all until
         // the connect timeout - none of which a caller can act on.
-        expect(e.message).toMatch(/not available on Cloudflare Workers/);
+        expect(e.message).toMatch(/not supported on Cloudflare Workers/);
+        expect(e.message).toMatch(/startTls/);
         expect(e.message).toMatch(/Hyperdrive/);
       });
     }

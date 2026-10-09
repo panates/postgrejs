@@ -273,13 +273,14 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   would make the same text mean one thing written as a literal and another bound as a parameter. They are sent as
   text instead, which is exact.
 - <sup>28</sup> PostgreJS runs on workerd under `nodejs_compat` with nothing installed and no build of its own -
-  measured end to end against PostgreSQL 18 - **but without TLS**. The runtime's whole TLS surface is
-  `{ expectedServerHostname?: string }`, so nothing can say which certificate to trust, and `tls.connect()` there
-  cannot upgrade a connected socket, which is what PostgreSQL's SSLRequest negotiation is. A connection asking for TLS
-  is refused with an error that says so rather than failing as `Network connection lost.` or hanging, which is what
-  the three shapes do underneath. A database behind TLS is reached through Hyperdrive, which terminates TLS in
-  Cloudflare's own network and hands the Worker a plain connection - checked here against its binding. See
-  [doc/CLOUDFLARE-WORKERS.md](doc/CLOUDFLARE-WORKERS.md).
+  measured end to end against PostgreSQL 18 - **but without TLS yet**. Upgrading a connection there goes through the
+  runtime's own `socket.startTls()`, where this client uses Node's `tls.connect({ socket })`, which workerd cannot do;
+  a connection asking for TLS is refused with an error saying so rather than failing as `Network connection lost.` or
+  hanging, which is what it does underneath. That is a gap here, not a limit of the platform - the other two reach
+  `startTls()` and their TLS works. What no client on this runtime can do is trust a certificate that does not chain
+  to a public CA: workerd's TLS options are `{ expectedServerHostname?: string }` and nothing else. A database behind
+  TLS is reached through Hyperdrive, which terminates it in Cloudflare's own network and hands the Worker a plain
+  connection - checked here against its binding. See [doc/CLOUDFLARE-WORKERS.md](doc/CLOUDFLARE-WORKERS.md).
 - <sup>29</sup> pg reaches workerd through `pg-cloudflare`, a separate package it carries as an optional dependency
   and selects at runtime (`lib/stream.js`, on `navigator.userAgent`). That package wraps `cloudflare:sockets` and
   upgrades with its own `startTls()`, so TLS is available where PostgreJS's is not - at the cost of a second package

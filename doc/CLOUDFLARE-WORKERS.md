@@ -48,28 +48,38 @@ The `nodejs_compat` flag is required. Without it the bundle fails on the first `
 - Prepared statements, cursors, `COPY`, large objects - none of them touch the runtime
   differently from a query.
 
-## What does not: TLS
+## What does not yet: TLS
 
-**A connection asking for TLS is refused with an error rather than attempted.** Workerd's entire
-TLS surface is
+**A connection asking for TLS is refused with an error rather than attempted.** Upgrading a
+connection on workerd goes through the runtime's own `socket.startTls()`; this client uses Node's
+`tls.connect({ socket })`, which workerd cannot do. Attempting it does not fail in any way a
+caller can read - measured, the three shapes answer `Network connection lost.` after the server
+has already agreed to TLS, `rejectUnauthorized` reports itself *not implemented*, and
+`sslnegotiation=direct` hangs until the connect timeout. So `ssl`, `requireSSL` and
+`sslNegotiation` all raise:
+
+> TLS is not supported on Cloudflare Workers by this client yet: upgrading a connection there
+> needs the runtime's own socket.startTls(), where this client uses Node's tls.connect(). Connect
+> without TLS - through Hyperdrive, which terminates TLS itself - or run on Node.js or Bun.
+
+This is a gap here rather than a limit of the platform: `pg` reaches `startTls()` through
+`pg-cloudflare`, and postgres.js through the `cf/` build its `exports` selects, and TLS works for
+both.
+
+### The one limit that is the platform's
+
+Workerd's entire TLS surface is
 
 ```ts
 type TlsOptions = { expectedServerHostname?: string }
 ```
 
-so there is no way to say which certificate to trust, and `tls.connect()` there cannot upgrade an
-already-connected socket, which is what PostgreSQL's `SSLRequest` negotiation is. Attempting it
-does not fail in any way a caller can read - measured, the three shapes answer
-`Network connection lost.` after the server has already agreed to TLS, `rejectUnauthorized`
-reports itself *not implemented*, and `sslnegotiation=direct` hangs until the connect timeout. So
-`ssl`, `requireSSL` and `sslNegotiation` all raise:
-
-> TLS is not available on Cloudflare Workers: the runtime offers no way to trust a server
-> certificate, and a socket cannot be upgraded in place there. Connect without TLS - through
-> Hyperdrive, which terminates TLS itself - or run on Node.js or Bun.
-
-This is not something a client can work around, and it is not specific to this one: the same
-limit applies to any PostgreSQL driver that upgrades a socket the way the protocol describes.
+so nothing on this runtime can say which certificate to trust - not this client, and not the two
+above, which drop `ca`, `cert` and `rejectUnauthorized` on the floor. A server whose certificate
+does not chain to a public CA is therefore out of reach for every one of them, and a local
+PostgreSQL with a self-signed certificate - the usual development setup - cannot be reached over
+TLS at all. Checked by hand against workerd's own `startTls()`: the server agrees to TLS and the
+handshake still dies.
 
 ### Reaching a database that requires TLS
 

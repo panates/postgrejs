@@ -198,17 +198,28 @@ export class PgSocket extends SafeEventEmitter {
        `postgres` negotiation answers "Network connection lost." after
        the server has already agreed to TLS, `rejectUnauthorized` reports
        itself "not implemented", and `direct` hangs until the connect
-       timeout. The reason is not something this client can work around -
-       workerd's own TLS surface is `{ expectedServerHostname?: string }`
-       and nothing else, so there is no way to say which certificate to
-       trust, and `tls.connect()` there cannot upgrade a socket at all. */
+       timeout.
+
+       The cause is this client's own: `tls.connect({ socket })` is not
+       something workerd can do, and upgrading there goes through the
+       runtime's own `socket.startTls()` instead - which is what pg (via
+       pg-cloudflare) and postgres.js (via its `cf/` build) call, and why
+       TLS works for them. Replacing this refusal with that call is the
+       work; until then saying so is better than the three failures
+       above.
+
+       One limit is not ours and would survive that work: workerd's TLS
+       options are `{ expectedServerHostname?: string }` and nothing
+       else, so no caller on this runtime - here or there - can say which
+       certificate to trust. A server whose certificate does not chain to
+       a public CA is out of reach for all of them. */
     if (isWorkerd())
       return onError(
         new Error(
-          'TLS is not available on Cloudflare Workers: the runtime offers no way to ' +
-            'trust a server certificate, and a socket cannot be upgraded in place there. ' +
-            'Connect without TLS - through Hyperdrive, which terminates TLS itself - or ' +
-            'run on Node.js or Bun.',
+          'TLS is not supported on Cloudflare Workers by this client yet: upgrading a ' +
+            "connection there needs the runtime's own socket.startTls(), where this client " +
+            "uses Node's tls.connect(). Connect without TLS - through Hyperdrive, which " +
+            'terminates TLS itself - or run on Node.js or Bun.',
         ),
       );
     if (options.sslNegotiation === 'direct') {
