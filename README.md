@@ -105,22 +105,16 @@ against that too. So adopting one is a change to how the connection is created a
 <table>
   <tr>
     <td align="center" width="230" valign="top">
-      <a href="https://nodejs.org"><img src="https://www.postgrejs.com/img/nodejs-logo.svg" alt="Node.js" height="46"></a><br><br>
-      <b><a href="https://nodejs.org">Node.js</a></b><br>
-      <code>>= 20</code><br>
-      <sub>4 versions × 3 PostgreSQL, every push</sub>
+      <a href="https://www.postgrejs.com/docs/getting-started/benchmarks"><img src="https://www.postgrejs.com/img/nodejs-logo.svg" alt="Node.js" height="46"></a><br><br>
+      <b><a href="https://www.postgrejs.com/docs/getting-started/benchmarks">Node.js</a></b><br>
     </td>
     <td align="center" width="230" valign="top">
-      <a href="https://bun.sh"><img src="https://www.postgrejs.com/img/bun-logo.svg" alt="Bun" height="46"></a><br><br>
-      <b><a href="https://bun.sh">Bun</a></b><br>
-      <code>latest</code><br>
-      <sub>the whole suite, every push</sub>
+      <a href="https://www.postgrejs.com/docs/getting-started/benchmarks-bun"><img src="https://www.postgrejs.com/img/bun-logo.svg" alt="Bun" height="46"></a><br><br>
+      <b><a href="https://www.postgrejs.com/docs/getting-started/benchmarks-bun">Bun</a></b><br>
     </td>
     <td align="center" width="230" valign="top">
-      <a href="https://workers.cloudflare.com"><img src="https://www.postgrejs.com/img/cloudflare-logo.svg" alt="Cloudflare Workers" height="46"></a><br><br>
-      <b><a href="https://workers.cloudflare.com">Cloudflare Workers</a></b><br>
-      <code>nodejs_compat</code><br>
-      <sub>plain and TLS, measured</sub>
+      <a href="https://www.postgrejs.com/docs/guides/cloudflare-workers"><img src="https://www.postgrejs.com/img/cloudflare-logo.svg" alt="Cloudflare Workers" height="46"></a><br><br>
+      <b><a href="https://www.postgrejs.com/docs/guides/cloudflare-workers">Cloudflare Workers</a></b><br>
     </td>
   </tr>
 </table>
