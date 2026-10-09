@@ -1,6 +1,28 @@
 # Changelog
 
-<!-- rman:documented-up-to cc1e73d397f4033f796986c2e81192076ac4c7f4 -->
+<!-- rman:documented-up-to a5d1e7850c6ff795231f22f63ef314ac112470be -->
+
+## v3.14.0 (2026-10-09)
+
+### ✨ Features
+
+- run on Cloudflare Workers, and say plainly where TLS stops (f13c669)
+- upgrade TLS through workerd's own socket, written here (c8f8e5b)
+- TLS on Workers is verified, and channel binding says why it cannot (d34aacf)
+
+### 📚 Documentation
+
+- **workers:** Hyperdrive, with the shape it actually hands over (7ecd507)
+- **readme:** a Cloudflare Workers row, where this client is not the best one (83ef7c8)
+- **workers:** TLS is a gap here, not a limit of the platform (2badc6b)
+- **readme:** a Runs Where You Run group, beside Bring Your Own ORM (83696ad)
+- **readme:** update adapter links to point to benchmarking guides (20ae895)
+
+### 🧹 Chores
+
+- sync lockfile (9bdea2b)
+
+---
 
 ## v3.13.0 (2026-10-06)
 
