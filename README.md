@@ -98,6 +98,38 @@ Each adapter hands the compiled SQL straight to this client, with no `pg` left a
 compared query by query against the driver it replaces - and, where the project ships a suite of its own, run
 against that too. So adopting one is a change to how the connection is created and nothing else.
 
+### 🌍 Runs Where You Run
+
+<!-- Same card shape as the adapters above, for the same reason: GitHub strips CSS, and a table
+     is the one layout that survives everywhere the README is read. -->
+<table>
+  <tr>
+    <td align="center" width="230" valign="top">
+      <a href="https://nodejs.org"><img src="https://www.postgrejs.com/img/nodejs-logo.svg" alt="Node.js" height="46"></a><br><br>
+      <b><a href="https://nodejs.org">Node.js</a></b><br>
+      <code>>= 20</code><br>
+      <sub>4 versions × 3 PostgreSQL, every push</sub>
+    </td>
+    <td align="center" width="230" valign="top">
+      <a href="https://bun.sh"><img src="https://www.postgrejs.com/img/bun-logo.svg" alt="Bun" height="46"></a><br><br>
+      <b><a href="https://bun.sh">Bun</a></b><br>
+      <code>latest</code><br>
+      <sub>the whole suite, every push</sub>
+    </td>
+    <td align="center" width="230" valign="top">
+      <a href="https://workers.cloudflare.com"><img src="https://www.postgrejs.com/img/cloudflare-logo.svg" alt="Cloudflare Workers" height="46"></a><br><br>
+      <b><a href="https://workers.cloudflare.com">Cloudflare Workers</a></b><br>
+      <code>nodejs_compat</code><br>
+      <sub>plain and TLS, measured</sub>
+    </td>
+  </tr>
+</table>
+
+Node and Bun run **the same test suite** in CI on every push - Node across 20, 22, 24 and 26 against PostgreSQL 12,
+16 and 18, Bun against 18 - so neither is a target that merely ought to work. Workers is not in that matrix yet: it
+was measured by hand against PostgreSQL 18, a plain connection and a TLS one, and what the runtime does and does not
+allow is written down in [doc/CLOUDFLARE-WORKERS.md](doc/CLOUDFLARE-WORKERS.md).
+
 ## Installation
 
 ```bash
