@@ -257,6 +257,55 @@ describe('Cloudflare Workers', () => {
     });
   });
 
+  describe('channel binding', () => {
+    const sasl = (socket: any, mode?: string): Error => {
+      const pg: any = new PgSocket({ channelBinding: mode, user: 'u' });
+      pg._socket = socket;
+      try {
+        pg._handleAuthenticationMessage({
+          kind: 'SASL',
+          mechanisms: ['SCRAM-SHA-256'],
+        });
+      } catch (e: any) {
+        return e;
+      }
+      return new Error('no error, which it must raise');
+    };
+
+    it('should refuse require on a secure socket it cannot bind to', () => {
+      // Encrypted and bindable are two questions here, where they are one
+      // on Node: binding hashes the server's certificate, and this
+      // runtime hands out none. Answering "not using TLS" would send the
+      // reader looking in the wrong place.
+      const s = new WorkerdSocket(true, async () => (() => ({})) as any);
+      (s as any)._secure = true;
+      const e = sasl(s, 'require');
+      expect(e.message).toMatch(/does not expose the server certificate/);
+      expect(e.message).not.toMatch(/not using TLS/);
+    });
+
+    it('should still say "not using TLS" when it really is not', () => {
+      const s = new WorkerdSocket(false, async () => (() => ({})) as any);
+      expect(sasl(s, 'require').message).toMatch(/not using TLS/);
+    });
+
+    it('should authenticate without binding under the default', () => {
+      // `prefer` is the default, and SCRAM-SHA-256 without binding is
+      // what a Worker gets - no error, just no -PLUS.
+      const s = new WorkerdSocket(true, async () => (() => ({})) as any);
+      (s as any)._secure = true;
+      const pg: any = new PgSocket({ user: 'u' });
+      pg._socket = s;
+      pg._send = () => undefined;
+      expect(() =>
+        pg._handleAuthenticationMessage({
+          kind: 'SASL',
+          mechanisms: ['SCRAM-SHA-256'],
+        }),
+      ).not.toThrow();
+    });
+  });
+
   describe('maxSizeFor()', () => {
     it('should answer the cap when the machine cannot be measured', () => {
       // workerd's `os.totalmem()` answers 0 rather than throwing.

@@ -1158,6 +1158,16 @@ export class PgSocket extends SafeEventEmitter {
         break;
       case Protocol.AuthenticationMessageKind.SASL: {
         const mode = this.options.channelBinding || 'prefer';
+        /* Encrypted and "can be bound to" are two questions on workerd,
+           where they are one on Node. Binding mixes a hash of the
+           server's certificate into the SCRAM proof, and that runtime
+           hands out no certificate - so a connection can be perfectly
+           secure there and still have nothing to bind to. Saying "not
+           using TLS" for it, which is what the one test used to answer,
+           sends the reader looking in the wrong place. */
+        const secure =
+          this._socket instanceof tls.TLSSocket ||
+          (this._socket instanceof WorkerdSocket && this._socket.secure);
         const tlsSocket =
           mode !== 'disable' && this._socket instanceof tls.TLSSocket
             ? this._socket
@@ -1166,9 +1176,13 @@ export class PgSocket extends SafeEventEmitter {
         const useBinding = !!tlsSocket && offersBinding;
         if (mode === 'require' && !useBinding) {
           throw new Error(
-            tlsSocket
-              ? 'SASL: channelBinding is "require" but the server does not offer SCRAM-SHA-256-PLUS'
-              : 'SASL: channelBinding is "require" but the connection is not using TLS',
+            !secure
+              ? 'SASL: channelBinding is "require" but the connection is not using TLS'
+              : !tlsSocket
+                ? 'SASL: channelBinding is "require", but this runtime does not expose the ' +
+                  'server certificate, so there is nothing to bind to. Cloudflare Workers is ' +
+                  'one; use "prefer", which is the default.'
+                : 'SASL: channelBinding is "require" but the server does not offer SCRAM-SHA-256-PLUS',
           );
         }
         if (!useBinding && !msg.mechanisms?.includes('SCRAM-SHA-256')) {

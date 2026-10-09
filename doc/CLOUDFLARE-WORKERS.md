@@ -79,16 +79,31 @@ this instead:
 > protocol, which the runtime offers no way to announce. Leave sslNegotiation unset to negotiate
 > with SSLRequest instead.
 
-### What has and has not been checked
+**Channel binding cannot be used, and `channelBinding: 'require'` is refused.** Binding mixes a
+hash of the server's certificate into the SCRAM proof, and there is no certificate to hash here.
+The default `prefer` notices and authenticates without it; `require` says so by name rather than
+claiming the connection is not encrypted, which it may well be.
 
-Measured here: the plain path end to end, and the TLS path as far as the certificate - the server
-agrees to TLS, `startTls()` runs, and the handshake then fails against the self-signed certificate
-the local server presents, which is the only answer possible for it.
+### What has been checked
 
-**Not measured: a successful TLS connection.** That needs a database whose certificate chains to a
-public CA, and there was none to hand. The upgrade itself is the same call `pg` and postgres.js
-make, and the leg before it is checked, but the handshake completing is a claim this page does not
-make.
+Measured against a managed PostgreSQL 18 with a Let's Encrypt certificate, from `wrangler dev`:
+
+```
+ok     socket=WorkerdSocket secure=true  rows={"n":1}   1022ms
+```
+
+and, on the same server with `sslmode` removed:
+
+```
+FAIL   28000 connection is insecure (try using `sslmode=require`)
+```
+
+The second is what makes the first mean something: that server refuses unencrypted connections, so
+a query that answered could only have answered over TLS.
+
+`pg_stat_ssl` is not a useful check through a provider like this one and was tried first: it reads
+`ssl=false` even on Node over a real `TLSSocket`, because the TLS is terminated in front of
+PostgreSQL and the backend sees a plain connection.
 
 ### Reaching a database that requires TLS
 

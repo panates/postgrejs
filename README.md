@@ -133,7 +133,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Packages to install               |           1            |    4 <sup>1</sup>     |        1         |
 | Module system                     |          ESM           |        ESM/CJS        |     ESM/CJS      |
 | Language                          |           TS           |    JS <sup>2</sup>    | JS <sup>3</sup>  |
-| Cloudflare Workers                |    🟡 <sup>28</sup>    |   🟡 <sup>29</sup>    | ✅ <sup>30</sup> |
+| Cloudflare Workers                |    ✅ <sup>28</sup>    |   🟡 <sup>29</sup>    | ✅ <sup>30</sup> |
 | ***Wire protocol***               |                        |                       |                  |
 | Protocol version                  |          3.2           |          3.0          |       3.0        |
 | Simple Query protocol             |           ✅           |          ✅           |        ✅        |
@@ -272,16 +272,17 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   input parser is what sorts and deduplicates a vector and what defines a query's grammar, so encoding either here
   would make the same text mean one thing written as a literal and another bound as a parameter. They are sent as
   text instead, which is exact.
-- <sup>28</sup> PostgreJS runs on workerd under `nodejs_compat` with nothing installed and no build of its own - the
-  plain path measured end to end against PostgreSQL 18. TLS opens a socket of the runtime's own and upgrades it with
-  `startTls()`, since `tls.connect({ socket })` is not something workerd can carry out; partial rather than built in
-  because **a successful TLS handshake has not been measured here** - that needs a certificate chaining to a public
-  CA, and the local server's is self-signed, which workerd cannot be told to trust. Checked as far as it goes: the
-  server agrees to TLS and the handshake then fails on the certificate, which is the only answer available for it.
-  Two limits are the runtime's and apply to all three libraries: `ca`, `cert` and `rejectUnauthorized` have nowhere to
-  go (workerd's TLS options are `{ expectedServerHostname?: string }`), and `sslnegotiation=direct` cannot announce
-  the `postgresql` ALPN protocol, so it is refused by name here. A database behind TLS is also reachable through
-  Hyperdrive, which terminates it in Cloudflare's own network - checked here against its binding. See
+- <sup>28</sup> PostgreJS runs on workerd under `nodejs_compat` with nothing installed and no build of its own.
+  Measured end to end: a plain connection against PostgreSQL 18, and a TLS one against a managed PostgreSQL 18 whose
+  certificate comes from Let's Encrypt - the same server refusing the connection outright (`28000 connection is
+  insecure`) when `sslmode` is dropped, which is what makes the encrypted one mean something. TLS opens a socket of
+  the runtime's own and upgrades it with `startTls()`, since `tls.connect({ socket })` is not something workerd can
+  carry out. Three limits are the runtime's, and all three libraries have them: `ca`, `cert` and `rejectUnauthorized`
+  have nowhere to go (workerd's TLS options are `{ expectedServerHostname?: string }`, so a self-signed certificate
+  cannot be trusted and a local server cannot be reached over TLS at all); `sslnegotiation=direct` cannot announce the
+  `postgresql` ALPN protocol, and is refused by name here; and SCRAM channel binding has no server certificate to bind
+  to, so `channelBinding: 'require'` is refused and the default `prefer` authenticates without it. Hyperdrive is the
+  other way in, terminating TLS in Cloudflare's own network - checked here against its binding. See
   [doc/CLOUDFLARE-WORKERS.md](doc/CLOUDFLARE-WORKERS.md).
 - <sup>29</sup> pg reaches workerd through `pg-cloudflare`, a separate package it carries as an optional dependency
   and selects at runtime (`lib/stream.js`, on `navigator.userAgent`). That package wraps `cloudflare:sockets` and
