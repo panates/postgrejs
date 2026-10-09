@@ -302,6 +302,9 @@ you open an issue please provide version of NodeJS and PostgreSQL server.
 - Bun - the same test suite runs under Bun in CI against PostgreSQL 18 on every push, so Bun is a supported target
   rather than an untested coincidence. (Coverage is collected on the Node matrix only: `c8` instruments V8's
   coverage APIs, which JavaScriptCore doesn't have.)
+- Cloudflare Workers - with `nodejs_compat`, and without TLS: the runtime has no way to trust a server
+  certificate, so a database behind TLS is reached through Hyperdrive instead. See
+  [doc/CLOUDFLARE-WORKERS.md](doc/CLOUDFLARE-WORKERS.md).
 
 ## License
 

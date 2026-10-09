@@ -8,6 +8,7 @@ import { ConnectionState } from '../constants.js';
 import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import type { Callback, Maybe } from '../types.js';
+import { isWorkerd } from '../util/runtime.js';
 import { Backend } from './backend.js';
 import { signatureHashOfCertificate } from './cert-signature.js';
 import { ConnectionLostError } from './connection-lost-error.js';
@@ -192,6 +193,24 @@ export class PgSocket extends SafeEventEmitter {
       !!options.requireSSL ||
       options.sslNegotiation === 'direct';
     if (!wantsSSL) return onReady(socket);
+    /* Refused here rather than attempted, because attempting it does not
+       fail in any way a caller can read: measured on workerd, the
+       `postgres` negotiation answers "Network connection lost." after
+       the server has already agreed to TLS, `rejectUnauthorized` reports
+       itself "not implemented", and `direct` hangs until the connect
+       timeout. The reason is not something this client can work around -
+       workerd's own TLS surface is `{ expectedServerHostname?: string }`
+       and nothing else, so there is no way to say which certificate to
+       trust, and `tls.connect()` there cannot upgrade a socket at all. */
+    if (isWorkerd())
+      return onError(
+        new Error(
+          'TLS is not available on Cloudflare Workers: the runtime offers no way to ' +
+            'trust a server certificate, and a socket cannot be upgraded in place there. ' +
+            'Connect without TLS - through Hyperdrive, which terminates TLS itself - or ' +
+            'run on Node.js or Bun.',
+        ),
+      );
     if (options.sslNegotiation === 'direct') {
       // Straight into the handshake: no SSLRequest, nothing in the clear.
       return startTls();
