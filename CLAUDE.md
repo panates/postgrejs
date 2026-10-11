@@ -92,6 +92,19 @@ better as the TSDoc's last paragraph than as a block underneath it.
 Line comments inside a function body stay where they are; this is about what sits above a
 declaration.
 
+### Prose a person will read
+
+Run `panates:humanize` over anything written for a human reader, without waiting to be asked:
+TSDoc and the notes under it, `doc/*.md`, README prose, commit messages, PR bodies, issue
+replies. Not identifiers, test titles or config - those need consistency, not a natural voice.
+The skill carries its own section for documentation and commit messages, and defers to this file
+wherever the two disagree.
+
+One thing is worth repeating here, because documentation is where loosening prose actually costs
+something: "Returns the resolved types for the declared parameters" reads more smoothly as
+"Handles parameter type resolution" and has stopped saying what the function returns. A sentence
+that can only be made to read well by saying less stays as it is.
+
 ### Class member order
 
 Declare members in this order, with non-public ones always at the bottom rather than next to the code that uses them:
