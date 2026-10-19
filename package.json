@@ -26,9 +26,9 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^26.6.5",
     "@types/pg": "^8.23.1",
-    "bun-types": "^1.4.2",
+    "bun-types": "^1.4.3",
     "c8": "^12.0.0",
-    "dotenv": "^18.0.7",
+    "dotenv": "^18.0.8",
     "dpdm": "^4.3.0",
     "expect": "^30.5.2",
     "globals": "^17.13.0",
@@ -37,7 +37,7 @@
     "pg": "^8.23.1",
     "pg-copy-streams": "^7.0.0",
     "postgres": "^3.4.9",
-    "temporal-polyfill": "^1.0.5",
+    "temporal-polyfill": "^1.0.6",
     "tinybench": "^6.2.2",
     "typescript": "^6.0.3",
     "yargs": "^18.2.0"
@@ -76,7 +76,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/panates/postgrejs.git"
+    "url": "git+https://github.com/panates/postgrejs.git"
   },
   "keywords": [
     "postgresql",
