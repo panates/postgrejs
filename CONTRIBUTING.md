@@ -9,7 +9,7 @@ Thanks for taking the time to contribute to `postgrejs`!
    ```bash
    git clone https://github.com/panates/postgrejs.git
    cd postgrejs
-   npm install
+   pnpm install
    ```
 
 2. Node.js `>=20.0` is required (see `engines` in `package.json`).
@@ -23,17 +23,17 @@ Before opening a pull request, make sure the following all pass locally
 (CI runs the same checks):
 
 ```bash
-npm run qc       # lint + circular-dependency check
-npm run compile  # type-check without emitting
-npm test         # test suite
+pnpm run qc       # lint + circular-dependency check
+pnpm run compile  # type-check without emitting
+pnpm test         # test suite
 ```
 
 ## Code Style
 
 Formatting is handled by [Prettier](https://prettier.io) and applied
 automatically on commit via a Husky pre-commit hook, so you don't need to
-format manually - though you can with `npm run format`. Linting is done
-with ESLint (`npm run lint`); the project builds with zero warnings
+format manually - though you can with `pnpm run format`. Linting is done
+with ESLint (`pnpm run lint`); the project builds with zero warnings
 allowed, so fix anything it flags before pushing.
 
 ## Testing
@@ -54,9 +54,9 @@ or changes behavior without a corresponding test won't be merged.
     docker compose -f docker/docker-compose.yml up --detach
     ```
 
-2. Execute the test suite with: `npm test`
+2. Execute the test suite with: `pnpm test`
 
-3. To check code coverage locally the same way CI does, run `npm run citest`.
+3. To check code coverage locally the same way CI does, run `pnpm run citest`.
 
 ### Optional: SCRAM/MD5 login and channel-binding tests
 
@@ -92,7 +92,7 @@ environment doesn't have one. CI always sets this up (see
    suite with both env vars set:
 
    ```bash
-   LOGIN_SCRAM=postgrejs_test_scram LOGIN_MD5=postgrejs_test_md5 npm test
+   LOGIN_SCRAM=postgrejs_test_scram LOGIN_MD5=postgrejs_test_md5 pnpm test
    ```
 
 ## Commit Messages
@@ -106,8 +106,8 @@ so sticking to the format keeps it meaningful.
 
 - Target `dev`.
 - CI runs the lint, circular-dependency, compile and test checks across a
-  matrix of Node.js and PostgreSQL versions - passing `npm run qc` and
-  `npm test` locally first saves a round trip.
+  matrix of Node.js and PostgreSQL versions - passing `pnpm run qc` and
+  `pnpm test` locally first saves a round trip.
 - Keep pull requests focused on one change; unrelated cleanups belong in
   their own PR.
 
@@ -115,7 +115,7 @@ so sticking to the format keeps it meaningful.
 
 Benchmark scenarios live under `benchmark/`; see `doc/BENCHMARKS.md` for
 the current results and `benchmark/README.md` for how to run a scenario
-yourself (`npm run bench -- --scenario=<name> --lib=<name>`). Only run
+yourself (`pnpm run bench -- --scenario=<name> --lib=<name>`). Only run
 these if your change could affect performance - they aren't part of the
 regular test suite.
 

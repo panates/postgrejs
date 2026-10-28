@@ -1,0 +1,7 @@
+# pnpm blocks install scripts by default. These two are allowed because both
+# ship a native binary they build or fetch on install: @swc/core is what
+# compiles TypeScript for the tests and the benchmarks, and unrs-resolver is
+# the module resolver eslint's import plugin uses.
+allowBuilds:
+  '@swc/core': true
+  unrs-resolver: true
