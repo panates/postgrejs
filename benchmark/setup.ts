@@ -216,7 +216,7 @@ async function schemaIsSeeded(
  * rows each of the expected size, and bench.large_array already exists and
  * holds exactly LARGE_ARRAY_ROW_COUNT rows each of the expected element
  * count, and bench.copy_target exists at all, setup is skipped so repeated
- * `npm run bench` invocations don't reseed data every time.
+ * `pnpm run bench` invocations don't reseed data every time.
  */
 export async function setupBenchSchema(
   config: BenchDbConfig,

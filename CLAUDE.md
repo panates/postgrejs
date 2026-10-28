@@ -56,6 +56,10 @@ contributor workflow (lint/compile/test commands, commit message convention, PR 
   already sitting in the index, so an unrelated in-progress change can end up folded into your commit if you
   don't check first.
 - Don't run the full benchmark suite (`npm run bench`) unless asked.
+- Before pushing, run `rman deps`. If anything has a newer version, upgrade and install it with
+  `rman deps -u`, run the tests, and push only once they pass. A dependency that breaks something
+  is cheaper to find here than on a branch other people have already pulled, and the upgrade then
+  travels with the commits it was tested against rather than arriving later on its own.
 - Don't sign commits or pull requests on the assistant's behalf - no `Co-Authored-By: Claude` trailer, no
   "Generated with Claude Code" line. The commit message ends with its own last paragraph.
 
@@ -91,6 +95,19 @@ better as the TSDoc's last paragraph than as a block underneath it.
 
 Line comments inside a function body stay where they are; this is about what sits above a
 declaration.
+
+### Prose a person will read
+
+Run `panates:humanize` over anything written for a human reader, without waiting to be asked:
+TSDoc and the notes under it, `doc/*.md`, README prose, commit messages, PR bodies, issue
+replies. Not identifiers, test titles or config - those need consistency, not a natural voice.
+The skill carries its own section for documentation and commit messages, and defers to this file
+wherever the two disagree.
+
+One thing is worth repeating here, because documentation is where loosening prose actually costs
+something: "Returns the resolved types for the declared parameters" reads more smoothly as
+"Handles parameter type resolution" and has stopped saying what the function returns. A sentence
+that can only be made to read well by saying less stays as it is.
 
 ### Class member order
 

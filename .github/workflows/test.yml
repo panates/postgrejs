@@ -28,7 +28,8 @@ on:
       - '**/.mocharc.*'
       - '.c8rc.json'
       - '**/package.json'
-      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - 'support/**'
 
 # The workflow only ever reads the repository: it checks out, installs, and
@@ -310,9 +311,9 @@ jobs:
           sudo -u postgres psql -c "grant all on database postgrejs_test to postgrejs_test;"
           sudo -u postgres psql -c "alter database postgrejs_test owner to postgrejs_test;"
 
-      # Dependencies are installed with npm/Node - only the test run itself
+      # Dependencies are installed with pnpm/Node - only the test run itself
       # happens under Bun, to prove the published package works there too
-      # (Bun's own installer isn't exercised here, npm's is).
+      # (Bun's own installer isn't exercised here, pnpm's is).
       - name: Setup Environment
         uses: panates/gh-setup-node@v2
         with:

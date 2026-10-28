@@ -89,7 +89,7 @@ async function main(): Promise<void> {
   );
   await runMatrix({ libs, scenarios, repeats });
   console.log(
-    '\nDone. Run `npm run bench:report` to regenerate BENCHMARKS.md.',
+    '\nDone. Run `pnpm run bench:report` to regenerate BENCHMARKS.md.',
   );
 }
 

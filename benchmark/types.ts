@@ -27,7 +27,7 @@ export interface ScenarioMeta {
   readonly description: string;
   /**
    * tinybench run options for this scenario. Kept modest by default so a
-   * full `npm run bench` finishes in a reasonable time; see
+   * full `pnpm run bench` finishes in a reasonable time; see
    * benchmark/README.md for how to raise rigor for a "real" run.
    */
   readonly bench: {

@@ -1,5 +1,8 @@
 /node_modules
 /build
+# Generated, and pnpm rewrites it in its own layout on every install - left
+# to prettier the two reformat it back and forth forever.
+/pnpm-lock.yaml
 /coverage
 /.idea
 /.circleci

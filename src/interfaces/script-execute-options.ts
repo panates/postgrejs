@@ -33,9 +33,14 @@ export interface ScriptExecuteOptions extends DataMappingOptions {
    *
    * `false` asks for the wire to itself: the statement waits until
    * nothing else is running on the connection, and nothing else starts
-   * until it finishes, whichever mode those asked for. Nothing orders
-   * two pipelined statements against each other, so this is how a
-   * statement that depends on what another one left behind says so.
+   * until it finishes, whichever mode those asked for. It is not how a
+   * statement says it depends on an earlier one: pipelined statements on
+   * one connection execute in the order they were submitted. What this
+   * is for is a statement that needs the connection to itself for longer
+   * than the wire - session state another caller would see, or a result
+   * the caller has to read before it can decide what to send next.
+   * Statements on different pooled connections have no order between
+   * them at all.
    *
    * Some statements never share a *pooled* connection however this is
    * set, because they need one to themselves for longer than the call:
