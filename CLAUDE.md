@@ -56,6 +56,10 @@ contributor workflow (lint/compile/test commands, commit message convention, PR 
   already sitting in the index, so an unrelated in-progress change can end up folded into your commit if you
   don't check first.
 - Don't run the full benchmark suite (`npm run bench`) unless asked.
+- Before pushing, run `rman deps`. If anything has a newer version, upgrade and install it with
+  `rman deps -u`, run the tests, and push only once they pass. A dependency that breaks something
+  is cheaper to find here than on a branch other people have already pulled, and the upgrade then
+  travels with the commits it was tested against rather than arriving later on its own.
 - Don't sign commits or pull requests on the assistant's behalf - no `Co-Authored-By: Claude` trailer, no
   "Generated with Claude Code" line. The commit message ends with its own last paragraph.
 
