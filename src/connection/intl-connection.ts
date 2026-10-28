@@ -309,6 +309,12 @@ export class IntlConnection extends SafeEventEmitter {
    * never close again.
    */
   private _preparing = new Map<string, Promise<PreparedCacheEntry>>();
+  /**
+   * Resolves when the statement submitted before this one has written its
+   * own bytes - see _holdWireOrder(). Undefined whenever nothing is on its
+   * way to the wire, which is every statement that writes without waiting.
+   */
+  private _wireOrder?: Promise<void>;
   /** SQL seen once but not yet prepared - see PREPARE_AFTER_USES. */
   private _preparedCandidates = new Map<string, number>();
   private _preparedCounter = 0;
@@ -1193,8 +1199,10 @@ export class IntlConnection extends SafeEventEmitter {
     callWantsFields: boolean,
   ): Promise<QueryResult> {
     const enabled = options.prepare ?? this.config.prepare ?? true;
-    if (!enabled)
+    if (!enabled) {
+      if (this._wireOrder) await this._wireOrder;
       return this.queryOnce(sql, paramTypes, params, options, savepoint);
+    }
 
     const key = preparedCacheKey(sql, paramTypes);
     const cached = this._preparedCache.get(key);
@@ -1203,6 +1211,7 @@ export class IntlConnection extends SafeEventEmitter {
       this._preparedCache.delete(key);
       this._preparedCache.set(key, cached);
       try {
+        if (this._wireOrder) await this._wireOrder;
         return await this.executeReused(
           cached.name,
           cached.fields,
@@ -1248,8 +1257,10 @@ export class IntlConnection extends SafeEventEmitter {
     // second, which is where the name arrives anyway.
     const needsFields =
       callWantsFields && options.columnFormat !== DataFormat.text;
-    if (!needsFields && !this._earnsAName(key))
+    if (!needsFields && !this._earnsAName(key)) {
+      if (this._wireOrder) await this._wireOrder;
       return this.queryOnce(sql, paramTypes, params, options, savepoint);
+    }
 
     let preparing = this._preparing.get(key);
     if (!preparing) {
@@ -1262,17 +1273,78 @@ export class IntlConnection extends SafeEventEmitter {
       // Someone else is already naming it. Waiting would cost a round
       // trip the one-shot path does not - the name is for the calls
       // after this burst, not for this one.
+      if (this._wireOrder) await this._wireOrder;
       return this.queryOnce(sql, paramTypes, params, options, savepoint);
     }
-    const entry = await preparing;
-    return this.executeReused(
-      entry.name,
-      entry.fields,
-      paramTypes,
-      params,
-      options,
-      savepoint,
-    );
+    const place = this._holdWireOrder();
+    let running: Promise<QueryResult>;
+    try {
+      const entry = await preparing;
+      if (place.after) await place.after;
+      /* Called, not awaited: executeReused() runs as far as the socket
+         write before its first await, so by the time it hands back a
+         promise the bytes are away and the next statement may follow
+         them. Awaiting it here instead would hold the line until this
+         statement had its answer, which is pipelining switched off. */
+      running = this.executeReused(
+        entry.name,
+        entry.fields,
+        paramTypes,
+        params,
+        options,
+        savepoint,
+      );
+    } finally {
+      // Also on the way out of a Parse that failed: this statement will
+      // never write, and whatever queued behind it must not wait forever.
+      place.wrote();
+    }
+    return running;
+  }
+
+  /**
+   * Keeps this statement's place in the wire order while it waits for
+   * something - today, the Parse round trip that names it.
+   *
+   * @returns `after`, the place held by the statement submitted before this
+   * one, to wait on before writing; and `wrote`, to call the moment this
+   * statement's own bytes are on the wire.
+   */
+  /* PostgreSQL executes what reaches it in the order it reaches it, and
+     cannot know what order the query() calls were made in. A statement
+     that has to await a Parse before it can Bind therefore lets every
+     later statement overtake it - invisibly, because the overtaking only
+     happens when one statement is cached and the other is not, which is a
+     property of the connection's history rather than of the code. Two
+     updates to one row then land in the opposite order on a connection
+     that had been running them correctly all along.
+  
+     Holding a place rather than the wire: the Parse still overlaps with
+     everything else, which is the point of pipelining. Only the Bind is
+     made to queue, and only behind calls that really were submitted
+     first.
+  
+     Nothing pending leaves `_wireOrder` undefined, so a statement that
+     writes without waiting - a cache hit, the common case - reads one
+     field and writes, paying no promise and no microtask for the
+     ordering. */
+  protected _holdWireOrder(): {
+    after?: Promise<void>;
+    wrote: () => void;
+  } {
+    const after = this._wireOrder;
+    let resolve!: () => void;
+    const mine = new Promise<void>(r => (resolve = r));
+    this._wireOrder = mine;
+    return {
+      after,
+      wrote: () => {
+        // Only if nobody queued behind this one in the meantime - their
+        // place is the one that must be waited on now.
+        if (this._wireOrder === mine) this._wireOrder = undefined;
+        resolve();
+      },
+    };
   }
 
   /**
