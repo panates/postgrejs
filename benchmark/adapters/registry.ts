@@ -35,10 +35,10 @@ export const ALL_LIB_IDS = Object.keys(ADAPTER_LOADERS) as LibId[];
  * every worker is spawned via `process.execPath` (see
  * runner/orchestrator.ts's spawnWorker), which re-invokes whichever
  * executable is running *this* process. So when this orchestrator itself
- * is running under `bun` (`npm run bench:bun`), `bun` belongs in the
+ * is running under `bun` (`pnpm run bench:bun`), `bun` belongs in the
  * default matrix alongside pg/postgres/postgrejs - the whole point is
  * comparing all four under the same runtime. Under a plain `node`
- * invocation (`npm run bench`), including it would crash every worker
+ * invocation (`pnpm run bench`), including it would crash every worker
  * trying to `import('bun')`, so it's excluded there. Either way, `--lib=bun`
  * still works as an explicit override on any runtime (it just won't
  * succeed unless that runtime is actually bun).

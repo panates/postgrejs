@@ -324,10 +324,10 @@ PostgreJS implements the full PostgreSQL wire protocol from scratch, with no dep
 [`doc/BENCHMARKS.md`](doc/BENCHMARKS.md) compares it against `pg` (node-postgres) and `postgres` (postgres.js)
 across connection setup, simple/prepared queries, mixed-type decoding, bulk fetches, cursor streaming and pool
 concurrency, each library run through its own idiomatic fast path. The numbers there are reproducible on your own
-machine via `npm run bench` against the repo's own
+machine via `pnpm run bench` against the repo's own
 `docker/docker-compose.yml` Postgres instance; see [`benchmark/README.md`](./benchmark/README.md) for details.
 
-The same suite runs under Bun via `npm run bench:bun`, where it also measures Bun's own built-in `Bun.sql` client as
+The same suite runs under Bun via `pnpm run bench:bun`, where it also measures Bun's own built-in `Bun.sql` client as
 a fourth library. Those results live in [`doc/BENCHMARKS-bun.md`](doc/BENCHMARKS-bun.md) and are deliberately kept
 in a separate report rather than merged into the Node one: GC instrumentation, cursor streaming and binary-format
 control all differ enough between the two runtimes that a single table would conflate a library difference with a
