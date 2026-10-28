@@ -1,6 +1,35 @@
 # Changelog
 
-<!-- rman:documented-up-to a5d1e7850c6ff795231f22f63ef314ac112470be -->
+<!-- rman:documented-up-to 3d68146ac4668ef56a529fae1f350051f7a21193 -->
+
+## v3.14.1 (2026-10-28)
+
+### 🐛 Bug Fixes
+
+- send any byte view as bytea, not just a Buffer (98b31de)
+- a pipelined statement no longer overtakes one submitted before it (9b68d02)
+
+### 📚 Documentation
+
+- **claude:** run humanize over prose a person will read (2733e1c)
+- **claude:** check dependencies before pushing (3f52c8d)
+- **contributing:** name the commands that exist (4359040)
+- **bench:** spell the benchmark commands with pnpm (230a01f)
+
+### 🧹 Chores
+
+- sync lockfile (a785ea8)
+- **deps:** update dependencies in package-lock.json (10f839d)
+- **deps:** update multiple dependencies to latest versions (0e6cb00)
+- **deps:** upgrade, including rman-preset across a major (27dcacb)
+- install with pnpm (7758557)
+- keep prettier out of the pnpm lockfile (c6cc1ff)
+
+### 💬 General Changes
+
+- Merge remote-tracking branch 'origin/dev' into dev (6d563e9)
+
+---
 
 ## v3.14.0 (2026-10-09)
 
