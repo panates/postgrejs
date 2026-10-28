@@ -23,17 +23,18 @@ Before opening a pull request, make sure the following all pass locally
 (CI runs the same checks):
 
 ```bash
-pnpm run qc       # lint + circular-dependency check
-pnpm run compile  # type-check without emitting
-pnpm test         # test suite
+rman lint             # ESLint
+rman check            # circular-dependency check
+pnpm run typecheck    # type-check without emitting
+pnpm test             # test suite
 ```
 
 ## Code Style
 
 Formatting is handled by [Prettier](https://prettier.io) and applied
 automatically on commit via a Husky pre-commit hook, so you don't need to
-format manually - though you can with `pnpm run format`. Linting is done
-with ESLint (`pnpm run lint`); the project builds with zero warnings
+format manually - though you can with `rman format`. Linting is done
+with ESLint (`rman lint`); the project builds with zero warnings
 allowed, so fix anything it flags before pushing.
 
 ## Testing
@@ -106,8 +107,8 @@ so sticking to the format keeps it meaningful.
 
 - Target `dev`.
 - CI runs the lint, circular-dependency, compile and test checks across a
-  matrix of Node.js and PostgreSQL versions - passing `pnpm run qc` and
-  `pnpm test` locally first saves a round trip.
+  matrix of Node.js and PostgreSQL versions - passing `rman lint`,
+  `rman check` and `pnpm test` locally first saves a round trip.
 - Keep pull requests focused on one change; unrelated cleanups belong in
   their own PR.
 
