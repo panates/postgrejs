@@ -12,7 +12,7 @@ Thanks for taking the time to contribute to `postgrejs`!
    pnpm install
    ```
 
-2. Node.js `>=20.0` is required (see `engines` in `package.json`).
+2. Node.js `>=22.0` is required (see `engines` in `package.json`).
 
 3. Base your branch on, and open your pull request against, `dev` - `main`
    only receives releases.
