@@ -65,7 +65,7 @@
     "./package.json": "./package.json"
   },
   "engines": {
-    "node": ">=20.0"
+    "node": ">=22.0"
   },
   "packageManager": "pnpm@12.10.1",
   "homepage": "https://www.postgrejs.com/",

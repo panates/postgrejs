@@ -141,7 +141,7 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
 
 - **Language:** Pure JavaScript, with no native/binary dependencies to compile or ship.
 - **Strictly typed:** Written entirely in TypeScript, with types shipped alongside the package.
-- **Modern module format:** Ships as ESM; Node 20.19+/22.12+ can `require()` it from CommonJS code as well.
+- **Modern module format:** Ships as ESM; Node 22.12+ can `require()` it from CommonJS code as well.
 - **Promise-based API:** Every asynchronous operation returns a promise - no callbacks to wrangle.
 - **Rigorously tested:** A test suite covering the wire protocol, every data type, and connection-handling edge case,
   run on every push against PostgreSQL 12 through 18.
@@ -344,7 +344,7 @@ you open an issue please provide version of NodeJS and PostgreSQL server.
 
 ## Runtime Compatibility
 
-- Node.js >= 20.x
+- Node.js >= 22.x
 - Bun - the same test suite runs under Bun in CI against PostgreSQL 18 on every push, so Bun is a supported target
   rather than an untested coincidence. (Coverage is collected on the Node matrix only: `c8` instruments V8's
   coverage APIs, which JavaScriptCore doesn't have.)
