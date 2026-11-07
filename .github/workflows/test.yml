@@ -67,7 +67,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [ '20', '22', '24', '26' ]
+        node: [ '22', '24', '26' ]
         postgres: [ '12', '16', '18' ]
     # Pinned rather than `ubuntu-latest`: the steps below are coupled to
     # what the image ships (they purge its PostgreSQL and add an apt repo

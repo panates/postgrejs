@@ -62,41 +62,49 @@ PostgreJS is a driver, not a framework, so what you build on top of it stays you
       <a href="https://www.sqbjs.org"><img src="https://www.postgrejs.com/img/sqb-logo.svg" alt="SQB" height="60"></a><br><br>
       <b><a href="https://www.sqbjs.org">SQB</a></b><br>
       <a href="https://www.npmjs.com/package/@sqb/postgres"><code>@sqb/postgres</code></a><br>
-      <sub>first-party adapter</sub>
+      <sub>built-in adapter</sub>
+    </td>
+    <td align="center" width="230" valign="top">
+      <a href="https://joist-orm.io"><img src="https://www.postgrejs.com/img/joist-logo.svg" alt="Joist" height="60"></a><br><br>
+      <b><a href="https://joist-orm.io">Joist</a></b><br>
+      <a href="https://www.npmjs.com/package/joist-orm"><code>joist-orm/postgrejs</code></a><br>
+      <sub>built-in driver</sub>
     </td>
     <td align="center" width="230" valign="top">
       <a href="https://kysely.dev"><img src="https://www.postgrejs.com/img/kysely-logo.svg" alt="Kysely" height="60"></a><br><br>
       <b><a href="https://kysely.dev">Kysely</a></b><br>
       <a href="https://github.com/panates/postgrejs-kysely"><code>kysely-postgrejs</code></a><br>
-      <sub>dialect</sub>
-    </td>
-    <td align="center" width="230" valign="top">
-      <a href="https://orm.drizzle.team"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/drizzle-logo-dark.svg"><img src="https://www.postgrejs.com/img/drizzle-logo-light.svg" alt="Drizzle ORM" height="34"></picture></a><br><br>
-      <b><a href="https://orm.drizzle.team">Drizzle ORM</a></b><br>
-      <a href="https://github.com/panates/postgrejs-drizzle"><code>drizzle-postgrejs</code></a><br>
-      <sub>driver</sub>
+      <sub>third-party dialect</sub>
     </td>
   </tr>
   <tr>
     <td align="center" width="230" valign="top">
+      <a href="https://orm.drizzle.team"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/drizzle-logo-dark.svg"><img src="https://www.postgrejs.com/img/drizzle-logo-light.svg" alt="Drizzle ORM" height="34"></picture></a><br><br>
+      <b><a href="https://orm.drizzle.team">Drizzle ORM</a></b><br>
+      <a href="https://github.com/panates/postgrejs-drizzle"><code>drizzle-postgrejs</code></a><br>
+      <sub>third-party driver</sub>
+    </td>
+    <td align="center" width="230" valign="top">
       <a href="https://typeorm.io"><img src="https://www.postgrejs.com/img/typeorm-icon.png" alt="TypeORM" height="60"></a><br><br>
       <b><a href="https://typeorm.io">TypeORM</a></b><br>
       <a href="https://github.com/panates/postgrejs-typeorm"><code>typeorm-postgrejs</code></a><br>
-      <sub>driver</sub>
+      <sub>third-party driver</sub>
     </td>
     <td align="center" width="230" valign="top">
       <a href="https://www.prisma.io"><img src="https://www.postgrejs.com/img/prisma-icon.svg" alt="Prisma" height="60"></a><br><br>
       <b><a href="https://www.prisma.io">Prisma</a></b><br>
       <a href="https://github.com/panates/postgrejs-prisma"><code>prisma-postgrejs</code></a><br>
-      <sub>driver adapter</sub>
+      <sub>third-party adapter</sub>
     </td>
-    <td width="230"></td>
   </tr>
 </table>
 
 Each adapter hands the compiled SQL straight to this client, with no `pg` left anywhere in the chain, and each is
 compared query by query against the driver it replaces - and, where the project ships a suite of its own, run
 against that too. So adopting one is a change to how the connection is created and nothing else.
+
+Joist's is the Joist project's own, and uses `RowDecoder` to leave each cell undecoded until an entity reads it.
+Codegen and migrations there still run on `pg`, though the runtime does not.
 
 ### 🌍 Runs Where You Run
 
@@ -141,7 +149,7 @@ Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3
 
 - **Language:** Pure JavaScript, with no native/binary dependencies to compile or ship.
 - **Strictly typed:** Written entirely in TypeScript, with types shipped alongside the package.
-- **Modern module format:** Ships as ESM; Node 20.19+/22.12+ can `require()` it from CommonJS code as well.
+- **Modern module format:** Ships as ESM; Node 22.12+ can `require()` it from CommonJS code as well.
 - **Promise-based API:** Every asynchronous operation returns a promise - no callbacks to wrangle.
 - **Rigorously tested:** A test suite covering the wire protocol, every data type, and connection-handling edge case,
   run on every push against PostgreSQL 12 through 18.
@@ -344,7 +352,7 @@ you open an issue please provide version of NodeJS and PostgreSQL server.
 
 ## Runtime Compatibility
 
-- Node.js >= 20.x
+- Node.js >= 22.x
 - Bun - the same test suite runs under Bun in CI against PostgreSQL 18 on every push, so Bun is a supported target
   rather than an untested coincidence. (Coverage is collected on the Node matrix only: `c8` instruments V8's
   coverage APIs, which JavaScriptCore doesn't have.)
