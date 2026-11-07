@@ -1,6 +1,20 @@
 # Changelog
 
-<!-- rman:documented-up-to 3d68146ac4668ef56a529fae1f350051f7a21193 -->
+<!-- rman:documented-up-to 4007c3d1661e696bfed56984d8cfd072968f6899 -->
+
+## v3.14.2 (2026-11-07)
+
+### 📚 Documentation
+
+- **readme:** add Joist ORM to the integrations table (8fa703c)
+- **readme:** say who publishes each integration (28ff1b9)
+
+### 🧹 Chores
+
+- require Node.js 22 (1984de0)
+- **deps:** upgrade dependencies (424a9c2)
+
+---
 
 ## v3.14.1 (2026-10-28)
 
