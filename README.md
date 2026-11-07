@@ -65,19 +65,25 @@ PostgreJS is a driver, not a framework, so what you build on top of it stays you
       <sub>first-party adapter</sub>
     </td>
     <td align="center" width="230" valign="top">
+      <a href="https://joist-orm.io"><img src="https://www.postgrejs.com/img/joist-logo.svg" alt="Joist" height="60"></a><br><br>
+      <b><a href="https://joist-orm.io">Joist</a></b><br>
+      <a href="https://www.npmjs.com/package/joist-orm"><code>joist-orm/postgrejs</code></a><br>
+      <sub>built-in driver</sub>
+    </td>
+    <td align="center" width="230" valign="top">
       <a href="https://kysely.dev"><img src="https://www.postgrejs.com/img/kysely-logo.svg" alt="Kysely" height="60"></a><br><br>
       <b><a href="https://kysely.dev">Kysely</a></b><br>
       <a href="https://github.com/panates/postgrejs-kysely"><code>kysely-postgrejs</code></a><br>
       <sub>dialect</sub>
     </td>
+  </tr>
+  <tr>
     <td align="center" width="230" valign="top">
       <a href="https://orm.drizzle.team"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/drizzle-logo-dark.svg"><img src="https://www.postgrejs.com/img/drizzle-logo-light.svg" alt="Drizzle ORM" height="34"></picture></a><br><br>
       <b><a href="https://orm.drizzle.team">Drizzle ORM</a></b><br>
       <a href="https://github.com/panates/postgrejs-drizzle"><code>drizzle-postgrejs</code></a><br>
       <sub>driver</sub>
     </td>
-  </tr>
-  <tr>
     <td align="center" width="230" valign="top">
       <a href="https://typeorm.io"><img src="https://www.postgrejs.com/img/typeorm-icon.png" alt="TypeORM" height="60"></a><br><br>
       <b><a href="https://typeorm.io">TypeORM</a></b><br>
@@ -90,13 +96,15 @@ PostgreJS is a driver, not a framework, so what you build on top of it stays you
       <a href="https://github.com/panates/postgrejs-prisma"><code>prisma-postgrejs</code></a><br>
       <sub>driver adapter</sub>
     </td>
-    <td width="230"></td>
   </tr>
 </table>
 
 Each adapter hands the compiled SQL straight to this client, with no `pg` left anywhere in the chain, and each is
 compared query by query against the driver it replaces - and, where the project ships a suite of its own, run
 against that too. So adopting one is a change to how the connection is created and nothing else.
+
+Joist's driver is the Joist project's own rather than ours, and it uses `RowDecoder` to leave each cell undecoded
+until an entity reads it. Codegen and migrations there still run on `pg`, though the runtime does not.
 
 ### 🌍 Runs Where You Run
 
