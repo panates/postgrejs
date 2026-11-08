@@ -1,7 +1,7 @@
 // Preload step for worker.ts child processes.
 //
 // @swc-node/register only picks up `paths`/`baseUrl` (needed for the
-// `postgrejs` package-name alias, mirrored from test/tsconfig.json) when
+// `postgrejs` package-name alias, mirrored from the root tsconfig-test.json) when
 // `TS_NODE_PROJECT` is set *before* `@swc-node/register/esm-register`
 // initializes, so it must be pointed to explicitly here rather than relying
 // on auto-discovery. This file is passed as an earlier `--import` than the

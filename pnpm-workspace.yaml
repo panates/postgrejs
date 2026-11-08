@@ -1,3 +1,12 @@
+packages:
+  - 'packages/*'
+
+# Install a version as soon as it is published, without pnpm's default
+# 24-hour wait: our own packages are released and consumed the same day.
+# The cost is known: a malicious new release of an outside package can be
+# installed on the day it appears too.
+minimumReleaseAge: 0
+
 # pnpm blocks install scripts by default. These two are allowed because both
 # ship a native binary they build or fetch on install: @swc/core is what
 # compiles TypeScript for the tests and the benchmarks, and unrs-resolver is

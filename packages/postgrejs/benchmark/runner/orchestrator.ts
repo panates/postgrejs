@@ -11,7 +11,7 @@ import type { BenchRuntime, LibId, ScenarioName } from '../types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BENCHMARK_DIR = path.resolve(__dirname, '..');
-const REPO_ROOT = path.resolve(BENCHMARK_DIR, '..');
+const PACKAGE_DIR = path.resolve(BENCHMARK_DIR, '..');
 // Whichever executable is running *this* orchestrator process is also what
 // every worker it spawns runs under (spawnWorker always re-invokes
 // process.execPath) - so results land in a runtime-named subdirectory
@@ -57,7 +57,7 @@ function spawnWorker(
         `--run=${run}`,
         `--resultsDir=${RESULTS_DIR}`,
       ],
-      { cwd: REPO_ROOT, stdio: 'inherit' },
+      { cwd: PACKAGE_DIR, stdio: 'inherit' },
     );
     child.on('error', reject);
     child.on('exit', (code, signal) => {

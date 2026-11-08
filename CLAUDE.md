@@ -4,7 +4,18 @@
 bindings. See README.md's "Why PostgreJS?" section for the pitch and `doc/BENCHMARKS.md` for performance data
 against `pg` and `postgres.js`.
 
-Directory layout:
+The repository is a pnpm workspace with lockstep versioning (one version, one `v*` tag for every
+package, see `.rmanrc.yml`):
+
+- `packages/postgrejs/` - the driver. Its `src/`, `test/` and `benchmark/` sit together because the tests
+  import benchmark code. The paths below are relative to this directory.
+- `packages/otel/` - `postgrejs-otel`, the OpenTelemetry instrumentation. A placeholder for now, kept out of
+  releases by `publish.skip` in its `.rmanrc.yml` until it has code.
+- At the root: the shared tooling (`tsconfig-*.json`, `.mocharc.cjs`, `.c8rc.json`, eslint, rman), `doc/`,
+  `support/docker/` (the local PostgreSQL), and the README, which rman copies into the driver's build because
+  the package has none of its own.
+
+Directory layout of the driver:
 
 - `src/protocol/` - the wire protocol itself: `Backend`/`Frontend` message codecs, `PgSocket` (the connected
   socket plus auth/TLS negotiation), `SmartBuffer`/`BufferReader`.
@@ -19,7 +30,7 @@ Tests mirror this in `test/`:
 
 - `test/A-common/` - pure unit tests, no live connection. Prefer this whenever the code under test doesn't
   actually need a socket: build the wire bytes/fake dependency by hand rather than reaching for a live server.
-- `test/B-connection/` - integration tests against a real local PostgreSQL (`docker/docker-compose.yml`; see
+- `test/B-connection/` - integration tests against a real local PostgreSQL (`support/docker/docker-compose.yml`; see
   CONTRIBUTING.md for the SCRAM/MD5 setup needed for full coverage locally).
 - `test/C-data-types/` - one file per data type, round-tripping values through a live connection via
   `_testers.ts`'s `testParse`/`testEncode`.

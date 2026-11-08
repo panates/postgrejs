@@ -165,31 +165,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      '@jsopen/objects':
-        specifier: ^2.3.4
-        version: 2.3.4
-      doublylinked:
-        specifier: ^2.5.6
-        version: 2.5.6
-      flexy-buffer:
-        specifier: ^1.1.2
-        version: 1.1.2
-      lightning-pool:
-        specifier: ^4.14.0
-        version: 4.14.0
-      power-tasks:
-        specifier: ^1.14.2
-        version: 1.14.2
-      putil-promisify:
-        specifier: ^1.10.1
-        version: 1.10.1
-      putil-varhelpers:
-        specifier: ^1.7.0
-        version: 1.7.0
-      tslib:
-        specifier: ^2.9.1
-        version: 2.9.1
     devDependencies:
       '@panates/eslint-config':
         specifier: ^2.3.5
@@ -218,24 +193,12 @@ importers:
       '@types/node':
         specifier: ^26.6.6
         version: 26.6.6
-      '@types/pg':
-        specifier: ^8.23.1
-        version: 8.23.1
-      bun-types:
-        specifier: ^1.4.4
-        version: 1.4.4
       c8:
         specifier: ^12.0.0
         version: 12.0.0
-      dotenv:
-        specifier: ^18.0.9
-        version: 18.0.9
       dpdm:
         specifier: ^4.3.0
         version: 4.3.0
-      expect:
-        specifier: ^30.5.2
-        version: 30.5.2
       globals:
         specifier: ^17.14.0
         version: 17.14.0
@@ -245,6 +208,59 @@ importers:
       mocha:
         specifier: ^12.0.3
         version: 12.0.3
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
+  packages/otel:
+    dependencies:
+      postgrejs:
+        specifier: workspace:^
+        version: link:../postgrejs
+    devDependencies:
+      expect:
+        specifier: ^30.5.2
+        version: 30.5.2
+
+  packages/postgrejs:
+    dependencies:
+      '@jsopen/objects':
+        specifier: ^2.3.4
+        version: 2.3.4
+      doublylinked:
+        specifier: ^2.5.6
+        version: 2.5.6
+      flexy-buffer:
+        specifier: ^1.1.2
+        version: 1.1.2
+      lightning-pool:
+        specifier: ^4.14.0
+        version: 4.14.0
+      power-tasks:
+        specifier: ^1.14.2
+        version: 1.14.2
+      putil-promisify:
+        specifier: ^1.10.1
+        version: 1.10.1
+      putil-varhelpers:
+        specifier: ^1.7.0
+        version: 1.7.0
+      tslib:
+        specifier: ^2.9.1
+        version: 2.9.1
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      bun-types:
+        specifier: ^1.4.4
+        version: 1.4.4
+      dotenv:
+        specifier: ^18.0.9
+        version: 18.0.9
+      expect:
+        specifier: ^30.5.2
+        version: 30.5.2
       pg:
         specifier: ^8.23.1
         version: 8.23.1
@@ -260,9 +276,6 @@ importers:
       tinybench:
         specifier: ^6.2.3
         version: 6.2.3
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
       yargs:
         specifier: ^18.2.0
         version: 18.2.0
@@ -820,9 +833,6 @@ packages:
 
   '@types/mocha@10.0.10':
     resolution: {integrity: sha512-xPyYSz1cMPnJQhl0CLMH68j3gprKZaTjG3s5Vi+fDgx+uhG9NOXwbVt52eFS8ECyXhyKcjDLCBEqBExKuiZb7Q==}
-
-  '@types/node@26.6.5':
-    resolution: {integrity: sha512-uMzsv9stDdofIZBx4UGh4Z9ZgXnGC9seRDscilBcTHAeOFk67MZg/k9bWVfO+bk4qZmG+l52hRnLwUiH2LnJTg==}
 
   '@types/node@26.6.6':
     resolution: {integrity: sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==}
@@ -1933,9 +1943,6 @@ packages:
   ts-gems@4.0.4:
     resolution: {integrity: sha512-PtOMCStD3a8DGJDdFKirDVr9Rt13/DcjmZu+Lh1ZAshyaS0R1gcpUgkTRCz0V1/vB0O1vFzGjee8l6pxcRq/7w==}
 
-  tslib@2.8.1:
-    resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
-
   tslib@2.9.1:
     resolution: {integrity: sha512-a4Ux9VKuIMHsOS7ENbEq6hK2ZGYIT27Rtl0E4eD9KqwxhKiQeMZE/9xb3IdYwWaSOyIBQLExhQgXDTYoiCxnWA==}
 
@@ -2062,7 +2069,7 @@ snapshots:
   '@emnapi/core@1.10.0':
     dependencies:
       '@emnapi/wasi-threads': 1.2.1
-      tslib: 2.8.1
+      tslib: 2.9.1
     optional: true
 
   '@emnapi/core@1.11.2':
@@ -2073,7 +2080,7 @@ snapshots:
 
   '@emnapi/runtime@1.10.0':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
     optional: true
 
   '@emnapi/runtime@1.11.2':
@@ -2083,7 +2090,7 @@ snapshots:
 
   '@emnapi/wasi-threads@1.2.1':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
     optional: true
 
   '@emnapi/wasi-threads@1.2.2':
@@ -2155,7 +2162,7 @@ snapshots:
 
   '@jest/pattern@30.5.0':
     dependencies:
-      '@types/node': 26.6.5
+      '@types/node': 26.6.6
       jest-regex-util: 30.5.0
 
   '@jest/schemas@30.5.0':
@@ -2168,7 +2175,7 @@ snapshots:
       '@jest/schemas': 30.5.0
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 26.6.5
+      '@types/node': 26.6.6
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
@@ -2518,10 +2525,6 @@ snapshots:
   '@types/json-schema@7.0.15': {}
 
   '@types/mocha@10.0.10': {}
-
-  '@types/node@26.6.5':
-    dependencies:
-      undici-types: 8.9.0
 
   '@types/node@26.6.6':
     dependencies:
@@ -3010,7 +3013,7 @@ snapshots:
 
   fast-tokenizer@1.10.1:
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   fastq@1.20.3:
     dependencies:
@@ -3175,7 +3178,7 @@ snapshots:
     dependencies:
       '@jest/expect-utils': 30.5.2
       '@jest/types': 30.5.1
-      '@types/node': 26.6.5
+      '@types/node': 26.6.6
       jest-util: 30.5.1
 
   jest-regex-util@30.5.0: {}
@@ -3183,7 +3186,7 @@ snapshots:
   jest-util@30.5.1:
     dependencies:
       '@jest/types': 30.5.1
-      '@types/node': 26.6.5
+      '@types/node': 26.6.6
       chalk: 4.1.2
       ci-info: 4.4.0
       graceful-fs: 4.2.11
@@ -3607,8 +3610,6 @@ snapshots:
       typescript: 6.0.3
 
   ts-gems@4.0.4: {}
-
-  tslib@2.8.1: {}
 
   tslib@2.9.1: {}
 
