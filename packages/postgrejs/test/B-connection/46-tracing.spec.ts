@@ -1,0 +1,374 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
+import type { TracingChannel } from 'node:diagnostics_channel';
+import { expect } from 'expect';
+import {
+  Connection,
+  DatabaseError,
+  Pool,
+  sql as sqlTag,
+  tracingChannels,
+} from 'postgrejs';
+
+/**
+ * The diagnostics_channel tracing channels an instrumentation package
+ * (postgrejs-otel, or an APM agent) builds its spans from. Each test
+ * subscribes, records which events arrived with what context, and
+ * unsubscribes again, so the rest of the suite runs untraced.
+ */
+interface Recorded {
+  event: string;
+  channel: string;
+  context: any;
+}
+
+function record(
+  log: Recorded[],
+  name: string,
+  channel: TracingChannel<any, any>,
+  onStart?: (ctx: any) => void,
+): () => void {
+  const handlers = {
+    start(ctx: any) {
+      log.push({ event: 'start', channel: name, context: ctx });
+      onStart?.(ctx);
+    },
+    end(ctx: any) {
+      log.push({ event: 'end', channel: name, context: ctx });
+    },
+    asyncStart(ctx: any) {
+      log.push({ event: 'asyncStart', channel: name, context: ctx });
+    },
+    asyncEnd(ctx: any) {
+      log.push({ event: 'asyncEnd', channel: name, context: ctx });
+    },
+    error(ctx: any) {
+      log.push({ event: 'error', channel: name, context: ctx });
+    },
+  };
+  channel.subscribe(handlers);
+  return () => channel.unsubscribe(handlers);
+}
+
+function events(log: Recorded[], name?: string): string[] {
+  return log
+    .filter(r => !name || r.channel === name)
+    .map(r => `${r.channel}:${r.event}`);
+}
+
+describe('tracing channels', () => {
+  const conn = new Connection();
+  before(() => conn.connect());
+  after(() => conn.close(0));
+
+  describe('postgrejs:query', () => {
+    it('should publish start, end and asyncEnd with the result', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'query', tracingChannels.query);
+      let result: any;
+      try {
+        result = await conn.query('select $1::int as n', { params: [7] });
+      } finally {
+        off();
+      }
+      expect(events(log)).toStrictEqual([
+        'query:start',
+        'query:end',
+        'query:asyncStart',
+        'query:asyncEnd',
+      ]);
+      const ctx = log[0].context;
+      expect(ctx.sql).toStrictEqual('select $1::int as n');
+      expect(ctx.paramCount).toStrictEqual(1);
+      expect(ctx.connection).toBe(conn);
+      expect(ctx.result).toBe(result);
+      expect(ctx.result.rows).toStrictEqual([[7]]);
+    });
+
+    it('should not publish the parameter values', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'query', tracingChannels.query);
+      try {
+        await conn.query('select $1::text', { params: ['secret'] });
+      } finally {
+        off();
+      }
+      expect(JSON.stringify(Object.keys(log[0].context))).not.toContain(
+        'params',
+      );
+      expect(log[0].context.paramCount).toStrictEqual(1);
+    });
+
+    it('should publish a statement built with the sql tag as sent', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'query', tracingChannels.query);
+      try {
+        await conn.query(sqlTag`select ${1}::int, ${'a'}::text`);
+      } finally {
+        off();
+      }
+      expect(log[0].context.sql).toStrictEqual('select $1::int, $2::text');
+      expect(log[0].context.paramCount).toStrictEqual(2);
+    });
+
+    it('should send the sql a start handler replaced', async () => {
+      // How a trace comment reaches pg_stat_activity for database
+      // monitoring: the server's own current_query() shows the text that
+      // went over the wire.
+      const log: Recorded[] = [];
+      const off = record(log, 'query', tracingChannels.query, ctx => {
+        ctx.sql = `/*traceparent='00-abc'*/ ${ctx.sql}`;
+      });
+      let result: any;
+      try {
+        result = await conn.query('select current_query()');
+      } finally {
+        off();
+      }
+      expect(result.rows[0][0]).toStrictEqual(
+        "/*traceparent='00-abc'*/ select current_query()",
+      );
+    });
+
+    it('should publish error and asyncEnd when the server refuses', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'query', tracingChannels.query);
+      let caught: unknown;
+      try {
+        await conn.query('select * from no_such_table_for_tracing');
+      } catch (e) {
+        caught = e;
+      } finally {
+        off();
+      }
+      expect(caught).toBeInstanceOf(DatabaseError);
+      expect(events(log)).toStrictEqual([
+        'query:start',
+        'query:end',
+        'query:error',
+        'query:asyncStart',
+        'query:asyncEnd',
+      ]);
+      expect(log[0].context.error).toBe(caught);
+    });
+
+    it('should reject, not throw, when the sql tag is given params too', async () => {
+      const off = record([], 'query', tracingChannels.query);
+      try {
+        const q = conn.query(sqlTag`select ${1}`, { params: [2] });
+        await expect(q).rejects.toThrow(TypeError);
+      } finally {
+        off();
+      }
+      // The untraced path the same way: query() is not async, so the
+      // rejection has to be built by hand there.
+      await expect(
+        conn.query(sqlTag`select ${1}`, { params: [2] }),
+      ).rejects.toThrow(TypeError);
+    });
+
+    it('should run the query inside a store bound to start', async () => {
+      // This is what makes an OpenTelemetry span the active one while the
+      // statement runs, so a span started underneath it gets the right
+      // parent.
+      const store = new AsyncLocalStorage<string>();
+      tracingChannels.query.start.bindStore(store, ctx => ctx.sql);
+      let seenInside: unknown;
+      const off = record([], 'query', tracingChannels.query);
+      try {
+        conn.once('query', () => {
+          seenInside = store.getStore();
+        });
+        await conn.query('select 1');
+      } finally {
+        off();
+        tracingChannels.query.start.unbindStore(store);
+      }
+      expect(seenInside).toStrictEqual('select 1');
+    });
+
+    it('should publish nothing once unsubscribed', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'query', tracingChannels.query);
+      off();
+      await conn.query('select 1');
+      expect(log).toStrictEqual([]);
+    });
+  });
+
+  describe('postgrejs:execute', () => {
+    it('should publish the script and its result', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'execute', tracingChannels.execute);
+      let result: any;
+      try {
+        result = await conn.execute('select 1; select 2');
+      } finally {
+        off();
+      }
+      expect(events(log)).toStrictEqual([
+        'execute:start',
+        'execute:end',
+        'execute:asyncStart',
+        'execute:asyncEnd',
+      ]);
+      expect(log[0].context.sql).toStrictEqual('select 1; select 2');
+      expect(log[0].context.connection).toBe(conn);
+      expect(log[0].context.result).toBe(result);
+      expect(result.results.length).toStrictEqual(2);
+    });
+
+    it('should send the script a start handler replaced', async () => {
+      const off = record([], 'execute', tracingChannels.execute, ctx => {
+        ctx.sql = `/*x*/ ${ctx.sql}`;
+      });
+      let result: any;
+      try {
+        result = await conn.execute('select current_query()');
+      } finally {
+        off();
+      }
+      expect(result.results[0].rows[0][0]).toStrictEqual(
+        '/*x*/ select current_query()',
+      );
+    });
+
+    it('should publish error when the server refuses', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'execute', tracingChannels.execute);
+      let caught: unknown;
+      try {
+        await conn.execute('select * from no_such_table_for_tracing');
+      } catch (e) {
+        caught = e;
+      } finally {
+        off();
+      }
+      expect(caught).toBeInstanceOf(DatabaseError);
+      expect(events(log)).toContain('execute:error');
+      expect(log[0].context.error).toBe(caught);
+    });
+
+    it('should publish a sql-tag script as stringified', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'execute', tracingChannels.execute);
+      try {
+        await conn.execute(sqlTag`select ${5}::int`);
+      } finally {
+        off();
+      }
+      // Inlined by QueryRequest.stringify(), the Simple Query protocol
+      // having no parameters.
+      expect(log[0].context.sql).toStrictEqual("select '5'::int4::int");
+    });
+
+    it('should reject, not throw, when a sql-tag value has no literal form', async () => {
+      // execute() is not async, so the TypeError stringify() throws has to
+      // come back as a rejection, the way it did when execute() was async.
+      const call = () => conn.execute(sqlTag`select ${Symbol('x')}`);
+      let promise: Promise<unknown> | undefined;
+      expect(() => {
+        promise = call();
+      }).not.toThrow();
+      await expect(promise).rejects.toThrow(/has no text encoding/);
+    });
+  });
+
+  describe('postgrejs:pool:acquire and postgrejs:connect', () => {
+    it('should separate waiting for a connection from running the query', async () => {
+      const pool = new Pool({ max: 1, pipeline: false });
+      const log: Recorded[] = [];
+      let queryProcessID: unknown;
+      const offs = [
+        record(log, 'acquire', tracingChannels.poolAcquire),
+        record(log, 'connect', tracingChannels.connect),
+        // Read while the query runs: a connection reports no processID
+        // once the pool has closed it.
+        record(log, 'query', tracingChannels.query, ctx => {
+          queryProcessID = ctx.connection.processID;
+        }),
+      ];
+      let result: any;
+      try {
+        result = await pool.query('select 1');
+      } finally {
+        offs.forEach(off => off());
+        await pool.close(0);
+      }
+      expect(result.rows).toStrictEqual([[1]]);
+      // Opening the first connection happens while the caller waits for
+      // it, so connect sits inside acquire, and the query only starts once
+      // both are over. (Both start synchronously in the same call, so
+      // connect's synchronous end comes before acquire's.)
+      expect(events(log)).toStrictEqual([
+        'acquire:start',
+        'connect:start',
+        'connect:end',
+        'acquire:end',
+        'connect:asyncStart',
+        'connect:asyncEnd',
+        'acquire:asyncStart',
+        'acquire:asyncEnd',
+        'query:start',
+        'query:end',
+        'query:asyncStart',
+        'query:asyncEnd',
+      ]);
+      const acquire = log.find(r => r.channel === 'acquire')!.context;
+      const connect = log.find(r => r.channel === 'connect')!.context;
+      const query = log.find(r => r.channel === 'query')!.context;
+      expect(acquire.pool).toBe(pool);
+      expect(acquire.result).toBe(query.connection);
+      expect(connect.config).toBeDefined();
+      expect(typeof connect.processID).toStrictEqual('number');
+      expect(connect.processID).toStrictEqual(queryProcessID);
+    });
+
+    it('should publish error when a connection cannot be opened', async () => {
+      const pool = new Pool({
+        max: 1,
+        acquireTimeoutMillis: 2000,
+        port: 1,
+      } as any);
+      const log: Recorded[] = [];
+      const offs = [
+        record(log, 'acquire', tracingChannels.poolAcquire),
+        record(log, 'connect', tracingChannels.connect),
+      ];
+      let caught: unknown;
+      try {
+        await pool.acquire();
+      } catch (e) {
+        caught = e;
+      } finally {
+        offs.forEach(off => off());
+        await pool.close(0);
+      }
+      expect(caught).toBeDefined();
+      expect(events(log, 'acquire')).toContain('acquire:error');
+      expect(events(log, 'connect')).toContain('connect:error');
+    });
+
+    it('should publish connect for a standalone Connection', async () => {
+      const c = new Connection();
+      const log: Recorded[] = [];
+      const off = record(log, 'connect', tracingChannels.connect);
+      let processID: unknown;
+      try {
+        await c.connect();
+        processID = c.processID;
+        // Already connected: nothing to trace.
+        await c.connect();
+      } finally {
+        off();
+        await c.close(0);
+      }
+      expect(events(log)).toStrictEqual([
+        'connect:start',
+        'connect:end',
+        'connect:asyncStart',
+        'connect:asyncEnd',
+      ]);
+      expect(log[0].context.processID).toStrictEqual(processID);
+    });
+  });
+});

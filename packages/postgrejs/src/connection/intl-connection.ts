@@ -38,6 +38,11 @@ import { DatabaseError } from '../protocol/database-error.js';
 import { PgSocket } from '../protocol/pg-socket.js';
 import { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
+import {
+  type ConnectTraceContext,
+  isTraced,
+  tracingChannels,
+} from '../tracing.js';
 import type { AnyParseFunction, Maybe, OID } from '../types.js';
 import { getConnectionConfig } from '../util/connection-config.js';
 import {
@@ -443,27 +448,16 @@ export class IntlConnection extends SafeEventEmitter {
     return this.socket.sessionParameters;
   }
 
-  async connect(): Promise<void> {
-    if (this.socket.state === ConnectionState.READY) return;
-    await new Promise<void>((resolve, reject) => {
-      const handleConnectError = (err: Error) => reject(err);
-      this.socket.once('ready', () => {
-        this.socket.removeListener('error', handleConnectError);
-        resolve();
-      });
-      this.socket.once('error', handleConnectError);
-      this.socket.connect();
-    });
-    let startupCommand = '';
-    if (this.config.schema)
-      startupCommand +=
-        'SET search_path = ' + escapeLiteral(this.config.schema) + ';';
-    if (this.config.timezone)
-      startupCommand +=
-        'SET timezone TO ' + escapeLiteral(this.config.timezone) + ';';
-    if (startupCommand)
-      await this.execute(startupCommand, { autoCommit: true });
-    this.emit('ready');
+  connect(): Promise<void> {
+    if (this.socket.state === ConnectionState.READY) return Promise.resolve();
+    if (isTraced(tracingChannels.connect)) {
+      const context: ConnectTraceContext = { config: this.config };
+      return tracingChannels.connect.tracePromise(async () => {
+        await this._connect();
+        context.processID = this.processID;
+      }, context);
+    }
+    return this._connect();
   }
 
   async close(): Promise<void> {
@@ -971,6 +965,28 @@ export class IntlConnection extends SafeEventEmitter {
       });
     await stream.waitStarted();
     return stream;
+  }
+
+  protected async _connect(): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      const handleConnectError = (err: Error) => reject(err);
+      this.socket.once('ready', () => {
+        this.socket.removeListener('error', handleConnectError);
+        resolve();
+      });
+      this.socket.once('error', handleConnectError);
+      this.socket.connect();
+    });
+    let startupCommand = '';
+    if (this.config.schema)
+      startupCommand +=
+        'SET search_path = ' + escapeLiteral(this.config.schema) + ';';
+    if (this.config.timezone)
+      startupCommand +=
+        'SET timezone TO ' + escapeLiteral(this.config.timezone) + ';';
+    if (startupCommand)
+      await this.execute(startupCommand, { autoCommit: true });
+    this.emit('ready');
   }
 
   protected async _execute(

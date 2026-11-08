@@ -13,6 +13,11 @@ import type { ScriptResult } from '../interfaces/script-result.js';
 import type { StatementPrepareOptions } from '../interfaces/statement-prepare-options.js';
 import type { TransactionOptions } from '../interfaces/transaction-options.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
+import {
+  isTraced,
+  type PoolAcquireTraceContext,
+  tracingChannels,
+} from '../tracing.js';
 import { normalizeChannelName } from '../util/channel-name.js';
 import { getConnectionConfig } from '../util/connection-config.js';
 import { QueryRequest } from '../util/sql-tag.js';
@@ -241,32 +246,16 @@ export class Pool extends SafeEventEmitter {
   /**
    * Obtains a connection from the connection pool
    */
-  async acquire(): Promise<Connection> {
-    const intlCon = await this._pool.acquire();
-    /* c8 ignore start */
-    if (this.listenerCount('debug')) {
-      this.emit('debug', {
-        location: 'Pool.acquire',
-        pool: this,
-        message: `[${intlCon.processID}] acquired`,
-      });
+  /* Not async itself, for the reason given on Connection.query(). */
+  acquire(): Promise<Connection> {
+    if (isTraced(tracingChannels.poolAcquire)) {
+      const context: PoolAcquireTraceContext = { pool: this };
+      return tracingChannels.poolAcquire.tracePromise(
+        () => this._acquire(),
+        context,
+      );
     }
-    /* c8 ignore stop */
-    const connection = new Connection(this, intlCon);
-    /* c8 ignore next */
-    if (this.listenerCount('debug'))
-      connection.on('debug', (...args) => this.emit('debug', ...args));
-    if (this.listenerCount('execute'))
-      connection.on('execute', (...args) => this.emit('execute', ...args));
-    if (this.listenerCount('query'))
-      connection.on('query', (...args) => this.emit('query', ...args));
-    // Forwarded with the connection that raised it, the way 'destroy'
-    // names its own subject: a caller using pool.query() never sees the
-    // Connection, so without this a notice raised by their statement has
-    // nowhere to go at all.
-    if (this.listenerCount('notice'))
-      connection.on('notice', msg => this.emit('notice', msg, connection));
-    return connection;
+    return this._acquire();
   }
 
   /**
@@ -501,6 +490,34 @@ export class Pool extends SafeEventEmitter {
    * A pooled connection reported that its socket closed. `reason` is set
    * only when that was not asked for - see PgSocket._handleClose().
    */
+  protected async _acquire(): Promise<Connection> {
+    const intlCon = await this._pool.acquire();
+    /* c8 ignore start */
+    if (this.listenerCount('debug')) {
+      this.emit('debug', {
+        location: 'Pool.acquire',
+        pool: this,
+        message: `[${intlCon.processID}] acquired`,
+      });
+    }
+    /* c8 ignore stop */
+    const connection = new Connection(this, intlCon);
+    /* c8 ignore next */
+    if (this.listenerCount('debug'))
+      connection.on('debug', (...args) => this.emit('debug', ...args));
+    if (this.listenerCount('execute'))
+      connection.on('execute', (...args) => this.emit('execute', ...args));
+    if (this.listenerCount('query'))
+      connection.on('query', (...args) => this.emit('query', ...args));
+    // Forwarded with the connection that raised it, the way 'destroy'
+    // names its own subject: a caller using pool.query() never sees the
+    // Connection, so without this a notice raised by their statement has
+    // nowhere to go at all.
+    if (this.listenerCount('notice'))
+      connection.on('notice', msg => this.emit('notice', msg, connection));
+    return connection;
+  }
+
   protected _onConnectionClosed(intlCon: IntlConnection, reason?: Error) {
     if (reason) this._destroyReasons.set(intlCon, reason);
     this._pool.destroy(intlCon);
