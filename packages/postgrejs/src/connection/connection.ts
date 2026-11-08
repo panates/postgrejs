@@ -17,6 +17,12 @@ import type { TransactionOptions } from '../interfaces/transaction-options.js';
 import type { DatabaseError } from '../protocol/database-error.js';
 import type { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
+import {
+  type ExecuteTraceContext,
+  isTraced,
+  type QueryTraceContext,
+  tracingChannels,
+} from '../tracing.js';
 import type { Maybe, OID } from '../types.js';
 import { withAbortSignal } from '../util/abort-signal.js';
 import { normalizeChannelName } from '../util/channel-name.js';
@@ -243,31 +249,26 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * @param sql {string} - SQL script that will be executed
    * @param options {ScriptExecuteOptions} - Execute options
    */
-  async execute(
+  /* Not async itself, for the reason given on query(). */
+  execute(
     sql: string | QueryRequest,
     options?: ScriptExecuteOptions,
   ): Promise<ScriptResult> {
-    if (typeof sql === 'object' && sql instanceof QueryRequest)
-      sql = sql.stringify({ ...options, typeMap: options?.typeMap });
-    if (this.listenerCount('execute')) this.emit('execute', sql, options);
-    let release = this._intlCon.enterWire(this._isExclusive(options?.pipeline));
-    if (typeof release !== 'function') release = await release;
-    try {
-      return await withAbortSignal(
-        options?.signal,
-        () => this._intlCon.cancel(),
-        () =>
-          this._captureErrorStack(
-            this._intlCon.execute(sql, options),
-            this.execute,
-            options?.asyncErrorHandling,
-          ).catch((e: DatabaseError) => {
-            throw this._handleError(e, sql);
-          }),
-      );
-    } finally {
-      release();
+    if (typeof sql === 'object' && sql instanceof QueryRequest) {
+      try {
+        sql = sql.stringify({ ...options, typeMap: options?.typeMap });
+      } catch (e) {
+        return Promise.reject(e);
+      }
     }
+    if (isTraced(tracingChannels.execute)) {
+      const context: ExecuteTraceContext = { sql, connection: this };
+      return tracingChannels.execute.tracePromise(
+        () => this._runExecute(context.sql, options),
+        context,
+      );
+    }
+    return this._runExecute(sql, options);
   }
 
   /**
@@ -324,41 +325,35 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * @returns The rows, the command tag, and what the columns were.
    * @throws DatabaseError When the server refuses the statement.
    */
-  async query(
+  /* Not async itself: the untraced path hands back _runQuery()'s own promise
+     rather than wrapping it in another one, and query() stays on the
+     synchronous stack _captureErrorStack() trims at. */
+  query(
     sql: string | QueryRequest,
     options?: QueryOptions,
   ): Promise<QueryResult> {
     if (sql instanceof QueryRequest) {
       if (options?.params)
-        throw new TypeError(
-          'A statement built with sql`` carries its own parameters; passing `params` as well is ambiguous',
+        return Promise.reject(
+          new TypeError(
+            'A statement built with sql`` carries its own parameters; passing `params` as well is ambiguous',
+          ),
         );
       options = { ...options, params: sql.params };
       sql = sql.sql;
     }
-    this._intlCon.assertConnected();
-    /* c8 ignore start */
-    if (this.listenerCount('debug')) {
-      this.emit('debug', {
-        location: 'Connection.query',
-        connection: this,
-        message: `[${this.processID}] query | ${sql}`,
+    if (isTraced(tracingChannels.query)) {
+      const context: QueryTraceContext = {
         sql,
-      });
-    }
-    /* c8 ignore stop */
-    if (this.listenerCount('query')) this.emit('query', sql, options);
-    let release = this._intlCon.enterWire(this._isExclusive(options?.pipeline));
-    if (typeof release !== 'function') release = await release;
-    try {
-      return await withAbortSignal(
-        options?.signal,
-        () => this._intlCon.cancel(),
-        () => this._query(sql, options),
+        paramCount: options?.params?.length ?? 0,
+        connection: this,
+      };
+      return tracingChannels.query.tracePromise(
+        () => this._runQuery(context.sql, options),
+        context,
       );
-    } finally {
-      release();
     }
+    return this._runQuery(sql, options);
   }
 
   /**
@@ -940,6 +935,60 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     return pipeline != null
       ? !pipeline
       : this._intlCon.config.pipeline === false;
+  }
+
+  protected async _runExecute(
+    sql: string,
+    options?: ScriptExecuteOptions,
+  ): Promise<ScriptResult> {
+    if (this.listenerCount('execute')) this.emit('execute', sql, options);
+    let release = this._intlCon.enterWire(this._isExclusive(options?.pipeline));
+    if (typeof release !== 'function') release = await release;
+    try {
+      return await withAbortSignal(
+        options?.signal,
+        () => this._intlCon.cancel(),
+        () =>
+          this._captureErrorStack(
+            this._intlCon.execute(sql, options),
+            this.execute,
+            options?.asyncErrorHandling,
+          ).catch((e: DatabaseError) => {
+            throw this._handleError(e, sql);
+          }),
+      );
+    } finally {
+      release();
+    }
+  }
+
+  protected async _runQuery(
+    sql: string,
+    options?: QueryOptions,
+  ): Promise<QueryResult> {
+    this._intlCon.assertConnected();
+    /* c8 ignore start */
+    if (this.listenerCount('debug')) {
+      this.emit('debug', {
+        location: 'Connection.query',
+        connection: this,
+        message: `[${this.processID}] query | ${sql}`,
+        sql,
+      });
+    }
+    /* c8 ignore stop */
+    if (this.listenerCount('query')) this.emit('query', sql, options);
+    let release = this._intlCon.enterWire(this._isExclusive(options?.pipeline));
+    if (typeof release !== 'function') release = await release;
+    try {
+      return await withAbortSignal(
+        options?.signal,
+        () => this._intlCon.cancel(),
+        () => this._query(sql, options),
+      );
+    } finally {
+      release();
+    }
   }
 
   protected async _query(
