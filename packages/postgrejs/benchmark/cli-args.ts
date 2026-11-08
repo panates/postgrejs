@@ -63,7 +63,7 @@ export async function parseCliArgs(args: string[]): Promise<CliParseResult> {
         default: 'all',
         describe:
           `Comma-separated scenario names, "all", or "none" to only run setup - ` +
-          `a trailing "-" matches by prefix, e.g. "cursor-" (${SCENARIO_NAMES.join(', ')})`,
+          `"*" at either end is a wildcard, e.g. "cursor-*" (${SCENARIO_NAMES.join(', ')})`,
       })
       .option('repeats', {
         type: 'number',

@@ -59,6 +59,13 @@ describe('benchmark CLI arguments', () => {
     }
   });
 
+  it('matches the wildcard example the help text gives', async () => {
+    const parsed = await parseCliArgs(['--scenario=cursor-*']);
+    expect(parsed.kind === 'run' && parsed.options.scenarios).toEqual([
+      'cursor-stream',
+    ]);
+  });
+
   it('rejects an unknown option', async () => {
     await expect(parseCliArgs(['--', '--libs=pg'])).rejects.toThrow(
       /Unknown argument/,
