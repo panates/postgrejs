@@ -1,0 +1,5 @@
+publish:
+  # Not published until the instrumentation itself is written: lockstep would
+  # otherwise put an empty package on npm with the next postgrejs release.
+  # Remove this block in the change that adds the first real code.
+  skip: true

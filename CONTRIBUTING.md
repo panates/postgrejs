@@ -17,6 +17,14 @@ Thanks for taking the time to contribute to `postgrejs`!
 3. Base your branch on, and open your pull request against, `dev` - `main`
    only receives releases.
 
+## Repository Layout
+
+This is a pnpm workspace. The driver is `packages/postgrejs/` (its `src/`,
+`test/` and `benchmark/`), and `packages/otel/` holds the OpenTelemetry
+instrumentation. All packages are released together under one version. Run
+every command below from the repository root: the test, lint and build
+configuration lives there and covers all packages at once.
+
 ## Development Workflow
 
 Before opening a pull request, make sure the following all pass locally
@@ -50,9 +58,9 @@ or changes behavior without a corresponding test won't be merged.
     You may choose to (but not are not required to) use docker for this purpose by running the below.
 
     ```bash
-    docker compose -f docker/docker-compose.yml up
+    docker compose -f support/docker/docker-compose.yml up
     # or this to run in the background
-    docker compose -f docker/docker-compose.yml up --detach
+    docker compose -f support/docker/docker-compose.yml up --detach
     ```
 
 2. Execute the test suite with: `pnpm test`
@@ -68,10 +76,10 @@ environment doesn't have one. CI always sets this up (see
 `.github/workflows/test.yml`); to get the same coverage locally:
 
 1. Add a rule for each user to your server's `pg_hba.conf` (see
-   `test/_support/pg_hba.conf` for a ready-made example) - above the
+   `packages/postgrejs/test/_support/pg_hba.conf` for a ready-made example) - above the
    blanket `trust` rules, since `pg_hba` takes the first line that
    matches. The channel-binding tests also need `ssl=on` and a server
-   certificate (see `docker/docker-compose.yml`'s own comments for that
+   certificate (see `support/docker/docker-compose.yml`'s own comments for that
    part).
 
    ```
@@ -114,8 +122,8 @@ so sticking to the format keeps it meaningful.
 
 ## Benchmarks
 
-Benchmark scenarios live under `benchmark/`; see `doc/BENCHMARKS.md` for
-the current results and `benchmark/README.md` for how to run a scenario
+Benchmark scenarios live under `packages/postgrejs/benchmark/`; see `doc/BENCHMARKS.md` for
+the current results and that directory's `README.md` for how to run a scenario
 yourself (`pnpm run bench -- --scenario=<name> --lib=<name>`). Only run
 these if your change could affect performance - they aren't part of the
 regular test suite.

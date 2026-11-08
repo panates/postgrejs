@@ -333,7 +333,7 @@ PostgreJS implements the full PostgreSQL wire protocol from scratch, with no dep
 across connection setup, simple/prepared queries, mixed-type decoding, bulk fetches, cursor streaming and pool
 concurrency, each library run through its own idiomatic fast path. The numbers there are reproducible on your own
 machine via `pnpm run bench` against the repo's own
-`docker/docker-compose.yml` Postgres instance; see [`benchmark/README.md`](./benchmark/README.md) for details.
+`support/docker/docker-compose.yml` Postgres instance; see [`packages/postgrejs/benchmark/README.md`](./packages/postgrejs/benchmark/README.md) for details.
 
 The same suite runs under Bun via `pnpm run bench:bun`, where it also measures Bun's own built-in `Bun.sql` client as
 a fourth library. Those results live in [`doc/BENCHMARKS-bun.md`](doc/BENCHMARKS-bun.md) and are deliberately kept

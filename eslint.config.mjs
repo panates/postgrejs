@@ -4,7 +4,13 @@ import globals from 'globals';
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   {
-    ignores: ['build/**/*', 'node_modules/**/*'],
+    ignores: [
+      'node_modules/**/*',
+      'packages/*/node_modules/**/*',
+      'packages/*/build/**/*',
+      'packages/*/benchmark/results/**/*',
+      'coverage/**/*',
+    ],
   },
   ...panatesEslint.configs.node,
   {

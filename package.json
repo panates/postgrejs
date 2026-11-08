@@ -1,19 +1,35 @@
 {
-  "name": "postgrejs",
-  "description": "Professional PostgreSQL client NodeJS",
+  "name": "postgrejs-repo",
+  "private": true,
   "version": "3.14.2",
-  "author": "Panates",
   "license": "BSD-3-Clause",
-  "private": "true",
-  "dependencies": {
-    "@jsopen/objects": "^2.3.4",
-    "doublylinked": "^2.5.6",
-    "flexy-buffer": "^1.1.2",
-    "lightning-pool": "^4.14.0",
-    "power-tasks": "^1.14.2",
-    "putil-promisify": "^1.10.1",
-    "putil-varhelpers": "^1.7.0",
-    "tslib": "^2.9.1"
+  "contributors": [
+    "Eray Hanoglu <e.hanoglu@panates.com>",
+    "Ilker Gurelli <i.gurelli@panates.com>",
+    "Onur Tokel <o.tokel@panates.com>",
+    "Bircan Yuruk <b.yuruk@panates.com>"
+  ],
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/panates/postgrejs.git"
+  },
+  "homepage": "https://www.postgrejs.com/",
+  "scripts": {
+    "build": "rman build",
+    "typecheck": "tsc -b packages/postgrejs/tsconfig-build.json packages/otel/tsconfig-build.json --noEmit",
+    "test": "mocha",
+    "precover": "rman clean",
+    "precitest": "rman clean",
+    "citest": "c8 mocha",
+    "lint": "rman lint",
+    "check": "rman check",
+    "format": "rman format",
+    "bench": "pnpm --filter postgrejs run bench",
+    "bench:bun": "pnpm --filter postgrejs run bench:bun",
+    "bench:report": "pnpm --filter postgrejs run bench:report",
+    "graph": "graphify update .",
+    "prepare": "husky || true"
   },
   "devDependencies": {
     "@panates/eslint-config": "^2.3.5",
@@ -25,85 +41,15 @@
     "@swc/helpers": "^0.5.24",
     "@types/mocha": "^10.0.10",
     "@types/node": "^26.6.6",
-    "@types/pg": "^8.23.1",
-    "bun-types": "^1.4.4",
     "c8": "^12.0.0",
-    "dotenv": "^18.0.9",
     "dpdm": "^4.3.0",
-    "expect": "^30.5.2",
     "globals": "^17.14.0",
     "husky": "^9.1.7",
     "mocha": "^12.0.3",
-    "pg": "^8.23.1",
-    "pg-copy-streams": "^7.0.0",
-    "postgres": "^4.1.0",
-    "temporal-polyfill": "^1.0.8",
-    "tinybench": "^6.2.3",
-    "typescript": "^6.0.3",
-    "yargs": "^18.2.0"
-  },
-  "scripts": {
-    "bench": "node --import ./benchmark/env.mjs --import @swc-node/register/esm-register benchmark/cli.ts",
-    "bench:bun": "bun run --import ./benchmark/env.mjs benchmark/cli.ts",
-    "bench:report": "node --import ./benchmark/env.mjs --import @swc-node/register/esm-register benchmark/report/render-markdown.ts",
-    "typecheck": "tsc -b tsconfig-build.json --noEmit",
-    "precover": "rman clean",
-    "test": "mocha",
-    "precitest": "rman clean",
-    "citest": "c8 mocha",
-    "graph": "graphify update .",
-    "prepare": "husky || true"
-  },
-  "type": "module",
-  "module": "./index.js",
-  "types": "./index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./index.d.ts",
-      "default": "./index.js"
-    },
-    "./package.json": "./package.json"
+    "typescript": "^6.0.3"
   },
   "engines": {
     "node": ">=22.0"
   },
-  "packageManager": "pnpm@12.10.1",
-  "homepage": "https://www.postgrejs.com/",
-  "contributors": [
-    "Eray Hanoglu <e.hanoglu@panates.com>",
-    "Ilker Gurelli <i.gurelli@panates.com>",
-    "Onur Tokel <o.tokel@panates.com>",
-    "Bircan Yuruk <b.yuruk@panates.com>"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/panates/postgrejs.git"
-  },
-  "keywords": [
-    "postgresql",
-    "postgres",
-    "postgre",
-    "pg",
-    "database",
-    "db",
-    "driver",
-    "client",
-    "backend",
-    "rdbms",
-    "sql",
-    "typescript",
-    "wire-protocol",
-    "no-native-bindings",
-    "cursor",
-    "server-side-cursor",
-    "logical-replication",
-    "copy",
-    "connection-pool",
-    "prepared-statements",
-    "bun",
-    "bunjs"
-  ],
-  "publishConfig": {
-    "access": "public"
-  }
+  "packageManager": "pnpm@12.10.1"
 }

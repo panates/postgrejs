@@ -2,7 +2,7 @@
   <configuration default="false" name="bench:bun" type="BunRunConfiguration">
     <option name="applicationParameters" value="-s mixed-types-decode" />
     <option name="program" value="cli.ts" />
-    <option name="workingDirectory" value="$PROJECT_DIR$/benchmark" />
+    <option name="workingDirectory" value="$PROJECT_DIR$/packages/postgrejs/benchmark" />
     <method v="2" />
   </configuration>
 </component>

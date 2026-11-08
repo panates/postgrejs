@@ -21,12 +21,13 @@ on:
     paths:
       # This file itself: a change to how the tests run is a reason to run them.
       - '.github/workflows/test.yml'
-      - 'src/**'
-      - 'test/**'
+      # Every package's source, tests and benchmark code.
+      - 'packages/**'
       # How anything is compiled, run or measured.
       - '**/tsconfig*.json'
       - '**/.mocharc.*'
       - '.c8rc.json'
+      - '.rmanrc.yml'
       - '**/package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -134,7 +135,7 @@ jobs:
           sudo apt-get update
           sudo apt-get -y install postgresql-${{ matrix.postgres }} postgresql-client-${{ matrix.postgres }}
           echo "----- Configuring -----"        
-          sudo cp ./test/_support/pg_hba.conf /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf                                
+          sudo cp ./packages/postgrejs/test/_support/pg_hba.conf /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf                                
           sudo sed -i 's/.*wal_level.*/wal_level = logical/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
           sudo sed -i 's/.*max_prepared_transactions.*/max_prepared_transactions = 100/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
           sudo sed -i 's/.*ssl = .*/ssl = on/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
@@ -273,7 +274,7 @@ jobs:
           sudo apt-get update
           sudo apt-get -y install postgresql-18 postgresql-client-18
           echo "----- Configuring -----"
-          sudo cp ./test/_support/pg_hba.conf /etc/postgresql/18/main/pg_hba.conf
+          sudo cp ./packages/postgrejs/test/_support/pg_hba.conf /etc/postgresql/18/main/pg_hba.conf
           sudo sed -i 's/.*wal_level.*/wal_level = logical/' /etc/postgresql/18/main/postgresql.conf
           sudo sed -i 's/.*max_prepared_transactions.*/max_prepared_transactions = 100/' /etc/postgresql/18/main/postgresql.conf
           sudo sed -i 's/.*ssl = .*/ssl = on/' /etc/postgresql/18/main/postgresql.conf

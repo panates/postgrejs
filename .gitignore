@@ -1,11 +1,11 @@
-node_modules
-/build
+**/node_modules
+packages/*/build
 /examples/*/package-lock.json
 *.tsbuildinfo
 .claude
 graphify-out
 /test-*
-/docker/data
+/support/docker/data
 
 # environment variables
 .env
@@ -28,7 +28,7 @@ lerna-debug.log*
 /.nyc_output
 
 # Benchmarks
-/benchmark/results
+/packages/postgrejs/benchmark/results
 
 # IDEs and editors
 /.idea

@@ -18,7 +18,8 @@ import { LIB_ORDER } from './lib-order.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BENCHMARK_DIR = path.resolve(__dirname, '..');
-const REPO_ROOT = path.resolve(BENCHMARK_DIR, '..');
+// benchmark/ sits in packages/postgrejs; the reports go to doc/ at the repository root.
+const REPO_ROOT = path.resolve(BENCHMARK_DIR, '../../..');
 
 const LIB_LABELS: Record<string, string> = {
   postgrejs: 'PostgreJS',

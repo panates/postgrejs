@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig-base.json",
+  "include": ["./packages/*/test/**/*.*", "./packages/*/src/**/*.*"],
+  "compilerOptions": {
+    "types": ["node", "mocha"],
+    "noEmit": true,
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "paths": {
+      "postgrejs": ["./packages/postgrejs/src/index.js"],
+      "postgrejs-otel": ["./packages/otel/src/index.js"]
+    }
+  }
+}
