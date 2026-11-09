@@ -1,3 +1,5 @@
+import v8 from 'node:v8';
+import vm from 'node:vm';
 import { expect } from 'expect';
 import { usedBytes } from '../../benchmark/runner/heap-usage.js';
 
@@ -26,7 +28,13 @@ describe('benchmark heap accounting', () => {
   });
 
   /** What `usedBytes()` and `heapUsed` each make of holding `alloc()`. */
+  /* Collected first, because allocating 24 MB of external memory can
+     itself start a GC, and that one frees whatever the tests before this
+     left behind - a 20 MB COPY export's buffers, for one - and takes it
+     off both samples. In a full run that pulled the Buffer's growth down
+     to 21.8 MB. */
   function growth(alloc: () => { length: number }) {
+    collectGarbage();
     const beforeUsed = usedBytes();
     const beforeHeap = process.memoryUsage().heapUsed;
     const value = alloc();
@@ -68,3 +76,10 @@ describe('benchmark heap accounting', () => {
     expect(usedBytes()).toBeGreaterThan(SIZE - NEAR);
   });
 });
+
+/* The test runner is not started with --expose-gc. Turning the flag on at
+   run time makes gc() available to a context created after it. */
+function collectGarbage(): void {
+  v8.setFlagsFromString('--expose-gc');
+  (vm.runInNewContext('gc') as () => void)();
+}
