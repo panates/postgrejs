@@ -205,12 +205,14 @@ describe('postgrejs-otel', () => {
       const calls: string[] = [];
       instrumentation.setConfig({
         requestHook: (span, info) => {
-          calls.push(`request ${info.operation} ${info.context.sql}`);
+          calls.push(
+            `request ${info.operation} ${(info.context as { sql?: string }).sql}`,
+          );
           span.setAttribute('custom', 'yes');
         },
         responseHook: (_span, info) => {
           calls.push(
-            `response ${info.operation} ${info.operation !== 'copy' && info.context.result !== undefined}`,
+            `response ${info.operation} ${info.operation !== 'copy' && (info.context as { result?: unknown }).result !== undefined}`,
           );
         },
       });

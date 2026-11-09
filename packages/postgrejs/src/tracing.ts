@@ -272,29 +272,36 @@ export interface CursorFetchTraceContext {
  * ```
  */
 export const tracingChannels = {
-  query:
-    diagnosticsChannel.tracingChannel<QueryTraceContext>('postgrejs:query'),
-  execute:
-    diagnosticsChannel.tracingChannel<ExecuteTraceContext>('postgrejs:execute'),
-  poolAcquire: diagnosticsChannel.tracingChannel<PoolAcquireTraceContext>(
-    'postgrejs:pool:acquire',
+  query: diagnosticsChannel.tracingChannel<QueryTraceContext, unknown>(
+    'postgrejs:query',
   ),
-  connect:
-    diagnosticsChannel.tracingChannel<ConnectTraceContext>('postgrejs:connect'),
-  copy: diagnosticsChannel.tracingChannel<CopyTraceContext>('postgrejs:copy'),
-  prepare:
-    diagnosticsChannel.tracingChannel<PrepareTraceContext>('postgrejs:prepare'),
-  statementExecute:
-    diagnosticsChannel.tracingChannel<StatementExecuteTraceContext>(
-      'postgrejs:statement:execute',
-    ),
-  pipeline:
-    diagnosticsChannel.tracingChannel<PipelineTraceContext>(
-      'postgrejs:pipeline',
-    ),
-  cursorFetch: diagnosticsChannel.tracingChannel<CursorFetchTraceContext>(
-    'postgrejs:cursor:fetch',
+  execute: diagnosticsChannel.tracingChannel<ExecuteTraceContext, unknown>(
+    'postgrejs:execute',
   ),
+  poolAcquire: diagnosticsChannel.tracingChannel<
+    PoolAcquireTraceContext,
+    unknown
+  >('postgrejs:pool:acquire'),
+  connect: diagnosticsChannel.tracingChannel<ConnectTraceContext, unknown>(
+    'postgrejs:connect',
+  ),
+  copy: diagnosticsChannel.tracingChannel<CopyTraceContext, unknown>(
+    'postgrejs:copy',
+  ),
+  prepare: diagnosticsChannel.tracingChannel<PrepareTraceContext, unknown>(
+    'postgrejs:prepare',
+  ),
+  statementExecute: diagnosticsChannel.tracingChannel<
+    StatementExecuteTraceContext,
+    unknown
+  >('postgrejs:statement:execute'),
+  pipeline: diagnosticsChannel.tracingChannel<PipelineTraceContext, unknown>(
+    'postgrejs:pipeline',
+  ),
+  cursorFetch: diagnosticsChannel.tracingChannel<
+    CursorFetchTraceContext,
+    unknown
+  >('postgrejs:cursor:fetch'),
 };
 
 /** What a pool channel publishes. */

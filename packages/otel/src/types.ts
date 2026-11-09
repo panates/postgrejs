@@ -73,7 +73,8 @@ export interface StatementExecuteContext {
   paramCount: number;
   /** Set for `executeBatch()` only. */
   batchSize?: number;
-  result?: { rows?: unknown[]; cursor?: object };
+  /** A query result from `execute()`, or a batch result (`results`) from `executeBatch()`. */
+  result?: { rows?: unknown[]; cursor?: object; results?: unknown[] };
   error?: unknown;
 }
 
