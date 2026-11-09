@@ -249,19 +249,10 @@ export class Pool extends SafeEventEmitter {
   }
 
   /** How many callers are waiting for a connection to be free. */
-  /* Not lightning-pool's own `pending`: a request that timed out stays in
-     its queue, already failed, until a connection frees up and is handed
-     back to the idle list in its place - so `pending` keeps counting a
-     caller who left. Measured with lightning-pool 4.14.0: one timed-out
-     acquire on a pool of one held it at 1. Reads the queue, which is not
-     public, until lightning-pool drops the request at the timeout. */
+  /* Needs lightning-pool 4.14.2: before it, a request that timed out stayed
+     in the queue and `pending` kept counting a caller who had left. */
   get pendingAcquires(): number {
-    const pool = this._pool as any;
-    let waiting = 0;
-    pool._requestQueue.forEach((request: { timedOut?: boolean }) => {
-      if (!request.timedOut) waiting++;
-    });
-    return waiting + pool._requestsProcessing;
+    return this._pool.pending;
   }
 
   /**

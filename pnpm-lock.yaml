@@ -249,8 +249,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2
       lightning-pool:
-        specifier: ^4.14.0
-        version: 4.14.0
+        specifier: ^4.14.2
+        version: 4.14.2
       power-tasks:
         specifier: ^1.14.2
         version: 1.14.2
@@ -1643,8 +1643,9 @@ packages:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
 
-  lightning-pool@4.14.0:
-    resolution: {integrity: sha512-zdL5wmVeEhSW80Xo7Te37SrxqtGnkH+MJ4Trzxf1XuzSHYQSJuuIvYTeeR43ZgsEc+VFDHD+R/GX5Ib44nExBQ==}
+  lightning-pool@4.14.2:
+    resolution: {integrity: sha512-823LYh8/lSNdzQU4vcR9h5rQaTkNLkgWT6uQ3vgGD127VDdERfdd5JAV2agyfJhrtDj0C+6uuJ/86O2w1DHF/A==}
+    engines: {node: '>=22'}
 
   locate-path@6.0.0:
     resolution: {integrity: sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==}
@@ -3383,7 +3384,7 @@ snapshots:
       prelude-ls: 1.2.1
       type-check: 0.4.0
 
-  lightning-pool@4.14.0:
+  lightning-pool@4.14.2:
     dependencies:
       doublylinked: 2.5.6
       putil-promisify: 1.10.1
