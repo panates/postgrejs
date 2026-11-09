@@ -187,6 +187,29 @@ export interface StatementExecuteTraceContext {
 }
 
 /**
+ * What `postgrejs:pipeline` publishes for one `Connection.pipeline()` call:
+ * every statement sent before any reply is read, closed by a single Sync.
+ *
+ * Each statement's `sql` can be replaced in `start` as described for
+ * {@link QueryTraceContext}. When the server rejects one, `error.failedIndex`
+ * says which.
+ */
+export interface PipelineTraceContext {
+  /** The statements, in the order they are sent. */
+  statements: {
+    /** The statement as it will be sent. */
+    sql: string;
+    /** How many bind parameters it carries. Their values are not published. */
+    paramCount: number;
+  }[];
+  /** The connection that runs the pipeline. */
+  connection: Connection;
+  /** One result per statement, by position. */
+  result?: QueryResult[];
+  error?: unknown;
+}
+
+/**
  * The `node:diagnostics_channel` tracing channels postgrejs publishes on.
  *
  * Each one is a `TracingChannel`, so a subscriber gets `start`, `end`,
@@ -221,6 +244,10 @@ export const tracingChannels = {
   statementExecute:
     diagnosticsChannel.tracingChannel<StatementExecuteTraceContext>(
       'postgrejs:statement:execute',
+    ),
+  pipeline:
+    diagnosticsChannel.tracingChannel<PipelineTraceContext>(
+      'postgrejs:pipeline',
     ),
 };
 

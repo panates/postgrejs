@@ -942,4 +942,89 @@ describe('tracing channels', () => {
       ]);
     });
   });
+
+  describe('postgrejs:pipeline', () => {
+    it('should publish every statement and the results', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'pipeline', tracingChannels.pipeline);
+      let results: any;
+      try {
+        results = await conn.pipeline([
+          'select 1',
+          { sql: 'select $1::int, $2::text', params: [2, 'b'] },
+          sqlTag`select ${3}::int`,
+        ]);
+      } finally {
+        off();
+      }
+      expect(events(log)).toStrictEqual([
+        'pipeline:start',
+        'pipeline:end',
+        'pipeline:asyncStart',
+        'pipeline:asyncEnd',
+      ]);
+      const ctx = log[0].context;
+      expect(ctx.statements).toStrictEqual([
+        { sql: 'select 1', paramCount: 0 },
+        { sql: 'select $1::int, $2::text', paramCount: 2 },
+        { sql: 'select $1::int', paramCount: 1 },
+      ]);
+      expect(ctx.connection).toBe(conn);
+      expect(ctx.result).toBe(results);
+      expect(results.length).toStrictEqual(3);
+    });
+
+    it('should publish the error with the index of the rejected statement', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'pipeline', tracingChannels.pipeline);
+      let caught: any;
+      try {
+        await conn.pipeline([
+          'select 1',
+          'select * from no_such_table_for_tracing',
+          'select 3',
+        ]);
+      } catch (e) {
+        caught = e;
+      } finally {
+        off();
+      }
+      expect(caught).toBeInstanceOf(DatabaseError);
+      expect(events(log)).toContain('pipeline:error');
+      expect(log[0].context.error).toBe(caught);
+      expect(log[0].context.error.failedIndex).toStrictEqual(1);
+    });
+
+    it('should send each statement as a start handler replaced it', async () => {
+      const off = record([], 'pipeline', tracingChannels.pipeline, ctx => {
+        for (const st of ctx.statements) st.sql = `/*traced*/ ${st.sql}`;
+      });
+      let results: any;
+      try {
+        results = await conn.pipeline([
+          'select current_query()',
+          'select current_query() as q',
+        ]);
+      } finally {
+        off();
+      }
+      expect(results[0].rows[0][0]).toStrictEqual(
+        '/*traced*/ select current_query()',
+      );
+      expect(results[1].rows[0][0]).toStrictEqual(
+        '/*traced*/ select current_query() as q',
+      );
+    });
+
+    it('should publish nothing for an empty pipeline', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'pipeline', tracingChannels.pipeline);
+      try {
+        expect(await conn.pipeline([])).toStrictEqual([]);
+      } finally {
+        off();
+      }
+      expect(log).toStrictEqual([]);
+    });
+  });
 });

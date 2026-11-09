@@ -20,6 +20,7 @@ import { SafeEventEmitter } from '../safe-event-emitter.js';
 import {
   type ExecuteTraceContext,
   isTraced,
+  type PipelineTraceContext,
   type PrepareTraceContext,
   type QueryTraceContext,
   tracingChannels,
@@ -529,18 +530,22 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       });
     }
     /* c8 ignore stop */
-    return await this._captureErrorStack(
-      this._intlCon.executePipeline(normalized, options),
-    ).catch((e: DatabaseError) => {
-      // Name the statement the server actually rejected, not the first
-      // one - the error is otherwise attributed to whichever SQL happens
-      // to be handy, which in a pipeline is the wrong statement.
-      const i = e.failedIndex;
-      throw this._handleError(
-        e,
-        i != null && normalized[i] ? normalized[i].sql : normalized[0].sql,
-      );
-    });
+    if (isTraced(tracingChannels.pipeline)) {
+      const context: PipelineTraceContext = {
+        statements: normalized.map(r => ({
+          sql: r.sql,
+          paramCount: r.params?.length ?? 0,
+        })),
+        connection: this,
+      };
+      return tracingChannels.pipeline.tracePromise(() => {
+        const l = normalized.length;
+        let i: number;
+        for (i = 0; i < l; i++) normalized[i].sql = context.statements[i].sql;
+        return this._runPipeline(normalized, options);
+      }, context);
+    }
+    return this._runPipeline(normalized, options);
   }
 
   /**
@@ -1077,6 +1082,25 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     } finally {
       await statement.close();
     }
+  }
+
+  /** pipeline() after its arguments are checked, without the tracing. */
+  protected async _runPipeline(
+    normalized: { sql: string; params?: any[] }[],
+    options: QueryOptions,
+  ): Promise<QueryResult[]> {
+    return await this._captureErrorStack(
+      this._intlCon.executePipeline(normalized, options),
+    ).catch((e: DatabaseError) => {
+      // Name the statement the server actually rejected, not the first
+      // one - the error is otherwise attributed to whichever SQL happens
+      // to be handy, which in a pipeline is the wrong statement.
+      const i = e.failedIndex;
+      throw this._handleError(
+        e,
+        i != null && normalized[i] ? normalized[i].sql : normalized[0].sql,
+      );
+    });
   }
 
   /**

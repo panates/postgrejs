@@ -15,6 +15,7 @@ import {
   Connection,
   type CopyTraceContext,
   DatabaseError,
+  type PipelineTraceContext,
   Pool,
   type PrepareTraceContext,
   type QueryTraceContext,
@@ -23,6 +24,7 @@ import {
 import {
   type CopyContext,
   datadogDbmTags,
+  type PipelineContext,
   PostgrejsInstrumentation,
   type PrepareContext,
   type QueryContext,
@@ -39,6 +41,10 @@ const _prepareShapeCheck: (ctx: PrepareTraceContext) => PrepareContext = ctx =>
 const _statementShapeCheck: (
   ctx: StatementExecuteTraceContext,
 ) => StatementExecuteContext = ctx => ctx;
+const _pipelineShapeCheck: (
+  ctx: PipelineTraceContext,
+) => PipelineContext = ctx => ctx;
+void _pipelineShapeCheck;
 void _shapeCheck;
 void _copyShapeCheck;
 void _prepareShapeCheck;
@@ -542,6 +548,61 @@ describe('postgrejs-otel', () => {
         SpanStatusCode.UNSET,
         SpanStatusCode.UNSET,
       ]);
+    });
+  });
+
+  describe('pipeline spans', () => {
+    it('should record a pipeline as one span with every statement', async () => {
+      const parent = await inParent(() =>
+        conn.pipeline(['select 1', { sql: 'select $1::int', params: [2] }]),
+      );
+      expect(spans().length).toStrictEqual(1);
+      const [span] = spans();
+      expect(span.name).toStrictEqual(conn.config.database);
+      expect(span.kind).toStrictEqual(SpanKind.CLIENT);
+      expect(parentId(span)).toStrictEqual(parent);
+      expect(span.attributes['db.query.text']).toStrictEqual(
+        'select 1; select $1::int',
+      );
+      expect(span.attributes['db.operation.batch.size']).toStrictEqual(2);
+    });
+
+    it('should leave the batch size off a pipeline of one', async () => {
+      await conn.pipeline(['select 1']);
+      expect(spans()[0].attributes['db.operation.batch.size']).toBeUndefined();
+    });
+
+    it('should record which statement the server rejected', async () => {
+      await conn
+        .pipeline(['select 1', 'select * from no_such_table_for_otel'])
+        .catch(() => undefined);
+      const [span] = spans();
+      expect(span.status.code).toStrictEqual(SpanStatusCode.ERROR);
+      expect(span.attributes['db.response.status_code']).toStrictEqual('42P01');
+      expect(span.attributes['postgrejs.pipeline.failed_index']).toStrictEqual(
+        1,
+      );
+    });
+
+    it('should comment every statement and pass the operation to the hooks', async () => {
+      const seen: string[] = [];
+      instrumentation.setConfig({
+        sqlComment: { tags: { app: 'billing' } },
+        responseHook: (_span, info) => seen.push(info.operation),
+      });
+      const results = await conn.pipeline([
+        'select current_query()',
+        'select current_query() as q',
+      ]);
+      expect(results.map(r => r.rows![0][0])).toStrictEqual([
+        "/*app='billing'*/ select current_query()",
+        "/*app='billing'*/ select current_query() as q",
+      ]);
+      expect(seen).toStrictEqual(['pipeline']);
+      // The span keeps the statements as the application wrote them.
+      expect(spans()[0].attributes['db.query.text']).toStrictEqual(
+        'select current_query(); select current_query() as q',
+      );
     });
   });
 

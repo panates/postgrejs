@@ -23,6 +23,7 @@ import type {
   ConnectionLike,
   CopyContext,
   ExecuteContext,
+  PipelineContext,
   PoolAcquireContext,
   PrepareContext,
   QueryContext,
@@ -35,7 +36,8 @@ export type StatementInfo =
   | { operation: 'execute'; context: ExecuteContext }
   | { operation: 'copy'; context: CopyContext }
   | { operation: 'prepare'; context: PrepareContext }
-  | { operation: 'executePrepared'; context: StatementExecuteContext };
+  | { operation: 'executePrepared'; context: StatementExecuteContext }
+  | { operation: 'pipeline'; context: PipelineContext };
 
 /** What to put in a comment in front of every statement. */
 export interface SqlCommentOptions {
@@ -173,6 +175,10 @@ export class PostgrejsInstrumentation {
         handlers: this._statementHandlers('executePrepared'),
       },
       {
+        channel: 'postgrejs:pipeline',
+        handlers: this._statementHandlers('pipeline'),
+      },
+      {
         channel: 'postgrejs:pool:acquire',
         handlers: this._spanHandlers(ctx => this._startAcquire(ctx)),
       },
@@ -267,7 +273,13 @@ export class PostgrejsInstrumentation {
         }
         this._finish(ctx);
       },
-      error: (ctx: any) => this._recordError(ctx),
+      error: (ctx: any) => {
+        this._recordError(ctx);
+        const index = ctx.error?.failedIndex;
+        const span = this._spans.get(ctx);
+        if (span && operation === 'pipeline' && typeof index === 'number')
+          span.setAttribute('postgrejs.pipeline.failed_index', index);
+      },
     };
   }
 
@@ -292,7 +304,12 @@ export class PostgrejsInstrumentation {
     const config = ctx.connection.config;
     const attributes: Attributes = { ...this._connectionAttributes(config) };
     if (this._config.captureQueryText !== false) {
-      attributes['db.query.text'] = ctx.sql;
+      /* A pipeline's statements are joined the way the conventions ask
+         for a batch whose statements differ. */
+      attributes['db.query.text'] =
+        operation === 'pipeline'
+          ? (ctx as PipelineContext).statements.map(s => s.sql).join('; ')
+          : (ctx as { sql: string }).sql;
     }
     const pid = ctx.connection.processID;
     if (pid != null) attributes['postgrejs.backend_pid'] = pid;
@@ -316,6 +333,9 @@ export class PostgrejsInstrumentation {
       const command = (ctx as ExecuteContext).command!;
       attributes['db.operation.name'] = command;
       name = command;
+    } else if (operation === 'pipeline') {
+      const size = (ctx as PipelineContext).statements.length;
+      if (size > 1) attributes['db.operation.batch.size'] = size;
     } else if (operation === 'copy') {
       const copy = ctx as CopyContext;
       attributes['db.operation.name'] = 'COPY';
@@ -358,7 +378,13 @@ export class PostgrejsInstrumentation {
           ? span.spanContext()
           : undefined,
       );
-      if (text) (ctx as { sql: string }).sql = text + ctx.sql;
+      if (text) {
+        if (operation === 'pipeline') {
+          for (const st of (ctx as PipelineContext).statements)
+            st.sql = text + st.sql;
+        } else
+          (ctx as { sql: string }).sql = text + (ctx as { sql: string }).sql;
+      }
     }
   }
 

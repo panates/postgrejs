@@ -72,6 +72,14 @@ export interface StatementExecuteContext {
   error?: unknown;
 }
 
+/** What `postgrejs:pipeline` publishes. See postgrejs's `PipelineTraceContext`. */
+export interface PipelineContext {
+  statements: { sql: string; paramCount: number }[];
+  connection: ConnectionLike;
+  result?: unknown[];
+  error?: unknown;
+}
+
 /** What `postgrejs:pool:acquire` publishes. */
 export interface PoolAcquireContext {
   pool: { readonly config: ConnectionInfo };
