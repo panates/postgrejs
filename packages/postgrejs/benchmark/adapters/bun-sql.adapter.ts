@@ -1,3 +1,4 @@
+/// <reference types="bun-types" />
 import type { SQL } from 'bun';
 import type { BenchDbConfig } from '../config.js';
 import {

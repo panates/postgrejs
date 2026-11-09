@@ -87,7 +87,7 @@ const HEAP_SAMPLE_INTERVAL_MS = 1;
  * it global.gc is undefined and peakHeapGrowthBytes comes back undefined
  * rather than a number measured against an unknown, un-forced baseline.
  */
-async function withGcStats(run: () => Promise<void>): Promise<GcStats> {
+async function withGcStats(run: () => Promise<unknown>): Promise<GcStats> {
   const gc = (global as { gc?: () => void }).gc;
   let gcCount = 0;
   let gcDurationMs = 0;

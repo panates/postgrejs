@@ -87,7 +87,7 @@ describe('UuidType', () => {
 
   it('should encode as its string form for the text/literal path', () => {
     expect(
-      UuidType.encodeText!('123e4567-e89b-12d3-a456-426614174000'),
+      UuidType.encodeText!('123e4567-e89b-12d3-a456-426614174000', {}),
     ).toStrictEqual('123e4567-e89b-12d3-a456-426614174000');
   });
 

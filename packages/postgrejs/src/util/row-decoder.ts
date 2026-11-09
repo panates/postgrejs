@@ -83,7 +83,7 @@ export function dataRowBytes(msg: {
 }
 
 export class ArrayRowDecoder extends RowDecoder {
-  override readonly rowType = 'array' as const;
+  override readonly rowType: RowDecoder['rowType'] = 'array';
 
   decode(
     parsers: AnyParseFunction[],
@@ -108,7 +108,7 @@ export class ArrayRowDecoder extends RowDecoder {
 
 /** Reads each row into an object keyed by column name. */
 export class ObjectRowDecoder extends RowDecoder {
-  override readonly rowType = 'object' as const;
+  override readonly rowType: RowDecoder['rowType'] = 'object';
 
   decode(
     parsers: AnyParseFunction[],

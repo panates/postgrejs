@@ -258,7 +258,10 @@ describe('Cloudflare Workers', () => {
   });
 
   describe('channel binding', () => {
-    const sasl = (socket: any, mode?: string): Error => {
+    const sasl = (
+      socket: any,
+      mode?: 'prefer' | 'require' | 'disable',
+    ): Error => {
       const pg: any = new PgSocket({ channelBinding: mode, user: 'u' });
       pg._socket = socket;
       try {

@@ -41,7 +41,6 @@ describe('ArrayRowDecoder', () => {
       data,
       2,
       {},
-      fields,
     );
     expect(row).toStrictEqual(['1', 'ada']);
   });
@@ -82,7 +81,6 @@ describe('decodeAt()', () => {
         len,
         2,
         {},
-        fields,
       ),
     ).toStrictEqual(['1', 'ada']);
     expect(
@@ -114,16 +112,9 @@ describe('decodeAt()', () => {
           bare.length,
           2,
           {},
-          fields,
         ),
       ).toStrictEqual(
-        new ArrayRowDecoder().decode(
-          [echoParser, echoParser],
-          bare,
-          2,
-          {},
-          fields,
-        ),
+        new ArrayRowDecoder().decode([echoParser, echoParser], bare, 2, {}),
       );
     }
   });
@@ -142,7 +133,6 @@ describe('decodeAt()', () => {
         first.length,
         2,
         {},
-        fields,
       ),
     ).toStrictEqual(['1', 'ada']);
     expect(
@@ -153,7 +143,6 @@ describe('decodeAt()', () => {
         buffer.length - first.length,
         2,
         {},
-        fields,
       ),
     ).toStrictEqual(['2', 'grace']);
   });

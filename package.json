@@ -17,7 +17,7 @@
   "homepage": "https://www.postgrejs.com/",
   "scripts": {
     "build": "rman build",
-    "typecheck": "tsc -b packages/postgrejs/tsconfig-build.json packages/otel/tsconfig-build.json --noEmit",
+    "typecheck": "tsc -b packages/postgrejs/tsconfig-build.json packages/otel/tsconfig-build.json --noEmit && tsc -p tsconfig-test.json",
     "test": "mocha",
     "precover": "rman clean",
     "precitest": "rman clean",

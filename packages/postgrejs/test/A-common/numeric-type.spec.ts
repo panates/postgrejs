@@ -22,8 +22,8 @@ const roundTripText = (v: any) => String(roundTrip(v));
 
 describe('NumericType', () => {
   it('should encode as its string form for the text/literal path', () => {
-    expect(NumericType.encodeText!(1.5)).toStrictEqual('1.5');
-    expect(NumericType.encodeText!('2.75')).toStrictEqual('2.75');
+    expect(NumericType.encodeText!(1.5, {})).toStrictEqual('1.5');
+    expect(NumericType.encodeText!('2.75', {})).toStrictEqual('2.75');
   });
 
   describe('encodeBinary()', () => {
