@@ -25,7 +25,7 @@ import {
   type QueryTraceContext,
   tracingChannels,
 } from '../tracing.js';
-import type { Maybe, OID } from '../types.js';
+import type { Maybe, Nullable, OID } from '../types.js';
 import { withAbortSignal } from '../util/abort-signal.js';
 import { normalizeChannelName } from '../util/channel-name.js';
 import type { CopyRowSource } from '../util/copy-from-rows.js';
@@ -303,7 +303,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    */
   callFunction(
     functionId: OID,
-    args: Maybe<Buffer>[],
+    args: Maybe<Nullable<Buffer>>[],
     options?: FunctionCallOptions & { signal?: AbortSignal },
   ): Promise<FunctionCallResult> {
     return withAbortSignal(

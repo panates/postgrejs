@@ -1,7 +1,7 @@
 import { DEFAULT_COLUMN_FORMAT } from '../constants.js';
 import { DataTypeMap } from '../data-type-map.js';
 import type { QueryOptions } from '../interfaces/query-options.js';
-import type { Maybe, OID } from '../types.js';
+import type { Maybe, Nullable, OID } from '../types.js';
 import { arrayLeaf } from '../util/array-leaf.js';
 import { encodeBinaryArray } from '../util/encode-binaryarray.js';
 import { formatDateParam } from '../util/format-datetime.js';
@@ -121,7 +121,7 @@ export namespace Frontend {
      */
     argFormats?: Protocol.DataFormat[];
     /** `null` for an SQL NULL argument. */
-    args: Maybe<Buffer>[];
+    args: Maybe<Nullable<Buffer>>[];
     /** Format the function's return value comes back in. @default text */
     resultFormat?: Protocol.DataFormat;
   }
@@ -468,7 +468,7 @@ export class Frontend {
     io.writeInt16BE(fl);
     for (i = 0; i < fl; i++) io.writeInt16BE(formats[i]);
     io.writeInt16BE(l);
-    let v: Maybe<Buffer>;
+    let v: Maybe<Nullable<Buffer>>;
     for (i = 0; i < l; i++) {
       v = values[i];
       if (v == null) io.writeInt32BE(-1);

@@ -47,7 +47,7 @@ import {
   tracingChannels,
   type TransactionCommand,
 } from '../tracing.js';
-import type { AnyParseFunction, Maybe, OID } from '../types.js';
+import type { AnyParseFunction, Maybe, Nullable, OID } from '../types.js';
 import { getConnectionConfig } from '../util/connection-config.js';
 import {
   buildCopySql,
@@ -571,7 +571,7 @@ export class IntlConnection extends SafeEventEmitter {
    */
   async callFunction(
     functionId: OID,
-    args: Maybe<Buffer>[],
+    args: Maybe<Nullable<Buffer>>[],
     options: FunctionCallOptions = {},
   ): Promise<FunctionCallResult> {
     this.assertConnected();
