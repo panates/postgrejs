@@ -81,6 +81,7 @@ import {
 import { wrapRowDescription } from '../util/wrap-row-description.js';
 import type { Connection } from './connection.js';
 import { CopyFromStream, CopyToStream } from './copy-stream.js';
+import type { Pool } from './pool.js';
 
 const DataFormat = Protocol.DataFormat;
 
@@ -462,10 +463,15 @@ export class IntlConnection extends SafeEventEmitter {
     return this.socket.port;
   }
 
-  connect(): Promise<void> {
+  /**
+   * Opens the connection.
+   *
+   * @param pool The pool opening it, if one is; only reported to tracing.
+   */
+  connect(pool?: Pool): Promise<void> {
     if (this.socket.state === ConnectionState.READY) return Promise.resolve();
     if (isTraced(tracingChannels.connect)) {
-      const context: ConnectTraceContext = { config: this.config };
+      const context: ConnectTraceContext = { config: this.config, pool };
       return tracingChannels.connect.tracePromise(async () => {
         try {
           await this._connect();

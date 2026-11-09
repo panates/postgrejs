@@ -16,6 +16,7 @@ import { SafeEventEmitter } from '../safe-event-emitter.js';
 import {
   isTraced,
   type PoolAcquireTraceContext,
+  poolChannels,
   tracingChannels,
 } from '../tracing.js';
 import { normalizeChannelName } from '../util/channel-name.js';
@@ -89,6 +90,7 @@ export class Pool extends SafeEventEmitter {
   protected readonly _notificationListeners = new SafeEventEmitter();
   protected _notificationConnection?: Connection;
   protected readonly _pipelineSlots: PipelineSlot[] = [];
+  protected _closePublished = false;
   /**
    * Why a connection is about to be destroyed, for the ones that were not
    * destroyed on purpose. lightning-pool's own 'destroy' carries the
@@ -142,7 +144,7 @@ export class Pool extends SafeEventEmitter {
         }
         /* c8 ignore stop */
         const intlCon = new IntlConnection(cfg);
-        await intlCon.connect();
+        await intlCon.connect(this);
         intlCon.on('close', (reason?: Error) =>
           this._onConnectionClosed(intlCon, reason),
         );
@@ -203,12 +205,26 @@ export class Pool extends SafeEventEmitter {
     };
 
     this._pool = new LightningPool<IntlConnection>(poolFactory, poolOptions);
-    this._pool.on('return', (...args) => this.emit('release', ...args));
+    this._pool.on('return', (...args) => {
+      if (poolChannels.checkin.hasSubscribers)
+        poolChannels.checkin.publish({ pool: this, resource: args[0] });
+      this.emit('release', ...args);
+    });
     this._pool.on('error', (...args) => this.emit('error', ...args));
-    this._pool.on('acquire', (...args) => this.emit('acquire', ...args));
+    this._pool.on('acquire', (...args) => {
+      if (poolChannels.checkout.hasSubscribers)
+        poolChannels.checkout.publish({ pool: this, resource: args[0] });
+      this.emit('acquire', ...args);
+    });
+    this._pool.on('request-timeout', () => {
+      if (poolChannels.timeout.hasSubscribers)
+        poolChannels.timeout.publish({ pool: this });
+    });
     this._pool.on('destroy', (intlCon: IntlConnection) =>
       this._onConnectionDestroyed(intlCon),
     );
+    if (poolChannels.create.hasSubscribers)
+      poolChannels.create.publish({ pool: this });
   }
 
   /**
@@ -230,6 +246,22 @@ export class Pool extends SafeEventEmitter {
    */
   get totalConnections() {
     return this._pool.size;
+  }
+
+  /** How many callers are waiting for a connection to be free. */
+  /* Not lightning-pool's own `pending`: a request that timed out stays in
+     its queue, already failed, until a connection frees up and is handed
+     back to the idle list in its place - so `pending` keeps counting a
+     caller who left. Measured with lightning-pool 4.14.0: one timed-out
+     acquire on a pool of one held it at 1. Reads the queue, which is not
+     public, until lightning-pool drops the request at the timeout. */
+  get pendingAcquires(): number {
+    const pool = this._pool as any;
+    let waiting = 0;
+    pool._requestQueue.forEach((request: { timedOut?: boolean }) => {
+      if (!request.timedOut) waiting++;
+    });
+    return waiting + pool._requestsProcessing;
   }
 
   /**
@@ -265,7 +297,11 @@ export class Pool extends SafeEventEmitter {
     this._notificationListeners.removeAllListeners();
     await this._notificationConnection?.close(terminateWait);
     const ms = terminateWait == null ? 10000 : terminateWait;
-    return this._pool.closeAsync(ms);
+    await this._pool.closeAsync(ms);
+    if (!this._closePublished && poolChannels.close.hasSubscribers) {
+      this._closePublished = true;
+      poolChannels.close.publish({ pool: this });
+    }
   }
 
   /**

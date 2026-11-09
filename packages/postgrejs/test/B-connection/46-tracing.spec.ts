@@ -7,6 +7,7 @@ import {
   Connection,
   DatabaseError,
   Pool,
+  poolChannels,
   sql as sqlTag,
   tracingChannels,
 } from 'postgrejs';
@@ -1181,6 +1182,88 @@ describe('tracing channels', () => {
       expect(caught?.code).toStrictEqual('34000');
       expect(events(log)).toContain('fetch:error');
       expect(log[0].context.error).toBe(caught);
+    });
+  });
+
+  describe('pool channels', () => {
+    /** Subscribes to every pool channel, recording `channel` and message. */
+    function listen(log: { channel: string; message: any }[]): () => void {
+      const offs = Object.entries(poolChannels).map(([name, channel]) => {
+        const fn = (message: any) => log.push({ channel: name, message });
+        channel.subscribe(fn);
+        return () => channel.unsubscribe(fn);
+      });
+      return () => offs.forEach(off => off());
+    }
+
+    it('should report a pool from creation to close, and each checkout', async () => {
+      const log: { channel: string; message: any }[] = [];
+      const off = listen(log);
+      let pool!: Pool;
+      try {
+        pool = new Pool({ max: 2, name: 'reporting' });
+        const connection = await pool.acquire();
+        await connection.close();
+        // The pipelined path borrows a connection without acquire().
+        await pool.query('select 1', { pipeline: true });
+        await pool.close(0);
+        await pool.close(0);
+      } finally {
+        off();
+      }
+      expect(log.map(r => r.channel)).toStrictEqual([
+        'create',
+        'checkout',
+        'checkin',
+        'checkout',
+        'checkin',
+        'close',
+      ]);
+      for (const r of log) expect(r.message.pool).toBe(pool);
+      expect(log[1].message.resource).toBe(log[2].message.resource);
+      expect(log[1].message.resource).not.toBeInstanceOf(Connection);
+      expect(pool.config.name).toStrictEqual('reporting');
+    });
+
+    it('should report a caller that gave up waiting, and count those waiting', async () => {
+      const log: { channel: string; message: any }[] = [];
+      const off = listen(log);
+      const pool = new Pool({ max: 1, acquireTimeoutMillis: 50 });
+      try {
+        const held = await pool.acquire();
+        const waiting = pool.acquire();
+        expect(pool.pendingAcquires).toStrictEqual(1);
+        await expect(waiting).rejects.toThrow(/timed out/);
+        expect(pool.pendingAcquires).toStrictEqual(0);
+        await held.close();
+      } finally {
+        off();
+        await pool.close(0);
+      }
+      expect(log.filter(r => r.channel === 'timeout').length).toStrictEqual(1);
+    });
+
+    it('should name the pool on the connect it opens', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'connect', tracingChannels.connect);
+      const pool = new Pool({ max: 1 });
+      try {
+        await pool.query('select 1');
+      } finally {
+        off();
+        await pool.close(0);
+      }
+      expect(log[0].context.pool).toBe(pool);
+      const standalone = new Connection();
+      const log2: Recorded[] = [];
+      const off2 = record(log2, 'connect', tracingChannels.connect);
+      try {
+        await standalone.connect();
+      } finally {
+        off2();
+        await standalone.close(0);
+      }
+      expect(log2[0].context.pool).toBeUndefined();
     });
   });
 });

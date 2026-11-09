@@ -91,6 +91,8 @@ export interface PoolAcquireTraceContext {
 export interface ConnectTraceContext {
   /** The configuration being connected with. It includes the password. */
   config: ConnectionConfiguration;
+  /** The pool opening the connection, when a pool is. */
+  pool?: Pool;
   /** The server's backend process id, set once the connection is ready. */
   processID?: number;
   /**
@@ -293,6 +295,44 @@ export const tracingChannels = {
   cursorFetch: diagnosticsChannel.tracingChannel<CursorFetchTraceContext>(
     'postgrejs:cursor:fetch',
   ),
+};
+
+/** What a pool channel publishes. */
+export interface PoolEventMessage {
+  pool: Pool;
+}
+
+/** What `postgrejs:pool:checkout` and `postgrejs:pool:checkin` publish. */
+export interface PoolCheckoutMessage {
+  pool: Pool;
+  /**
+   * An opaque object standing for the pooled connection, the same one in
+   * a checkout and the checkin that ends it. It is not a `Connection`.
+   */
+  resource: object;
+}
+
+/**
+ * Plain `node:diagnostics_channel` channels on which pools report what
+ * they do, for metrics on how full a pool is and how long its
+ * connections are held:
+ *
+ * - `postgrejs:pool:create` when a pool is constructed, and
+ *   `postgrejs:pool:close` once it has closed;
+ * - `postgrejs:pool:checkout` when a pooled connection is handed out, by
+ *   `acquire()` or to a pipelined `pool.query()`, and
+ *   `postgrejs:pool:checkin` when it comes back;
+ * - `postgrejs:pool:timeout` when a caller gave up waiting, after
+ *   `acquireTimeoutMillis`.
+ *
+ * Nothing is published while a channel has no subscribers.
+ */
+export const poolChannels = {
+  create: diagnosticsChannel.channel('postgrejs:pool:create'),
+  close: diagnosticsChannel.channel('postgrejs:pool:close'),
+  checkout: diagnosticsChannel.channel('postgrejs:pool:checkout'),
+  checkin: diagnosticsChannel.channel('postgrejs:pool:checkin'),
+  timeout: diagnosticsChannel.channel('postgrejs:pool:timeout'),
 };
 
 /**
