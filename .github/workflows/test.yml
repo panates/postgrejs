@@ -330,8 +330,16 @@ jobs:
         # No coverage here: c8 instruments V8's own coverage APIs, which
         # don't exist on Bun's JavaScriptCore engine - the Node matrix
         # above is the one source of truth for coverage.
-        run: bunx mocha --config .mocharc.cjs
+        #
+        # `--bun` is what makes this a Bun run at all. Without it `bunx` honours mocha's
+        # `#!/usr/bin/env node` shebang and the suite runs on the Node installed above - which
+        # is what this job did until the flag was added. EXPECT_BUN makes
+        # packages/postgrejs/test/_support/runtime.ts fail the run if that ever happens again.
+        # `postgrejs`, `postgrejs-otel` and `expect` resolve through the `paths` in each
+        # package's test/tsconfig.json, which is the file Bun reads.
+        run: bunx --bun mocha --config .mocharc.cjs
         env:
+          EXPECT_BUN: true
           PGUSER: postgres
           PGSOCKET: /var/run/postgresql
           PGDATABASE: postgrejs_test

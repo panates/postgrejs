@@ -17,6 +17,14 @@ describe('benchmark heap accounting', () => {
   // loose enough that ordinary noise between two samples cannot fail it.
   const NEAR = SIZE / 10;
 
+  // What this pins is V8's accounting. Bun (JavaScriptCore) reports a
+  // 24 MB Buffer in neither `heapUsed` nor `external` - measured on Bun
+  // 1.4.2, only `rss` moves - and counts a large string in `heapUsed`, so
+  // none of the three relations hold there.
+  before(function () {
+    if (process.versions.bun) this.skip();
+  });
+
   /** What `usedBytes()` and `heapUsed` each make of holding `alloc()`. */
   function growth(alloc: () => { length: number }) {
     const beforeUsed = usedBytes();

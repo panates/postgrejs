@@ -1,0 +1,15 @@
+/* For Bun, which takes `paths` from the tsconfig.json nearest the importing file and does not
+   read tsconfig-test.json (Node gets the same mapping from there, through @swc-node/register).
+   `expect` points at its CJS build: its ESM entry re-exports `cjsModule.expect` from a default
+   import, which on Bun is the `expect` function itself, so the named export is undefined. */
+{
+  "extends": "../../../tsconfig-test.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "postgrejs": ["../../postgrejs/src/index.js"],
+      "postgrejs-otel": ["../../otel/src/index.js"],
+      "expect": ["../node_modules/expect/build/index.js"]
+    }
+  }
+}
