@@ -34,6 +34,18 @@ export interface ExecuteContext {
   error?: unknown;
 }
 
+/** What `postgrejs:copy` publishes. See postgrejs's `CopyTraceContext`. */
+export interface CopyContext {
+  sql: string;
+  direction: 'to' | 'from';
+  connection: ConnectionLike;
+  table?: string;
+  rowCount?: number;
+  bytes?: number;
+  aborted?: boolean;
+  error?: unknown;
+}
+
 /** What `postgrejs:pool:acquire` publishes. */
 export interface PoolAcquireContext {
   pool: { readonly config: ConnectionInfo };

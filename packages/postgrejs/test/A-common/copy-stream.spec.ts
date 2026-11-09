@@ -199,6 +199,45 @@ describe('CopyToStream', () => {
   });
 });
 
+describe('CopyToStream bytes and aborted', () => {
+  function started(): CopyToStream {
+    const stream = new CopyToStream(fakeSocket());
+    stream.capture(Code.CopyOutResponse, { overallFormat: 0 }, noop);
+    return stream;
+  }
+
+  it('should count every CopyData byte, discarded ones included', () => {
+    const stream = started();
+    stream.capture(Code.CopyData, { data: Buffer.from('abc') }, noop);
+    stream.destroy();
+    stream.capture(Code.CopyData, { data: Buffer.from('de') }, noop);
+    expect(stream.bytes).toStrictEqual(5);
+  });
+
+  it('should be aborted when the consumer destroys it before the end', () => {
+    const stream = started();
+    stream.destroy();
+    expect(stream.aborted).toStrictEqual(true);
+  });
+
+  it('should not be aborted when the copy ends it with an error', () => {
+    const stream = started();
+    stream.on('error', noop);
+    stream.capture(Code.ErrorResponse, new Error('server'), noop);
+    stream.capture(Code.ReadyForQuery, {}, noop);
+    expect(stream.destroyed).toStrictEqual(true);
+    expect(stream.aborted).toStrictEqual(false);
+  });
+
+  it('should not be aborted when a dead socket fails it', () => {
+    const stream = started();
+    stream.on('error', noop);
+    stream.fail(new Error('socket gone'));
+    expect(stream.destroyed).toStrictEqual(true);
+    expect(stream.aborted).toStrictEqual(false);
+  });
+});
+
 describe('CopyFromStream', () => {
   it('should resolve waitStarted() once CopyInResponse arrives', async () => {
     const stream = new CopyFromStream(fakeSocket());
@@ -396,5 +435,19 @@ describe('CopyFromStream', () => {
       stream.fail(new Error('first'));
       expect(() => stream.fail(new Error('second'))).not.toThrow();
     });
+  });
+});
+
+describe('CopyFromStream bytes', () => {
+  it('should count bytes as sent, strings by their encoded length', async () => {
+    const stream = new CopyFromStream(fakeSocket());
+    await new Promise<void>(resolve =>
+      stream.write(Buffer.from('ab'), () => resolve()),
+    );
+    await new Promise<void>(resolve =>
+      stream.write('çö', 'utf8', () => resolve()),
+    );
+    expect(stream.bytes).toStrictEqual(6);
+    stream.destroy();
   });
 });

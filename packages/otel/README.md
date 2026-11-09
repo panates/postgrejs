@@ -44,12 +44,24 @@ new PostgrejsInstrumentation();
 | Span                     | Kind     | Covers                                                                      |
 |--------------------------|----------|-----------------------------------------------------------------------------|
 | the database name        | client   | one `query()` or `execute()`, on a connection or a pool                     |
+| `COPY`, or `COPY <table>`| client   | one `copyTo()`, `copyFrom()` or `copyFromRows()`, until the server is done |
 | `postgrejs.pool.acquire` | internal | the time a caller waits for a pooled connection, opening a new one included |
 | `postgrejs.connect`      | client   | opening a connection: socket, TLS, authentication, startup                  |
 
 A statement span is named after the database, as the OpenTelemetry semantic
 conventions ask when the operation and table are not known without parsing the
-SQL (`postgresql` when no database is configured). A connection opened while a
+SQL (`postgresql` when no database is configured). A COPY is known to be one,
+so its span is named `COPY`, followed by the table when `copyFromRows()` was
+given one.
+
+A COPY span lasts until the server reports the copy finished, not until
+`copyTo()` or `copyFrom()` resolves: those resolve once the server accepts the
+copy, and the data moves afterwards. A consumer that reads a large export
+slowly keeps the server, and the span, busy for as long as it takes. A
+`copyTo()` stream destroyed early is not an error: the server still finishes
+the copy, its output is discarded, and the span says `postgrejs.copy.aborted`.
+A `copyFrom()` whose source fails sends CopyFail, which the server answers
+with an error (`57014`), and the span records it. A connection opened while a
 caller waits for the pool is a child of that caller's acquire span. The query
 that follows is a sibling of the acquire span, so the wait and the query show
 up as two separate bars.
@@ -62,9 +74,15 @@ Attributes, following the stable database semantic conventions:
 | `db.namespace`              | all                   | the database name                                             |
 | `server.address`            | all                   | the configured host                                           |
 | `server.port`               | all but unix sockets  | the configured port, 5432 by default                          |
-| `db.query.text`             | statements            | the SQL as the application wrote it, see `captureQueryText`   |
-| `db.response.returned_rows` | `query()`             | the number of rows returned                                   |
-| `db.response.status_code`   | statements, on error  | the SQLSTATE, e.g. `42P01`                                    |
+| `db.query.text`             | statements, COPY      | the SQL as the application wrote it, see `captureQueryText`   |
+| `db.operation.name`         | COPY                  | `COPY`                                                        |
+| `db.collection.name`        | `copyFromRows()`      | the table it was given                                        |
+| `db.response.returned_rows` | `query()`, COPY TO    | the number of rows returned                                   |
+| `postgrejs.copy.direction`  | COPY                  | `to` or `from`                                                |
+| `postgrejs.copy.rows`       | COPY FROM             | the number of rows the server took                            |
+| `postgrejs.copy.bytes`      | COPY                  | the bytes of data sent or received, on failure too            |
+| `postgrejs.copy.aborted`    | COPY TO               | `true` when the consumer destroyed the stream before the end  |
+| `db.response.status_code`   | statements and COPY, on error | the SQLSTATE, e.g. `42P01`                                    |
 | `error.type`                | on error              | the SQLSTATE, a Node.js error code such as `ECONNREFUSED`, or the error's class name |
 | `postgrejs.backend_pid`     | statements, connect   | the server process id, as in `pg_stat_activity.pid`           |
 
@@ -88,9 +106,11 @@ new PostgrejsInstrumentation({
 - `captureQueryText` (default `true`): record `db.query.text`. A statement
   sent without parameters can carry literal values in its text; turn this off
   if those can be sensitive.
-- `requestHook` and `responseHook`: called with the span and what postgrejs
-  published (`context.sql`, `context.connection`, and `context.result` in the
-  response hook). An exception thrown by a hook is logged through `diag` and
+- `requestHook` and `responseHook`: called for each statement and COPY with
+  the span, the `operation` (`query`, `execute` or `copy`) and what postgrejs
+  published: `context.sql` and `context.connection`, plus `context.result` in
+  the response hook of a query or an execute, and `rowCount` and `bytes` in
+  that of a COPY. An exception thrown by a hook is logged through `diag` and
   does not reach the query.
 - `sqlComment`: put a comment in front of every statement, in the
   [sqlcommenter](https://google.github.io/sqlcommenter/spec/) format. `tags` is
@@ -145,8 +165,11 @@ cost described above.
 
 ## Not covered yet
 
-- Cursor fetches, `COPY`, `prepare()` and the statements of a `pipeline()` get
-  no span of their own. postgrejs does not publish them yet.
+- Cursor fetches, `prepare()`, the statements of a `pipeline()`, and the
+  transaction commands (`startTransaction()`, `commit()`, `rollback()`,
+  savepoints) get no span of their own. postgrejs does not publish them yet.
+- The column lookup `copyFromRows()` makes before its COPY, when it is not
+  given the column types, is not part of the COPY span.
 - No metrics are recorded.
 - With several hosts configured, `server.address` is the first one, not
   necessarily the one the connection reached.
