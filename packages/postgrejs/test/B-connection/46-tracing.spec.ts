@@ -579,4 +579,210 @@ describe('tracing channels', () => {
       );
     });
   });
+
+  describe('postgrejs:prepare and postgrejs:statement:execute', () => {
+    it('should publish prepare() with the statement it created', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'prepare', tracingChannels.prepare);
+      let statement: any;
+      try {
+        statement = await conn.prepare('select $1::int', {
+          paramTypes: [23],
+        });
+      } finally {
+        off();
+      }
+      try {
+        expect(events(log)).toStrictEqual([
+          'prepare:start',
+          'prepare:end',
+          'prepare:asyncStart',
+          'prepare:asyncEnd',
+        ]);
+        const ctx = log[0].context;
+        expect(ctx.sql).toStrictEqual('select $1::int');
+        expect(ctx.paramTypeCount).toStrictEqual(1);
+        expect(ctx.connection).toBe(conn);
+        expect(ctx.result).toBe(statement);
+      } finally {
+        await statement.close();
+      }
+    });
+
+    it('should prepare the sql a start handler replaced', async () => {
+      const off = record([], 'prepare', tracingChannels.prepare, ctx => {
+        ctx.sql = `/*prepared*/ ${ctx.sql}`;
+      });
+      let statement: any;
+      try {
+        statement = await conn.prepare('select current_query()');
+      } finally {
+        off();
+      }
+      try {
+        expect(statement.sql).toStrictEqual(
+          '/*prepared*/ select current_query()',
+        );
+        const result = await statement.execute();
+        expect(result.rows[0][0]).toStrictEqual(
+          '/*prepared*/ select current_query()',
+        );
+      } finally {
+        await statement.close();
+      }
+    });
+
+    it('should publish error when the server refuses to prepare', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'prepare', tracingChannels.prepare);
+      let caught: unknown;
+      try {
+        await conn.prepare('select * from no_such_table_for_tracing');
+      } catch (e) {
+        caught = e;
+      } finally {
+        off();
+      }
+      expect(caught).toBeInstanceOf(DatabaseError);
+      expect(events(log)).toContain('prepare:error');
+      expect(log[0].context.error).toBe(caught);
+      expect(log[0].context.paramTypeCount).toStrictEqual(0);
+    });
+
+    it('should publish pool.prepare() once', async () => {
+      const pool = new Pool({ max: 1 });
+      const log: Recorded[] = [];
+      const off = record(log, 'prepare', tracingChannels.prepare);
+      try {
+        const statement = await pool.prepare('select 1');
+        await statement.close();
+      } finally {
+        off();
+        await pool.close(0);
+      }
+      expect(events(log, 'prepare')).toStrictEqual([
+        'prepare:start',
+        'prepare:end',
+        'prepare:asyncStart',
+        'prepare:asyncEnd',
+      ]);
+    });
+
+    it('should publish execute() with the statement and the result', async () => {
+      const statement = await conn.prepare('select $1::int + 1 as n');
+      const log: Recorded[] = [];
+      const off = record(log, 'statement', tracingChannels.statementExecute);
+      let result: any;
+      try {
+        result = await statement.execute({ params: [41] });
+      } finally {
+        off();
+        await statement.close();
+      }
+      expect(events(log)).toStrictEqual([
+        'statement:start',
+        'statement:end',
+        'statement:asyncStart',
+        'statement:asyncEnd',
+      ]);
+      const ctx = log[0].context;
+      expect(ctx.sql).toStrictEqual('select $1::int + 1 as n');
+      expect(ctx.statement).toBe(statement);
+      expect(ctx.connection).toBe(conn);
+      expect(ctx.paramCount).toStrictEqual(1);
+      expect(ctx.batchSize).toBeUndefined();
+      expect(ctx.result).toBe(result);
+      expect(result.rows).toStrictEqual([[42]]);
+    });
+
+    it('should publish error when an execution fails', async () => {
+      const statement = await conn.prepare('select 1 / $1::int');
+      const log: Recorded[] = [];
+      const off = record(log, 'statement', tracingChannels.statementExecute);
+      let caught: unknown;
+      try {
+        await statement.execute({ params: [0] });
+      } catch (e) {
+        caught = e;
+      } finally {
+        off();
+        await statement.close();
+      }
+      expect(caught).toBeInstanceOf(DatabaseError);
+      expect((caught as DatabaseError).code).toStrictEqual('22012');
+      expect(events(log)).toContain('statement:error');
+      expect(log[0].context.error).toBe(caught);
+    });
+
+    it('should publish executeBatch() with its size and the batch result', async () => {
+      const statement = await conn.prepare('select $1::int, $2::text');
+      const log: Recorded[] = [];
+      const off = record(log, 'statement', tracingChannels.statementExecute);
+      let result: any;
+      try {
+        result = await statement.executeBatch([
+          [1, 'a'],
+          [2, 'b'],
+          [3, 'c'],
+        ]);
+      } finally {
+        off();
+        await statement.close();
+      }
+      expect(events(log)).toStrictEqual([
+        'statement:start',
+        'statement:end',
+        'statement:asyncStart',
+        'statement:asyncEnd',
+      ]);
+      const ctx = log[0].context;
+      expect(ctx.batchSize).toStrictEqual(3);
+      expect(ctx.paramCount).toStrictEqual(2);
+      expect(ctx.result).toBe(result);
+      expect(result.results.length).toStrictEqual(3);
+    });
+
+    it('should publish an executeBatch() given no array as an error', async () => {
+      const statement = await conn.prepare('select 1');
+      const log: Recorded[] = [];
+      const off = record(log, 'statement', tracingChannels.statementExecute);
+      let caught: unknown;
+      try {
+        await statement.executeBatch('nope' as any);
+      } catch (e) {
+        caught = e;
+      } finally {
+        off();
+        await statement.close();
+      }
+      expect(caught).toBeInstanceOf(TypeError);
+      expect(log[0].context.batchSize).toStrictEqual(0);
+      expect(log[0].context.paramCount).toStrictEqual(0);
+      expect(events(log)).toContain('statement:error');
+    });
+
+    it('should publish only the query for a statement query() prepares itself', async () => {
+      // A cursor, and autoCommit: false, take query()'s prepare-and-execute
+      // route; the statement it prepares there is part of the query.
+      const log: Recorded[] = [];
+      const offs = [
+        record(log, 'query', tracingChannels.query),
+        record(log, 'prepare', tracingChannels.prepare),
+        record(log, 'statement', tracingChannels.statementExecute),
+      ];
+      try {
+        const r = await conn.query('select 1', { cursor: true });
+        await r.cursor!.close();
+        await conn.query('select 2', { autoCommit: false });
+        await conn.rollback();
+      } finally {
+        for (const off of offs) off();
+      }
+      expect(events(log, 'prepare')).toStrictEqual([]);
+      expect(events(log, 'statement')).toStrictEqual([]);
+      expect(
+        events(log, 'query').filter(e => e === 'query:start').length,
+      ).toStrictEqual(2);
+    });
+  });
 });

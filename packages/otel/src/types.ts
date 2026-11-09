@@ -46,6 +46,30 @@ export interface CopyContext {
   error?: unknown;
 }
 
+/** What `postgrejs:prepare` publishes. See postgrejs's `PrepareTraceContext`. */
+export interface PrepareContext {
+  sql: string;
+  paramTypeCount: number;
+  connection: ConnectionLike;
+  result?: unknown;
+  error?: unknown;
+}
+
+/**
+ * What `postgrejs:statement:execute` publishes for a prepared statement's
+ * `execute()` or `executeBatch()`. See postgrejs's
+ * `StatementExecuteTraceContext`.
+ */
+export interface StatementExecuteContext {
+  readonly sql: string;
+  connection: ConnectionLike;
+  paramCount: number;
+  /** Set for `executeBatch()` only. */
+  batchSize?: number;
+  result?: { rows?: unknown[] };
+  error?: unknown;
+}
+
 /** What `postgrejs:pool:acquire` publishes. */
 export interface PoolAcquireContext {
   pool: { readonly config: ConnectionInfo };

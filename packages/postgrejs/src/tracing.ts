@@ -3,6 +3,8 @@ import diagnosticsChannel, {
 } from 'node:diagnostics_channel';
 import type { Connection } from './connection/connection.js';
 import type { Pool } from './connection/pool.js';
+import type { PreparedStatement } from './connection/prepared-statement.js';
+import type { BatchResult } from './interfaces/batch-result.js';
 import type { ConnectionConfiguration } from './interfaces/database-connection-params.js';
 import type { QueryResult } from './interfaces/query-result.js';
 import type { ScriptResult } from './interfaces/script-result.js';
@@ -108,6 +110,59 @@ export interface CopyTraceContext {
 }
 
 /**
+ * What `postgrejs:prepare` publishes for one `Connection.prepare()` or
+ * `pool.prepare()` call: the Parse and Describe round trip that creates a
+ * prepared statement on the server.
+ *
+ * `sql` can be replaced in `start` as described for
+ * {@link QueryTraceContext}. The replaced text is what the statement is
+ * prepared with, and every later execution of it runs that text, so a
+ * comment put in front of it here is fixed for the statement's lifetime.
+ */
+export interface PrepareTraceContext {
+  /** The statement as it will be prepared. */
+  sql: string;
+  /** How many parameter types the caller declared. The server may resolve more. */
+  paramTypeCount: number;
+  /** The connection the statement is prepared on. */
+  connection: Connection;
+  /** The prepared statement, once the server has accepted it. */
+  result?: PreparedStatement;
+  error?: unknown;
+}
+
+/**
+ * What `postgrejs:statement:execute` publishes for one `execute()` or
+ * `executeBatch()` call on a prepared statement.
+ *
+ * Unlike the other statement channels, `sql` here is only for reading:
+ * the statement was prepared with its text, and an execution sends a
+ * Bind and an Execute that refer to it by name, so there is no text to
+ * replace.
+ *
+ * A statement that `Connection.query()` prepares and runs for itself, as
+ * it does for a cursor, is published on `postgrejs:query` only.
+ */
+export interface StatementExecuteTraceContext {
+  /** The text the statement was prepared with. */
+  readonly sql: string;
+  /** The prepared statement being run. */
+  statement: PreparedStatement;
+  /** The connection the statement runs on. */
+  connection: Connection;
+  /**
+   * How many bind parameters each execution carries: the length of the
+   * first parameter set of a batch. Their values are not published.
+   */
+  paramCount: number;
+  /** How many parameter sets an `executeBatch()` runs. Not set for `execute()`. */
+  batchSize?: number;
+  /** A `QueryResult` from `execute()`, a `BatchResult` from `executeBatch()`. */
+  result?: QueryResult | BatchResult;
+  error?: unknown;
+}
+
+/**
  * The `node:diagnostics_channel` tracing channels postgrejs publishes on.
  *
  * Each one is a `TracingChannel`, so a subscriber gets `start`, `end`,
@@ -137,6 +192,12 @@ export const tracingChannels = {
   connect:
     diagnosticsChannel.tracingChannel<ConnectTraceContext>('postgrejs:connect'),
   copy: diagnosticsChannel.tracingChannel<CopyTraceContext>('postgrejs:copy'),
+  prepare:
+    diagnosticsChannel.tracingChannel<PrepareTraceContext>('postgrejs:prepare'),
+  statementExecute:
+    diagnosticsChannel.tracingChannel<StatementExecuteTraceContext>(
+      'postgrejs:statement:execute',
+    ),
 };
 
 /**

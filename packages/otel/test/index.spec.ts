@@ -16,13 +16,17 @@ import {
   type CopyTraceContext,
   DatabaseError,
   Pool,
+  type PrepareTraceContext,
   type QueryTraceContext,
+  type StatementExecuteTraceContext,
 } from 'postgrejs';
 import {
   type CopyContext,
   datadogDbmTags,
   PostgrejsInstrumentation,
+  type PrepareContext,
   type QueryContext,
+  type StatementExecuteContext,
 } from 'postgrejs-otel';
 import pkg from '../package.json' with { type: 'json' };
 
@@ -30,8 +34,15 @@ import pkg from '../package.json' with { type: 'json' };
    accept what postgrejs actually publishes. */
 const _shapeCheck: (ctx: QueryTraceContext) => QueryContext = ctx => ctx;
 const _copyShapeCheck: (ctx: CopyTraceContext) => CopyContext = ctx => ctx;
+const _prepareShapeCheck: (ctx: PrepareTraceContext) => PrepareContext = ctx =>
+  ctx;
+const _statementShapeCheck: (
+  ctx: StatementExecuteTraceContext,
+) => StatementExecuteContext = ctx => ctx;
 void _shapeCheck;
 void _copyShapeCheck;
+void _prepareShapeCheck;
+void _statementShapeCheck;
 
 const exporter = new InMemorySpanExporter();
 const provider = new BasicTracerProvider({
@@ -384,6 +395,112 @@ describe('postgrejs-otel', () => {
       await drain(await conn.copyTo('copy copy_otel_test to stdout'));
       await settled();
       expect(calls).toEqual(['request copy', 'response copy']);
+    });
+  });
+
+  describe('prepared statement spans', () => {
+    it('should record prepare() as PREPARE and each execution as a statement', async () => {
+      const parent = await inParent(async () => {
+        const statement = await conn.prepare('select $1::int as n');
+        try {
+          await statement.execute({ params: [1] });
+          await statement.execute({ params: [2] });
+        } finally {
+          await statement.close();
+        }
+      });
+      const [prepare, ...executions] = spans();
+      expect(spans().length).toStrictEqual(3);
+      expect(prepare.name).toStrictEqual('PREPARE');
+      expect(prepare.kind).toStrictEqual(SpanKind.CLIENT);
+      expect(parentId(prepare)).toStrictEqual(parent);
+      expect(prepare.attributes['db.operation.name']).toStrictEqual('PREPARE');
+      expect(prepare.attributes['db.query.text']).toStrictEqual(
+        'select $1::int as n',
+      );
+      for (const span of executions) {
+        expect(span.name).toStrictEqual(conn.config.database);
+        expect(parentId(span)).toStrictEqual(parent);
+        expect(span.attributes['db.query.text']).toStrictEqual(
+          'select $1::int as n',
+        );
+        expect(span.attributes['db.response.returned_rows']).toStrictEqual(1);
+        expect(span.attributes['db.operation.name']).toBeUndefined();
+        expect(span.attributes['db.operation.batch.size']).toBeUndefined();
+      }
+    });
+
+    it('should record executeBatch() as one span with the batch size', async () => {
+      const statement = await conn.prepare('select $1::int');
+      try {
+        await statement.executeBatch([[1], [2], [3]]);
+        await statement.executeBatch([[4]]);
+      } finally {
+        await statement.close();
+      }
+      const [, batch, single] = spans();
+      expect(spans().length).toStrictEqual(3);
+      expect(batch.attributes['db.operation.batch.size']).toStrictEqual(3);
+      expect(batch.attributes['db.response.returned_rows']).toBeUndefined();
+      // A batch of one is not a batch to the conventions.
+      expect(single.attributes['db.operation.batch.size']).toBeUndefined();
+    });
+
+    it('should record a failed execution with its SQLSTATE', async () => {
+      const statement = await conn.prepare('select 1 / $1::int');
+      try {
+        await statement.execute({ params: [0] }).catch(() => undefined);
+      } finally {
+        await statement.close();
+      }
+      const span = spans()[1];
+      expect(span.status.code).toStrictEqual(SpanStatusCode.ERROR);
+      expect(span.attributes['db.response.status_code']).toStrictEqual('22012');
+    });
+
+    it('should record a query that prepares a statement for itself once', async () => {
+      const r = await conn.query('select 1', { cursor: true });
+      await r.cursor!.close();
+      expect(spans().map(s => s.name)).toStrictEqual([conn.config.database]);
+    });
+
+    it('should pass the operation to the hooks', async () => {
+      const seen: string[] = [];
+      instrumentation.setConfig({
+        requestHook: (_span, info) => seen.push('request ' + info.operation),
+        responseHook: (_span, info) => seen.push('response ' + info.operation),
+      });
+      const statement = await conn.prepare('select 1');
+      try {
+        await statement.execute();
+      } finally {
+        await statement.close();
+      }
+      expect(seen).toStrictEqual([
+        'request prepare',
+        'response prepare',
+        'request executePrepared',
+        'response executePrepared',
+      ]);
+    });
+
+    it('should comment the statement at prepare(), without a traceparent', async () => {
+      instrumentation.setConfig({
+        sqlComment: { tags: { app: 'billing' }, traceparent: true },
+      });
+      const statement = await conn.prepare('select current_query()');
+      let result: any;
+      try {
+        result = await statement.execute();
+      } finally {
+        await statement.close();
+      }
+      expect(result.rows[0][0]).toStrictEqual(
+        "/*app='billing'*/ select current_query()",
+      );
+      expect(spans()[1].attributes['db.query.text']).toStrictEqual(
+        "/*app='billing'*/ select current_query()",
+      );
     });
   });
 

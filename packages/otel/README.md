@@ -2,7 +2,8 @@
 
 OpenTelemetry instrumentation for [postgrejs](https://www.postgrejs.com/).
 
-postgrejs publishes its queries, pool waits and connection attempts on Node's
+postgrejs publishes its queries, prepared statements, COPY operations, pool
+waits and connection attempts on Node's
 `diagnostics_channel`. This package subscribes to those channels and turns
 the events into OpenTelemetry spans. It patches nothing, so it works however
 postgrejs was loaded (ESM, CommonJS, bundled) and the order of imports does
@@ -44,6 +45,8 @@ new PostgrejsInstrumentation();
 | Span                     | Kind     | Covers                                                                      |
 |--------------------------|----------|-----------------------------------------------------------------------------|
 | the database name        | client   | one `query()` or `execute()`, on a connection or a pool                     |
+| the database name        | client   | one `execute()` or `executeBatch()` of a prepared statement                 |
+| `PREPARE`                | client   | one `prepare()`, on a connection or a pool: the server parsing and describing the statement |
 | `COPY`, or `COPY <table>`| client   | one `copyTo()`, `copyFrom()` or `copyFromRows()`, until the server is done |
 | `postgrejs.pool.acquire` | internal | the time a caller waits for a pooled connection, opening a new one included |
 | `postgrejs.connect`      | client   | opening a connection: socket, TLS, authentication, startup                  |
@@ -52,7 +55,13 @@ A statement span is named after the database, as the OpenTelemetry semantic
 conventions ask when the operation and table are not known without parsing the
 SQL (`postgresql` when no database is configured). A COPY is known to be one,
 so its span is named `COPY`, followed by the table when `copyFromRows()` was
-given one.
+given one, and `prepare()` is named `PREPARE` for the same reason.
+
+A prepared statement gives a `PREPARE` span when it is prepared and a span of
+its own for each `execute()`. An `executeBatch()` is one span for the whole
+batch, since every parameter set goes out in one round trip, and records how
+many sets it ran. A `query()` that prepares a statement for itself, as it does
+to return a cursor, is one span: the statement it prepares is part of it.
 
 A COPY span lasts until the server reports the copy finished, not until
 `copyTo()` or `copyFrom()` resolves: those resolve once the server accepts the
@@ -75,9 +84,10 @@ Attributes, following the stable database semantic conventions:
 | `server.address`            | all                   | the configured host                                           |
 | `server.port`               | all but unix sockets  | the configured port, 5432 by default                          |
 | `db.query.text`             | statements, COPY      | the SQL as the application wrote it, see `captureQueryText`   |
-| `db.operation.name`         | COPY                  | `COPY`                                                        |
+| `db.operation.name`         | COPY, `prepare()`     | `COPY` or `PREPARE`                                           |
+| `db.operation.batch.size`   | `executeBatch()`      | the number of parameter sets, when there are two or more     |
 | `db.collection.name`        | `copyFromRows()`      | the table it was given                                        |
-| `db.response.returned_rows` | `query()`, COPY TO    | the number of rows returned                                   |
+| `db.response.returned_rows` | `query()`, a prepared statement's `execute()`, COPY TO | the number of rows returned          |
 | `postgrejs.copy.direction`  | COPY                  | `to` or `from`                                                |
 | `postgrejs.copy.rows`       | COPY FROM             | the number of rows the server took                            |
 | `postgrejs.copy.bytes`      | COPY                  | the bytes of data sent or received, on failure too            |
@@ -106,17 +116,23 @@ new PostgrejsInstrumentation({
 - `captureQueryText` (default `true`): record `db.query.text`. A statement
   sent without parameters can carry literal values in its text; turn this off
   if those can be sensitive.
-- `requestHook` and `responseHook`: called for each statement and COPY with
-  the span, the `operation` (`query`, `execute` or `copy`) and what postgrejs
-  published: `context.sql` and `context.connection`, plus `context.result` in
-  the response hook of a query or an execute, and `rowCount` and `bytes` in
-  that of a COPY. An exception thrown by a hook is logged through `diag` and
+- `requestHook` and `responseHook`: called for each statement, `prepare()` and
+  COPY with the span, the `operation` (`query`, `execute`, `prepare`,
+  `executePrepared` or `copy`) and what postgrejs published: `context.sql` and
+  `context.connection`, plus `context.result` in the response hook of
+  everything but a COPY, and `rowCount` and `bytes` in that of a COPY. An exception thrown by a hook is logged through `diag` and
   does not reach the query.
 - `sqlComment`: put a comment in front of every statement, in the
   [sqlcommenter](https://google.github.io/sqlcommenter/spec/) format. `tags` is
   an object or a function of the connection. `traceparent: true` adds the
   statement span's W3C trace context, which links a row in `pg_stat_activity`
   or a database monitoring sample to its trace.
+
+A prepared statement gets its comment once, when it is prepared, and every
+execution runs that text: an execution refers to the statement by name and
+sends no text of its own. The comment is the tags alone, because a
+`traceparent` written there would tie every later execution to the span of
+the `prepare()`.
 
 `traceparent` makes the statement text different on every call. postgrejs
 reuses a prepared statement only while the text stays the same, so with it on
@@ -165,11 +181,12 @@ cost described above.
 
 ## Not covered yet
 
-- Cursor fetches, `prepare()`, the statements of a `pipeline()`, and the
-  transaction commands (`startTransaction()`, `commit()`, `rollback()`,
-  savepoints) get no span of their own. postgrejs does not publish them yet.
+- Cursor fetches, the statements of a `pipeline()`, and the transaction
+  commands (`startTransaction()`, `commit()`, `rollback()`, savepoints) get no
+  span of their own. postgrejs does not publish them yet.
 - The column lookup `copyFromRows()` makes before its COPY, when it is not
-  given the column types, is not part of the COPY span.
+  given the column types, gets no span: it is neither part of the COPY nor
+  published as a `prepare()`.
 - No metrics are recorded.
 - With several hosts configured, `server.address` is the first one, not
   necessarily the one the connection reached.

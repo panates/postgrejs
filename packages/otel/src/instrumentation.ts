@@ -24,14 +24,18 @@ import type {
   CopyContext,
   ExecuteContext,
   PoolAcquireContext,
+  PrepareContext,
   QueryContext,
+  StatementExecuteContext,
 } from './types.js';
 
 /** The statement operations a request or response hook is called for. */
 export type StatementInfo =
   | { operation: 'query'; context: QueryContext }
   | { operation: 'execute'; context: ExecuteContext }
-  | { operation: 'copy'; context: CopyContext };
+  | { operation: 'copy'; context: CopyContext }
+  | { operation: 'prepare'; context: PrepareContext }
+  | { operation: 'executePrepared'; context: StatementExecuteContext };
 
 /** What to put in a comment in front of every statement. */
 export interface SqlCommentOptions {
@@ -91,7 +95,8 @@ export interface PostgrejsInstrumentationConfig {
  * Turns the events postgrejs publishes on `node:diagnostics_channel` into
  * OpenTelemetry spans.
  *
- * It creates a client span for every `query()` and `execute()`, an
+ * It creates a client span for every `query()` and `execute()`, for
+ * every `prepare()` and every execution of a prepared statement, an
  * internal `postgrejs.pool.acquire` span for the time a caller waits for a
  * pooled connection, and a client `postgrejs.connect` span for each new
  * connection. Attributes follow the stable OpenTelemetry database
@@ -158,6 +163,14 @@ export class PostgrejsInstrumentation {
       {
         channel: 'postgrejs:copy',
         handlers: this._statementHandlers('copy'),
+      },
+      {
+        channel: 'postgrejs:prepare',
+        handlers: this._statementHandlers('prepare'),
+      },
+      {
+        channel: 'postgrejs:statement:execute',
+        handlers: this._statementHandlers('executePrepared'),
       },
       {
         channel: 'postgrejs:pool:acquire',
@@ -289,7 +302,16 @@ export class PostgrejsInstrumentation {
        statement is named after the database, as the conventions ask when
        neither is known without parsing. */
     let name = config.database || 'postgresql';
-    if (operation === 'copy') {
+    if (operation === 'prepare') {
+      // The protocol's Parse and Describe, which is what SQL PREPARE does.
+      attributes['db.operation.name'] = 'PREPARE';
+      name = 'PREPARE';
+    } else if (operation === 'executePrepared') {
+      // The conventions count only two or more as a batch.
+      const size = (ctx as StatementExecuteContext).batchSize;
+      if (size != null && size > 1)
+        attributes['db.operation.batch.size'] = size;
+    } else if (operation === 'copy') {
       const copy = ctx as CopyContext;
       attributes['db.operation.name'] = 'COPY';
       attributes['postgrejs.copy.direction'] = copy.direction;
@@ -309,7 +331,13 @@ export class PostgrejsInstrumentation {
         );
       }
     }
-    const comment = this._config.sqlComment;
+    /* An execution of a prepared statement sends no text, only the name it
+       was prepared under, so there is nothing to put a comment in front
+       of; the comment went in at prepare(), without the traceparent,
+       which would otherwise tie every later execution to the span of the
+       prepare. */
+    const comment =
+      operation === 'executePrepared' ? undefined : this._config.sqlComment;
     if (comment) {
       const tags =
         typeof comment.tags === 'function'
@@ -321,9 +349,11 @@ export class PostgrejsInstrumentation {
           : comment.tags;
       const text = buildSqlComment(
         tags,
-        comment.traceparent && span ? span.spanContext() : undefined,
+        comment.traceparent && span && operation !== 'prepare'
+          ? span.spanContext()
+          : undefined,
       );
-      if (text) ctx.sql = text + ctx.sql;
+      if (text) (ctx as { sql: string }).sql = text + ctx.sql;
     }
   }
 
