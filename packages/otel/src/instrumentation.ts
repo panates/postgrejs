@@ -9,6 +9,7 @@ import {
   context,
   diag,
   type Link,
+  type MeterProvider,
   type Span,
   type SpanContext,
   SpanKind,
@@ -18,6 +19,7 @@ import {
   type TracerProvider,
 } from '@opentelemetry/api';
 import { warnOnHiddenProvider } from './hidden-provider.js';
+import { errorAttributes, PostgrejsMetrics } from './metrics.js';
 import { buildSqlComment } from './sql-comment.js';
 import type {
   ConnectContext,
@@ -28,6 +30,8 @@ import type {
   ExecuteContext,
   PipelineContext,
   PoolAcquireContext,
+  PoolLike,
+  PoolMessage,
   PrepareContext,
   QueryContext,
   StatementExecuteContext,
@@ -105,8 +109,9 @@ export interface PostgrejsInstrumentationConfig {
  * every `prepare()` and every execution of a prepared statement, an
  * internal `postgrejs.pool.acquire` span for the time a caller waits for a
  * pooled connection, and a client `postgrejs.connect` span for each new
- * connection. Attributes follow the stable OpenTelemetry database
- * semantic conventions.
+ * connection, and records the database client metrics: operation
+ * duration, rows returned, and the state of each pool. Attributes follow
+ * the OpenTelemetry database semantic conventions.
  *
  * It has the shape of the `Instrumentation` interface of
  * `@opentelemetry/instrumentation`, so it can be passed to
@@ -152,6 +157,11 @@ export class PostgrejsInstrumentation {
     channel: string;
     handlers: TracingChannelSubscribers<any>;
   }[];
+  protected _poolHandlers: {
+    channel: string;
+    handler: (message: unknown) => void;
+  }[];
+  protected _metrics: PostgrejsMetrics;
   readonly instrumentationName = 'postgrejs-otel';
   readonly instrumentationVersion = VERSION;
 
@@ -161,6 +171,34 @@ export class PostgrejsInstrumentation {
       this.instrumentationName,
       this.instrumentationVersion,
     );
+    this._metrics = new PostgrejsMetrics(
+      this.instrumentationName,
+      this.instrumentationVersion,
+    );
+    const pool = (handle: (message: PoolMessage) => void) => (m: unknown) =>
+      handle(m as PoolMessage);
+    this._poolHandlers = [
+      {
+        channel: 'postgrejs:pool:create',
+        handler: pool(m => this._metrics.observePool(m.pool)),
+      },
+      {
+        channel: 'postgrejs:pool:close',
+        handler: pool(m => this._metrics.forgetPool(m.pool)),
+      },
+      {
+        channel: 'postgrejs:pool:checkout',
+        handler: pool(m => this._metrics.checkout(m.resource!)),
+      },
+      {
+        channel: 'postgrejs:pool:checkin',
+        handler: pool(m => this._metrics.checkin(m.resource!, m.pool)),
+      },
+      {
+        channel: 'postgrejs:pool:timeout',
+        handler: pool(m => this._metrics.timeout(m.pool)),
+      },
+    ];
     this._handlers = [
       {
         channel: 'postgrejs:query',
@@ -192,7 +230,10 @@ export class PostgrejsInstrumentation {
       },
       {
         channel: 'postgrejs:pool:acquire',
-        handlers: this._spanHandlers(ctx => this._startAcquire(ctx)),
+        handlers: this._spanHandlers(
+          ctx => this._startAcquire(ctx),
+          (ctx: PoolAcquireContext) => this._metrics.waitEnd(ctx, ctx.pool),
+        ),
       },
       {
         channel: 'postgrejs:connect',
@@ -213,6 +254,9 @@ export class PostgrejsInstrumentation {
     for (const { channel, handlers } of this._handlers) {
       diagnosticsChannel.tracingChannel(channel).subscribe(handlers);
     }
+    for (const { channel, handler } of this._poolHandlers) {
+      diagnosticsChannel.subscribe(channel, handler);
+    }
     diagnosticsChannel
       .tracingChannel('postgrejs:pool:acquire')
       .start.bindStore(
@@ -232,6 +276,11 @@ export class PostgrejsInstrumentation {
     for (const { channel, handlers } of this._handlers) {
       diagnosticsChannel.tracingChannel(channel).unsubscribe(handlers);
     }
+    for (const { channel, handler } of this._poolHandlers) {
+      diagnosticsChannel.unsubscribe(channel, handler);
+    }
+    // Stops observing the pools; the next record creates the instruments again.
+    this._metrics.reset();
     diagnosticsChannel
       .tracingChannel('postgrejs:pool:acquire')
       .start.unbindStore(this._parentStore);
@@ -246,9 +295,19 @@ export class PostgrejsInstrumentation {
     );
   }
 
-  /** Accepted for the `Instrumentation` interface; no metrics are recorded yet. */
-  setMeterProvider(): void {
-    // No metrics yet.
+  /** Records metrics with this provider instead of the global one from now on. */
+  setMeterProvider(meterProvider: MeterProvider): void {
+    this._metrics.setMeterProvider(meterProvider);
+  }
+
+  /**
+   * Reports the connection metrics of a pool created before this
+   * instrumentation was. A pool created afterwards is found on its own.
+   *
+   * @param pool The pool.
+   */
+  observePool(pool: PoolLike): void {
+    this._metrics.observePool(pool);
   }
 
   /** Replaces the configuration. `enabled` is not acted on; use enable() and disable(). */
@@ -269,10 +328,17 @@ export class PostgrejsInstrumentation {
         this._startStatement(operation, ctx),
       end: (ctx: any) => {
         // A synchronous throw: no asyncEnd will follow.
-        if (ctx.error !== undefined) this._finish(ctx);
+        if (ctx.error !== undefined) {
+          this._metrics.operationEnd(ctx);
+          this._finish(ctx);
+        }
       },
       asyncStart: () => undefined,
       asyncEnd: (ctx: StatementInfo['context']) => {
+        this._metrics.operationEnd(
+          ctx,
+          ctx.error === undefined ? returnedRows(operation, ctx) : undefined,
+        );
         const span = this._spans.get(ctx);
         // Recorded on failure too: how far a failed COPY got is the point.
         if (span && operation === 'copy') endCopy(span, ctx as CopyContext);
@@ -307,9 +373,15 @@ export class PostgrejsInstrumentation {
     beforeEnd?: (ctx: any) => void,
   ): TracingChannelSubscribers<any> {
     return {
-      start,
+      start: (ctx: any) => {
+        this._metrics.timedStart(ctx);
+        start(ctx);
+      },
       end: (ctx: any) => {
-        if (ctx.error !== undefined) this._finish(ctx);
+        if (ctx.error !== undefined) {
+          beforeEnd?.(ctx);
+          this._finish(ctx);
+        }
       },
       asyncStart: () => undefined,
       asyncEnd: (ctx: any) => {
@@ -385,6 +457,7 @@ export class PostgrejsInstrumentation {
         name += ' ' + copy.table;
       }
     }
+    this._metrics.operationStart(ctx, attributes);
     const origin =
       operation === 'fetch'
         ? this._cursorOrigins.get((ctx as CursorFetchContext).cursor)
@@ -472,6 +545,9 @@ export class PostgrejsInstrumentation {
   /* The host is known only once the attempt is over: with several hosts
      configured, the start knows the list, not which one will answer. */
   protected _endConnect(ctx: ConnectContext): void {
+    // Only connections a pool opened, and only those it got.
+    if (ctx.pool && ctx.error === undefined)
+      this._metrics.createEnd(ctx, ctx.pool);
     const span = this._spans.get(ctx);
     if (span) span.setAttributes(serverAttributes(ctx.host, ctx.port));
   }
@@ -499,19 +575,7 @@ export class PostgrejsInstrumentation {
     const span = this._spans.get(ctx);
     if (!span) return;
     const err = ctx.error as any;
-    const code: unknown = err?.code;
-    if (typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code)) {
-      span.setAttribute('db.response.status_code', code);
-      span.setAttribute('error.type', code);
-    } else if (typeof code === 'string') {
-      // A Node.js system error, e.g. ECONNREFUSED.
-      span.setAttribute('error.type', code);
-    } else {
-      span.setAttribute(
-        'error.type',
-        err?.constructor?.name || /* c8 ignore next */ '_OTHER',
-      );
-    }
+    span.setAttributes(errorAttributes(err));
     if (err instanceof Error) span.recordException(err);
     span.setStatus({
       code: SpanStatusCode.ERROR,
@@ -544,6 +608,22 @@ export class PostgrejsInstrumentation {
     }
     return attributes;
   }
+}
+
+/**
+ * The rows a successful operation returned, for the operations that
+ * return rows.
+ */
+function returnedRows(
+  operation: StatementInfo['operation'],
+  ctx: StatementInfo['context'],
+): number | undefined {
+  if (operation === 'fetch') return (ctx as CursorFetchContext).rowCount;
+  if (operation === 'copy') {
+    const copy = ctx as CopyContext;
+    return copy.direction === 'to' ? copy.rowCount : undefined;
+  }
+  return (ctx as QueryContext).result?.rows?.length;
 }
 
 /**

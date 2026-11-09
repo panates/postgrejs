@@ -1,9 +1,21 @@
 import diagnosticsChannel from 'node:diagnostics_channel';
 import { Readable, Writable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
+import {
+  context,
+  metrics,
+  SpanKind,
+  SpanStatusCode,
+  trace,
+} from '@opentelemetry/api';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
+import {
+  type DataPoint,
+  type Histogram,
+  MeterProvider,
+  MetricReader,
+} from '@opentelemetry/sdk-metrics';
 import {
   BasicTracerProvider,
   InMemorySpanExporter,
@@ -764,6 +776,196 @@ describe('postgrejs-otel', () => {
     });
   });
 
+  describe('metrics', () => {
+    class TestReader extends MetricReader {
+      protected onForceFlush(): Promise<void> {
+        return Promise.resolve();
+      }
+
+      protected onShutdown(): Promise<void> {
+        return Promise.resolve();
+      }
+    }
+
+    let reader: TestReader;
+    let meterProvider: MeterProvider;
+
+    beforeEach(() => {
+      reader = new TestReader();
+      meterProvider = new MeterProvider({ readers: [reader] });
+      instrumentation.setMeterProvider(meterProvider);
+    });
+
+    afterEach(() => meterProvider.shutdown());
+
+    /** The data points of one metric, as of now. */
+    async function points(name: string): Promise<DataPoint<any>[]> {
+      const { resourceMetrics } = await reader.collect();
+      for (const scope of resourceMetrics.scopeMetrics) {
+        for (const metric of scope.metrics) {
+          if (metric.descriptor.name === name) return metric.dataPoints;
+        }
+      }
+      return [];
+    }
+
+    function count(p: DataPoint<any>): number {
+      return (p.value as Histogram).count;
+    }
+
+    it('should time a query, without its text in the attributes', async () => {
+      await conn.query('select g from generate_series(1, 3) g');
+      const [duration] = await points('db.client.operation.duration');
+      expect(count(duration)).toStrictEqual(1);
+      expect(duration.attributes).toEqual({
+        'db.system.name': 'postgresql',
+        'db.namespace': conn.config.database,
+        'server.address': conn.host,
+        'server.port': conn.port,
+      });
+      const [rows] = await points('db.client.response.returned_rows');
+      expect((rows.value as Histogram).sum).toStrictEqual(3);
+    });
+
+    it('should name the operation and the error where they are known', async () => {
+      await conn.startTransaction();
+      await conn.commit();
+      await conn
+        .query('select * from no_such_table_for_otel')
+        .catch(() => undefined);
+      const byName = (await points('db.client.operation.duration')).map(p => [
+        p.attributes['db.operation.name'],
+        p.attributes['error.type'],
+        p.attributes['db.response.status_code'],
+      ]);
+      expect(byName).toEqual(
+        expect.arrayContaining([
+          ['BEGIN', undefined, undefined],
+          ['COMMIT', undefined, undefined],
+          [undefined, '42P01', '42P01'],
+        ]),
+      );
+    });
+
+    it('should time an operation that got no span', async () => {
+      instrumentation.setConfig({ requireParentSpan: true });
+      await conn.query('select 1');
+      expect(spans().length).toStrictEqual(0);
+      const [duration] = await points('db.client.operation.duration');
+      expect(count(duration)).toStrictEqual(1);
+    });
+
+    it('should time a synchronous throw', async () => {
+      const channel = diagnosticsChannel.tracingChannel<any, any>(
+        'postgrejs:query',
+      );
+      expect(() =>
+        channel.tracePromise(
+          () => {
+            throw new TypeError('sync');
+          },
+          { sql: 'select 1', paramCount: 0, connection: { config: {} } },
+        ),
+      ).toThrow('sync');
+      const [duration] = await points('db.client.operation.duration');
+      expect(duration.attributes['error.type']).toStrictEqual('TypeError');
+    });
+
+    it('should report a pool: its connections, waits, opens and holds', async () => {
+      const pool = new Pool({ max: 3, name: 'metrics-pool' });
+      let states!: () => Promise<Record<string, unknown>>;
+      try {
+        const connection = await pool.acquire();
+        const attributes = {
+          'db.client.connection.pool.name': 'metrics-pool',
+          'db.system.name': 'postgresql',
+          'db.namespace': pool.config.database,
+          'server.address': pool.config.host,
+          'server.port': pool.config.port || 5432,
+        };
+        states = async () =>
+          Object.fromEntries(
+            (await points('db.client.connection.count')).map(p => [
+              p.attributes['db.client.connection.state'],
+              p.value,
+            ]),
+          );
+        expect(await states()).toEqual({ idle: 0, used: 1 });
+        const [limit] = await points('db.client.connection.limit');
+        expect(limit.value).toStrictEqual(3);
+        expect(limit.attributes).toEqual(attributes);
+        const [idleMin] = await points('db.client.connection.idle.min');
+        expect(idleMin.value).toStrictEqual(0);
+        const [pending] = await points('db.client.connection.pending_requests');
+        expect(pending.value).toStrictEqual(0);
+        expect(count((await points('db.client.connection.wait_time'))[0])).toBe(
+          1,
+        );
+        const [create] = await points('db.client.connection.create_time');
+        expect(count(create)).toBe(1);
+        expect(create.attributes).toEqual(attributes);
+        expect(await points('db.client.connection.use_time')).toEqual([]);
+        await connection.close();
+        expect(await states()).toEqual({ idle: 1, used: 0 });
+        expect(count((await points('db.client.connection.use_time'))[0])).toBe(
+          1,
+        );
+      } finally {
+        await pool.close(0);
+      }
+      // A closed pool is reported at zero, not at its last value.
+      expect(await states()).toEqual({ idle: 0, used: 0 });
+      const [limit] = await points('db.client.connection.limit');
+      expect(limit.value).toStrictEqual(0);
+    });
+
+    it('should add up the pools of one database that have no name', async () => {
+      const a = new Pool({ max: 2 });
+      const b = new Pool({ max: 5 });
+      try {
+        const [limit] = await points('db.client.connection.limit');
+        expect(limit.value).toStrictEqual(7);
+        expect(limit.attributes['db.client.connection.pool.name']).toBe(
+          a.config.database,
+        );
+      } finally {
+        await a.close(0);
+        await b.close(0);
+      }
+    });
+
+    it('should count a caller that gave up waiting', async () => {
+      const pool = new Pool({ max: 1, acquireTimeoutMillis: 30, name: 'tiny' });
+      try {
+        const held = await pool.acquire();
+        await pool.acquire().catch(() => undefined);
+        const [timeouts] = await points('db.client.connection.timeouts');
+        expect(timeouts.value).toStrictEqual(1);
+        expect(timeouts.attributes['db.client.connection.pool.name']).toBe(
+          'tiny',
+        );
+        await held.close();
+      } finally {
+        await pool.close(0);
+      }
+    });
+
+    it('should report a pool made before it, once told about it', async () => {
+      instrumentation.disable();
+      const pool = new Pool({ max: 4, name: 'early' });
+      instrumentation.enable();
+      try {
+        expect(await points('db.client.connection.limit')).toEqual([]);
+        instrumentation.observePool(pool);
+        instrumentation.observePool(pool);
+        const [limit] = await points('db.client.connection.limit');
+        expect(limit.value).toStrictEqual(4);
+      } finally {
+        await pool.close(0);
+      }
+    });
+  });
+
   describe('sqlComment', () => {
     it('should put the tags and the traceparent in front of the statement', async () => {
       instrumentation.setConfig({
@@ -916,7 +1118,7 @@ describe('postgrejs-otel', () => {
       const unregister = registerInstrumentations({
         instrumentations: [other],
         tracerProvider: provider,
-        meterProvider: {} as any,
+        meterProvider: metrics.getMeterProvider(),
       });
       try {
         await conn.query('select 1');

@@ -96,9 +96,28 @@ export interface CursorFetchContext {
   error?: unknown;
 }
 
+/** The parts of a postgrejs `Pool` read here. */
+export interface PoolLike {
+  readonly config: ConnectionInfo & {
+    name?: string;
+    max?: number;
+    minIdle?: number;
+  };
+  readonly idleConnections: number;
+  readonly acquiredConnections: number;
+  readonly pendingAcquires: number;
+}
+
+/** What the `postgrejs:pool:*` channels publish. See postgrejs's `poolChannels`. */
+export interface PoolMessage {
+  pool: PoolLike;
+  /** Set on checkout and checkin. */
+  resource?: object;
+}
+
 /** What `postgrejs:pool:acquire` publishes. */
 export interface PoolAcquireContext {
-  pool: { readonly config: ConnectionInfo };
+  pool: PoolLike;
   result?: ConnectionLike;
   error?: unknown;
 }
@@ -106,6 +125,8 @@ export interface PoolAcquireContext {
 /** What `postgrejs:connect` publishes. */
 export interface ConnectContext {
   config: ConnectionInfo;
+  /** The pool opening the connection, when a pool is. */
+  pool?: PoolLike;
   processID?: number;
   host?: string;
   port?: number;

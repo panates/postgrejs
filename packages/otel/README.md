@@ -2,12 +2,12 @@
 
 OpenTelemetry instrumentation for [postgrejs](https://www.postgrejs.com/).
 
-postgrejs publishes its queries, prepared statements, COPY operations, pool
-waits and connection attempts on Node's
-`diagnostics_channel`. This package subscribes to those channels and turns
-the events into OpenTelemetry spans. It patches nothing, so it works however
-postgrejs was loaded (ESM, CommonJS, bundled) and the order of imports does
-not matter. It runs on Node.js and Bun.
+postgrejs publishes its queries, prepared statements, cursor fetches, COPY
+operations, transaction commands, pool activity and connection attempts on
+Node's `diagnostics_channel`. This package subscribes to those channels and
+turns the events into OpenTelemetry spans and metrics. It patches nothing, so
+it works however postgrejs was loaded (ESM, CommonJS, bundled) and the order
+of imports does not matter. It runs on Node.js and Bun.
 
 ## Installation
 
@@ -129,6 +129,39 @@ Attributes, following the stable database semantic conventions:
 
 Parameter values are never recorded.
 
+## Metrics
+
+The same events give the metrics of the OpenTelemetry database conventions.
+They go to the meter provider the SDK passes in, or the global one.
+
+| Metric                                   | Kind            | What it measures                                             |
+|------------------------------------------|-----------------|--------------------------------------------------------------|
+| `db.client.operation.duration`           | histogram, s    | each operation a span is made for, also when no span is made because of `requireParentSpan` |
+| `db.client.response.returned_rows`       | histogram       | the rows a query, an execution, a `FETCH` or a COPY TO returned |
+| `db.client.connection.count`             | up-down counter | a pool's connections, by `db.client.connection.state`: `idle` or `used` |
+| `db.client.connection.limit`             | up-down counter | the pool's `max`                                             |
+| `db.client.connection.idle.min`          | up-down counter | the pool's `minIdle`                                         |
+| `db.client.connection.pending_requests`  | up-down counter | callers waiting for a connection                             |
+| `db.client.connection.wait_time`         | histogram, s    | how long an `acquire()` waited                               |
+| `db.client.connection.create_time`       | histogram, s    | how long the pool took to open a connection                 |
+| `db.client.connection.use_time`          | histogram, s    | how long a connection was out of the pool, `pool.query()` included |
+| `db.client.connection.timeouts`          | counter         | callers that gave up after `acquireTimeoutMillis`            |
+
+The operation metrics carry the span's attributes without `db.query.text`,
+which would make every distinct statement a series of its own. Only the first
+is stable in the conventions; the others are still marked in development there,
+and their names can change.
+
+A pool is reported under its `name` option, or under its database name when it
+has none. Pools with the same name are added up. A pool is found when it is
+created, so one created before the instrumentation has to be named to it:
+
+```ts
+instrumentation.observePool(pool);
+```
+
+A closed pool is reported at zero once and then left out.
+
 ## Options
 
 ```ts
@@ -211,7 +244,3 @@ new PostgrejsInstrumentation({
 
 Adding `traceparent: true` corresponds to dd-trace's `full` mode, with the
 cost described above.
-
-## Not covered yet
-
-- No metrics are recorded.
