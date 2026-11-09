@@ -1,8 +1,431 @@
+import diagnosticsChannel from 'node:diagnostics_channel';
+import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
+import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
+import {
+  BasicTracerProvider,
+  InMemorySpanExporter,
+  type ReadableSpan,
+  SimpleSpanProcessor,
+} from '@opentelemetry/sdk-trace-base';
 import { expect } from 'expect';
+import {
+  Connection,
+  DatabaseError,
+  Pool,
+  type QueryTraceContext,
+} from 'postgrejs';
+import {
+  datadogDbmTags,
+  PostgrejsInstrumentation,
+  type QueryContext,
+} from 'postgrejs-otel';
+import pkg from '../package.json' with { type: 'json' };
+
+/* Compile-time check that the shapes this package declares for itself
+   accept what postgrejs actually publishes. */
+const _shapeCheck: (ctx: QueryTraceContext) => QueryContext = ctx => ctx;
+void _shapeCheck;
+
+const exporter = new InMemorySpanExporter();
+const provider = new BasicTracerProvider({
+  spanProcessors: [new SimpleSpanProcessor(exporter)],
+});
+const tracer = provider.getTracer('test');
+
+function spans(name?: string): ReadableSpan[] {
+  return exporter
+    .getFinishedSpans()
+    .filter(s => s.name !== 'parent' && (!name || s.name === name));
+}
+
+function parentId(span: ReadableSpan): string | undefined {
+  return span.parentSpanContext?.spanId;
+}
+
+/** Runs fn inside an active parent span and returns that span's id. */
+async function inParent(fn: () => Promise<unknown>): Promise<string> {
+  return tracer.startActiveSpan('parent', async parent => {
+    try {
+      await fn().catch(() => undefined);
+    } finally {
+      parent.end();
+    }
+    return parent.spanContext().spanId;
+  });
+}
 
 describe('postgrejs-otel', () => {
-  it('resolves through the workspace alias', async () => {
-    const mod = await import('postgrejs-otel');
-    expect(Object.keys(mod)).toEqual([]);
+  const contextManager = new AsyncLocalStorageContextManager();
+  let instrumentation: PostgrejsInstrumentation;
+  let conn: Connection;
+
+  before(async () => {
+    context.setGlobalContextManager(contextManager.enable());
+    conn = new Connection();
+    await conn.connect();
+  });
+
+  after(async () => {
+    await conn.close(0);
+    context.disable();
+  });
+
+  beforeEach(() => {
+    exporter.reset();
+    instrumentation = new PostgrejsInstrumentation({ enabled: false });
+    instrumentation.setTracerProvider(provider);
+    instrumentation.enable();
+  });
+
+  afterEach(() => instrumentation.disable());
+
+  describe('query spans', () => {
+    it('should record a query with the database semantic conventions', async () => {
+      const parent = await inParent(() =>
+        conn.query('select $1::int as n', { params: [7] }),
+      );
+      const [span] = spans();
+      expect(spans().length).toStrictEqual(1);
+      expect(span.name).toStrictEqual(conn.config.database);
+      expect(span.kind).toStrictEqual(SpanKind.CLIENT);
+      expect(parentId(span)).toStrictEqual(parent);
+      expect(span.status.code).toStrictEqual(SpanStatusCode.UNSET);
+      expect(span.attributes).toEqual({
+        'db.system.name': 'postgresql',
+        'db.namespace': conn.config.database,
+        'server.address': conn.config.host,
+        'server.port': conn.config.port || 5432,
+        'db.query.text': 'select $1::int as n',
+        'db.response.returned_rows': 1,
+        'postgrejs.backend_pid': conn.processID,
+      });
+      expect(span.instrumentationScope).toEqual({
+        name: 'postgrejs-otel',
+        version: pkg.version,
+        schemaUrl: undefined,
+      });
+    });
+
+    it('should record execute() as a span too', async () => {
+      await conn.execute('select 1; select 2');
+      const [span] = spans();
+      expect(span.attributes['db.query.text']).toStrictEqual(
+        'select 1; select 2',
+      );
+      expect(span.attributes['db.response.returned_rows']).toBeUndefined();
+    });
+
+    it('should record a server error with its SQLSTATE', async () => {
+      let caught: unknown;
+      await conn.query('select * from no_such_table_for_otel').catch(e => {
+        caught = e;
+      });
+      expect(caught).toBeInstanceOf(DatabaseError);
+      const [span] = spans();
+      expect(span.status).toEqual({
+        code: SpanStatusCode.ERROR,
+        message: (caught as Error).message,
+      });
+      expect(span.attributes['db.response.status_code']).toStrictEqual('42P01');
+      expect(span.attributes['error.type']).toStrictEqual('42P01');
+      expect(span.events.map(e => e.name)).toEqual(['exception']);
+    });
+
+    it('should not record the statement when captureQueryText is false', async () => {
+      instrumentation.setConfig({ captureQueryText: false });
+      await conn.query('select 1');
+      expect(spans()[0].attributes['db.query.text']).toBeUndefined();
+    });
+
+    it('should not start a root span when requireParentSpan is set', async () => {
+      instrumentation.setConfig({ requireParentSpan: true });
+      await conn.query('select 1');
+      expect(spans()).toEqual([]);
+      const parent = await inParent(() => conn.query('select 1'));
+      expect(spans().map(parentId)).toEqual([parent]);
+    });
+
+    it('should record nothing for a pool or a failure outside a trace with requireParentSpan', async () => {
+      instrumentation.setConfig({ requireParentSpan: true });
+      const pool = new Pool({ max: 1 });
+      try {
+        await pool.query('select 1');
+      } finally {
+        await pool.close(0);
+      }
+      await expect(conn.query('select * from no_such_table')).rejects.toThrow(
+        DatabaseError,
+      );
+      expect(spans()).toEqual([]);
+    });
+
+    it('should call the request and response hooks', async () => {
+      const calls: string[] = [];
+      instrumentation.setConfig({
+        requestHook: (span, info) => {
+          calls.push(`request ${info.operation} ${info.context.sql}`);
+          span.setAttribute('custom', 'yes');
+        },
+        responseHook: (_span, info) => {
+          calls.push(
+            `response ${info.operation} ${info.context.result !== undefined}`,
+          );
+        },
+      });
+      await conn.query('select 1');
+      await conn.execute('select 2');
+      expect(calls).toEqual([
+        'request query select 1',
+        'response query true',
+        'request execute select 2',
+        'response execute true',
+      ]);
+      expect(spans()[0].attributes.custom).toStrictEqual('yes');
+    });
+
+    it('should keep running the query when a hook throws', async () => {
+      instrumentation.setConfig({
+        requestHook: () => {
+          throw new Error('request hook');
+        },
+        responseHook: () => {
+          throw new Error('response hook');
+        },
+      });
+      const result = await conn.query('select 1');
+      expect(result.rows).toEqual([[1]]);
+      expect(spans().length).toStrictEqual(1);
+    });
+  });
+
+  describe('pool spans', () => {
+    it('should nest connect under acquire, and the query beside acquire', async () => {
+      const pool = new Pool({ max: 1 });
+      let parent: string | undefined;
+      try {
+        parent = await inParent(() => pool.query('select 1'));
+      } finally {
+        await pool.close(0);
+      }
+      const acquire = spans('postgrejs.pool.acquire')[0];
+      const connect = spans('postgrejs.connect')[0];
+      const query = spans(pool.config.database)[0];
+      expect(acquire.kind).toStrictEqual(SpanKind.INTERNAL);
+      expect(connect.kind).toStrictEqual(SpanKind.CLIENT);
+      expect(parentId(acquire)).toStrictEqual(parent);
+      expect(parentId(connect)).toStrictEqual(acquire.spanContext().spanId);
+      expect(parentId(query)).toStrictEqual(parent);
+      expect(typeof connect.attributes['postgrejs.backend_pid']).toStrictEqual(
+        'number',
+      );
+      expect(connect.attributes['postgrejs.backend_pid']).toStrictEqual(
+        query.attributes['postgrejs.backend_pid'],
+      );
+    });
+
+    it('should record a connection that cannot be opened', async () => {
+      const pool = new Pool({ max: 1, port: 1, acquireTimeoutMillis: 2000 });
+      try {
+        await inParent(() => pool.acquire());
+      } finally {
+        await pool.close(0);
+      }
+      const connect = spans('postgrejs.connect')[0];
+      const acquire = spans('postgrejs.pool.acquire')[0];
+      expect(connect.status.code).toStrictEqual(SpanStatusCode.ERROR);
+      expect(connect.attributes['error.type']).toStrictEqual('ECONNREFUSED');
+      expect(connect.attributes['server.port']).toStrictEqual(1);
+      expect(acquire.status.code).toStrictEqual(SpanStatusCode.ERROR);
+    });
+
+    it('should record a standalone connect with no pool', async () => {
+      const c = new Connection();
+      try {
+        await c.connect();
+      } finally {
+        await c.close(0);
+      }
+      expect(spans().map(s => s.name)).toEqual(['postgrejs.connect']);
+      expect(parentId(spans()[0])).toBeUndefined();
+    });
+  });
+
+  describe('sqlComment', () => {
+    it('should put the tags and the traceparent in front of the statement', async () => {
+      instrumentation.setConfig({
+        sqlComment: { tags: { app: "it's" }, traceparent: true },
+      });
+      const result = await conn.query('select current_query()');
+      const [span] = spans();
+      const { traceId, spanId } = span.spanContext();
+      expect(result.rows![0][0]).toStrictEqual(
+        `/*app='it\\'s',traceparent='00-${traceId}-${spanId}-01'*/ select current_query()`,
+      );
+      // The span keeps the statement as the application wrote it.
+      expect(span.attributes['db.query.text']).toStrictEqual(
+        'select current_query()',
+      );
+    });
+
+    it('should write the keys Datadog Database Monitoring reads', async () => {
+      instrumentation.setConfig({
+        sqlComment: {
+          tags: datadogDbmTags({ service: 'api', env: 'prod', version: '1.4' }),
+        },
+      });
+      const result = await conn.execute('select current_query()');
+      const { database, host } = conn.config;
+      expect(result.results[0].rows![0][0]).toStrictEqual(
+        `/*dddb='${database}',dddbs='api',dde='prod',ddh='${encodeURIComponent(host!)}',` +
+          `ddps='api',ddpv='1.4'*/ select current_query()`,
+      );
+    });
+
+    it('should leave the statement alone when the tags come back empty', async () => {
+      instrumentation.setConfig({
+        sqlComment: { tags: () => ({ none: undefined }) },
+      });
+      const result = await conn.query('select current_query()');
+      expect(result.rows![0][0]).toStrictEqual('select current_query()');
+    });
+
+    it('should leave the statement alone when the tags function throws', async () => {
+      instrumentation.setConfig({
+        sqlComment: {
+          tags: () => {
+            throw new Error('tags');
+          },
+        },
+      });
+      const result = await conn.query('select current_query()');
+      expect(result.rows![0][0]).toStrictEqual('select current_query()');
+    });
+
+    it('should add no traceparent when there is no span', async () => {
+      instrumentation.setConfig({
+        requireParentSpan: true,
+        sqlComment: { tags: { a: 'b' }, traceparent: true },
+      });
+      const result = await conn.query('select current_query()');
+      expect(result.rows![0][0]).toStrictEqual(
+        "/*a='b'*/ select current_query()",
+      );
+    });
+  });
+
+  describe('events published by hand', () => {
+    /* Shapes the driver does not produce against the test server: a unix
+       socket, a synchronous throw, a rejection that is not an Error. */
+    const channel = diagnosticsChannel.tracingChannel<any, any>(
+      'postgrejs:query',
+    );
+    const ctx = (config: object) => ({
+      sql: 'select 1',
+      paramCount: 0,
+      connection: { config },
+    });
+
+    it('should record a unix socket without a port', async () => {
+      await channel.tracePromise(async () => undefined, ctx({ host: '/tmp' }));
+      const [span] = spans();
+      expect(span.name).toStrictEqual('postgresql');
+      expect(span.attributes['server.address']).toStrictEqual('/tmp');
+      expect(span.attributes['server.port']).toBeUndefined();
+      expect(span.attributes['postgrejs.backend_pid']).toBeUndefined();
+    });
+
+    it('should end the span on a synchronous throw', () => {
+      expect(() =>
+        channel.tracePromise(() => {
+          throw new TypeError('sync');
+        }, ctx({})),
+      ).toThrow('sync');
+      const [span] = spans();
+      expect(span.attributes['error.type']).toStrictEqual('TypeError');
+      expect(span.attributes['server.address']).toBeUndefined();
+    });
+
+    it('should end a connect span on a synchronous throw', () => {
+      const connect = diagnosticsChannel.tracingChannel<any, any>(
+        'postgrejs:connect',
+      );
+      expect(() =>
+        connect.tracePromise(
+          () => {
+            throw new Error('sync');
+          },
+          { config: {} },
+        ),
+      ).toThrow('sync');
+      expect(spans('postgrejs.connect')[0].attributes['error.type']).toBe(
+        'Error',
+      );
+    });
+
+    it('should record a rejection that is not an Error', async () => {
+      await expect(
+        channel.tracePromise(() => Promise.reject('plain'), ctx({})),
+      ).rejects.toStrictEqual('plain');
+      const [span] = spans();
+      expect(span.status).toEqual({
+        code: SpanStatusCode.ERROR,
+        message: 'plain',
+      });
+      expect(span.attributes['error.type']).toStrictEqual('String');
+      expect(span.events).toEqual([]);
+    });
+  });
+
+  describe('Instrumentation interface', () => {
+    it('should record nothing once disabled, and enable only once', async () => {
+      instrumentation.enable();
+      await conn.query('select 1');
+      expect(spans().length).toStrictEqual(1);
+      instrumentation.disable();
+      instrumentation.disable();
+      expect(instrumentation.getConfig().enabled).toStrictEqual(false);
+      await conn.query('select 1');
+      expect(spans().length).toStrictEqual(1);
+    });
+
+    it('should keep enabled as it is when the config is replaced', () => {
+      instrumentation.setConfig({ enabled: false, captureQueryText: false });
+      expect(instrumentation.getConfig()).toEqual({
+        enabled: true,
+        captureQueryText: false,
+      });
+    });
+
+    it('should work with registerInstrumentations()', async () => {
+      instrumentation.disable();
+      const other = new PostgrejsInstrumentation();
+      const unregister = registerInstrumentations({
+        instrumentations: [other],
+        tracerProvider: provider,
+        meterProvider: {} as any,
+      });
+      try {
+        await conn.query('select 1');
+      } finally {
+        unregister();
+      }
+      expect(spans().length).toStrictEqual(1);
+      expect(other.getConfig().enabled).toStrictEqual(false);
+      expect(other.instrumentationName).toStrictEqual('postgrejs-otel');
+    });
+
+    it('should use the global tracer provider by default', async () => {
+      instrumentation.disable();
+      trace.setGlobalTracerProvider(provider);
+      const other = new PostgrejsInstrumentation();
+      try {
+        await conn.query('select 1');
+      } finally {
+        other.disable();
+        trace.disable();
+      }
+      expect(spans().length).toStrictEqual(1);
+    });
   });
 });

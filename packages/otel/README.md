@@ -2,7 +2,150 @@
 
 OpenTelemetry instrumentation for [postgrejs](https://www.postgrejs.com/).
 
-Work in progress, not published yet. postgrejs will publish query start, end
-and error events on Node's `diagnostics_channel`, and this package will turn
-them into OpenTelemetry spans. Datadog users will be able to collect them
-through dd-trace's OpenTelemetry support.
+postgrejs publishes its queries, pool waits and connection attempts on Node's
+`diagnostics_channel`. This package subscribes to those channels and turns
+the events into OpenTelemetry spans. It patches nothing, so it works however
+postgrejs was loaded (ESM, CommonJS, bundled) and the order of imports does
+not matter. It runs on Node.js and Bun.
+
+## Installation
+
+```sh
+npm install postgrejs-otel @opentelemetry/api
+```
+
+Use the same version of postgrejs-otel as of postgrejs. The two are released
+together.
+
+## Usage
+
+With the OpenTelemetry Node SDK:
+
+```ts
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { PostgrejsInstrumentation } from 'postgrejs-otel';
+
+const sdk = new NodeSDK({
+  instrumentations: [new PostgrejsInstrumentation()],
+});
+sdk.start();
+```
+
+`registerInstrumentations()` from `@opentelemetry/instrumentation` takes it the
+same way. Without either, constructing it is enough: it subscribes at once and
+uses the global tracer provider.
+
+```ts
+new PostgrejsInstrumentation();
+```
+
+## Spans
+
+| Span                     | Kind     | Covers                                                                      |
+|--------------------------|----------|-----------------------------------------------------------------------------|
+| the database name        | client   | one `query()` or `execute()`, on a connection or a pool                     |
+| `postgrejs.pool.acquire` | internal | the time a caller waits for a pooled connection, opening a new one included |
+| `postgrejs.connect`      | client   | opening a connection: socket, TLS, authentication, startup                  |
+
+A statement span is named after the database, as the OpenTelemetry semantic
+conventions ask when the operation and table are not known without parsing the
+SQL (`postgresql` when no database is configured). A connection opened while a
+caller waits for the pool is a child of that caller's acquire span. The query
+that follows is a sibling of the acquire span, so the wait and the query show
+up as two separate bars.
+
+Attributes, following the stable database semantic conventions:
+
+| Attribute                   | On                    | Value                                                         |
+|-----------------------------|-----------------------|---------------------------------------------------------------|
+| `db.system.name`            | all                   | `postgresql`                                                  |
+| `db.namespace`              | all                   | the database name                                             |
+| `server.address`            | all                   | the configured host                                           |
+| `server.port`               | all but unix sockets  | the configured port, 5432 by default                          |
+| `db.query.text`             | statements            | the SQL as the application wrote it, see `captureQueryText`   |
+| `db.response.returned_rows` | `query()`             | the number of rows returned                                   |
+| `db.response.status_code`   | statements, on error  | the SQLSTATE, e.g. `42P01`                                    |
+| `error.type`                | on error              | the SQLSTATE, a Node.js error code such as `ECONNREFUSED`, or the error's class name |
+| `postgrejs.backend_pid`     | statements, connect   | the server process id, as in `pg_stat_activity.pid`           |
+
+Parameter values are never recorded.
+
+## Options
+
+```ts
+new PostgrejsInstrumentation({
+  requireParentSpan: true,
+  captureQueryText: true,
+  requestHook: (span, { operation, context }) => {},
+  responseHook: (span, { operation, context }) => {},
+  sqlComment: { tags: { app: 'billing' }, traceparent: false },
+});
+```
+
+- `requireParentSpan` (default `false`): create spans only when a span is
+  already active, so a pool warming up or a background job outside any trace
+  does not produce root spans.
+- `captureQueryText` (default `true`): record `db.query.text`. A statement
+  sent without parameters can carry literal values in its text; turn this off
+  if those can be sensitive.
+- `requestHook` and `responseHook`: called with the span and what postgrejs
+  published (`context.sql`, `context.connection`, and `context.result` in the
+  response hook). An exception thrown by a hook is logged through `diag` and
+  does not reach the query.
+- `sqlComment`: put a comment in front of every statement, in the
+  [sqlcommenter](https://google.github.io/sqlcommenter/spec/) format. `tags` is
+  an object or a function of the connection. `traceparent: true` adds the
+  statement span's W3C trace context, which links a row in `pg_stat_activity`
+  or a database monitoring sample to its trace.
+
+`traceparent` makes the statement text different on every call. postgrejs
+reuses a prepared statement only while the text stays the same, so with it on
+every query is parsed by the server again. Tags alone are the same on every
+call and cost nothing of the kind.
+
+## Datadog
+
+dd-trace accepts OpenTelemetry spans through its own tracer provider:
+
+```ts
+import tracer from 'dd-trace';
+import { PostgrejsInstrumentation } from 'postgrejs-otel';
+
+tracer.init();
+const provider = new tracer.TracerProvider();
+provider.register();
+
+new PostgrejsInstrumentation();
+```
+
+dd-trace 6 requires `@opentelemetry/api` below 1.10, and an API of a newer
+minor version does not see a provider registered through an older one: the
+spans are silently dropped. Keep the application's `@opentelemetry/api` on
+1.9.x while it uses dd-trace. For the same reason, don't use
+`registerInstrumentations()` here: `@opentelemetry/instrumentation` 0.301 needs
+API 1.10.
+
+For Database Monitoring, `datadogDbmTags()` writes the comment dd-trace's own
+`pg` integration writes in its `service` mode, which links query samples to the
+service:
+
+```ts
+import { datadogDbmTags, PostgrejsInstrumentation } from 'postgrejs-otel';
+
+new PostgrejsInstrumentation({
+  sqlComment: {
+    tags: datadogDbmTags({ service: 'api', env: 'prod', version: '1.4.0' }),
+  },
+});
+```
+
+Adding `traceparent: true` corresponds to dd-trace's `full` mode, with the
+cost described above.
+
+## Not covered yet
+
+- Cursor fetches, `COPY`, `prepare()` and the statements of a `pipeline()` get
+  no span of their own. postgrejs does not publish them yet.
+- No metrics are recorded.
+- With several hosts configured, `server.address` is the first one, not
+  necessarily the one the connection reached.

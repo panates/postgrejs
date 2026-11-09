@@ -9,8 +9,9 @@ package, see `.rmanrc.yml`):
 
 - `packages/postgrejs/` - the driver. Its `src/`, `test/` and `benchmark/` sit together because the tests
   import benchmark code. The paths below are relative to this directory.
-- `packages/otel/` - `postgrejs-otel`, the OpenTelemetry instrumentation. A placeholder for now, kept out of
-  releases by `publish.skip` in its `.rmanrc.yml` until it has code.
+- `packages/otel/` - `postgrejs-otel`, the OpenTelemetry instrumentation. It subscribes to the driver's
+  `diagnostics_channel` tracing channels (`src/tracing.ts`) by name and never imports the driver at runtime; the
+  event shapes it reads are restated in its `src/types.ts`, so it type-checks without the driver being built.
 - At the root: the shared tooling (`tsconfig-*.json`, `.mocharc.cjs`, `.c8rc.json`, eslint, rman), `doc/`,
   `support/docker/` (the local PostgreSQL), and the README, which rman copies into the driver's build because
   the package has none of its own.
