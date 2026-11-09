@@ -93,6 +93,13 @@ export interface ConnectTraceContext {
   config: ConnectionConfiguration;
   /** The server's backend process id, set once the connection is ready. */
   processID?: number;
+  /**
+   * The host connected to, set when the attempt ends: with several hosts
+   * configured, the one reached, or the last one tried if none was.
+   */
+  host?: string;
+  /** The port of `host`. */
+  port?: number;
   error?: unknown;
 }
 

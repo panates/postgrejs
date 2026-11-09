@@ -15,6 +15,9 @@ export interface ConnectionInfo {
 export interface ConnectionLike {
   readonly config: ConnectionInfo;
   readonly processID?: number;
+  /** The host the connection reached, which with several hosts configured is not `config.host`. */
+  readonly host?: string;
+  readonly port?: number;
 }
 
 /** What `postgrejs:query` publishes. See postgrejs's `QueryTraceContext`. */
@@ -102,5 +105,7 @@ export interface PoolAcquireContext {
 export interface ConnectContext {
   config: ConnectionInfo;
   processID?: number;
+  host?: string;
+  port?: number;
   error?: unknown;
 }

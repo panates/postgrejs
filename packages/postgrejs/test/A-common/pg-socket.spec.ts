@@ -13,6 +13,24 @@ describe('PgSocket', () => {
     });
   });
 
+  describe('host and port', () => {
+    it('should be undefined before connect()', () => {
+      const socket = new PgSocket({});
+      expect(socket.host).toBeUndefined();
+      expect(socket.port).toBeUndefined();
+    });
+
+    it('should name the host being tried, with the defaults connect() uses', () => {
+      // What connect() would have put there, without opening anything.
+      const socket: any = new PgSocket({});
+      socket._hosts = [{ host: 'a', port: 6000 }, { host: '' }];
+      socket._hostIndex = 0;
+      expect([socket.host, socket.port]).toStrictEqual(['a', 6000]);
+      socket._hostIndex = 1;
+      expect([socket.host, socket.port]).toStrictEqual(['localhost', 5432]);
+    });
+  });
+
   describe('protocolNegotiation', () => {
     it('should start out undefined before any NegotiateProtocolVersion arrives', () => {
       const socket = new PgSocket({});

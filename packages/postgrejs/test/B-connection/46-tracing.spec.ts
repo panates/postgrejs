@@ -350,6 +350,33 @@ describe('tracing channels', () => {
       expect(events(log, 'connect')).toContain('connect:error');
     });
 
+    it('should publish the host each connect attempt ended on', async () => {
+      const live = new Connection().config;
+      const log: Recorded[] = [];
+      const off = record(log, 'connect', tracingChannels.connect);
+      const reached = new Connection({
+        hosts: [
+          { host: '127.0.0.1', port: 9 },
+          { host: live.host!, port: live.port },
+        ],
+      });
+      const unreachable = new Connection({
+        hosts: [{ host: '127.0.0.1', port: 9 }],
+      });
+      try {
+        await reached.connect();
+        await expect(unreachable.connect()).rejects.toThrow();
+      } finally {
+        off();
+        await reached.close(0);
+      }
+      const ends = log.filter(r => r.event === 'asyncEnd');
+      expect(ends.map(r => [r.context.host, r.context.port])).toStrictEqual([
+        [live.host, live.port || 5432],
+        ['127.0.0.1', 9],
+      ]);
+    });
+
     it('should publish connect for a standalone Connection', async () => {
       const c = new Connection();
       const log: Recorded[] = [];

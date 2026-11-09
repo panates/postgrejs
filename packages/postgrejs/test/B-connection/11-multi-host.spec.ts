@@ -21,6 +21,20 @@ describe('Multiple hosts', () => {
     }
   });
 
+  it('should say which host it reached', async () => {
+    const target = live();
+    const connection = new Connection({ hosts: [DEAD, target] });
+    expect(connection.host).toBeUndefined();
+    expect(connection.port).toBeUndefined();
+    try {
+      await connection.connect();
+      expect(connection.host).toStrictEqual(target.host);
+      expect(connection.port).toStrictEqual(target.port || 5432);
+    } finally {
+      await connection.close(0);
+    }
+  });
+
   it('should report the last failure when no host can be reached', async () => {
     const connection = new Connection({
       hosts: [DEAD, { host: '127.0.0.1', port: 10 }],

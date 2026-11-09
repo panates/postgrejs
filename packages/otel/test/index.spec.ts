@@ -693,6 +693,43 @@ describe('postgrejs-otel', () => {
     });
   });
 
+  describe('multiple hosts', () => {
+    it('should name the host the connection reached, not the first configured', async () => {
+      const live = conn.config;
+      const other = new Connection({
+        hosts: [
+          { host: '127.0.0.1', port: 9 },
+          { host: live.host!, port: live.port },
+        ],
+      });
+      try {
+        await other.connect();
+        await other.query('select 1');
+      } finally {
+        await other.close(0);
+      }
+      const expected = {
+        'server.address': live.host,
+        'server.port': live.port || 5432,
+      };
+      const [connect] = spans('postgrejs.connect');
+      expect(connect.attributes).toMatchObject(expected);
+      const [query] = spans().filter(s => s.name !== 'postgrejs.connect');
+      expect(query.attributes).toMatchObject(expected);
+    });
+
+    it('should name the last host tried when none could be reached', async () => {
+      const dead = new Connection({ hosts: [{ host: '127.0.0.1', port: 9 }] });
+      await dead.connect().catch(() => undefined);
+      const [connect] = spans('postgrejs.connect');
+      expect(connect.status.code).toStrictEqual(SpanStatusCode.ERROR);
+      expect(connect.attributes).toMatchObject({
+        'server.address': '127.0.0.1',
+        'server.port': 9,
+      });
+    });
+  });
+
   describe('sqlComment', () => {
     it('should put the tags and the traceparent in front of the statement', async () => {
       instrumentation.setConfig({

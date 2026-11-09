@@ -196,7 +196,10 @@ export class PostgrejsInstrumentation {
       },
       {
         channel: 'postgrejs:connect',
-        handlers: this._spanHandlers(ctx => this._startConnect(ctx)),
+        handlers: this._spanHandlers(
+          ctx => this._startConnect(ctx),
+          (ctx: ConnectContext) => this._endConnect(ctx),
+        ),
       },
     ];
     if (this._config.enabled) this.enable();
@@ -301,6 +304,7 @@ export class PostgrejsInstrumentation {
 
   protected _spanHandlers(
     start: (ctx: any) => void,
+    beforeEnd?: (ctx: any) => void,
   ): TracingChannelSubscribers<any> {
     return {
       start,
@@ -308,7 +312,10 @@ export class PostgrejsInstrumentation {
         if (ctx.error !== undefined) this._finish(ctx);
       },
       asyncStart: () => undefined,
-      asyncEnd: (ctx: any) => this._finish(ctx),
+      asyncEnd: (ctx: any) => {
+        beforeEnd?.(ctx);
+        this._finish(ctx);
+      },
       error: (ctx: any) => this._recordError(ctx),
     };
   }
@@ -318,7 +325,10 @@ export class PostgrejsInstrumentation {
     ctx: StatementInfo['context'],
   ): void {
     const config = ctx.connection.config;
-    const attributes: Attributes = { ...this._connectionAttributes(config) };
+    const attributes: Attributes = {
+      ...this._connectionAttributes(config),
+      ...serverAttributes(ctx.connection.host, ctx.connection.port),
+    };
     if (this._config.captureQueryText !== false) {
       /* A pipeline's statements are joined the way the conventions ask
          for a batch whose statements differ. */
@@ -453,6 +463,13 @@ export class PostgrejsInstrumentation {
     if (span) this._spans.set(ctx, span);
   }
 
+  /* The host is known only once the attempt is over: with several hosts
+     configured, the start knows the list, not which one will answer. */
+  protected _endConnect(ctx: ConnectContext): void {
+    const span = this._spans.get(ctx);
+    if (span) span.setAttributes(serverAttributes(ctx.host, ctx.port));
+  }
+
   protected _startSpan(
     name: string,
     kind: SpanKind,
@@ -512,19 +529,27 @@ export class PostgrejsInstrumentation {
   protected _connectionAttributes(config: ConnectionInfo): Attributes {
     let attributes = this._connAttributes.get(config);
     if (!attributes) {
-      attributes = { 'db.system.name': 'postgresql' };
+      attributes = {
+        'db.system.name': 'postgresql',
+        ...serverAttributes(config.host, config.port || 5432),
+      };
       if (config.database) attributes['db.namespace'] = config.database;
-      if (config.host) {
-        attributes['server.address'] = config.host;
-        // A host starting with a slash is a unix socket directory.
-        if (!config.host.startsWith('/')) {
-          attributes['server.port'] = config.port || 5432;
-        }
-      }
       this._connAttributes.set(config, attributes);
     }
     return attributes;
   }
+}
+
+/**
+ * `server.address` and `server.port` for a host, or nothing when there is
+ * no host to name.
+ */
+function serverAttributes(host?: string, port?: number): Attributes {
+  if (!host) return {};
+  // A host starting with a slash is a unix socket directory.
+  return host.startsWith('/')
+    ? { 'server.address': host }
+    : { 'server.address': host, 'server.port': port };
 }
 
 /* COPY TO returns rows, so it gets the convention's returned_rows; the

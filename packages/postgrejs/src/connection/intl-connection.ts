@@ -451,13 +451,28 @@ export class IntlConnection extends SafeEventEmitter {
     return this.socket.sessionParameters;
   }
 
+  /** See `PgSocket.host`. */
+  get host(): Maybe<string> {
+    return this.socket.host;
+  }
+
+  /** See `PgSocket.port`. */
+  get port(): Maybe<number> {
+    return this.socket.port;
+  }
+
   connect(): Promise<void> {
     if (this.socket.state === ConnectionState.READY) return Promise.resolve();
     if (isTraced(tracingChannels.connect)) {
       const context: ConnectTraceContext = { config: this.config };
       return tracingChannels.connect.tracePromise(async () => {
-        await this._connect();
-        context.processID = this.processID;
+        try {
+          await this._connect();
+          context.processID = this.processID;
+        } finally {
+          context.host = this.host;
+          context.port = this.port;
+        }
       }, context);
     }
     return this._connect();

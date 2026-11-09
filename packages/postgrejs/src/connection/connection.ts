@@ -136,6 +136,20 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
   }
 
   /**
+   * The host this connection reached. With several `hosts` configured it
+   * is the one the connection ended up on, which `config.host` does not
+   * say. Undefined before the connection is opened.
+   */
+  get host(): Maybe<string> {
+    return this._intlCon.host;
+  }
+
+  /** The port of {@link host}, 5432 unless configured. Undefined before the connection is opened. */
+  get port(): Maybe<number> {
+    return this._intlCon.port;
+  }
+
+  /**
    * Returns information parameters for the current session
    */
   get sessionParameters(): Record<string, string> {

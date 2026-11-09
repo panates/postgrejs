@@ -104,8 +104,8 @@ Attributes, following the stable database semantic conventions:
 |-----------------------------|-----------------------|---------------------------------------------------------------|
 | `db.system.name`            | all                   | `postgresql`                                                  |
 | `db.namespace`              | all                   | the database name                                             |
-| `server.address`            | all                   | the configured host                                           |
-| `server.port`               | all but unix sockets  | the configured port, 5432 by default                          |
+| `server.address`            | all                   | the host the connection reached; the configured host on a pool acquire span |
+| `server.port`               | all but unix sockets  | its port, 5432 by default                                     |
 | `db.query.text`             | statements, COPY      | the SQL as the application wrote it, see `captureQueryText`   |
 | `db.operation.name`         | COPY, `prepare()`, cursor fetches, transaction commands | `COPY`, `PREPARE`, `FETCH`, or the command, e.g. `COMMIT` |
 | `db.operation.batch.size`   | `executeBatch()`, `pipeline()` | the number of parameter sets or statements, when there are two or more |
@@ -213,5 +213,3 @@ cost described above.
   given the column types, gets no span: it is neither part of the COPY nor
   published as a `prepare()`.
 - No metrics are recorded.
-- With several hosts configured, `server.address` is the first one, not
-  necessarily the one the connection reached.
