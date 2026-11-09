@@ -214,6 +214,12 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Logical replication               |           ✅           |   🟡 <sup>19</sup>    |        ✅        |
 | Large object API                  |           ✅           |          ❌           |        ✅        |
 | Native libpq bindings             |           ❌           |   🟡 <sup>20</sup>    |        ❌        |
+| ***Observability***               |                        |                       |                  |
+| `diagnostics_channel` events      |    ✅ <sup>31</sup>    |          ❌           | ✅ <sup>32</sup> |
+| OpenTelemetry instrumentation     |   ✅ `postgrejs-otel`   |   🟡 <sup>33</sup>    | ❌ <sup>34</sup> |
+| Spans beyond queries and connects |  ✅ <sup>35</sup>  |          ❌           |        ❌        |
+| Database client metrics           |  ✅ operation and pool  |   🟡 <sup>36</sup>    |        ❌        |
+| Trace context in the SQL comment  |           ✅           |          🟡           |        ❌        |
 
 - <sup>1</sup> What it takes to reach the feature set above. PostgreJS and postgres.js ship everything in the one
   package you import; `pg` needs `pg-cursor` for cursors, `pg-query-stream`
@@ -313,6 +319,22 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 - <sup>30</sup> postgres.js ships a build for the runtime: a `workerd` condition in `exports` pointing at `cf/`, whose
   polyfills shim `net`/`tls` onto `cloudflare:sockets` including `startTls({ servername })`. One package, the right
   code chosen by the resolver, TLS included.
+- <sup>31</sup> Nine tracing channels (query, execute, prepare, prepared statement execute, pipeline, cursor
+  fetch, COPY, connect, pool acquire) and five plain ones for pool activity, all under `postgrejs:`. Nothing is
+  published while nobody subscribes.
+- <sup>32</sup> Added in postgres.js 4.1.0, newer than the 3.4.9 the rest of the table compares: tracing channels
+  for queries, connects and `sql.begin` transactions, and plain ones for pool events and notices.
+- <sup>33</sup> `@opentelemetry/instrumentation-pg`, a separate package from the OpenTelemetry project. It wraps
+  `Client.query`, `Client.connect` and the pool's `connect`, so prepared statements, transaction commands, cursor
+  reads and COPY streams show up only as whatever `client.query()` call started them. Its SQL comment is skipped for
+  named statements.
+- <sup>34</sup> No instrumentation package; its README shows how to build query spans from the
+  `postgres:query` channel by hand.
+- <sup>35</sup> Separate spans for statement preparation, prepared statement execution, transaction commands,
+  pipelines, each cursor fetch (linked to the query that opened the cursor) and COPY.
+- <sup>36</sup> `db.client.operation.duration` and three pool metrics: connection count, maximum and pending
+  requests. PostgreJS also records returned rows, timeouts, the minimum idle setting, and the time to create,
+  wait for and use a connection.
 
 ## Benchmarks
 
