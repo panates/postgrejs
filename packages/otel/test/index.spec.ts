@@ -516,6 +516,40 @@ describe('postgrejs-otel', () => {
     });
   });
 
+  describe('copyFromRows() column lookup', () => {
+    before(() =>
+      conn.execute(`
+        drop table if exists otel_lookup_test;
+        create table otel_lookup_test (id int4, name text);`),
+    );
+    after(() => conn.execute('drop table if exists otel_lookup_test'));
+
+    it('should record the lookup as PREPARE <table> before the COPY', async () => {
+      exporter.reset();
+      const parent = await inParent(() =>
+        conn.copyFromRows('otel_lookup_test', [[1, 'one']]),
+      );
+      // Wait for the COPY span, which ends when the server is done.
+      const deadline = Date.now() + 5000;
+      while (
+        !spans().some(s => s.name.startsWith('COPY')) &&
+        Date.now() < deadline
+      )
+        await new Promise(r => setTimeout(r, 5));
+      const names = spans().map(s => s.name);
+      expect(names).toStrictEqual([
+        'PREPARE otel_lookup_test',
+        'COPY otel_lookup_test',
+      ]);
+      const [lookup] = spans();
+      expect(parentId(lookup)).toStrictEqual(parent);
+      expect(lookup.attributes['db.operation.name']).toStrictEqual('PREPARE');
+      expect(lookup.attributes['db.collection.name']).toStrictEqual(
+        'otel_lookup_test',
+      );
+    });
+  });
+
   describe('transaction spans', () => {
     it('should name a transaction command after itself', async () => {
       const parent = await inParent(async () => {

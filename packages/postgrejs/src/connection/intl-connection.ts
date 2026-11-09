@@ -43,6 +43,7 @@ import {
   type CopyTraceContext,
   type ExecuteTraceContext,
   isTraced,
+  type PrepareTraceContext,
   tracingChannels,
   type TransactionCommand,
 } from '../tracing.js';
@@ -926,11 +927,7 @@ export class IntlConnection extends SafeEventEmitter {
     let dataTypeIds = options.columnTypes;
 
     if (!dataTypeIds || !columns) {
-      const { fields } = await this.prepareOnce(
-        buildProbeSql(table, columns),
-        undefined,
-        '',
-      );
+      const { fields } = await this._describeTable(table, columns);
       if (!fields?.length)
         throw new Error(
           `Cannot determine columns of "${table}" - it returned no column descriptions`,
@@ -996,6 +993,36 @@ export class IntlConnection extends SafeEventEmitter {
     this._startCopy(sql, 'from', stream, table);
     await stream.waitStarted();
     return stream;
+  }
+
+  /**
+   * Describes a query on `table` without running it, for the column names
+   * and types `copyFromRows()` was not given. Published on
+   * `postgrejs:prepare`, as a prepare of the table.
+   *
+   * @param table The table to describe.
+   * @param columns The columns to describe; all of them when not given.
+   * @returns The server's description of the columns.
+   */
+  protected async _describeTable(
+    table: string,
+    columns?: string[],
+  ): Promise<{ fields?: Protocol.RowDescription[] }> {
+    const sql = buildProbeSql(table, columns);
+    if (!isTraced(tracingChannels.prepare))
+      return this.prepareOnce(sql, undefined, '');
+    const context: PrepareTraceContext = {
+      sql,
+      paramTypeCount: 0,
+      connection: this.owner as Connection,
+      table,
+    };
+    let described: { fields?: Protocol.RowDescription[] } = {};
+    // Kept off context.result, which names a prepared statement.
+    await tracingChannels.prepare.tracePromise(async () => {
+      described = await this.prepareOnce(context.sql, undefined, '');
+    }, context);
+    return described;
   }
 
   /**

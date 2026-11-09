@@ -146,6 +146,11 @@ export interface CopyTraceContext {
  * `pool.prepare()` call: the Parse and Describe round trip that creates a
  * prepared statement on the server.
  *
+ * `copyFromRows()` publishes here too when it has to look up the columns
+ * of its table before the COPY: it describes a query on the table the same
+ * way, as an unnamed statement that is never run. `table` is set then,
+ * and `result` is not, since no prepared statement is left behind.
+ *
  * `sql` can be replaced in `start` as described for
  * {@link QueryTraceContext}. The replaced text is what the statement is
  * prepared with, and every later execution of it runs that text, so a
@@ -158,6 +163,8 @@ export interface PrepareTraceContext {
   paramTypeCount: number;
   /** The connection the statement is prepared on. */
   connection: Connection;
+  /** The table whose columns `copyFromRows()` is looking up. */
+  table?: string;
   /** The prepared statement, once the server has accepted it. */
   result?: PreparedStatement;
   error?: unknown;

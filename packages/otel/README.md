@@ -49,7 +49,7 @@ new PostgrejsInstrumentation();
 | the database name        | client   | one `pipeline()`, all of its statements                                     |
 | the command, e.g. `COMMIT` | client   | one transaction command sent by `startTransaction()`, `commit()`, `rollback()`, `transaction()`, the savepoint methods or two-phase commit |
 | `FETCH`                  | client   | one batch a cursor reads, `fetchCount` rows at most                          |
-| `PREPARE`                | client   | one `prepare()`, on a connection or a pool: the server parsing and describing the statement |
+| `PREPARE`, or `PREPARE <table>` | client | one `prepare()`, on a connection or a pool: the server parsing and describing the statement; with a table, the column lookup of a `copyFromRows()` |
 | `COPY`, or `COPY <table>`| client   | one `copyTo()`, `copyFrom()` or `copyFromRows()`, until the server is done |
 | `postgrejs.pool.acquire` | internal | the time a caller waits for a pooled connection, opening a new one included |
 | `postgrejs.connect`      | client   | opening a connection: socket, TLS, authentication, startup                  |
@@ -86,6 +86,11 @@ is a `FETCH` span, named after SQL `FETCH`, which does the same. It is a child
 of whatever span is active where the rows are read, and carries a link to the
 span of the statement that opened the cursor.
 
+A `copyFromRows()` that is not given its columns and their types first asks
+the server to describe a query on the table, the way `prepare()` does, and
+that round trip is a `PREPARE <table>` span just before the `COPY <table>`
+one. A table that does not exist fails there, and no COPY is sent.
+
 A COPY span lasts until the server reports the copy finished, not until
 `copyTo()` or `copyFrom()` resolves: those resolve once the server accepts the
 copy, and the data moves afterwards. A consumer that reads a large export
@@ -109,7 +114,7 @@ Attributes, following the stable database semantic conventions:
 | `db.query.text`             | statements, COPY      | the SQL as the application wrote it, see `captureQueryText`   |
 | `db.operation.name`         | COPY, `prepare()`, cursor fetches, transaction commands | `COPY`, `PREPARE`, `FETCH`, or the command, e.g. `COMMIT` |
 | `db.operation.batch.size`   | `executeBatch()`, `pipeline()` | the number of parameter sets or statements, when there are two or more |
-| `db.collection.name`        | `copyFromRows()`      | the table it was given                                        |
+| `db.collection.name`        | `copyFromRows()`, its column lookup | the table it was given                          |
 | `db.response.returned_rows` | `query()`, a prepared statement's `execute()`, `FETCH`, COPY TO | the number of rows returned |
 | `postgrejs.pipeline.failed_index` | `pipeline()`, on error | the position of the statement the server rejected, from 0 |
 | `postgrejs.cursor.fetch_count` | `FETCH`           | the number of rows asked for                                  |
@@ -209,7 +214,4 @@ cost described above.
 
 ## Not covered yet
 
-- The column lookup `copyFromRows()` makes before its COPY, when it is not
-  given the column types, gets no span: it is neither part of the COPY nor
-  published as a `prepare()`.
 - No metrics are recorded.

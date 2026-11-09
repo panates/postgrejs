@@ -566,6 +566,58 @@ describe('tracing channels', () => {
       expect(r.rows).toStrictEqual([[1]]);
     });
 
+    it('should publish the column lookup of copyFromRows() as a prepare of the table', async () => {
+      const log: Recorded[] = [];
+      const offs = [
+        record(log, 'prepare', tracingChannels.prepare),
+        record(log, 'copy', tracingChannels.copy),
+      ];
+      try {
+        await conn.copyFromRows('copy_tracing_test', [[1, 'one']]);
+        await settled(log);
+        // Given the columns and their types, it has nothing to look up.
+        await conn.copyFromRows('copy_tracing_test', [[2, 'two']], {
+          columns: ['id', 'name'],
+          columnTypes: [23, 25],
+        });
+        await settled(log);
+      } finally {
+        for (const off of offs) off();
+      }
+      expect(events(log).filter(e => e.endsWith(':start'))).toStrictEqual([
+        'prepare:start',
+        'copy:start',
+        'copy:start',
+      ]);
+      const ctx = log[0].context;
+      expect(ctx.table).toStrictEqual('copy_tracing_test');
+      expect(ctx.sql).toStrictEqual(
+        'select * from "copy_tracing_test" where false',
+      );
+      expect(ctx.paramTypeCount).toStrictEqual(0);
+      expect(ctx.connection).toBe(conn);
+      expect(ctx.result).toBeUndefined();
+    });
+
+    it('should publish the lookup error and no COPY for a missing table', async () => {
+      const log: Recorded[] = [];
+      const offs = [
+        record(log, 'prepare', tracingChannels.prepare),
+        record(log, 'copy', tracingChannels.copy),
+      ];
+      let caught: any;
+      try {
+        await conn.copyFromRows('no_such_table_for_tracing', [[1]]);
+      } catch (e) {
+        caught = e;
+      } finally {
+        for (const off of offs) off();
+      }
+      expect(caught?.code).toStrictEqual('42P01');
+      expect(events(log, 'prepare')).toContain('prepare:error');
+      expect(events(log, 'copy')).toStrictEqual([]);
+    });
+
     it('should name the table for copyFromRows()', async () => {
       const log: Recorded[] = [];
       const off = record(log, 'copy', tracingChannels.copy);

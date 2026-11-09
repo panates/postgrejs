@@ -349,6 +349,12 @@ export class PostgrejsInstrumentation {
       // The protocol's Parse and Describe, which is what SQL PREPARE does.
       attributes['db.operation.name'] = 'PREPARE';
       name = 'PREPARE';
+      // copyFromRows() looking up the columns of its table.
+      const table = (ctx as PrepareContext).table;
+      if (table) {
+        attributes['db.collection.name'] = table;
+        name += ' ' + table;
+      }
     } else if (operation === 'executePrepared') {
       // The conventions count only two or more as a batch.
       const size = (ctx as StatementExecuteContext).batchSize;

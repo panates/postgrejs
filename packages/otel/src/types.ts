@@ -56,6 +56,8 @@ export interface PrepareContext {
   sql: string;
   paramTypeCount: number;
   connection: ConnectionLike;
+  /** Set when `copyFromRows()` looks up the columns of this table. */
+  table?: string;
   result?: unknown;
   error?: unknown;
 }
