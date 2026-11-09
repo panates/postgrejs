@@ -4,6 +4,7 @@ process.env.TS_NODE_PROJECT = __dirname + '/tsconfig-test.json';
 module.exports = {
   require: [
     '@swc-node/register/esm-register',
+    __dirname + '/packages/postgrejs/test/_support/runtime.ts',
     __dirname + '/packages/postgrejs/test/_support/env.ts',
     __dirname + '/packages/postgrejs/test/_support/create-db.ts',
   ],
