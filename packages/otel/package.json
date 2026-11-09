@@ -1,0 +1,58 @@
+{
+  "name": "postgrejs-otel",
+  "description": "OpenTelemetry instrumentation for postgrejs",
+  "version": "3.14.2",
+  "author": "Panates",
+  "license": "BSD-3-Clause",
+  "private": true,
+  "homepage": "https://www.postgrejs.com/",
+  "contributors": [
+    "Eray Hanoglu <e.hanoglu@panates.com>",
+    "Ilker Gurelli <i.gurelli@panates.com>",
+    "Onur Tokel <o.tokel@panates.com>",
+    "Bircan Yuruk <b.yuruk@panates.com>"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/panates/postgrejs.git",
+    "directory": "packages/otel"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "postgrejs": "workspace:^"
+  },
+  "devDependencies": {
+    "@opentelemetry/api": "^1.10.0",
+    "@opentelemetry/context-async-hooks": "^3.1.1",
+    "@opentelemetry/instrumentation": "^0.301.1",
+    "@opentelemetry/sdk-metrics": "^3.1.1",
+    "@opentelemetry/sdk-trace-base": "^2.12.0",
+    "expect": "^30.5.2"
+  },
+  "type": "module",
+  "module": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=22.0"
+  },
+  "keywords": [
+    "postgrejs",
+    "postgresql",
+    "opentelemetry",
+    "otel",
+    "tracing",
+    "instrumentation",
+    "observability",
+    "datadog"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

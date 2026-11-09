@@ -1,6 +1,6 @@
 {
-  "include": ["src/**/*.ts"],
-  "exclude": ["test/**"],
+  "include": ["packages/*/src/**/*.ts"],
+  "exclude": ["packages/*/test/**"],
   "reporter": ["text", "html", "lcov"],
   "all": true
 }

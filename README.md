@@ -52,49 +52,37 @@ strictly-typed TypeScript from the ground up.
 
 PostgreJS is a driver, not a framework, so what you build on top of it stays your choice:
 
-<!-- One cell per adapter, so each renders as its own card: a table because
-     GitHub strips CSS, and this is the one layout that survives everywhere
-     the README is read. The logos come from postgrejs.com rather than being
-     hotlinked from each project, and Drizzle's follows the reader's theme. -->
+<!-- The same cards as the integrations section on postgrejs.com: each
+     project's full logo, which carries its name, over the one-line
+     description, linking to its integration page. A table because GitHub
+     strips CSS; the logos follow the reader's theme. -->
 <table>
   <tr>
-    <td align="center" width="230" valign="top">
-      <a href="https://www.sqbjs.org"><img src="https://www.postgrejs.com/img/sqb-logo.svg" alt="SQB" height="60"></a><br><br>
-      <b><a href="https://www.sqbjs.org">SQB</a></b><br>
-      <a href="https://www.npmjs.com/package/@sqb/postgres"><code>@sqb/postgres</code></a><br>
-      <sub>built-in adapter</sub>
+    <td align="center" width="280" valign="top"><br>
+      <a href="https://www.postgrejs.com/docs/integrations/sqb"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/sqb-full-dark.svg"><img src="https://www.postgrejs.com/img/sqb-full-light.svg" alt="SQB" height="40"></picture></a><br><br>
+      Panates' own multi-dialect ORM and query builder. Its PostgreSQL adapter is built directly on postgrejs.<br><br>
     </td>
-    <td align="center" width="230" valign="top">
-      <a href="https://joist-orm.io"><img src="https://www.postgrejs.com/img/joist-logo.svg" alt="Joist" height="60"></a><br><br>
-      <b><a href="https://joist-orm.io">Joist</a></b><br>
-      <a href="https://www.npmjs.com/package/joist-orm"><code>joist-orm/postgrejs</code></a><br>
-      <sub>built-in driver</sub>
+    <td align="center" width="280" valign="top"><br>
+      <a href="https://www.postgrejs.com/docs/integrations/joist"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/joist-full-dark.svg"><img src="https://www.postgrejs.com/img/joist-full-light.svg" alt="Joist" height="40"></picture></a><br><br>
+      Joist 2.5 ships a postgrejs driver of its own, which keeps each row undecoded until an entity reads it.<br><br>
     </td>
-    <td align="center" width="230" valign="top">
-      <a href="https://kysely.dev"><img src="https://www.postgrejs.com/img/kysely-logo.svg" alt="Kysely" height="60"></a><br><br>
-      <b><a href="https://kysely.dev">Kysely</a></b><br>
-      <a href="https://github.com/panates/postgrejs-kysely"><code>kysely-postgrejs</code></a><br>
-      <sub>third-party dialect</sub>
+    <td align="center" width="280" valign="top"><br>
+      <h3><a href="https://www.postgrejs.com/docs/integrations/kysely"><img src="https://www.postgrejs.com/img/kysely-logo.svg" alt="" height="40" align="absmiddle"></a>&nbsp;Kysely</h3>
+      A type-safe SQL query builder. Run it on postgrejs instead of pg with a drop-in dialect.<br><br>
     </td>
   </tr>
   <tr>
-    <td align="center" width="230" valign="top">
-      <a href="https://orm.drizzle.team"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/drizzle-logo-dark.svg"><img src="https://www.postgrejs.com/img/drizzle-logo-light.svg" alt="Drizzle ORM" height="34"></picture></a><br><br>
-      <b><a href="https://orm.drizzle.team">Drizzle ORM</a></b><br>
-      <a href="https://github.com/panates/postgrejs-drizzle"><code>drizzle-postgrejs</code></a><br>
-      <sub>third-party driver</sub>
+    <td align="center" width="280" valign="top"><br>
+      <a href="https://www.postgrejs.com/docs/integrations/drizzle"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/drizzle-logo-dark.svg"><img src="https://www.postgrejs.com/img/drizzle-logo-light.svg" alt="Drizzle ORM" height="34"></picture></a><br><br>
+      A lightweight TypeScript ORM: schema, relational queries and migrations on postgrejs.<br><br>
     </td>
-    <td align="center" width="230" valign="top">
-      <a href="https://typeorm.io"><img src="https://www.postgrejs.com/img/typeorm-icon.png" alt="TypeORM" height="60"></a><br><br>
-      <b><a href="https://typeorm.io">TypeORM</a></b><br>
-      <a href="https://github.com/panates/postgrejs-typeorm"><code>typeorm-postgrejs</code></a><br>
-      <sub>third-party driver</sub>
+    <td align="center" width="280" valign="top"><br>
+      <a href="https://www.postgrejs.com/docs/integrations/typeorm"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/typeorm-full-dark.png"><img src="https://www.postgrejs.com/img/typeorm-full-light.svg" alt="TypeORM" height="40"></picture></a><br><br>
+      A pg-compatible facade. Bring postgrejs to TypeORM by changing one line.<br><br>
     </td>
-    <td align="center" width="230" valign="top">
-      <a href="https://www.prisma.io"><img src="https://www.postgrejs.com/img/prisma-icon.svg" alt="Prisma" height="60"></a><br><br>
-      <b><a href="https://www.prisma.io">Prisma</a></b><br>
-      <a href="https://github.com/panates/postgrejs-prisma"><code>prisma-postgrejs</code></a><br>
-      <sub>third-party adapter</sub>
+    <td align="center" width="280" valign="top"><br>
+      <a href="https://www.postgrejs.com/docs/integrations/prisma"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/prisma-full-dark.svg"><img src="https://www.postgrejs.com/img/prisma-full-light.svg" alt="Prisma" height="40"></picture></a><br><br>
+      A driver adapter. Run a Prisma schema on postgrejs instead of pg.<br><br>
     </td>
   </tr>
 </table>
@@ -226,6 +214,12 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 | Logical replication               |           ✅           |   🟡 <sup>19</sup>    |        ✅        |
 | Large object API                  |           ✅           |          ❌           |        ✅        |
 | Native libpq bindings             |           ❌           |   🟡 <sup>20</sup>    |        ❌        |
+| ***Observability***               |                        |                       |                  |
+| `diagnostics_channel` events      |    ✅ <sup>31</sup>    |          ❌           | ✅ <sup>32</sup> |
+| OpenTelemetry instrumentation     |   ✅ `postgrejs-otel`   |   🟡 <sup>33</sup>    | ❌ <sup>34</sup> |
+| Spans beyond queries and connects |  ✅ <sup>35</sup>  |          ❌           |        ❌        |
+| Database client metrics           |  ✅ operation and pool  |   🟡 <sup>36</sup>    |        ❌        |
+| Trace context in the SQL comment  |           ✅           |          🟡           |        ❌        |
 
 - <sup>1</sup> What it takes to reach the feature set above. PostgreJS and postgres.js ship everything in the one
   package you import; `pg` needs `pg-cursor` for cursors, `pg-query-stream`
@@ -325,6 +319,22 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 - <sup>30</sup> postgres.js ships a build for the runtime: a `workerd` condition in `exports` pointing at `cf/`, whose
   polyfills shim `net`/`tls` onto `cloudflare:sockets` including `startTls({ servername })`. One package, the right
   code chosen by the resolver, TLS included.
+- <sup>31</sup> Nine tracing channels (query, execute, prepare, prepared statement execute, pipeline, cursor
+  fetch, COPY, connect, pool acquire) and five plain ones for pool activity, all under `postgrejs:`. Nothing is
+  published while nobody subscribes.
+- <sup>32</sup> Added in postgres.js 4.1.0, newer than the 3.4.9 the rest of the table compares: tracing channels
+  for queries, connects and `sql.begin` transactions, and plain ones for pool events and notices.
+- <sup>33</sup> `@opentelemetry/instrumentation-pg`, a separate package from the OpenTelemetry project. It wraps
+  `Client.query`, `Client.connect` and the pool's `connect`, so prepared statements, transaction commands, cursor
+  reads and COPY streams show up only as whatever `client.query()` call started them. Its SQL comment is skipped for
+  named statements.
+- <sup>34</sup> No instrumentation package; its README shows how to build query spans from the
+  `postgres:query` channel by hand.
+- <sup>35</sup> Separate spans for statement preparation, prepared statement execution, transaction commands,
+  pipelines, each cursor fetch (linked to the query that opened the cursor) and COPY.
+- <sup>36</sup> `db.client.operation.duration` and three pool metrics: connection count, maximum and pending
+  requests. PostgreJS also records returned rows, timeouts, the minimum idle setting, and the time to create,
+  wait for and use a connection.
 
 ## Benchmarks
 
@@ -333,7 +343,7 @@ PostgreJS implements the full PostgreSQL wire protocol from scratch, with no dep
 across connection setup, simple/prepared queries, mixed-type decoding, bulk fetches, cursor streaming and pool
 concurrency, each library run through its own idiomatic fast path. The numbers there are reproducible on your own
 machine via `pnpm run bench` against the repo's own
-`docker/docker-compose.yml` Postgres instance; see [`benchmark/README.md`](./benchmark/README.md) for details.
+`support/docker/docker-compose.yml` Postgres instance; see [`packages/postgrejs/benchmark/README.md`](./packages/postgrejs/benchmark/README.md) for details.
 
 The same suite runs under Bun via `pnpm run bench:bun`, where it also measures Bun's own built-in `Bun.sql` client as
 a fourth library. Those results live in [`doc/BENCHMARKS-bun.md`](doc/BENCHMARKS-bun.md) and are deliberately kept

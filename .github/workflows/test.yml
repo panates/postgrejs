@@ -21,12 +21,13 @@ on:
     paths:
       # This file itself: a change to how the tests run is a reason to run them.
       - '.github/workflows/test.yml'
-      - 'src/**'
-      - 'test/**'
+      # Every package's source, tests and benchmark code.
+      - 'packages/**'
       # How anything is compiled, run or measured.
       - '**/tsconfig*.json'
       - '**/.mocharc.*'
       - '.c8rc.json'
+      - '.rmanrc.yml'
       - '**/package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -134,7 +135,7 @@ jobs:
           sudo apt-get update
           sudo apt-get -y install postgresql-${{ matrix.postgres }} postgresql-client-${{ matrix.postgres }}
           echo "----- Configuring -----"        
-          sudo cp ./test/_support/pg_hba.conf /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf                                
+          sudo cp ./packages/postgrejs/test/_support/pg_hba.conf /etc/postgresql/${{ matrix.postgres }}/main/pg_hba.conf                                
           sudo sed -i 's/.*wal_level.*/wal_level = logical/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
           sudo sed -i 's/.*max_prepared_transactions.*/max_prepared_transactions = 100/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
           sudo sed -i 's/.*ssl = .*/ssl = on/' /etc/postgresql/${{ matrix.postgres }}/main/postgresql.conf
@@ -273,7 +274,7 @@ jobs:
           sudo apt-get update
           sudo apt-get -y install postgresql-18 postgresql-client-18
           echo "----- Configuring -----"
-          sudo cp ./test/_support/pg_hba.conf /etc/postgresql/18/main/pg_hba.conf
+          sudo cp ./packages/postgrejs/test/_support/pg_hba.conf /etc/postgresql/18/main/pg_hba.conf
           sudo sed -i 's/.*wal_level.*/wal_level = logical/' /etc/postgresql/18/main/postgresql.conf
           sudo sed -i 's/.*max_prepared_transactions.*/max_prepared_transactions = 100/' /etc/postgresql/18/main/postgresql.conf
           sudo sed -i 's/.*ssl = .*/ssl = on/' /etc/postgresql/18/main/postgresql.conf
@@ -329,8 +330,16 @@ jobs:
         # No coverage here: c8 instruments V8's own coverage APIs, which
         # don't exist on Bun's JavaScriptCore engine - the Node matrix
         # above is the one source of truth for coverage.
-        run: bunx mocha --config .mocharc.cjs
+        #
+        # `--bun` is what makes this a Bun run at all. Without it `bunx` honours mocha's
+        # `#!/usr/bin/env node` shebang and the suite runs on the Node installed above - which
+        # is what this job did until the flag was added. EXPECT_BUN makes
+        # packages/postgrejs/test/_support/runtime.ts fail the run if that ever happens again.
+        # `postgrejs`, `postgrejs-otel` and `expect` resolve through the `paths` in each
+        # package's test/tsconfig.json, which is the file Bun reads.
+        run: bunx --bun mocha --config .mocharc.cjs
         env:
+          EXPECT_BUN: true
           PGUSER: postgres
           PGSOCKET: /var/run/postgresql
           PGDATABASE: postgrejs_test

@@ -1,0 +1,1343 @@
+import crypto from 'node:crypto';
+import net from 'node:net';
+import path from 'node:path';
+import tls from 'node:tls';
+import DoublyLinked from 'doublylinked';
+import promisify from 'putil-promisify';
+import { ConnectionState } from '../constants.js';
+import type { ConnectionConfiguration } from '../interfaces/database-connection-params.js';
+import { SafeEventEmitter } from '../safe-event-emitter.js';
+import type { Callback, Maybe } from '../types.js';
+import { isWorkerd } from '../util/runtime.js';
+import { Backend } from './backend.js';
+import { signatureHashOfCertificate } from './cert-signature.js';
+import { ConnectionLostError } from './connection-lost-error.js';
+import { DatabaseError } from './database-error.js';
+import { Frontend } from './frontend.js';
+import { Protocol } from './protocol.js';
+import { SASL } from './sasl.js';
+import { WorkerdSocket } from './workerd-socket.js';
+
+const DEFAULT_PORT_NUMBER = 5432;
+const COMMAND_RESULT_PATTERN = /^([^\d]+)(?: (\d+)(?: (\d+))?)?$/;
+
+/**
+ * What a sender registers to receive the messages its statement
+ * provokes, until it calls `done`.
+ */
+export type CaptureCallback = (
+  code: Protocol.BackendMessageCode,
+  msg: any,
+  done: (err: Maybe<Error>, result?: any) => void,
+) => void | Promise<void>;
+
+/** A socket-level failure, with the code the platform gave it. */
+export interface SocketError extends Error {
+  code: string;
+}
+
+interface CaptureEntry {
+  callback: CaptureCallback;
+  resolve: (result: any) => void;
+  reject: (err: Error) => void;
+}
+
+/**
+ * The connected socket: the handshake, the authentication, TLS where it
+ * is asked for, and a queue that pairs each response with whoever sent
+ * the statement that caused it.
+ */
+/**
+ * What this client needs a socket to be, whoever provides one.
+ *
+ * `net.Socket`, its TLS upgrade, and `WorkerdSocket` all satisfy it.
+ */
+/* Structural rather than a union of those three: a union of their
+   `on()` overloads has no call signature TypeScript can agree on, and
+   naming the members used says more than the union would anyway - it is
+   the whole contract another runtime would have to meet. */
+interface ClientSocket {
+  readonly destroyed: boolean;
+  readonly writable: boolean;
+  write(data: any, cb?: (err?: Error | null) => void): boolean;
+  destroy(err?: Error): any;
+  end(...args: any[]): any;
+  pause(): any;
+  resume(): any;
+  cork(): void;
+  uncork(): void;
+  setNoDelay(enable?: boolean): any;
+  setKeepAlive(enable?: boolean): any;
+  setTimeout(ms: number, cb?: () => void): any;
+  connect(...args: any[]): any;
+  on(event: string, listener: (...args: any[]) => void): any;
+  once(event: string, listener: (...args: any[]) => void): any;
+  removeAllListeners(event?: string): any;
+}
+
+/**
+ * Whether a connection is going to ask for TLS at all.
+ *
+ * @param options The connection's own options.
+ * @returns True when any of the three ways of asking is set.
+ */
+/* Read in two places that have to agree: which socket to open, and
+   whether to negotiate once it is open. */
+function wantsTls(options: {
+  ssl?: unknown;
+  requireSSL?: unknown;
+  sslNegotiation?: string;
+}): boolean {
+  return (
+    !!options.ssl || !!options.requireSSL || options.sslNegotiation === 'direct'
+  );
+}
+
+export class PgSocket extends SafeEventEmitter {
+  private _state = ConnectionState.CLOSED;
+  /**
+   * The socket-level error that is about to end this connection, kept so
+   * the 'close' that follows can say what happened instead of arriving
+   * bare. Cleared by _reset().
+   */
+  private _closeReason?: Error;
+  /** Whichever kind of socket this runtime connects with. */
+  private _socket?: ClientSocket;
+  private _backend = new Backend();
+  private _frontend: Frontend;
+  private _sessionParameters: Record<string, string> = {};
+  private _saslSession?: SASL.Session;
+  private _processID?: number;
+  private _secretKey?: Buffer;
+  private _protocolNegotiation?: Protocol.NegotiateProtocolVersionMessage;
+  private _captureQueue = new DoublyLinked<CaptureEntry>();
+  private _hosts: { host: string; port?: number }[] = [];
+  private _hostIndex = 0;
+  private _sessionAttrsChecked = false;
+  private _standbyState?: { standby: boolean; readOnly: boolean };
+
+  constructor(public options: ConnectionConfiguration) {
+    super();
+    this._frontend = new Frontend({ buffer: options.buffer });
+    this.setMaxListeners(99);
+  }
+
+  get state(): ConnectionState {
+    if (!this._socket || this._socket.destroyed)
+      this._state = ConnectionState.CLOSED;
+    return this._state;
+  }
+
+  get processID(): Maybe<number> {
+    return this._processID;
+  }
+
+  get secretKey(): Maybe<Buffer> {
+    return this._secretKey;
+  }
+
+  /**
+   * The server's NegotiateProtocolVersion reply, if it sent one -
+   * undefined means everything this client asked for in its startup
+   * packet (protocol minor version, any `_pq_.*` options) was fully
+   * recognized. Present only when the server is older/stricter than what
+   * was requested, or didn't recognize one of the startup options.
+   */
+  get protocolNegotiation(): Maybe<Protocol.NegotiateProtocolVersionMessage> {
+    return this._protocolNegotiation;
+  }
+
+  get sessionParameters(): Record<string, string> {
+    return this._sessionParameters;
+  }
+
+  /**
+   * The host this socket connected to, or is connecting to: with several
+   * hosts configured, the one it reached. Undefined before `connect()`.
+   */
+  get host(): Maybe<string> {
+    const target = this._hosts[this._hostIndex];
+    return target && (target.host || 'localhost');
+  }
+
+  /** The port of {@link host}. Undefined before `connect()`. */
+  get port(): Maybe<number> {
+    const target = this._hosts[this._hostIndex];
+    return target && (target.port || DEFAULT_PORT_NUMBER);
+  }
+
+  connect() {
+    if (this._socket) return;
+    const options = this.options;
+    this._hosts = options.hosts?.length
+      ? options.hosts
+      : [{ host: options.host || 'localhost', port: options.port }];
+    this._hostIndex = 0;
+    this._connectToHost();
+  }
+
+  protected _connectToHost() {
+    this._sessionAttrsChecked = false;
+    this._state = ConnectionState.CONNECTING;
+    const target = this._hosts[this._hostIndex];
+    /* Workerd cannot upgrade a `net.Socket`, and the socket that can be
+       upgraded has to be opened as one from the start - `secureTransport:
+       'starttls'` is a connect-time choice, not a later one. So the kind
+       of socket is decided here, by whether TLS is going to be asked for
+       at all. The plain path stays on `node:net`, which works there. */
+    const socket: ClientSocket = (this._socket =
+      isWorkerd() &&
+      wantsTls(this.options) &&
+      this.options.sslNegotiation !== 'direct'
+        ? new WorkerdSocket(true)
+        : new net.Socket());
+
+    const errorHandler = (err: Error) => {
+      this._state = ConnectionState.CLOSED;
+      this._removeListeners();
+      this._reset();
+      socket.destroy();
+      this._socket = undefined;
+      if (this._hostIndex + 1 < this._hosts.length) {
+        this._hostIndex++;
+        this._connectToHost();
+        return;
+      }
+      this.emit('error', err);
+    };
+
+    const connectHandler = () => {
+      socket.setTimeout(0);
+      if (this.options.keepAlive || this.options.keepAlive == null)
+        socket.setKeepAlive(true);
+      this._negotiateTls(
+        socket,
+        target,
+        readySocket => {
+          this._socket = readySocket;
+          this._removeListeners();
+          this._handleConnect();
+        },
+        errorHandler,
+      );
+    };
+
+    socket.setNoDelay(true);
+    socket.setTimeout(this.options.connectTimeoutMs || 30000, () =>
+      errorHandler(new Error('Connection timed out')),
+    );
+    socket.once('error', errorHandler);
+    socket.once('connect', connectHandler);
+
+    this.emit('connecting');
+    const port = target.port || DEFAULT_PORT_NUMBER;
+    if (target.host && target.host.startsWith('/')) {
+      socket.connect(path.join(target.host, '/.s.PGSQL.' + port));
+    } else socket.connect(port, target.host || 'localhost');
+  }
+
+  /**
+   * Negotiates TLS on an already TCP-connected `socket`, if configured -
+   * shared between the long-lived connection above (_connectToHost) and
+   * cancel() below, which needs the exact same host/TLS handling for its
+   * own short-lived socket, just without ever sending a StartupMessage
+   * afterwards. Resolves `onReady` with whichever socket ends up ready to
+   * speak the PostgreSQL protocol: the plain one, or its TLS upgrade.
+   */
+  protected _negotiateTls(
+    socket: ClientSocket,
+    target: { host: string; port?: number },
+    onReady: (socket: ClientSocket) => void,
+    onError: (err: Error) => void,
+  ): void {
+    const options = this.options;
+    const startTls = () => {
+      /* Only ever reached off workerd - the branch below hands that
+         runtime to its own upgrade - so the socket here is the
+         `net.Socket` `tls.connect()` wants, which the structural type
+         cannot say on its own. */
+      const tlsOptions: tls.ConnectionOptions = {
+        ...options.ssl,
+        socket: socket as net.Socket,
+      };
+      if (target.host && net.isIP(target.host) === 0)
+        tlsOptions.servername = target.host;
+      if (options.sslNegotiation === 'direct')
+        tlsOptions.ALPNProtocols = ['postgresql'];
+      const tlsSocket = tls.connect(tlsOptions);
+      tlsSocket.once('error', onError);
+      tlsSocket.once('secureConnect', () => onReady(tlsSocket));
+    };
+    if (!wantsTls(options)) return onReady(socket);
+    /* Workerd upgrades through the socket it already has rather than by
+       wrapping it: `tls.connect({ socket })` does nothing it can carry
+       out, and measured, attempting it answers "Network connection
+       lost." after the server has already agreed to TLS. The exchange
+       either side of the upgrade is the same one as below - this branch
+       exists because the call in the middle is a different call.
+
+       One limit is the runtime's and no client escapes it: workerd's TLS
+       options are `{ expectedServerHostname?: string }` and nothing
+       else, so nothing here can say which certificate to trust, and a
+       server whose certificate does not chain to a public CA cannot be
+       reached over TLS at all - which is every local PostgreSQL with a
+       self-signed certificate. */
+    /* Direct negotiation is TLS from the first byte, and PostgreSQL 17
+       only accepts it when the client announces the `postgresql`
+       protocol over ALPN. Workerd's socket options are
+       `{ secureTransport, allowHalfOpen }` - there is nowhere to say it,
+       and the server answers by closing, which surfaces as an internal
+       error with a reference number. Refused by name instead. */
+    if (isWorkerd() && options.sslNegotiation === 'direct')
+      return onError(
+        new Error(
+          'sslNegotiation "direct" is not available on Cloudflare Workers: it needs the ' +
+            '"postgresql" ALPN protocol, which the runtime offers no way to announce. ' +
+            'Leave sslNegotiation unset to negotiate with SSLRequest instead.',
+        ),
+      );
+    if (socket instanceof WorkerdSocket) {
+      const upgrade = () => {
+        socket.once('error', onError);
+        socket.once('secureConnect', () => onReady(socket));
+        socket.startTls(
+          target.host && net.isIP(target.host) === 0 ? target.host : undefined,
+        );
+      };
+      socket.write(this._frontend.getSSLRequestMessage());
+      socket.readOnce((x?: Buffer) => {
+        const command = x?.toString();
+        if (command === 'S') return upgrade();
+        if (command === 'N') {
+          if (options.requireSSL)
+            return onError(
+              new Error('Server does not support SSL connections'),
+            );
+          return onReady(socket);
+        }
+        onError(new Error('Unexpected response from server: ' + command));
+      });
+      return;
+    }
+    if (options.sslNegotiation === 'direct') {
+      // Straight into the handshake: no SSLRequest, nothing in the clear.
+      return startTls();
+    }
+    socket.write(this._frontend.getSSLRequestMessage());
+    socket.once('data', x => {
+      const command = x.toString();
+      if (command === 'S') return startTls();
+      if (command === 'N') {
+        if (options.requireSSL) {
+          return onError(new Error('Server does not support SSL connections'));
+        }
+        return onReady(socket);
+      }
+      return onError(
+        new Error('There was an error establishing an SSL connection'),
+      );
+    });
+  }
+
+  /**
+   * Asks the server to cancel whatever this session is currently running.
+   *
+   * Opens its own short-lived connection and closes it again: a backend busy
+   * with a query is not reading its own socket, so the request cannot travel
+   * down the connection it is meant to interrupt. The server answers nothing
+   * - it either finds a matching session and signals it or does not - so
+   * this resolves once the bytes are out, and the cancelled query reports
+   * the outcome itself, as an ordinary error on its own connection.
+   *
+   * No StartupMessage or authentication is ever sent here - the
+   * CancelRequest is the only message this socket carries, and it is
+   * self-authorized by the processID/secretKey pair BackendKeyData handed
+   * out to the session being cancelled, not by a separate login. TLS is
+   * still negotiated via _negotiateTls() when configured, because a
+   * `hostssl` pg_hba.conf rule can reject a plaintext connection outright
+   * before the server ever reads what request it carries - and the target
+   * is `_hosts[_hostIndex]`, the host this session actually ended up
+   * connected to, not `options.host`, which after a multi-host failover may
+   * name a candidate this session never used.
+   */
+  cancel(): Promise<void> {
+    const processID = this._processID;
+    const secretKey = this._secretKey;
+    // Nothing to cancel before the session is established.
+    if (processID == null || secretKey == null) return Promise.resolve();
+    const data = this._frontend.getCancelRequestMessage(processID, secretKey);
+    const target = this._hosts[this._hostIndex];
+
+    return new Promise<void>((resolve, reject) => {
+      const socket = new net.Socket();
+      const fail = (err: Error) => {
+        socket.destroy();
+        reject(err);
+      };
+      const send = (readySocket: ClientSocket) => {
+        readySocket.end(data, () => {
+          readySocket.destroy();
+          resolve();
+        });
+      };
+      socket.setNoDelay(true);
+      socket.once('error', fail);
+      socket.once('connect', () =>
+        this._negotiateTls(socket, target, send, fail),
+      );
+      const port = target.port || DEFAULT_PORT_NUMBER;
+      if (target.host && target.host.startsWith('/'))
+        socket.connect(path.join(target.host, '/.s.PGSQL.' + port));
+      else socket.connect(port, target.host || 'localhost');
+    });
+  }
+
+  close(): void {
+    if (!this._socket || this._socket.destroyed) {
+      this._state = ConnectionState.CLOSED;
+      this._socket = undefined;
+      this._reset();
+      return;
+    }
+    if (this._state === ConnectionState.CLOSING) return;
+    const socket = this._socket;
+    this._state = ConnectionState.CLOSING;
+    this._removeListeners();
+    socket.once('close', () => this._handleClose());
+    socket.destroy();
+  }
+
+  sendExecuteMessage(
+    args: Frontend.ExecuteMessageArgs,
+    cb: CaptureCallback,
+  ): Promise<any> {
+    return this._sendAndCapture(
+      this._frontend.getExecuteMessage(args),
+      cb,
+      'sendExecuteMessage',
+      args,
+    );
+  }
+
+  sendCloseMessage(
+    args: Frontend.CloseMessageArgs,
+    cb: CaptureCallback,
+  ): Promise<any> {
+    return this._sendAndCapture(
+      this._frontend.getCloseMessage(args),
+      cb,
+      'sendCloseMessage',
+      args,
+    );
+  }
+
+  /** The legacy Function Call sub-protocol - see `Frontend.FunctionCallMessageArgs`. */
+  sendFunctionCallMessage(
+    args: Frontend.FunctionCallMessageArgs,
+    cb: CaptureCallback,
+  ): Promise<any> {
+    return this._sendAndCapture(
+      this._frontend.getFunctionCallMessage(args),
+      cb,
+      'sendFunctionCallMessage',
+      args,
+    );
+  }
+
+  /**
+   * Sends Parse+Bind+Describe+Execute+Sync as a single write with a single
+   * FIFO capture entry, instead of 5 separate sendXMessage() round trips -
+   * the one-shot Extended Query fast path (IntlConnection.queryOnce()).
+   * Callers pass unnamed statement/portal (omit statement/portal/name) so
+   * no Close message is needed at all: PostgreSQL auto-clears an unnamed
+   * statement/portal at the next Parse/Bind referencing the unnamed name.
+   */
+  sendExtendedQueryMessages(
+    args: {
+      parse: Frontend.ParseMessageArgs;
+      bind: Frontend.BindMessageArgs;
+      describe: Frontend.DescribeMessageArgs;
+      execute: Frontend.ExecuteMessageArgs;
+      before?: string;
+      after?: string;
+    },
+    cb: CaptureCallback,
+  ): Promise<any> {
+    /* The Bind is built LAST and taken as a view, then concatenated here
+     rather than in _send(): it carries the caller's data, where the
+     other four messages are a few dozen bytes, and the copy flush()
+     makes exists only because this one SmartBuffer is reused for the
+     next message. Building the small ones first leaves nothing to
+     overwrite it before Buffer.concat() reads it, so the payload is
+     copied once instead of twice - measured on a 100 000-element
+     int4[], 2148 KB of copying a call against 1074, with the wire bytes
+     and the stored value unchanged. The view never reaches the socket;
+     only the concat does. */
+    const parse = this._frontend.getParseMessage(args.parse);
+    const describe = this._frontend.getDescribeMessage(args.describe);
+    const execute = this._frontend.getExecuteMessage(args.execute);
+    const sync = this._frontend.getSyncMessage();
+    if (!args.before && !args.after) {
+      const bind = this._frontend.getBindMessage(args.bind, false);
+      const data = Buffer.concat([parse, bind, describe, execute, sync]);
+      return this._sendAndCapture(data, cb, 'sendExtendedQueryMessages', args);
+    }
+    const before: Buffer[] = [];
+    if (args.before) this._pushUtilityStatement(before, args.before, args.bind);
+    const after: Buffer[] = [];
+    if (args.after) this._pushUtilityStatement(after, args.after, args.bind);
+    const bind = this._frontend.getBindMessage(args.bind, false);
+    const data = Buffer.concat([
+      ...before,
+      parse,
+      bind,
+      describe,
+      execute,
+      ...after,
+      sync,
+    ]);
+    return this._sendAndCapture(data, cb, 'sendExtendedQueryMessages', args);
+  }
+
+  /**
+   * Parse + Bind + Describe(portal) + Execute per statement, then a SINGLE
+   * Sync for the lot - the wire shape behind Connection.pipeline().
+   *
+   * The same framing as sendBatchBindExecuteMessages(), and the same
+   * consequences, except that each statement carries its own Parse rather
+   * than reusing one prepared statement: the statements share one implicit
+   * transaction, and PostgreSQL discards everything between an error and
+   * the Sync, so a rejected statement stops the ones behind it.
+   *
+   * Describe is not optional here even though nothing caches its answer.
+   * Without it the server sends DataRows for a row-returning statement with
+   * no RowDescription in front of them, leaving the column names and types
+   * unknown - the reason the one-shot path in sendExtendedQueryMessages()
+   * includes it too. It costs about a quarter of a millisecond across
+   * twenty statements, measured.
+   *
+   * Every Execute is unlimited (fetchCount 0): a portal that suspended
+   * mid-pipeline would answer PortalSuspended instead of CommandComplete
+   * and desynchronise the positional statement-to-result mapping.
+   */
+  sendPipelineMessages(
+    args: {
+      statements: {
+        parse?: Frontend.ParseMessageArgs;
+        bind: Frontend.BindMessageArgs;
+        describe?: Frontend.DescribeMessageArgs;
+        execute: Frontend.ExecuteMessageArgs;
+      }[];
+    },
+    cb: CaptureCallback,
+  ): Promise<any> {
+    const l = args.statements.length;
+    const data: Buffer[] = [];
+    let i: number;
+    let st: (typeof args.statements)[number];
+    for (i = 0; i < l; i++) {
+      st = args.statements[i];
+      // Parse and Describe are both optional: a statement bound to one the
+      // connection has already prepared needs neither, since the server
+      // still holds the plan and IntlConnection still holds the
+      // RowDescription that came with it.
+      if (st.parse) data.push(this._frontend.getParseMessage(st.parse));
+      data.push(this._frontend.getBindMessage(st.bind));
+      if (st.describe)
+        data.push(this._frontend.getDescribeMessage(st.describe));
+      data.push(this._frontend.getExecuteMessage(st.execute));
+    }
+    data.push(this._frontend.getSyncMessage());
+    return this._sendAndCapture(data, cb, 'sendPipelineMessages', args);
+  }
+
+  /**
+   * Parse + Describe(statement) + Sync as a single round trip - used by
+   * PreparedStatement.prepare() instead of a separate awaited Parse then a
+   * separate awaited Sync, and fetches the RowDescription/NoData in the
+   * same round trip so PreparedStatement can cache it instead of every
+   * later execute() re-Describing its own portal.
+   */
+  sendPrepareMessages(
+    args: {
+      parse: Frontend.ParseMessageArgs;
+      describe: Frontend.DescribeMessageArgs;
+    },
+    cb: CaptureCallback,
+  ): Promise<any> {
+    const data = [
+      this._frontend.getParseMessage(args.parse),
+      this._frontend.getDescribeMessage(args.describe),
+      this._frontend.getSyncMessage(),
+    ];
+    return this._sendAndCapture(data, cb, 'sendPrepareMessages', args);
+  }
+
+  /**
+   * Bind + Execute + Sync as a single round trip, against an UNNAMED
+   * portal (args.bind.portal/args.execute.portal left unset) - used by
+   * PreparedStatement._execute() to reuse an already-prepared (named)
+   * statement without the per-call Describe/Close that Portal's own
+   * bind()/retrieveFields()/execute()/close() sequence needs for a
+   * freshly-created named portal. No Close message is needed: PostgreSQL
+   * auto-clears an unnamed portal at the next Bind naming it.
+   */
+  sendBindExecuteMessages(
+    args: {
+      bind: Frontend.BindMessageArgs;
+      execute: Frontend.ExecuteMessageArgs;
+      before?: string;
+      after?: string;
+    },
+    cb: CaptureCallback,
+  ): Promise<any> {
+    // See sendExtendedQueryMessages() for why the Bind is built last.
+    const execute = this._frontend.getExecuteMessage(args.execute);
+    const sync = this._frontend.getSyncMessage();
+    if (!args.before && !args.after) {
+      const bind = this._frontend.getBindMessage(args.bind, false);
+      const data = Buffer.concat([bind, execute, sync]);
+      return this._sendAndCapture(data, cb, 'sendBindExecuteMessages', args);
+    }
+    const before: Buffer[] = [];
+    if (args.before) this._pushUtilityStatement(before, args.before, args.bind);
+    const after: Buffer[] = [];
+    if (args.after) this._pushUtilityStatement(after, args.after, args.bind);
+    const bind = this._frontend.getBindMessage(args.bind, false);
+    const data = Buffer.concat([...before, bind, execute, ...after, sync]);
+    return this._sendAndCapture(data, cb, 'sendBindExecuteMessages', args);
+  }
+
+  /**
+   * One Bind+Execute pair per parameter set against the same prepared
+   * statement, then a SINGLE Sync for the lot - the wire shape behind
+   * PreparedStatement.executeBatch().
+   *
+   * The single Sync is the whole point, and it is also what gives the
+   * batch its semantics. Sending Bind/Execute/Sync per set (what N
+   * separate execute() calls do, even pipelined) makes the server finish
+   * an implicit transaction and answer ReadyForQuery every time; one Sync
+   * at the end collapses that to one, which is where the bulk of the
+   * speedup comes from. It also means the sets share one implicit
+   * transaction, and that PostgreSQL discards everything between an error
+   * and the Sync - so a set that fails stops the ones behind it from
+   * running at all. Both of those are inherent to this framing rather
+   * than choices made above it.
+   *
+   * Every Execute here must be unlimited (fetchCount 0): a portal that
+   * suspends mid-batch would answer PortalSuspended instead of
+   * CommandComplete and desynchronise the positional set-to-result
+   * mapping the caller relies on.
+   */
+  sendBatchBindExecuteMessages(
+    args: {
+      binds: Frontend.BindMessageArgs[];
+      execute: Frontend.ExecuteMessageArgs;
+    },
+    cb: CaptureCallback,
+  ): Promise<any> {
+    const binds = args.binds;
+    const l = binds.length;
+    const data: Buffer[] = new Array(l * 2 + 1);
+    let i: number;
+    for (i = 0; i < l; i++) {
+      data[i * 2] = this._frontend.getBindMessage(binds[i]);
+      data[i * 2 + 1] = this._frontend.getExecuteMessage(args.execute);
+    }
+    data[l * 2] = this._frontend.getSyncMessage();
+    return this._sendAndCapture(data, cb, 'sendBatchBindExecuteMessages', args);
+  }
+
+  /**
+   * Bind + Describe(portal) + Flush as a single round trip (NOT Sync - see
+   * Portal.bindAndRetrieveFields()'s doc comment for why a Sync here would
+   * be unsafe: it would commit an implicit/autocommit transaction and
+   * destroy the just-bound named portal before any fetch() could use it).
+   * Used by PreparedStatement._execute()'s cursor branch instead of two
+   * separately-awaited Portal.bind()/retrieveFields() round trips.
+   */
+  sendBindDescribeMessages(
+    args: {
+      bind: Frontend.BindMessageArgs;
+      describe: Frontend.DescribeMessageArgs;
+    },
+    cb: CaptureCallback,
+  ): Promise<any> {
+    const data = [
+      this._frontend.getBindMessage(args.bind),
+      this._frontend.getDescribeMessage(args.describe),
+      this._frontend.getFlushMessage(),
+    ];
+    return this._sendAndCapture(data, cb, 'sendBindDescribeMessages', args);
+  }
+
+  /**
+   * Close + Sync under ONE capture, rather than a Close capture followed by
+   * a separate Sync capture. That split is unsafe after an ErrorResponse:
+   * the server then skips every message until Sync, so the only reply is
+   * the Sync's ReadyForQuery - which the FIFO hands to the *Close* capture
+   * (the older entry), making it fail with "unexpected response message
+   * (Z)" and leaving the Sync capture orphaned, to silently swallow the
+   * first message of whatever request comes next. With one capture,
+   * ReadyForQuery is simply this request's end marker whether or not the
+   * Close itself was honoured.
+   */
+  sendCloseAndSyncMessages(
+    args: Frontend.CloseMessageArgs,
+    cb: CaptureCallback,
+  ): Promise<any> {
+    const data = [
+      this._frontend.getCloseMessage(args),
+      this._frontend.getSyncMessage(),
+    ];
+    return this._sendAndCapture(data, cb, 'sendCloseAndSyncMessages', args);
+  }
+
+  /**
+   * Close(portal) + Close(statement) + Sync as a single round trip - used
+   * by PreparedStatement._maybeCloseWithPortal() when a Cursor's close()
+   * brings the owning PreparedStatement's refcount to 0, instead of two
+   * separately-batched Close+Sync round trips (Portal.close() then
+   * PreparedStatement._close()). Sync here is safe/intended: this is final
+   * teardown, no portal needs to survive past it.
+   */
+  sendClosePortalAndStatementMessages(
+    args: {
+      portal: Frontend.CloseMessageArgs;
+      statement: Frontend.CloseMessageArgs;
+    },
+    cb: CaptureCallback,
+  ): Promise<any> {
+    const data = [
+      this._frontend.getCloseMessage(args.portal),
+      this._frontend.getCloseMessage(args.statement),
+      this._frontend.getSyncMessage(),
+    ];
+    return this._sendAndCapture(
+      data,
+      cb,
+      'sendClosePortalAndStatementMessages',
+      args,
+    );
+  }
+
+  sendQueryMessage(sql: string, cb: CaptureCallback): Promise<any> {
+    return this._sendAndCapture(
+      this._frontend.getQueryMessage(sql),
+      cb,
+      'sendQueryMessage',
+      sql,
+    );
+  }
+
+  /**
+   * COPY IN data. Unlike every other send*() here this pushes nothing onto
+   * the capture queue: while a COPY is in progress the server answers no
+   * individual CopyData message, so the response still belongs to the
+   * Query capture that opened the copy.
+   *
+   * Returns false when the socket's buffer is full, exactly as
+   * net.Socket.write() does - the caller is expected to stop writing until
+   * `cb` fires, which is what CopyFromStream hands straight to its own
+   * Writable callback.
+   */
+  sendCopyData(data: Buffer, cb?: Callback): boolean {
+    return this._sendCopy(this._frontend.getCopyDataMessage(data), cb);
+  }
+
+  /** Ends a COPY IN normally; the server replies CommandComplete. */
+  sendCopyDone(cb?: Callback): boolean {
+    return this._sendCopy(this._frontend.getCopyDoneMessage(), cb);
+  }
+
+  /**
+   * Aborts a COPY IN. The server discards the copy, reports `message` as an
+   * ErrorResponse and returns to its normal state - without this a failed
+   * import would leave the connection waiting for data forever.
+   */
+  sendCopyFail(message: string, cb?: Callback): boolean {
+    return this._sendCopy(this._frontend.getCopyFailMessage(message), cb);
+  }
+
+  /**
+   * Stops reading from the socket, so a COPY OUT consumer that cannot keep
+   * up doesn't buffer the whole export in memory. Safe to call repeatedly.
+   */
+  pause(): void {
+    this._socket?.pause();
+  }
+
+  resume(): void {
+    this._socket?.resume();
+  }
+
+  sendFlushMessage(cb?: Callback): void {
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'PgSocket.sendFlushMessage' });
+
+    this._send(this._frontend.getFlushMessage(), cb);
+  }
+
+  sendTerminateMessage(cb?: Callback): void {
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: 'PgSocket.sendTerminateMessage' });
+
+    this._send(this._frontend.getTerminateMessage(), cb);
+  }
+
+  sendSyncMessage(cb: CaptureCallback): Promise<any> {
+    return this._sendAndCapture(
+      this._frontend.getSyncMessage(),
+      cb,
+      'sendSyncMessage',
+      undefined,
+    );
+  }
+
+  /**
+   * The only way anything outside this class can receive a correlated
+   * backend response. Sends `data` and pushes `cb` onto the FIFO capture
+   * queue in the same call, so a response can never arrive before its
+   * capturer is registered, and a capturer can never be registered without
+   * a message actually going out for it - there is no separate, decoupled
+   * "start listening" step to race or misuse.
+   */
+  private _sendAndCapture(
+    data: Buffer | Buffer[],
+    cb: CaptureCallback,
+    location: string,
+    args: unknown,
+  ): Promise<any> {
+    if (typeof cb !== 'function')
+      throw new TypeError(`${location}() requires a CaptureCallback`);
+    if (this.listenerCount('debug'))
+      this.emit('debug', { location: `PgSocket.${location}`, args });
+
+    return new Promise((resolve, reject) => {
+      const entry: CaptureEntry = { callback: cb, resolve, reject };
+      this._captureQueue.push(entry);
+      if (!this._send(data)) {
+        // Nothing else can have run between the push above and here (fully
+        // synchronous), so the entry just pushed is still the tail.
+        this._captureQueue.pop();
+        reject(new Error('Socket is not writable'));
+      }
+    });
+  }
+
+  /**
+   * Parse + Bind + Execute for a parameterless utility statement, appended
+   * to a message list that is about to be closed by one Sync - how
+   * sendBindExecuteMessages() and sendExtendedQueryMessages() carry their
+   * `before`/`after` SQL (today, SAVEPOINT and RELEASE) in the same round
+   * trip as the statement itself rather than as a round trip each.
+   *
+   * Everything here goes through the unnamed statement and the unnamed
+   * portal. That is safe in this order: the caller's own Bind names a
+   * prepared statement rather than the unnamed one, and PostgreSQL
+   * processes the messages in sequence, so each Bind only ever discards an
+   * unnamed portal whose Execute has already run.
+   *
+   * No Describe: neither statement returns rows, so there is no
+   * RowDescription worth asking for. Result formats come from the caller's
+   * own Bind args, which likewise cost nothing against no columns.
+   */
+  private _pushUtilityStatement(
+    data: Buffer[],
+    sql: string,
+    bind: Frontend.BindMessageArgs,
+  ): void {
+    data.push(
+      this._frontend.getParseMessage({ sql }),
+      this._frontend.getBindMessage({
+        typeMap: bind.typeMap,
+        queryOptions: bind.queryOptions,
+      }),
+      this._frontend.getExecuteMessage({}),
+    );
+  }
+
+  protected _removeListeners(): void {
+    if (!this._socket) return;
+    this._socket.removeAllListeners('error');
+    this._socket.removeAllListeners('connect');
+    this._socket.removeAllListeners('data');
+    this._socket.removeAllListeners('close');
+  }
+
+  protected _reset(): void {
+    this._closeReason = undefined;
+    this._backend.reset();
+    this._sessionParameters = {};
+    this._processID = undefined;
+    this._secretKey = undefined;
+    this._saslSession = undefined;
+  }
+
+  protected _handleConnect(): void {
+    const socket = this._socket;
+    if (!socket) return;
+    this._state = ConnectionState.AUTHORIZING;
+    this._reset();
+    socket.on('data', (data: Buffer) => this._handleData(data));
+    socket.on('error', (err: SocketError) => this._handleError(err));
+    socket.on('close', () => this._handleClose());
+    this._send(
+      this._frontend.getStartupMessage(
+        {
+          user: this.options.user || 'postgres',
+          database: this.options.database || '',
+          application_name: this.options.applicationName || '',
+          ...(this.options.replication
+            ? { replication: this.options.replication }
+            : undefined),
+        },
+        this.options.longCancelKey
+          ? Protocol.VERSION_MINOR_LONG_CANCEL_KEY
+          : undefined,
+      ),
+    );
+  }
+
+  /**
+   * Called once the server is ready. With `targetSessionAttrs` set, the
+   * session has to be checked before it is handed over: a server that does
+   * not match is dropped and the next candidate tried, which is how
+   * `read-write` finds whichever node is currently the primary.
+   */
+  protected _finishConnect(): void {
+    const wanted = this.options.targetSessionAttrs;
+    if (!wanted || this._sessionAttrsChecked) {
+      this.emit('ready');
+      return;
+    }
+    this._sessionAttrsChecked = true;
+    const reported = this._sessionParameters;
+    if (
+      reported.in_hot_standby != null &&
+      reported.default_transaction_read_only != null
+    ) {
+      this._applySessionAttrs(
+        wanted,
+        reported.in_hot_standby === 'on',
+        reported.default_transaction_read_only === 'on',
+      );
+      return;
+    }
+    this.sendQueryMessage(
+      'select pg_catalog.pg_is_in_recovery()::text as a,' +
+        " current_setting('transaction_read_only') as b",
+      (code, msg, done) => {
+        if (code === Protocol.BackendMessageCode.DataRow) {
+          // Two text columns, each length-prefixed, read where the row
+          // already sits in the read buffer.
+          const buffer: Buffer = msg.buffer;
+          const start: number = msg.offset;
+          const aLen = buffer.readInt32BE(start);
+          const a = buffer.toString('utf8', start + 4, start + 4 + aLen);
+          const bOffset = start + 4 + aLen;
+          const bLen = buffer.readInt32BE(bOffset);
+          const b = buffer.toString('utf8', bOffset + 4, bOffset + 4 + bLen);
+          this._standbyState = { standby: a === 'true', readOnly: b === 'on' };
+        } else if (code === Protocol.BackendMessageCode.ReadyForQuery) {
+          done(undefined);
+          const st = this._standbyState;
+          this._applySessionAttrs(wanted, !!st?.standby, !!st?.readOnly);
+        }
+      },
+    ).catch(err => this.emit('error', err));
+  }
+
+  /** Accepts this server, or drops it and moves to the next candidate. */
+  protected _applySessionAttrs(
+    wanted: string,
+    standby: boolean,
+    readOnly: boolean,
+  ): void {
+    const rejected =
+      (wanted === 'read-write' && readOnly) ||
+      (wanted === 'read-only' && !readOnly) ||
+      (wanted === 'primary' && standby) ||
+      (wanted === 'standby' && !standby) ||
+      // prefer-standby settles for a primary, but only once nothing else
+      // is left to try.
+      (wanted === 'prefer-standby' &&
+        !standby &&
+        this._hostIndex + 1 < this._hosts.length);
+    if (!rejected) {
+      this.emit('ready');
+      return;
+    }
+    const target = this._hosts[this._hostIndex];
+    if (this._hostIndex + 1 >= this._hosts.length) {
+      this.close();
+      this.emit(
+        'error',
+        new Error(
+          `No server matched target_session_attrs "${wanted}" ` +
+            `(last tried ${target.host}:${target.port ?? this.options.port ?? DEFAULT_PORT_NUMBER})`,
+        ),
+      );
+      return;
+    }
+    this._hostIndex++;
+    const socket = this._socket;
+    this._removeListeners();
+    this._socket = undefined;
+    this._reset();
+    socket?.destroy();
+    this._connectToHost();
+  }
+
+  protected _handleClose(): void {
+    // close() is the only thing that sets CLOSING, so anything else here
+    // is the far end going away on its own - an admin terminating the
+    // backend, a failover, a network fault. Built before _reset() clears
+    // the process id, which is the one detail that makes the report
+    // actionable, and carrying the socket error as its cause when there
+    // was one (a bare FIN leaves none).
+    const reason =
+      this._state === ConnectionState.CLOSING
+        ? undefined
+        : this._buildCloseReason();
+    // Whatever was in flight is rejected with the same object the 'close'
+    // event carries, so `err.code === '08006'` works in a caller's catch
+    // exactly as it does in a Pool listener - the generic message it used
+    // to get named no cause and carried no code at all. A close that was
+    // asked for keeps that message: nothing went wrong, the caller simply
+    // raced the shutdown.
+    this._failPendingCaptures(reason ?? new Error('Connection closed'));
+    this._reset();
+    this._socket = undefined;
+    this._state = ConnectionState.CLOSED;
+    this.emit('close', reason);
+  }
+
+  private _buildCloseReason(): ConnectionLostError {
+    return new ConnectionLostError(this._processID, this._closeReason);
+  }
+
+  protected _handleError(err: unknown): void {
+    // Kept for the 'close' that follows: the socket reports the cause
+    // here and the fact of closing separately, and only the pair together
+    // says what actually happened.
+    this._closeReason = err instanceof Error ? err : new Error(String(err));
+    // An error on a live connection is that connection going away - Node
+    // always follows 'error' with 'close' - so the caller gets the same
+    // ConnectionLostError the close will carry, with this as its cause,
+    // rather than a raw ECONNRESET whose `code` is a Node errno where a
+    // SQLSTATE is expected. Before READY there is no connection to have
+    // lost, and the error itself is the useful thing.
+    this._failPendingCaptures(
+      this._state === ConnectionState.READY
+        ? this._buildCloseReason()
+        : this._closeReason,
+    );
+    if (this._state !== ConnectionState.READY) {
+      this._socket?.end();
+    }
+    this.emit('error', err);
+  }
+
+  /** Rejects and clears every still-open capture, e.g. on close/error. */
+  private _failPendingCaptures(err: Error): void {
+    const pending = this._captureQueue;
+    this._captureQueue = new DoublyLinked();
+    pending.forEach(entry => entry.reject(err));
+  }
+
+  protected _handleData(data: Buffer): void {
+    this._backend.parse(
+      data,
+      (code: Protocol.BackendMessageCode, payload?: any) => {
+        try {
+          switch (code) {
+            case Protocol.BackendMessageCode.Authentication:
+              this._handleAuthenticationMessage(payload);
+              break;
+            case Protocol.BackendMessageCode.ErrorResponse:
+              this._dispatch(code, new DatabaseError(payload));
+              break;
+            case Protocol.BackendMessageCode.NoticeResponse:
+              this.emit('notice', payload);
+              break;
+            case Protocol.BackendMessageCode.NotificationResponse:
+              this.emit('notification', payload);
+              break;
+            case Protocol.BackendMessageCode.ParameterStatus:
+              this._handleParameterStatus(
+                payload as Protocol.ParameterStatusMessage,
+              );
+              break;
+            case Protocol.BackendMessageCode.NegotiateProtocolVersion:
+              this._handleNegotiateProtocolVersion(
+                payload as Protocol.NegotiateProtocolVersionMessage,
+              );
+              break;
+            case Protocol.BackendMessageCode.BackendKeyData:
+              this._handleBackendKeyData(
+                payload as Protocol.BackendKeyDataMessage,
+              );
+              break;
+            case Protocol.BackendMessageCode.ReadyForQuery:
+              if (this._state !== ConnectionState.READY) {
+                this._state = ConnectionState.READY;
+                this._finishConnect();
+              } else this._dispatch(code, payload);
+              break;
+            case Protocol.BackendMessageCode.CommandComplete: {
+              const msg = this._handleCommandComplete(payload);
+              this._dispatch(code, msg);
+              break;
+            }
+            default:
+              this._dispatch(code, payload);
+          }
+        } catch (e) {
+          this._handleError(e);
+        }
+      },
+    );
+  }
+
+  /**
+   * Routes one backend message to the capture at the front of the FIFO -
+   * the oldest still-open request, i.e. the one whose turn it is given the
+   * order messages were written to the socket. This *is* the request/
+   * response correlation, since the wire protocol has no id of its own.
+   * The same entry keeps receiving messages (ParseComplete, BindComplete,
+   * RowDescription, DataRow*, CommandComplete, ReadyForQuery, ...) until
+   * its callback calls `done()`, at which point it is dequeued and the
+   * next entry becomes the one messages are routed to.
+   */
+  private _dispatch(code: Protocol.BackendMessageCode, payload: any): void {
+    const entry = this._captureQueue.head?.value;
+    if (!entry) {
+      if (payload instanceof DatabaseError) {
+        this.emit('error', payload);
+        return;
+      }
+      this.emit(
+        'error',
+        new Error(
+          `PgSocket: received message code=${String(code)} with an empty capture queue`,
+        ),
+      );
+      return;
+    }
+    const done = (err: Maybe<Error>, result?: any) => {
+      if (this._captureQueue.head?.value !== entry) return;
+      this._captureQueue.shift();
+      if (err) entry.reject(err);
+      else entry.resolve(result);
+    };
+    try {
+      const x = entry.callback(code, payload, done);
+      if (promisify.isPromise(x)) (x as Promise<void>).catch(err => done(err));
+    } catch (err) {
+      done(err as Error);
+    }
+  }
+
+  protected _resolvePassword(cb: (password: string) => void): void {
+    (async (): Promise<void> => {
+      const pass =
+        typeof this.options.password === 'function'
+          ? await this.options.password()
+          : this.options.password;
+      cb(pass || '');
+    })().catch(err => this._handleError(err));
+  }
+
+  protected _handleAuthenticationMessage(msg?: any): void {
+    if (!msg) {
+      this.emit('authenticate');
+      return;
+    }
+
+    switch (msg.kind) {
+      case Protocol.AuthenticationMessageKind.CleartextPassword:
+        this._resolvePassword(password => {
+          this._send(this._frontend.getPasswordMessage(password));
+        });
+        break;
+      case Protocol.AuthenticationMessageKind.MD5Password:
+        this._resolvePassword(password => {
+          const md5 = (x: any) =>
+            crypto.createHash('md5').update(x, 'utf8').digest('hex');
+          const l = md5(password + this.options.user);
+          const r = md5(Buffer.concat([Buffer.from(l), msg.salt]));
+          const pass = 'md5' + r;
+          this._send(this._frontend.getPasswordMessage(pass));
+        });
+        break;
+      case Protocol.AuthenticationMessageKind.SASL: {
+        const mode = this.options.channelBinding || 'prefer';
+        /* Encrypted and "can be bound to" are two questions on workerd,
+           where they are one on Node. Binding mixes a hash of the
+           server's certificate into the SCRAM proof, and that runtime
+           hands out no certificate - so a connection can be perfectly
+           secure there and still have nothing to bind to. Saying "not
+           using TLS" for it, which is what the one test used to answer,
+           sends the reader looking in the wrong place. */
+        const secure =
+          this._socket instanceof tls.TLSSocket ||
+          (this._socket instanceof WorkerdSocket && this._socket.secure);
+        const tlsSocket =
+          mode !== 'disable' && this._socket instanceof tls.TLSSocket
+            ? this._socket
+            : undefined;
+        const offersBinding = !!msg.mechanisms?.includes('SCRAM-SHA-256-PLUS');
+        const useBinding = !!tlsSocket && offersBinding;
+        if (mode === 'require' && !useBinding) {
+          throw new Error(
+            !secure
+              ? 'SASL: channelBinding is "require" but the connection is not using TLS'
+              : !tlsSocket
+                ? 'SASL: channelBinding is "require", but this runtime does not expose the ' +
+                  'server certificate, so there is nothing to bind to. Cloudflare Workers is ' +
+                  'one; use "prefer", which is the default.'
+                : 'SASL: channelBinding is "require" but the server does not offer SCRAM-SHA-256-PLUS',
+          );
+        }
+        if (!useBinding && !msg.mechanisms?.includes('SCRAM-SHA-256')) {
+          throw new Error(
+            'SASL: Only mechanisms SCRAM-SHA-256 and SCRAM-SHA-256-PLUS are supported',
+          );
+        }
+        const saslSession = (this._saslSession = SASL.createSession(
+          this.options.user || '',
+          useBinding ? 'SCRAM-SHA-256-PLUS' : 'SCRAM-SHA-256',
+          useBinding ? this._channelBindingData(tlsSocket!) : undefined,
+          !!tlsSocket,
+        ));
+        this._send(this._frontend.getSASLMessage(saslSession));
+        break;
+      }
+      case Protocol.AuthenticationMessageKind.SASLContinue: {
+        const saslSession = this._saslSession;
+        if (!saslSession) throw new Error('SASL: Session not started yet');
+        this._resolvePassword(password => {
+          SASL.continueSession(saslSession, password, msg.data);
+          const buf = this._frontend.getSASLFinalMessage(saslSession);
+          this._send(buf);
+        });
+        break;
+      }
+      case Protocol.AuthenticationMessageKind.SASLFinal: {
+        const session = this._saslSession;
+        if (!session) throw new Error('SASL: Session not started yet');
+        SASL.finalizeSession(session, msg.data);
+        this._saslSession = undefined;
+        break;
+      }
+      default:
+        throw new Error(
+          `Authentication method "${msg.kind}" is not supported. ` +
+            'Supported methods are cleartext password, MD5 and SCRAM-SHA-256 ' +
+            '(with or without channel binding).',
+        );
+    }
+  }
+
+  /**
+   * tls-server-end-point: the server certificate hashed with the algorithm
+   * its own signature used (RFC 5929), which is why the DER has to be read
+   * rather than one of Node's fixed fingerprints taken.
+   */
+  protected _channelBindingData(socket: tls.TLSSocket): Buffer {
+    const cert = socket.getPeerX509Certificate?.();
+    if (!cert)
+      throw new Error(
+        'SASL: SCRAM-SHA-256-PLUS needs the server certificate, which this connection did not provide',
+      );
+    const der = cert.raw;
+    return crypto
+      .createHash(signatureHashOfCertificate(der))
+      .update(der)
+      .digest();
+  }
+
+  protected _handleParameterStatus(msg: Protocol.ParameterStatusMessage): void {
+    this._sessionParameters[msg.name] = msg.value;
+  }
+
+  protected _handleNegotiateProtocolVersion(
+    msg: Protocol.NegotiateProtocolVersionMessage,
+  ): void {
+    this._protocolNegotiation = msg;
+    /* c8 ignore start */
+    if (this.listenerCount('debug')) {
+      this.emit('debug', {
+        location: 'PgSocket._handleNegotiateProtocolVersion',
+        message:
+          `server supports protocol 3.${msg.supportedVersionMinor}` +
+          (msg.unrecognizedOptions.length
+            ? `; did not recognize startup option(s): ${msg.unrecognizedOptions.join(', ')}`
+            : ''),
+        ...msg,
+      });
+    }
+    /* c8 ignore stop */
+  }
+
+  protected _handleBackendKeyData(msg: Protocol.BackendKeyDataMessage): void {
+    this._processID = msg.processID;
+    this._secretKey = msg.secretKey;
+  }
+
+  protected _handleCommandComplete(msg: any): Protocol.CommandCompleteMessage {
+    const m = msg.command && msg.command.match(COMMAND_RESULT_PATTERN);
+    const result: Protocol.CommandCompleteMessage = {
+      command: m[1],
+    };
+    if (m[3] != null) {
+      result.oid = parseInt(m[2], 10);
+      result.rowCount = parseInt(m[3], 10);
+    } else if (m[2]) result.rowCount = parseInt(m[2], 10);
+    return result;
+  }
+
+  protected _send(data: Buffer | Buffer[], cb?: Callback): boolean {
+    const socket = this._socket;
+    if (!socket || !socket.writable) return false;
+
+    if (!Array.isArray(data)) {
+      socket.write(data, cb);
+      return true;
+    }
+    // Joined rather than written one by one under a cork: a statement is
+    // three messages (Bind, Execute, Sync) of a few dozen bytes, and a
+    // write apiece costs three trips through the stream machinery - a
+    // WriteReq, a buffer entry, a cork/uncork pair - to save a copy of
+    // 43 bytes. Measured at 50 concurrent queries, 150 writes against
+    // 50.
+    socket.write(data.length === 1 ? data[0] : Buffer.concat(data), cb);
+    return true;
+  }
+
+  /**
+   * Same write as _send(), but reporting backpressure instead of
+   * writability: a COPY IN producer needs write()'s own return value to
+   * know when to stop pushing, whereas _send()'s callers only need to know
+   * whether the socket could take the bytes at all. Kept separate rather
+   * than folded into _send() precisely so those two meanings of `false`
+   * cannot be confused at a call site.
+   */
+  protected _sendCopy(data: Buffer | Buffer[], cb?: Callback): boolean {
+    const socket = this._socket;
+    if (!socket || !socket.writable) return false;
+    if (!Array.isArray(data)) return socket.write(data, cb);
+    socket.cork();
+    try {
+      const l = data.length;
+      let writable = true;
+      let i: number;
+      for (i = 0; i < l; i++)
+        writable = socket.write(data[i], i === l - 1 ? cb : undefined);
+      return writable;
+    } finally {
+      socket.uncork();
+    }
+  }
+}

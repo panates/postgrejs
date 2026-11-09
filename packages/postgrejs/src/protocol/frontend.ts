@@ -1,0 +1,529 @@
+import { DEFAULT_COLUMN_FORMAT } from '../constants.js';
+import { DataTypeMap } from '../data-type-map.js';
+import type { QueryOptions } from '../interfaces/query-options.js';
+import type { Maybe, Nullable, OID } from '../types.js';
+import { arrayLeaf } from '../util/array-leaf.js';
+import { encodeBinaryArray } from '../util/encode-binaryarray.js';
+import { formatDateParam } from '../util/format-datetime.js';
+import { writeArrayLiteral } from '../util/stringify-arrayliteral.js';
+import {
+  resolveToPostgres,
+  unspecifiedText,
+} from '../util/unspecified-value.js';
+import { Protocol } from './protocol.js';
+import type { SASL } from './sasl.js';
+import { SmartBuffer, type SmartBufferConfig } from './smart-buffer.js';
+
+const DataFormat = Protocol.DataFormat;
+const StaticFlushBuffer = Buffer.from([
+  Protocol.FrontendMessageCode.Flush,
+  0x00,
+  0x00,
+  0x00,
+  0x04,
+]);
+const StaticTerminateBuffer = Buffer.from([
+  Protocol.FrontendMessageCode.Terminate,
+  0x00,
+  0x00,
+  0x00,
+  0x04,
+]);
+const StaticSyncBuffer = Buffer.from([
+  Protocol.FrontendMessageCode.Sync,
+  0x00,
+  0x00,
+  0x00,
+  0x04,
+]);
+const StaticCopyDoneBuffer = Buffer.from([
+  Protocol.FrontendMessageCode.CopyDone,
+  0x00,
+  0x00,
+  0x00,
+  0x04,
+]);
+
+/** How a `Frontend` builds its messages - the buffer it writes them into. */
+export interface FrontendOptions {
+  /** The send buffer's own configuration. */
+  buffer?: SmartBufferConfig;
+}
+
+/** What each message the client sends is built from. */
+export namespace Frontend {
+  /** The startup packet: who is connecting, to what, and any session settings to carry with it. */
+  export interface StartupMessageArgs {
+    user: string;
+    database: string;
+
+    [index: string]: string;
+  }
+
+  /** A Bind: which statement, which portal, the parameters and the formats to read the result in. */
+  export interface BindMessageArgs {
+    typeMap: DataTypeMap;
+    statement?: string;
+    portal?: string;
+    paramTypes?: Maybe<OID>[];
+    params?: any[];
+    queryOptions: QueryOptions;
+    /**
+     * Result format codes to write, overriding queryOptions.columnFormat.
+     * Set by callers that know the statement's column types and have
+     * turned fetchAsString's OID list into positional codes - see
+     * resolveColumnFormats().
+     */
+    columnFormat?: Protocol.DataFormat | Protocol.DataFormat[];
+  }
+
+  /** A Parse: the SQL, the name to give it, and any parameter types to declare. */
+  export interface ParseMessageArgs {
+    statement?: string;
+    sql: string;
+    paramTypes?: Maybe<OID>[];
+  }
+
+  /** A Describe: of a statement (`S`) or of a portal (`P`). */
+  export interface DescribeMessageArgs {
+    type: 'P' | 'S';
+    name?: string;
+  }
+
+  /** An Execute: which portal, and how many rows to stop at. */
+  export interface ExecuteMessageArgs {
+    portal?: string;
+    fetchCount?: number;
+  }
+
+  /** A Close: of a statement (`S`) or of a portal (`P`). */
+  export interface CloseMessageArgs {
+    type: 'P' | 'S';
+    name?: string;
+  }
+
+  /**
+   * The legacy Function Call sub-protocol - calls a function by OID
+   * directly, bypassing SQL entirely. Superseded by `SELECT func(...)`
+   * over the Simple/Extended Query protocols (which every current
+   * PostgreSQL client, this one included for everything else, uses
+   * exclusively) - kept only for wire-protocol completeness. Arguments
+   * and the result travel as raw wire-format bytes, not JS values: the
+   * caller is responsible for encoding/decoding them (see a `DataType`'s
+   * own `encodeBinary`/`decodeBinary` for the format a given OID expects).
+   */
+  export interface FunctionCallMessageArgs {
+    functionId: OID;
+    /**
+     * Format of each argument in `args`, applied positionally - empty
+     * means text for all of them, a single entry applies to all, or it
+     * must have exactly one entry per argument.
+     */
+    argFormats?: Protocol.DataFormat[];
+    /** `null` for an SQL NULL argument. */
+    args: Maybe<Nullable<Buffer>>[];
+    /** Format the function's return value comes back in. @default text */
+    resultFormat?: Protocol.DataFormat;
+  }
+}
+
+/**
+ * Builds the client's messages, into one buffer it keeps and reuses.
+ *
+ * Each method returns the bytes of one message; the socket writes them,
+ * often several at a time so a statement costs one round trip rather
+ * than one per message.
+ */
+export class Frontend {
+  private _io: SmartBuffer;
+
+  constructor(options?: FrontendOptions) {
+    this._io = new SmartBuffer(options?.buffer);
+  }
+
+  getSSLRequestMessage(): Buffer {
+    const io = this._io.start();
+    io.writeUInt32BE(8); // Length of message contents in bytes, including self.
+    io.writeUInt16BE(1234);
+    io.writeUInt16BE(5679);
+    return io.flush();
+  }
+
+  getStartupMessage(
+    args: Frontend.StartupMessageArgs,
+    minorVersion: number = Protocol.VERSION_MINOR,
+  ): Buffer {
+    const io = this._io.start();
+    io.writeInt32BE(0); // Preserve length
+    io.writeInt16BE(Protocol.VERSION_MAJOR);
+    io.writeInt16BE(minorVersion);
+    const entries = Object.entries(args);
+    const l = entries.length;
+    let k: string;
+    let v: string;
+    for (let i = 0; i < l; i++) {
+      [k, v] = entries[i];
+      if (k !== 'client_encoding') {
+        io.writeCString(k, 'utf8');
+        io.writeCString(v, 'utf8');
+      }
+    }
+    io.writeCString('client_encoding', 'utf8');
+    io.writeCString('UTF8', 'utf8');
+    io.writeUInt8(0);
+    return setLengthAndFlush(io, 0);
+  }
+
+  /**
+   * Asks the server to cancel whatever the given session is currently
+   * running. Sent on its own fresh connection - a backend busy with a query
+   * is not reading its own socket, which is the whole reason this cannot go
+   * down the normal one.
+   */
+  getCancelRequestMessage(processID: number, secretKey: Buffer): Buffer {
+    const io = this._io.start();
+    io.writeUInt32BE(12 + secretKey.length); // Length of message contents in bytes, including self.
+    io.writeUInt16BE(1234);
+    io.writeUInt16BE(5678);
+    io.writeUInt32BE(processID);
+    io.writeBytes(secretKey);
+    return io.flush();
+  }
+
+  getPasswordMessage(password: string): Buffer {
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.PasswordMessage);
+    io.writeInt32BE(0); // Preserve header
+    io.writeCString(password, 'utf8');
+    return setLengthAndFlush(io, 1);
+  }
+
+  getSASLMessage(sasl: SASL.Session): Buffer {
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.PasswordMessage);
+    io.writeInt32BE(0); // Preserve header
+    io.writeCString(sasl.mechanism, 'utf8');
+    io.writeLString(sasl.clientFirstMessage);
+    return setLengthAndFlush(io, 1);
+  }
+
+  getSASLFinalMessage(session: SASL.Session): Buffer {
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.PasswordMessage);
+    io.writeInt32BE(0); // Preserve header
+    io.writeString(session.clientFinalMessage);
+    return setLengthAndFlush(io, 1);
+  }
+
+  getParseMessage(args: Frontend.ParseMessageArgs): Buffer {
+    if (args.statement && args.statement.length > 63)
+      throw new Error('Query name length must be lower than 63');
+    const { paramTypes } = args;
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.Parse);
+    io.writeInt32BE(0); // Preserve header
+    io.writeCString(args.statement || '', 'utf8');
+    io.writeCString(args.sql, 'utf8');
+    io.writeUInt16BE(paramTypes?.length || 0);
+    if (paramTypes) {
+      let i: number;
+      const l = paramTypes.length;
+      for (i = 0; i < l; i++) {
+        io.writeUInt32BE(paramTypes[i] || 0);
+      }
+    }
+    return setLengthAndFlush(io, 1);
+  }
+
+  /**
+   * Bind, carrying the parameter values - the one message in a statement
+   * whose size is the caller's data rather than a few dozen bytes.
+   *
+   * @param args The portal, statement, parameters and result formats.
+   * @param copy When false, the returned buffer is a view into the
+   * shared send buffer rather than a copy of it. It stays valid only
+   * until the next message is written, so a caller passing false must
+   * consume it - `Buffer.concat()`, a write - before building anything
+   * else, and must never hand it to the socket, which does not copy
+   * synchronously.
+   * @returns The Bind message.
+   */
+  /* The copy exists for buffer reuse, not for the socket: every message
+     is built in this one SmartBuffer, so message N+1's start() would
+     overwrite N's bytes before they were assembled. Nothing flushed here
+     ever reaches socket.write() - only the concat of them does, which is
+     checked in a test. So a caller that builds the small messages first
+     and this one last can take a view and let the concat read it, which
+     is one copy of the payload rather than two: measured on a 100 000
+     element int4[], 2148 KB of copying a call against 1074. */
+  getBindMessage(args: Frontend.BindMessageArgs, copy = true): Buffer {
+    if (args.portal && args.portal.length > 63)
+      throw new Error('Portal name length must be lower than 63');
+    if (args.statement && args.statement.length > 63)
+      throw new Error('Query name length must be lower than 63');
+
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.Bind);
+    io.writeInt32BE(0); // Preserve header
+    io.writeCString(args.portal || '', 'utf8');
+    io.writeCString(args.statement || '', 'utf8');
+    const { params, paramTypes, queryOptions } = args;
+    const columnFormat =
+      args.columnFormat != null
+        ? args.columnFormat
+        : queryOptions.columnFormat != null
+          ? queryOptions.columnFormat
+          : DEFAULT_COLUMN_FORMAT;
+
+    if (params && params.length) {
+      io.writeInt16BE(params.length);
+      const formatOffset = io.position;
+      const l = params.length;
+      let i: number;
+      for (i = 0; i < l; i++) {
+        io.writeInt16BE(0); // Preserve
+      }
+
+      // Write parameter values
+      io.writeUInt16BE(l);
+      let v: any;
+      for (i = 0; i < l; i++) {
+        v = params[i];
+        if (v === null || v === undefined) {
+          io.writeInt32BE(-1);
+          continue;
+        }
+
+        const dataTypeOid = paramTypes ? paramTypes[i] : undefined;
+        const dt = dataTypeOid ? args.typeMap.get(dataTypeOid) : undefined;
+
+        // No declared type: the value writes itself if it knows how, and
+        // what it hands back decides which branch below takes it - a
+        // toPostgres() returning a Date belongs in the Date branch, not
+        // in `'' + v`. A declared type is left alone; it owns its own
+        // encoding.
+        if (!dt) {
+          v = resolveToPostgres(v);
+          if (v === null || v === undefined) {
+            io.writeInt32BE(-1);
+            continue;
+          }
+        }
+
+        if (dt) {
+          if (
+            typeof dt.encodeAsNull === 'function' &&
+            dt.encodeAsNull(v, queryOptions)
+          ) {
+            io.writeInt32BE(-1);
+            continue;
+          }
+          if (typeof dt.encodeBinary === 'function') {
+            // Set param format to binary
+            io.buffer.writeInt16BE(
+              Protocol.DataFormat.binary,
+              formatOffset + i * 2,
+            );
+            // Preserve data length
+            io.writeInt32BE(0);
+            const dataOffset = io.position;
+            if (dt.elementsOID) {
+              // If data type is array
+              v = Array.isArray(v) ? v : [v];
+              encodeBinaryArray(
+                io,
+                v,
+                dt.elementsOID,
+                queryOptions,
+                dt.encodeBinary,
+                dt.encodeCalculateDim,
+              );
+            } else {
+              dt.encodeBinary(io, v, queryOptions);
+            }
+            io.buffer.writeInt32BE(io.size - dataOffset, dataOffset - 4); // Update length
+          } else if (typeof dt.encodeText === 'function') {
+            if (dt.elementsOID)
+              writeArrayLiteral(io, v, queryOptions, dt.encodeText);
+            else io.writeLString(dt.encodeText(v, queryOptions), 'utf8');
+          }
+        } else if (v instanceof Date) {
+          // No declared type, so the server resolves it from the column
+          // - which is the whole point, and why the text has to carry
+          // the zone. `String(v)` is a JavaScript date string the server
+          // cannot parse at all, which is what a prepared statement with
+          // no paramTypes used to send.
+          io.writeLString(formatDateParam(v, queryOptions), 'utf8');
+        } else if (Array.isArray(v)) {
+          // Also undeclared, so the server reads an array literal and
+          // takes the element type from the column. `'' + v` would hand
+          // it `a,b`, which is not one - the elements have to be quoted
+          // and the braces written, and a nested array needs its own.
+          writeArrayLiteral(
+            io,
+            v,
+            queryOptions,
+            arrayLeaf(v) instanceof Date ? formatDateParam : undefined,
+          );
+        } else if (Buffer.isBuffer(v)) {
+          // Set param format to binary
+          io.buffer.writeInt16BE(
+            Protocol.DataFormat.binary,
+            formatOffset + i * 2,
+          );
+          // Preserve data length
+          io.writeInt32BE(0);
+          const dataOffset = io.position;
+          io.writeBytes(v);
+          io.buffer.writeInt32BE(io.size - dataOffset, dataOffset - 4); // Update length
+        } else {
+          io.writeLString(unspecifiedText(v), 'utf8');
+        }
+      }
+    } else {
+      io.writeUInt16BE(0);
+      io.writeUInt16BE(0);
+    }
+
+    if (Array.isArray(columnFormat)) {
+      const l = columnFormat.length;
+      io.writeUInt16BE(l);
+      let i: number;
+      for (i = 0; i < l; i++) {
+        io.writeUInt16BE(columnFormat[i]);
+      }
+    } else if (columnFormat === DataFormat.binary) {
+      io.writeUInt16BE(1);
+      io.writeUInt16BE(DataFormat.binary);
+    } else io.writeUInt16BE(0);
+
+    return setLengthAndFlush(io, 1, copy);
+  }
+
+  getDescribeMessage(args: Frontend.DescribeMessageArgs): Buffer {
+    if (args.name && args.name.length > 63) {
+      throw new Error(
+        args.type === 'P'
+          ? 'Portal'
+          : 'Statement name length must be lower than 63',
+      );
+    }
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.Describe);
+    io.writeInt32BE(0); // Preserve header
+    io.writeUInt8(args.type.charCodeAt(0));
+    io.writeCString(args.name || '', 'utf8');
+    return setLengthAndFlush(io, 1);
+  }
+
+  getExecuteMessage(args: Frontend.ExecuteMessageArgs): Buffer {
+    if (
+      args.fetchCount &&
+      (args.fetchCount < 0 || args.fetchCount > 4294967295)
+    ) {
+      throw new Error('fetchCount can be between 0 and 4294967295');
+    }
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.Execute);
+    io.writeInt32BE(0); // Preserve header
+    io.writeCString(args.portal || '', 'utf8');
+    io.writeUInt32BE(args.fetchCount || 0);
+    return setLengthAndFlush(io, 1);
+  }
+
+  getCloseMessage(args: Frontend.CloseMessageArgs): Buffer {
+    if (args.name && args.name.length > 63) {
+      throw new Error(
+        args.type === 'P'
+          ? 'Portal'
+          : 'Statement name length must be lower than 63',
+      );
+    }
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.Close);
+    io.writeInt32BE(0); // Preserve header
+    io.writeUInt8(args.type.charCodeAt(0));
+    io.writeCString(args.name || '', 'utf8');
+    return setLengthAndFlush(io, 1);
+  }
+
+  getQueryMessage(sql: string): Buffer {
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.Query);
+    io.writeInt32BE(0); // Preserve header
+    io.writeCString(sql || '', 'utf8');
+    return setLengthAndFlush(io, 1);
+  }
+
+  getFunctionCallMessage(args: Frontend.FunctionCallMessageArgs): Buffer {
+    const { functionId, args: values, argFormats, resultFormat } = args;
+    const formats = argFormats || [];
+    const fl = formats.length;
+    const l = values.length;
+    let i: number;
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.FunctionCall);
+    io.writeInt32BE(0); // Preserve header
+    io.writeInt32BE(functionId);
+    io.writeInt16BE(fl);
+    for (i = 0; i < fl; i++) io.writeInt16BE(formats[i]);
+    io.writeInt16BE(l);
+    let v: Maybe<Nullable<Buffer>>;
+    for (i = 0; i < l; i++) {
+      v = values[i];
+      if (v == null) io.writeInt32BE(-1);
+      else {
+        io.writeInt32BE(v.length);
+        io.writeBytes(v);
+      }
+    }
+    io.writeInt16BE(resultFormat ?? DataFormat.text);
+    return setLengthAndFlush(io, 1);
+  }
+
+  /**
+   * Returns the CopyData header and the caller's payload as two buffers
+   * rather than one, so a bulk import never copies the caller's bytes.
+   * PgSocket writes an array of buffers as a single corked write anyway,
+   * so this costs nothing on the wire.
+   */
+  getCopyDataMessage(data: Buffer): Buffer[] {
+    const header = Buffer.allocUnsafe(5);
+    header[0] = Protocol.FrontendMessageCode.CopyData;
+    header.writeUInt32BE(data.length + 4, 1);
+    return [header, data];
+  }
+
+  getCopyDoneMessage(): Buffer {
+    return StaticCopyDoneBuffer;
+  }
+
+  getCopyFailMessage(message: string): Buffer {
+    const io = this._io.start();
+    io.writeInt8(Protocol.FrontendMessageCode.CopyFail);
+    io.writeInt32BE(0); // Preserve header
+    io.writeCString(message || '', 'utf8');
+    return setLengthAndFlush(io, 1);
+  }
+
+  getFlushMessage(): Buffer {
+    return StaticFlushBuffer;
+  }
+
+  getTerminateMessage(): Buffer {
+    return StaticTerminateBuffer;
+  }
+
+  getSyncMessage(): Buffer {
+    return StaticSyncBuffer;
+  }
+}
+
+function setLengthAndFlush(
+  io: SmartBuffer,
+  lengthOffset: number,
+  copy = true,
+): Buffer {
+  io.buffer.writeUInt32BE(io.size - lengthOffset, lengthOffset);
+  return io.flush(copy);
+}
