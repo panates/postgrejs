@@ -1,6 +1,60 @@
 # Changelog
 
-<!-- rman:documented-up-to 4007c3d1661e696bfed56984d8cfd072968f6899 -->
+<!-- rman:documented-up-to 396ba3f22513510358c182bcbea9667097477956 -->
+
+## v3.15.0 (2026-11-09)
+
+### ✨ Features
+
+- publish query, execute, pool acquire and connect on tracing channels (f9aad33)
+- **otel:** turn postgrejs's tracing channels into OpenTelemetry spans (fe62ec3)
+- **otel:** warn when the registered tracer provider is out of reach (a06b211)
+- trace COPY on a postgrejs:copy channel and as COPY spans (8d90235)
+- trace prepared statements on postgrejs:prepare and postgrejs:statement:execute (9ca3452)
+- publish transaction commands on postgrejs:execute (9d9ba57)
+- trace pipeline() on postgrejs:pipeline (b336740)
+- trace cursor fetches on postgrejs:cursor:fetch (ed3884a)
+- report the host a connection reached (d3495ec)
+- publish the column lookup of copyFromRows() on postgrejs:prepare (2a9bfac)
+- report pool activity on postgrejs:pool:* channels (eade1c3)
+- **otel:** record the database client metrics (4c43362)
+
+### 🐛 Bug Fixes
+
+- **bench:** read CLI options passed after a leading "--" (a009fc7)
+- **bench:** give a --scenario wildcard example that matches (e9efb05)
+- recognize a transaction command behind a leading comment (bcfbcac)
+- count pending acquires with lightning-pool's own pending (f84f5f6)
+- let tracing channel stores hold any value (a8a7a10)
+- type null function call arguments and custom row types (7b079b3)
+
+### 📚 Documentation
+
+- show the README's ORM integrations as the docs site's cards (5f22b6b)
+- compare observability in the README feature table (d5223e8)
+
+### 🧪 Tests
+
+- print which runtime mocha is running on (0dcaad3)
+- collect garbage before sampling the heap accounting (98da9cf)
+- type-check the tests as part of npm run typecheck (d9dced9)
+
+### 📦 Build System
+
+- convert the repository to a pnpm workspace (83cb543)
+- upgrade dotenv to 18.0.10 (e1e36fe)
+- **otel:** upgrade the OpenTelemetry dev dependencies (2566447)
+- leave postgrejs-otel out of the release publish for now (a31d24f)
+
+### 🤖 Continuous Integration
+
+- **test:** run the Bun job on Bun (e4b4f41)
+
+### 🧹 Chores
+
+- **deps:** update dotenv to 18.0.10 (dfe5c16)
+
+---
 
 ## v3.14.2 (2026-11-07)
 

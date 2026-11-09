@@ -1,7 +1,7 @@
 {
   "name": "postgrejs-repo",
   "private": true,
-  "version": "3.14.2",
+  "version": "3.15.0",
   "license": "BSD-3-Clause",
   "contributors": [
     "Eray Hanoglu <e.hanoglu@panates.com>",
