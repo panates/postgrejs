@@ -3,7 +3,7 @@ import { OidVectorType } from '../../src/data-types/oid-vector-type.js';
 
 describe('OidVectorType', () => {
   it('should encode as space-separated integers for the text/literal path', () => {
-    expect(OidVectorType.encodeText!([1, 2, 6])).toStrictEqual('1 2 6');
+    expect(OidVectorType.encodeText!([1, 2, 6], {})).toStrictEqual('1 2 6');
   });
 
   it('should decode an empty binary array value as undefined', () => {

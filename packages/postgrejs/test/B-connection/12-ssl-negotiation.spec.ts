@@ -10,7 +10,7 @@ describe('SSL negotiation', () => {
     async function firstBytes(config: Record<string, any>): Promise<string> {
       return new Promise((resolve, reject) => {
         const server = net.createServer(socket => {
-          socket.once('data', data => {
+          socket.once('data', (data: Buffer) => {
             resolve(data.subarray(0, 8).toString('hex'));
             socket.destroy();
             server.close();

@@ -3,10 +3,10 @@ import {
   BindParam,
   Connection,
   DataFormat,
-  DataMappingOptions,
+  type DataMappingOptions,
   DataTypeOIDs,
   GlobalTypeMap,
-  QueryResult,
+  type QueryResult,
   stringifyValueForSQL,
 } from 'postgrejs';
 

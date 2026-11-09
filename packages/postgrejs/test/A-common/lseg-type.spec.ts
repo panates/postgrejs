@@ -5,37 +5,37 @@ import { LsegType } from '../../src/data-types/lseg-type.js';
 describe('LsegType', () => {
   it('should encode as a bracketed pair of points for the text/literal path', () => {
     expect(
-      LsegType.encodeText!(new LineSegment(1.2, 3.5, 4.6, 5.2)),
+      LsegType.encodeText!(new LineSegment(1.2, 3.5, 4.6, 5.2), {}),
     ).toStrictEqual('[(1.2,3.5),(4.6,5.2)]');
   });
 
   describe('decodeText()', () => {
     it('should parse the bracketed form "[(x1,y1),(x2,y2)]"', () => {
-      expect(LsegType.decodeText!('[(1.2, 3.5), (4.6, 5.2)]')).toStrictEqual(
-        new LineSegment(1.2, 3.5, 4.6, 5.2),
-      );
+      expect(
+        LsegType.decodeText!('[(1.2, 3.5), (4.6, 5.2)]', {}),
+      ).toStrictEqual(new LineSegment(1.2, 3.5, 4.6, 5.2));
     });
 
     it('should parse the parenthesized form "((x1,y1),(x2,y2))"', () => {
-      expect(LsegType.decodeText!('((-1.6, 3.0), (4.6, 0.1))')).toStrictEqual(
-        new LineSegment(-1.6, 3, 4.6, 0.1),
-      );
+      expect(
+        LsegType.decodeText!('((-1.6, 3.0), (4.6, 0.1))', {}),
+      ).toStrictEqual(new LineSegment(-1.6, 3, 4.6, 0.1));
     });
 
     it('should parse the unwrapped form "(x1,y1),(x2,y2)"', () => {
-      expect(LsegType.decodeText!('(4.2, 3.5), (4.6, 9.7)')).toStrictEqual(
+      expect(LsegType.decodeText!('(4.2, 3.5), (4.6, 9.7)', {})).toStrictEqual(
         new LineSegment(4.2, 3.5, 4.6, 9.7),
       );
     });
 
     it('should parse the bare form "x1,y1,x2,y2"', () => {
-      expect(LsegType.decodeText!('10.24, 40.1, 4.6, 8.2')).toStrictEqual(
+      expect(LsegType.decodeText!('10.24, 40.1, 4.6, 8.2', {})).toStrictEqual(
         new LineSegment(10.24, 40.1, 4.6, 8.2),
       );
     });
 
     it('should return undefined for a string matching none of the forms', () => {
-      expect(LsegType.decodeText!('not a line segment')).toStrictEqual(
+      expect(LsegType.decodeText!('not a line segment', {})).toStrictEqual(
         undefined,
       );
     });

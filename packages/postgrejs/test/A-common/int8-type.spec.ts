@@ -3,7 +3,7 @@ import { Int8Type } from '../../src/data-types/int8-type.js';
 
 describe('Int8Type', () => {
   it('should encode as its string form for the text/literal path', () => {
-    expect(Int8Type.encodeText!(123n)).toStrictEqual('123');
+    expect(Int8Type.encodeText!(123n, {})).toStrictEqual('123');
   });
 
   it('should fall back to the manual BigInt64 reader when the buffer has no native readBigInt64BE', () => {

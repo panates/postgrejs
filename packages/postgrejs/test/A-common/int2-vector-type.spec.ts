@@ -3,7 +3,7 @@ import { Int2VectorType } from '../../src/data-types/int2-vector-type.js';
 
 describe('Int2VectorType', () => {
   it('should encode as space-separated integers for the text/literal path', () => {
-    expect(Int2VectorType.encodeText!([1, 2, 6])).toStrictEqual('1 2 6');
+    expect(Int2VectorType.encodeText!([1, 2, 6], {})).toStrictEqual('1 2 6');
   });
 
   it('should decode an empty binary array value as undefined', () => {

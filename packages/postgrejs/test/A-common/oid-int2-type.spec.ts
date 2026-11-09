@@ -4,7 +4,7 @@ import { OidType } from '../../src/data-types/oid-type.js';
 
 describe('OidType', () => {
   it('should encode as its string form for the text/literal path', () => {
-    expect(OidType.encodeText!(23)).toStrictEqual('23');
+    expect(OidType.encodeText!(23, {})).toStrictEqual('23');
   });
 
   describe('isType()', () => {
@@ -20,7 +20,7 @@ describe('OidType', () => {
 
 describe('Int2Type', () => {
   it('should encode as its string form for the text/literal path', () => {
-    expect(Int2Type.encodeText!(42)).toStrictEqual('42');
+    expect(Int2Type.encodeText!(42, {})).toStrictEqual('42');
   });
 
   describe('isType()', () => {

@@ -4,7 +4,7 @@ import { ByteaType } from '../../src/data-types/bytea-type.js';
 describe('ByteaType', () => {
   it('should encode as the "\\x"-prefixed hex form for the text/literal path', () => {
     expect(
-      ByteaType.encodeText!(Buffer.from([0xde, 0xad, 0xbe, 0xef])),
+      ByteaType.encodeText!(Buffer.from([0xde, 0xad, 0xbe, 0xef]), {}),
     ).toStrictEqual('\\xdeadbeef');
   });
 
