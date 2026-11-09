@@ -52,49 +52,37 @@ strictly-typed TypeScript from the ground up.
 
 PostgreJS is a driver, not a framework, so what you build on top of it stays your choice:
 
-<!-- One cell per adapter, so each renders as its own card: a table because
-     GitHub strips CSS, and this is the one layout that survives everywhere
-     the README is read. The logos come from postgrejs.com rather than being
-     hotlinked from each project, and Drizzle's follows the reader's theme. -->
+<!-- The same cards as the integrations section on postgrejs.com: each
+     project's full logo, which carries its name, over the one-line
+     description, linking to its integration page. A table because GitHub
+     strips CSS; the logos follow the reader's theme. -->
 <table>
   <tr>
-    <td align="center" width="230" valign="top">
-      <a href="https://www.sqbjs.org"><img src="https://www.postgrejs.com/img/sqb-logo.svg" alt="SQB" height="60"></a><br><br>
-      <b><a href="https://www.sqbjs.org">SQB</a></b><br>
-      <a href="https://www.npmjs.com/package/@sqb/postgres"><code>@sqb/postgres</code></a><br>
-      <sub>built-in adapter</sub>
+    <td align="center" width="280" valign="top"><br>
+      <a href="https://www.postgrejs.com/docs/integrations/sqb"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/sqb-full-dark.svg"><img src="https://www.postgrejs.com/img/sqb-full-light.svg" alt="SQB" height="40"></picture></a><br><br>
+      Panates' own multi-dialect ORM and query builder. Its PostgreSQL adapter is built directly on postgrejs.<br><br>
     </td>
-    <td align="center" width="230" valign="top">
-      <a href="https://joist-orm.io"><img src="https://www.postgrejs.com/img/joist-logo.svg" alt="Joist" height="60"></a><br><br>
-      <b><a href="https://joist-orm.io">Joist</a></b><br>
-      <a href="https://www.npmjs.com/package/joist-orm"><code>joist-orm/postgrejs</code></a><br>
-      <sub>built-in driver</sub>
+    <td align="center" width="280" valign="top"><br>
+      <a href="https://www.postgrejs.com/docs/integrations/joist"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/joist-full-dark.svg"><img src="https://www.postgrejs.com/img/joist-full-light.svg" alt="Joist" height="40"></picture></a><br><br>
+      Joist 2.5 ships a postgrejs driver of its own, which keeps each row undecoded until an entity reads it.<br><br>
     </td>
-    <td align="center" width="230" valign="top">
-      <a href="https://kysely.dev"><img src="https://www.postgrejs.com/img/kysely-logo.svg" alt="Kysely" height="60"></a><br><br>
-      <b><a href="https://kysely.dev">Kysely</a></b><br>
-      <a href="https://github.com/panates/postgrejs-kysely"><code>kysely-postgrejs</code></a><br>
-      <sub>third-party dialect</sub>
+    <td align="center" width="280" valign="top"><br>
+      <h3><a href="https://www.postgrejs.com/docs/integrations/kysely"><img src="https://www.postgrejs.com/img/kysely-logo.svg" alt="" height="40" align="absmiddle"></a>&nbsp;Kysely</h3>
+      A type-safe SQL query builder. Run it on postgrejs instead of pg with a drop-in dialect.<br><br>
     </td>
   </tr>
   <tr>
-    <td align="center" width="230" valign="top">
-      <a href="https://orm.drizzle.team"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/drizzle-logo-dark.svg"><img src="https://www.postgrejs.com/img/drizzle-logo-light.svg" alt="Drizzle ORM" height="34"></picture></a><br><br>
-      <b><a href="https://orm.drizzle.team">Drizzle ORM</a></b><br>
-      <a href="https://github.com/panates/postgrejs-drizzle"><code>drizzle-postgrejs</code></a><br>
-      <sub>third-party driver</sub>
+    <td align="center" width="280" valign="top"><br>
+      <a href="https://www.postgrejs.com/docs/integrations/drizzle"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/drizzle-logo-dark.svg"><img src="https://www.postgrejs.com/img/drizzle-logo-light.svg" alt="Drizzle ORM" height="34"></picture></a><br><br>
+      A lightweight TypeScript ORM: schema, relational queries and migrations on postgrejs.<br><br>
     </td>
-    <td align="center" width="230" valign="top">
-      <a href="https://typeorm.io"><img src="https://www.postgrejs.com/img/typeorm-icon.png" alt="TypeORM" height="60"></a><br><br>
-      <b><a href="https://typeorm.io">TypeORM</a></b><br>
-      <a href="https://github.com/panates/postgrejs-typeorm"><code>typeorm-postgrejs</code></a><br>
-      <sub>third-party driver</sub>
+    <td align="center" width="280" valign="top"><br>
+      <a href="https://www.postgrejs.com/docs/integrations/typeorm"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/typeorm-full-dark.png"><img src="https://www.postgrejs.com/img/typeorm-full-light.svg" alt="TypeORM" height="40"></picture></a><br><br>
+      A pg-compatible facade. Bring postgrejs to TypeORM by changing one line.<br><br>
     </td>
-    <td align="center" width="230" valign="top">
-      <a href="https://www.prisma.io"><img src="https://www.postgrejs.com/img/prisma-icon.svg" alt="Prisma" height="60"></a><br><br>
-      <b><a href="https://www.prisma.io">Prisma</a></b><br>
-      <a href="https://github.com/panates/postgrejs-prisma"><code>prisma-postgrejs</code></a><br>
-      <sub>third-party adapter</sub>
+    <td align="center" width="280" valign="top"><br>
+      <a href="https://www.postgrejs.com/docs/integrations/prisma"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/prisma-full-dark.svg"><img src="https://www.postgrejs.com/img/prisma-full-light.svg" alt="Prisma" height="40"></picture></a><br><br>
+      A driver adapter. Run a Prisma schema on postgrejs instead of pg.<br><br>
     </td>
   </tr>
 </table>
