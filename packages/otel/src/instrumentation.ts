@@ -15,6 +15,7 @@ import {
   type Tracer,
   type TracerProvider,
 } from '@opentelemetry/api';
+import { warnOnHiddenProvider } from './hidden-provider.js';
 import { buildSqlComment } from './sql-comment.js';
 import type {
   ConnectContext,
@@ -126,6 +127,10 @@ export class PostgrejsInstrumentation {
      Without it a connection opened for a waiting caller would be a sibling
      of the acquire span instead of its child. */
   protected _parentStore = new AsyncLocalStorage<Context>();
+  /* Whether the global-provider check below is still to be made: it is
+     made once, at the first span, since the application may register its
+     provider after constructing the instrumentation. */
+  protected _checkGlobalProvider = true;
   protected _handlers: {
     channel: string;
     handlers: TracingChannelSubscribers<any>;
@@ -194,6 +199,7 @@ export class PostgrejsInstrumentation {
 
   /** Uses this provider instead of the global one for spans started from now on. */
   setTracerProvider(tracerProvider: TracerProvider): void {
+    this._checkGlobalProvider = false;
     this._tracer = tracerProvider.getTracer(
       this.instrumentationName,
       this.instrumentationVersion,
@@ -337,6 +343,10 @@ export class PostgrejsInstrumentation {
     kind: SpanKind,
     attributes: Attributes,
   ): Span | undefined {
+    if (this._checkGlobalProvider) {
+      this._checkGlobalProvider = false;
+      warnOnHiddenProvider();
+    }
     const parent = this._parentContext();
     if (this._config.requireParentSpan && !trace.getSpan(parent)) return;
     return this._tracer.startSpan(name, { kind, attributes }, parent);

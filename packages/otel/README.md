@@ -120,8 +120,9 @@ new PostgrejsInstrumentation();
 
 dd-trace 6 requires `@opentelemetry/api` below 1.10, and an API of a newer
 minor version does not see a provider registered through an older one: the
-spans are silently dropped. Keep the application's `@opentelemetry/api` on
-1.9.x while it uses dd-trace. For the same reason, don't use
+spans are dropped. postgrejs-otel notices this at its first span and emits a
+`POSTGREJS_OTEL_HIDDEN_PROVIDER` process warning. Keep the application's
+`@opentelemetry/api` on 1.9.x while it uses dd-trace. For the same reason, don't use
 `registerInstrumentations()` here: `@opentelemetry/instrumentation` 0.301 needs
 API 1.10.
 
