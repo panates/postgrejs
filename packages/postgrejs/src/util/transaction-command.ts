@@ -1,10 +1,20 @@
+/* Whitespace and comments in front of the statement are skipped: a
+   tracing subscriber puts a comment there (postgrejs-otel's sqlComment),
+   and a COMMIT or a SET TRANSACTION behind one is still what it was. A
+   comment nested inside a block comment ends the skip early, which leaves
+   the statement unrecognized, as every comment did before. */
+const LEADING = String.raw`^(?:\s|/\*[\s\S]*?\*/|--[^\n]*(?:\n|$))*`;
+
 /**
  * Statements that open or close a transaction, and so manage their own
  * boundaries: an implicit BEGIN or COMMIT around one would be wrong, and
  * wrapping one in a savepoint - COMMIT, say - is nonsense.
  */
-const TRANSACTION_COMMAND_PATTERN =
-  /^(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)/i;
+const TRANSACTION_COMMAND_PATTERN = new RegExp(
+  LEADING +
+    String.raw`(\bBEGIN\b|\bCOMMIT\b|\bSTART\b|\bROLLBACK|SAVEPOINT|RELEASE\b)`,
+  'i',
+);
 
 /**
  * `SET TRANSACTION`, which configures the transaction it runs in rather
@@ -19,7 +29,10 @@ const TRANSACTION_COMMAND_PATTERN =
  * exactly what they need, so answering "transaction command" for them
  * and suppressing both would trade one failure for another.
  */
-const CONFIGURES_TRANSACTION_PATTERN = /^\bSET\s+TRANSACTION\b/i;
+const CONFIGURES_TRANSACTION_PATTERN = new RegExp(
+  LEADING + String.raw`\bSET\s+TRANSACTION\b`,
+  'i',
+);
 
 /** Whether `sql` opens or closes a transaction. */
 export function isTransactionCommand(sql: string): boolean {
