@@ -15,7 +15,7 @@ changelog:
   # One changelog for the whole release, at the repository root.
   groupBy: group
 
-"[postgrejs-otel]":
+'[postgrejs-otel]':
   # npm cannot set up Trusted Publishing for a package that does not exist yet, so the first
   # release of postgrejs-otel is published by hand. Until then the release workflow leaves it
   # out of `publish`, while it still takes the group's version, so the hand-published version
