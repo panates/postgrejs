@@ -34,7 +34,7 @@
   "devDependencies": {
     "@types/pg": "^8.23.1",
     "bun-types": "^1.4.4",
-    "dotenv": "^18.0.9",
+    "dotenv": "^18.0.10",
     "expect": "^30.5.2",
     "pg": "^8.23.1",
     "pg-copy-streams": "^7.0.0",
