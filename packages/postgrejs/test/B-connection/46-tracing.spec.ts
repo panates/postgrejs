@@ -785,4 +785,161 @@ describe('tracing channels', () => {
       ).toStrictEqual(2);
     });
   });
+
+  describe('transaction commands on postgrejs:execute', () => {
+    /** The command and sql of every execute start, in order. */
+    function commands(log: Recorded[]): string[] {
+      return log
+        .filter(r => r.channel === 'execute' && r.event === 'start')
+        .map(r => `${r.context.command ?? '-'} | ${r.context.sql}`);
+    }
+
+    async function traced(
+      fn: () => Promise<unknown>,
+      onStart?: (ctx: any) => void,
+    ): Promise<Recorded[]> {
+      const log: Recorded[] = [];
+      const off = record(log, 'execute', tracingChannels.execute, onStart);
+      try {
+        await fn();
+      } finally {
+        off();
+        if (conn.inTransaction) await conn.rollback();
+      }
+      return log;
+    }
+
+    it('should publish BEGIN and COMMIT, and nothing for a nested pair', async () => {
+      const log = await traced(async () => {
+        await conn.startTransaction();
+        await conn.startTransaction();
+        await conn.commit();
+        await conn.commit();
+      });
+      expect(commands(log)).toStrictEqual(['BEGIN | BEGIN', 'COMMIT | COMMIT']);
+      const begin = log.find(r => r.event === 'asyncEnd')!.context;
+      expect(begin.connection).toBe(conn);
+      expect(begin.result).toBeDefined();
+    });
+
+    it('should publish the BEGIN with the modes it carries', async () => {
+      const log = await traced(async () => {
+        await conn.startTransaction({ isolationLevel: 'serializable' });
+        await conn.rollback();
+      });
+      expect(commands(log)).toStrictEqual([
+        'BEGIN | BEGIN ISOLATION LEVEL SERIALIZABLE',
+        'ROLLBACK | ROLLBACK',
+      ]);
+    });
+
+    it('should publish the savepoint commands', async () => {
+      const log = await traced(async () => {
+        await conn.startTransaction();
+        await conn.savepoint('sp1');
+        await conn.rollbackToSavepoint('sp1');
+        await conn.savepoint('sp2');
+        await conn.releaseSavepoint('sp2');
+        await conn.rollback();
+      });
+      expect(commands(log)).toStrictEqual([
+        'BEGIN | BEGIN',
+        'SAVEPOINT | BEGIN; SAVEPOINT sp1',
+        'ROLLBACK TO SAVEPOINT | ROLLBACK TO SAVEPOINT sp1',
+        'SAVEPOINT | BEGIN; SAVEPOINT sp2',
+        'RELEASE SAVEPOINT | RELEASE SAVEPOINT sp2',
+        'ROLLBACK | ROLLBACK',
+      ]);
+    });
+
+    it('should publish what transaction() sends, savepoints included', async () => {
+      const log = await traced(() =>
+        conn.transaction(() => conn.transaction(async () => undefined)),
+      );
+      expect(commands(log).map(c => c.split(' | ')[0])).toStrictEqual([
+        'BEGIN',
+        'SAVEPOINT',
+        'RELEASE SAVEPOINT',
+        'COMMIT',
+      ]);
+    });
+
+    it('should publish the rollback of a nested transaction() that failed', async () => {
+      const log = await traced(() =>
+        conn
+          .transaction(() =>
+            conn.transaction(async () => {
+              throw new Error('inner');
+            }),
+          )
+          .catch(() => undefined),
+      );
+      expect(commands(log).map(c => c.split(' | ')[0])).toStrictEqual([
+        'BEGIN',
+        'SAVEPOINT',
+        'ROLLBACK TO SAVEPOINT',
+        'ROLLBACK',
+      ]);
+    });
+
+    it('should publish the two-phase commit commands, failed ones as errors', async () => {
+      const log = await traced(async () => {
+        await expect(conn.commitPrepared('no_such_gid')).rejects.toThrow();
+        await expect(conn.rollbackPrepared('no_such_gid')).rejects.toThrow();
+        await conn.startTransaction();
+        // Refused where max_prepared_transactions is 0, accepted where it
+        // is not; published either way.
+        try {
+          await conn.prepareTransaction('tracing_gid');
+          await conn.rollbackPrepared('tracing_gid');
+        } catch {
+          // disabled on this server
+        }
+      });
+      const cmds = commands(log).map(c => c.split(' | ')[0]);
+      expect(cmds.slice(0, 4)).toStrictEqual([
+        'COMMIT PREPARED',
+        'ROLLBACK PREPARED',
+        'BEGIN',
+        'PREPARE TRANSACTION',
+      ]);
+      expect(commands(log)[0]).toStrictEqual(
+        "COMMIT PREPARED | COMMIT PREPARED 'no_such_gid'",
+      );
+      expect(
+        log.filter(r => r.event === 'error')[0].context.error.code,
+      ).toStrictEqual('42704');
+    });
+
+    it('should not publish the BEGIN an autoCommit: false statement opens', async () => {
+      const log = await traced(() =>
+        conn.execute('select 1', { autoCommit: false }),
+      );
+      expect(commands(log)).toStrictEqual(['- | select 1']);
+    });
+
+    it('should keep treating a command as one behind a comment', async () => {
+      // A tracer that comments every statement (postgrejs-otel's
+      // sqlComment) used to hide a SET TRANSACTION from the check that
+      // keeps it out of a savepoint, and the server refused it with 25001.
+      const log = await traced(
+        async () => {
+          await conn.startTransaction();
+          await conn.execute('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE');
+          const r = await conn.query('show transaction_isolation');
+          expect(r.rows![0][0]).toStrictEqual('serializable');
+          await conn.commit();
+          expect(conn.inTransaction).toStrictEqual(false);
+        },
+        ctx => {
+          ctx.sql = `/*traced*/ ${ctx.sql}`;
+        },
+      );
+      expect(commands(log)).toStrictEqual([
+        'BEGIN | /*traced*/ BEGIN',
+        '- | /*traced*/ SET TRANSACTION ISOLATION LEVEL SERIALIZABLE',
+        'COMMIT | /*traced*/ COMMIT',
+      ]);
+    });
+  });
 });

@@ -46,6 +46,7 @@ new PostgrejsInstrumentation();
 |--------------------------|----------|-----------------------------------------------------------------------------|
 | the database name        | client   | one `query()` or `execute()`, on a connection or a pool                     |
 | the database name        | client   | one `execute()` or `executeBatch()` of a prepared statement                 |
+| the command, e.g. `COMMIT` | client   | one transaction command sent by `startTransaction()`, `commit()`, `rollback()`, `transaction()`, the savepoint methods or two-phase commit |
 | `PREPARE`                | client   | one `prepare()`, on a connection or a pool: the server parsing and describing the statement |
 | `COPY`, or `COPY <table>`| client   | one `copyTo()`, `copyFrom()` or `copyFromRows()`, until the server is done |
 | `postgrejs.pool.acquire` | internal | the time a caller waits for a pooled connection, opening a new one included |
@@ -55,7 +56,16 @@ A statement span is named after the database, as the OpenTelemetry semantic
 conventions ask when the operation and table are not known without parsing the
 SQL (`postgresql` when no database is configured). A COPY is known to be one,
 so its span is named `COPY`, followed by the table when `copyFromRows()` was
-given one, and `prepare()` is named `PREPARE` for the same reason.
+given one, and `prepare()` is named `PREPARE` for the same reason. A
+transaction command is named after itself: `BEGIN`, `COMMIT`, `ROLLBACK`,
+`SAVEPOINT`, `RELEASE SAVEPOINT`, `ROLLBACK TO SAVEPOINT`, `PREPARE
+TRANSACTION`, `COMMIT PREPARED` or `ROLLBACK PREPARED`.
+
+A transaction method gives a span only when it sends something: a nested
+`startTransaction()` or `commit()` that only counts the depth gives none. The
+`BEGIN` that a statement run with `autoCommit: false` opens, and the savepoint
+`rollbackOnError` puts around a statement inside a transaction, are part of
+that statement's span.
 
 A prepared statement gives a `PREPARE` span when it is prepared and a span of
 its own for each `execute()`. An `executeBatch()` is one span for the whole
@@ -84,7 +94,7 @@ Attributes, following the stable database semantic conventions:
 | `server.address`            | all                   | the configured host                                           |
 | `server.port`               | all but unix sockets  | the configured port, 5432 by default                          |
 | `db.query.text`             | statements, COPY      | the SQL as the application wrote it, see `captureQueryText`   |
-| `db.operation.name`         | COPY, `prepare()`     | `COPY` or `PREPARE`                                           |
+| `db.operation.name`         | COPY, `prepare()`, transaction commands | `COPY`, `PREPARE`, or the command, e.g. `COMMIT` |
 | `db.operation.batch.size`   | `executeBatch()`      | the number of parameter sets, when there are two or more     |
 | `db.collection.name`        | `copyFromRows()`      | the table it was given                                        |
 | `db.response.returned_rows` | `query()`, a prepared statement's `execute()`, COPY TO | the number of rows returned          |
@@ -120,8 +130,10 @@ new PostgrejsInstrumentation({
   COPY with the span, the `operation` (`query`, `execute`, `prepare`,
   `executePrepared` or `copy`) and what postgrejs published: `context.sql` and
   `context.connection`, plus `context.result` in the response hook of
-  everything but a COPY, and `rowCount` and `bytes` in that of a COPY. An exception thrown by a hook is logged through `diag` and
-  does not reach the query.
+  everything but a COPY, and `rowCount` and `bytes` in that of a COPY. A
+  transaction command comes as an `execute` with `context.command` set. An
+  exception thrown by a hook is logged through `diag` and does not reach the
+  query.
 - `sqlComment`: put a comment in front of every statement, in the
   [sqlcommenter](https://google.github.io/sqlcommenter/spec/) format. `tags` is
   an object or a function of the connection. `traceparent: true` adds the
@@ -181,9 +193,8 @@ cost described above.
 
 ## Not covered yet
 
-- Cursor fetches, the statements of a `pipeline()`, and the transaction
-  commands (`startTransaction()`, `commit()`, `rollback()`, savepoints) get no
-  span of their own. postgrejs does not publish them yet.
+- Cursor fetches and the statements of a `pipeline()` get no span of their
+  own. postgrejs does not publish them yet.
 - The column lookup `copyFromRows()` makes before its COPY, when it is not
   given the column types, gets no span: it is neither part of the COPY nor
   published as a `prepare()`.

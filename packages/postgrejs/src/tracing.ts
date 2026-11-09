@@ -34,15 +34,39 @@ export interface QueryTraceContext {
 }
 
 /**
+ * The transaction commands postgrejs sends for `startTransaction()`,
+ * `commit()`, `rollback()`, the savepoint methods and two-phase commit.
+ */
+export type TransactionCommand =
+  | 'BEGIN'
+  | 'COMMIT'
+  | 'ROLLBACK'
+  | 'SAVEPOINT'
+  | 'RELEASE SAVEPOINT'
+  | 'ROLLBACK TO SAVEPOINT'
+  | 'PREPARE TRANSACTION'
+  | 'COMMIT PREPARED'
+  | 'ROLLBACK PREPARED';
+
+/**
  * What `postgrejs:execute` publishes for one `Connection.execute()` call
- * (the Simple Query protocol, one or more statements in a script). `sql`
- * can be replaced in `start` as described for {@link QueryTraceContext}.
+ * (the Simple Query protocol, one or more statements in a script), and
+ * for each transaction command a transaction method sends. `sql` can be
+ * replaced in `start` as described for {@link QueryTraceContext}.
+ *
+ * A transaction method publishes only when it sends something: a nested
+ * `startTransaction()` or `commit()` that only moves the depth count
+ * publishes nothing. The `BEGIN` an `autoCommit: false` statement opens
+ * for itself, and the savepoint `rollbackOnError` puts around a
+ * statement, are part of that statement and are not published.
  */
 export interface ExecuteTraceContext {
   /** The script as it will be sent. */
   sql: string;
   /** The connection that runs the script. */
   connection: Connection;
+  /** Set when a transaction method sent the script, to the command it is. */
+  command?: TransactionCommand;
   result?: ScriptResult;
   error?: unknown;
 }

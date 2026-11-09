@@ -504,6 +504,47 @@ describe('postgrejs-otel', () => {
     });
   });
 
+  describe('transaction spans', () => {
+    it('should name a transaction command after itself', async () => {
+      const parent = await inParent(async () => {
+        await conn.startTransaction();
+        await conn.savepoint('sp');
+        await conn.releaseSavepoint('sp');
+        await conn.commit();
+      });
+      expect(spans().map(s => s.name)).toStrictEqual([
+        'BEGIN',
+        'SAVEPOINT',
+        'RELEASE SAVEPOINT',
+        'COMMIT',
+      ]);
+      for (const span of spans()) {
+        expect(span.kind).toStrictEqual(SpanKind.CLIENT);
+        expect(parentId(span)).toStrictEqual(parent);
+        expect(span.attributes['db.operation.name']).toStrictEqual(span.name);
+      }
+      expect(spans()[1].attributes['db.query.text']).toStrictEqual(
+        'BEGIN; SAVEPOINT sp',
+      );
+    });
+
+    it('should keep a commented SET TRANSACTION out of a savepoint', async () => {
+      instrumentation.setConfig({ sqlComment: { tags: { app: 'billing' } } });
+      try {
+        await conn.startTransaction();
+        await conn.execute('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE');
+        await conn.commit();
+      } finally {
+        if (conn.inTransaction) await conn.rollback();
+      }
+      expect(spans().map(s => s.status.code)).toStrictEqual([
+        SpanStatusCode.UNSET,
+        SpanStatusCode.UNSET,
+        SpanStatusCode.UNSET,
+      ]);
+    });
+  });
+
   describe('sqlComment', () => {
     it('should put the tags and the traceparent in front of the statement', async () => {
       instrumentation.setConfig({

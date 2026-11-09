@@ -311,6 +311,11 @@ export class PostgrejsInstrumentation {
       const size = (ctx as StatementExecuteContext).batchSize;
       if (size != null && size > 1)
         attributes['db.operation.batch.size'] = size;
+    } else if (operation === 'execute' && (ctx as ExecuteContext).command) {
+      // A transaction method says which command it sends.
+      const command = (ctx as ExecuteContext).command!;
+      attributes['db.operation.name'] = command;
+      name = command;
     } else if (operation === 'copy') {
       const copy = ctx as CopyContext;
       attributes['db.operation.name'] = 'COPY';

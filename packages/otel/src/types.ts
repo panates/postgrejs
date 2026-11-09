@@ -30,6 +30,8 @@ export interface QueryContext {
 export interface ExecuteContext {
   sql: string;
   connection: ConnectionLike;
+  /** Set for a transaction command, e.g. `BEGIN` or `ROLLBACK TO SAVEPOINT`. */
+  command?: string;
   result?: unknown;
   error?: unknown;
 }

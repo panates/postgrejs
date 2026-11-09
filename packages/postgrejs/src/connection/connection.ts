@@ -1218,17 +1218,27 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     fn: (connection: this) => Promise<T>,
   ): Promise<T> {
     const name = 'txscope' + ++transactionScopeCounter;
-    await this._captureErrorStack(this._intlCon.execute('SAVEPOINT ' + name));
+    const intlCon = this._intlCon;
+    const run = (sql: string) => intlCon.execute(sql);
+    await this._captureErrorStack(
+      intlCon.traceCommand('SAVEPOINT', 'SAVEPOINT ' + name, run),
+    );
     try {
       const result = await fn(this);
-      if (this._intlCon.inTransaction)
-        await this._intlCon.execute('RELEASE SAVEPOINT ' + name);
+      if (intlCon.inTransaction)
+        await intlCon.traceCommand(
+          'RELEASE SAVEPOINT',
+          'RELEASE SAVEPOINT ' + name,
+          run,
+        );
       return result;
     } catch (e) {
-      if (this._intlCon.inTransaction) {
-        await this._intlCon
-          .execute(
+      if (intlCon.inTransaction) {
+        await intlCon
+          .traceCommand(
+            'ROLLBACK TO SAVEPOINT',
             'ROLLBACK TO SAVEPOINT ' + name + '; RELEASE SAVEPOINT ' + name,
+            run,
           )
           .catch(() => undefined);
       }

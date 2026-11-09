@@ -41,8 +41,10 @@ import { SafeEventEmitter } from '../safe-event-emitter.js';
 import {
   type ConnectTraceContext,
   type CopyTraceContext,
+  type ExecuteTraceContext,
   isTraced,
   tracingChannels,
+  type TransactionCommand,
 } from '../tracing.js';
 import type { AnyParseFunction, Maybe, OID } from '../types.js';
 import { getConnectionConfig } from '../util/connection-config.js';
@@ -616,7 +618,7 @@ export class IntlConnection extends SafeEventEmitter {
       this._transactionDepth++;
       return;
     }
-    await this.execute(sql);
+    await this.traceCommand('BEGIN', sql, s => this.execute(s));
     this._transactionDepth++;
   }
 
@@ -633,7 +635,10 @@ export class IntlConnection extends SafeEventEmitter {
       throw new Error(`Invalid savepoint "${name}"`);
     const depth = (this._savepointDepths.get(name) || 0) + 1;
     this._savepointDepths.set(name, depth);
-    if (depth === 1) await this.execute('BEGIN; SAVEPOINT ' + name);
+    if (depth === 1)
+      await this.traceCommand('SAVEPOINT', 'BEGIN; SAVEPOINT ' + name, s =>
+        this.execute(s),
+      );
   }
 
   /**
@@ -650,7 +655,8 @@ export class IntlConnection extends SafeEventEmitter {
       return;
     }
     this._transactionDepth = 0;
-    if (this.inTransaction) await this.execute('COMMIT');
+    if (this.inTransaction)
+      await this.traceCommand('COMMIT', 'COMMIT', s => this.execute(s));
   }
 
   /**
@@ -669,7 +675,11 @@ export class IntlConnection extends SafeEventEmitter {
       return;
     }
     this._savepointDepths.delete(name);
-    await this.execute('RELEASE SAVEPOINT ' + name, { autoCommit: false });
+    await this.traceCommand(
+      'RELEASE SAVEPOINT',
+      'RELEASE SAVEPOINT ' + name,
+      s => this.execute(s, { autoCommit: false }),
+    );
   }
 
   /**
@@ -679,7 +689,8 @@ export class IntlConnection extends SafeEventEmitter {
    */
   async rollback(): Promise<void> {
     this._transactionDepth = 0;
-    if (this.inTransaction) await this.execute('ROLLBACK');
+    if (this.inTransaction)
+      await this.traceCommand('ROLLBACK', 'ROLLBACK', s => this.execute(s));
   }
 
   /**
@@ -704,18 +715,30 @@ export class IntlConnection extends SafeEventEmitter {
    * sending COMMIT.
    */
   async prepareTransaction(name: string): Promise<void> {
-    await this._execute('PREPARE TRANSACTION ' + escapeLiteral(name));
+    await this.traceCommand(
+      'PREPARE TRANSACTION',
+      'PREPARE TRANSACTION ' + escapeLiteral(name),
+      s => this._execute(s),
+    );
     this._transactionDepth = 0;
   }
 
   /** Commits a transaction left waiting by prepareTransaction(). */
   async commitPrepared(name: string): Promise<void> {
-    await this._execute('COMMIT PREPARED ' + escapeLiteral(name));
+    await this.traceCommand(
+      'COMMIT PREPARED',
+      'COMMIT PREPARED ' + escapeLiteral(name),
+      s => this._execute(s),
+    );
   }
 
   /** Discards a transaction left waiting by prepareTransaction(). */
   async rollbackPrepared(name: string): Promise<void> {
-    await this._execute('ROLLBACK PREPARED ' + escapeLiteral(name));
+    await this.traceCommand(
+      'ROLLBACK PREPARED',
+      'ROLLBACK PREPARED ' + escapeLiteral(name),
+      s => this._execute(s),
+    );
   }
 
   /**
@@ -728,7 +751,11 @@ export class IntlConnection extends SafeEventEmitter {
     if (!(name && name.match(/^[a-zA-Z]\w*$/)))
       throw new Error(`Invalid savepoint "${name}"`);
     this._savepointDepths.delete(name);
-    await this.execute('ROLLBACK TO SAVEPOINT ' + name, { autoCommit: false });
+    await this.traceCommand(
+      'ROLLBACK TO SAVEPOINT',
+      'ROLLBACK TO SAVEPOINT ' + name,
+      s => this.execute(s, { autoCommit: false }),
+    );
   }
 
   /** Asks the server to cancel whatever this session is running. */
@@ -954,6 +981,32 @@ export class IntlConnection extends SafeEventEmitter {
     this._startCopy(sql, 'from', stream, table);
     await stream.waitStarted();
     return stream;
+  }
+
+  /**
+   * Sends a transaction command, published on `postgrejs:execute` with
+   * the command it is.
+   *
+   * @param command What the statement does.
+   * @param sql The statement.
+   * @param run Sends it, the way the caller would have without tracing.
+   * @internal
+   */
+  traceCommand(
+    command: TransactionCommand,
+    sql: string,
+    run: (sql: string) => Promise<ScriptResult>,
+  ): Promise<ScriptResult> {
+    if (!isTraced(tracingChannels.execute)) return run(sql);
+    const context: ExecuteTraceContext = {
+      sql,
+      connection: this.owner as Connection,
+      command,
+    };
+    return tracingChannels.execute.tracePromise(
+      () => run(context.sql),
+      context,
+    );
   }
 
   /**
