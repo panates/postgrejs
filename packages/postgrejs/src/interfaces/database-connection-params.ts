@@ -256,4 +256,12 @@ export interface PoolConfiguration
    * for acquire() while a burst is running.
    */
   pipelineMaxConnections?: number;
+
+  /**
+   * A name for the pool, which instrumentation reports metrics under
+   * (`db.client.connection.pool.name` in OpenTelemetry). Without one, the
+   * database name is used, and the pools of one database are counted
+   * together.
+   */
+  name?: string;
 }

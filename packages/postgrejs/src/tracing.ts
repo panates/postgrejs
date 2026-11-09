@@ -2,7 +2,10 @@ import diagnosticsChannel, {
   type TracingChannel,
 } from 'node:diagnostics_channel';
 import type { Connection } from './connection/connection.js';
+import type { Cursor } from './connection/cursor.js';
 import type { Pool } from './connection/pool.js';
+import type { PreparedStatement } from './connection/prepared-statement.js';
+import type { BatchResult } from './interfaces/batch-result.js';
 import type { ConnectionConfiguration } from './interfaces/database-connection-params.js';
 import type { QueryResult } from './interfaces/query-result.js';
 import type { ScriptResult } from './interfaces/script-result.js';
@@ -32,15 +35,39 @@ export interface QueryTraceContext {
 }
 
 /**
+ * The transaction commands postgrejs sends for `startTransaction()`,
+ * `commit()`, `rollback()`, the savepoint methods and two-phase commit.
+ */
+export type TransactionCommand =
+  | 'BEGIN'
+  | 'COMMIT'
+  | 'ROLLBACK'
+  | 'SAVEPOINT'
+  | 'RELEASE SAVEPOINT'
+  | 'ROLLBACK TO SAVEPOINT'
+  | 'PREPARE TRANSACTION'
+  | 'COMMIT PREPARED'
+  | 'ROLLBACK PREPARED';
+
+/**
  * What `postgrejs:execute` publishes for one `Connection.execute()` call
- * (the Simple Query protocol, one or more statements in a script). `sql`
- * can be replaced in `start` as described for {@link QueryTraceContext}.
+ * (the Simple Query protocol, one or more statements in a script), and
+ * for each transaction command a transaction method sends. `sql` can be
+ * replaced in `start` as described for {@link QueryTraceContext}.
+ *
+ * A transaction method publishes only when it sends something: a nested
+ * `startTransaction()` or `commit()` that only moves the depth count
+ * publishes nothing. The `BEGIN` an `autoCommit: false` statement opens
+ * for itself, and the savepoint `rollbackOnError` puts around a
+ * statement, are part of that statement and are not published.
  */
 export interface ExecuteTraceContext {
   /** The script as it will be sent. */
   sql: string;
   /** The connection that runs the script. */
   connection: Connection;
+  /** Set when a transaction method sent the script, to the command it is. */
+  command?: TransactionCommand;
   result?: ScriptResult;
   error?: unknown;
 }
@@ -64,8 +91,17 @@ export interface PoolAcquireTraceContext {
 export interface ConnectTraceContext {
   /** The configuration being connected with. It includes the password. */
   config: ConnectionConfiguration;
+  /** The pool opening the connection, when a pool is. */
+  pool?: Pool;
   /** The server's backend process id, set once the connection is ready. */
   processID?: number;
+  /**
+   * The host connected to, set when the attempt ends: with several hosts
+   * configured, the one reached, or the last one tried if none was.
+   */
+  host?: string;
+  /** The port of `host`. */
+  port?: number;
   error?: unknown;
 }
 
@@ -108,6 +144,115 @@ export interface CopyTraceContext {
 }
 
 /**
+ * What `postgrejs:prepare` publishes for one `Connection.prepare()` or
+ * `pool.prepare()` call: the Parse and Describe round trip that creates a
+ * prepared statement on the server.
+ *
+ * `copyFromRows()` publishes here too when it has to look up the columns
+ * of its table before the COPY: it describes a query on the table the same
+ * way, as an unnamed statement that is never run. `table` is set then,
+ * and `result` is not, since no prepared statement is left behind.
+ *
+ * `sql` can be replaced in `start` as described for
+ * {@link QueryTraceContext}. The replaced text is what the statement is
+ * prepared with, and every later execution of it runs that text, so a
+ * comment put in front of it here is fixed for the statement's lifetime.
+ */
+export interface PrepareTraceContext {
+  /** The statement as it will be prepared. */
+  sql: string;
+  /** How many parameter types the caller declared. The server may resolve more. */
+  paramTypeCount: number;
+  /** The connection the statement is prepared on. */
+  connection: Connection;
+  /** The table whose columns `copyFromRows()` is looking up. */
+  table?: string;
+  /** The prepared statement, once the server has accepted it. */
+  result?: PreparedStatement;
+  error?: unknown;
+}
+
+/**
+ * What `postgrejs:statement:execute` publishes for one `execute()` or
+ * `executeBatch()` call on a prepared statement.
+ *
+ * Unlike the other statement channels, `sql` here is only for reading:
+ * the statement was prepared with its text, and an execution sends a
+ * Bind and an Execute that refer to it by name, so there is no text to
+ * replace.
+ *
+ * A statement that `Connection.query()` prepares and runs for itself, as
+ * it does for a cursor, is published on `postgrejs:query` only.
+ */
+export interface StatementExecuteTraceContext {
+  /** The text the statement was prepared with. */
+  readonly sql: string;
+  /** The prepared statement being run. */
+  statement: PreparedStatement;
+  /** The connection the statement runs on. */
+  connection: Connection;
+  /**
+   * How many bind parameters each execution carries: the length of the
+   * first parameter set of a batch. Their values are not published.
+   */
+  paramCount: number;
+  /** How many parameter sets an `executeBatch()` runs. Not set for `execute()`. */
+  batchSize?: number;
+  /** A `QueryResult` from `execute()`, a `BatchResult` from `executeBatch()`. */
+  result?: QueryResult | BatchResult;
+  error?: unknown;
+}
+
+/**
+ * What `postgrejs:pipeline` publishes for one `Connection.pipeline()` call:
+ * every statement sent before any reply is read, closed by a single Sync.
+ *
+ * Each statement's `sql` can be replaced in `start` as described for
+ * {@link QueryTraceContext}. When the server rejects one, `error.failedIndex`
+ * says which.
+ */
+export interface PipelineTraceContext {
+  /** The statements, in the order they are sent. */
+  statements: {
+    /** The statement as it will be sent. */
+    sql: string;
+    /** How many bind parameters it carries. Their values are not published. */
+    paramCount: number;
+  }[];
+  /** The connection that runs the pipeline. */
+  connection: Connection;
+  /** One result per statement, by position. */
+  result?: QueryResult[];
+  error?: unknown;
+}
+
+/**
+ * What `postgrejs:cursor:fetch` publishes for each batch a cursor reads:
+ * one Execute of the portal behind it, for up to `fetchCount` rows, and
+ * the decoding of the rows that come back.
+ *
+ * The statement that opened the cursor is published on `postgrejs:query`
+ * or `postgrejs:statement:execute`, and is over by the time the first
+ * batch is read: opening a cursor reads no rows. `sql` is only for
+ * reading here, as no statement text is sent.
+ */
+export interface CursorFetchTraceContext {
+  /** The statement the cursor reads the result of. */
+  readonly sql: string;
+  /** The connection the cursor reads from. */
+  connection: Connection;
+  /** The cursor reading the batch. */
+  cursor: Cursor;
+  /** How many rows were asked for. */
+  fetchCount: number;
+  /** How many rows came back. */
+  rowCount?: number;
+  /** True when no rows came back, so the cursor closed itself. */
+  done?: boolean;
+  error?: unknown;
+}
+
+/**
  * The `node:diagnostics_channel` tracing channels postgrejs publishes on.
  *
  * Each one is a `TracingChannel`, so a subscriber gets `start`, `end`,
@@ -137,6 +282,57 @@ export const tracingChannels = {
   connect:
     diagnosticsChannel.tracingChannel<ConnectTraceContext>('postgrejs:connect'),
   copy: diagnosticsChannel.tracingChannel<CopyTraceContext>('postgrejs:copy'),
+  prepare:
+    diagnosticsChannel.tracingChannel<PrepareTraceContext>('postgrejs:prepare'),
+  statementExecute:
+    diagnosticsChannel.tracingChannel<StatementExecuteTraceContext>(
+      'postgrejs:statement:execute',
+    ),
+  pipeline:
+    diagnosticsChannel.tracingChannel<PipelineTraceContext>(
+      'postgrejs:pipeline',
+    ),
+  cursorFetch: diagnosticsChannel.tracingChannel<CursorFetchTraceContext>(
+    'postgrejs:cursor:fetch',
+  ),
+};
+
+/** What a pool channel publishes. */
+export interface PoolEventMessage {
+  pool: Pool;
+}
+
+/** What `postgrejs:pool:checkout` and `postgrejs:pool:checkin` publish. */
+export interface PoolCheckoutMessage {
+  pool: Pool;
+  /**
+   * An opaque object standing for the pooled connection, the same one in
+   * a checkout and the checkin that ends it. It is not a `Connection`.
+   */
+  resource: object;
+}
+
+/**
+ * Plain `node:diagnostics_channel` channels on which pools report what
+ * they do, for metrics on how full a pool is and how long its
+ * connections are held:
+ *
+ * - `postgrejs:pool:create` when a pool is constructed, and
+ *   `postgrejs:pool:close` once it has closed;
+ * - `postgrejs:pool:checkout` when a pooled connection is handed out, by
+ *   `acquire()` or to a pipelined `pool.query()`, and
+ *   `postgrejs:pool:checkin` when it comes back;
+ * - `postgrejs:pool:timeout` when a caller gave up waiting, after
+ *   `acquireTimeoutMillis`.
+ *
+ * Nothing is published while a channel has no subscribers.
+ */
+export const poolChannels = {
+  create: diagnosticsChannel.channel('postgrejs:pool:create'),
+  close: diagnosticsChannel.channel('postgrejs:pool:close'),
+  checkout: diagnosticsChannel.channel('postgrejs:pool:checkout'),
+  checkin: diagnosticsChannel.channel('postgrejs:pool:checkin'),
+  timeout: diagnosticsChannel.channel('postgrejs:pool:timeout'),
 };
 
 /**

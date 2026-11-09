@@ -20,6 +20,8 @@ import { SafeEventEmitter } from '../safe-event-emitter.js';
 import {
   type ExecuteTraceContext,
   isTraced,
+  type PipelineTraceContext,
+  type PrepareTraceContext,
   type QueryTraceContext,
   tracingChannels,
 } from '../tracing.js';
@@ -38,7 +40,7 @@ import type { CopyFromStream, CopyToStream } from './copy-stream.js';
 import { IntlConnection } from './intl-connection.js';
 import { LargeObject, LargeObjectMode } from './large-object.js';
 import type { Pool } from './pool.js';
-import { PreparedStatement } from './prepared-statement.js';
+import { PreparedStatement, runStatement } from './prepared-statement.js';
 
 /** One `NOTIFY` as the server delivered it: its channel, payload and sender. */
 export type NotificationMessage = Protocol.NotificationResponseMessage;
@@ -131,6 +133,20 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    */
   get processID(): Maybe<number> {
     return this._intlCon.processID;
+  }
+
+  /**
+   * The host this connection reached. With several `hosts` configured it
+   * is the one the connection ended up on, which `config.host` does not
+   * say. Undefined before the connection is opened.
+   */
+  get host(): Maybe<string> {
+    return this._intlCon.host;
+  }
+
+  /** The port of {@link host}, 5432 unless configured. Undefined before the connection is opened. */
+  get port(): Maybe<number> {
+    return this._intlCon.port;
   }
 
   /**
@@ -528,18 +544,22 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       });
     }
     /* c8 ignore stop */
-    return await this._captureErrorStack(
-      this._intlCon.executePipeline(normalized, options),
-    ).catch((e: DatabaseError) => {
-      // Name the statement the server actually rejected, not the first
-      // one - the error is otherwise attributed to whichever SQL happens
-      // to be handy, which in a pipeline is the wrong statement.
-      const i = e.failedIndex;
-      throw this._handleError(
-        e,
-        i != null && normalized[i] ? normalized[i].sql : normalized[0].sql,
-      );
-    });
+    if (isTraced(tracingChannels.pipeline)) {
+      const context: PipelineTraceContext = {
+        statements: normalized.map(r => ({
+          sql: r.sql,
+          paramCount: r.params?.length ?? 0,
+        })),
+        connection: this,
+      };
+      return tracingChannels.pipeline.tracePromise(() => {
+        const l = normalized.length;
+        let i: number;
+        for (i = 0; i < l; i++) normalized[i].sql = context.statements[i].sql;
+        return this._runPipeline(normalized, options);
+      }, context);
+    }
+    return this._runPipeline(normalized, options);
   }
 
   /**
@@ -635,23 +655,23 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
    * @param sql {string} - SQL script that will be executed
    * @param options {StatementPrepareOptions} - Options
    */
-  async prepare(
+  /* Not async itself, for the reason given on query(). */
+  prepare(
     sql: string,
     options?: StatementPrepareOptions,
   ): Promise<PreparedStatement> {
-    /* c8 ignore start */
-    if (this.listenerCount('debug')) {
-      this.emit('debug', {
-        location: 'Connection.prepare',
-        connection: this,
-        message: `[${this.processID}] prepare | ${sql}`,
+    if (isTraced(tracingChannels.prepare)) {
+      const context: PrepareTraceContext = {
         sql,
-      });
+        paramTypeCount: options?.paramTypes?.length ?? 0,
+        connection: this,
+      };
+      return tracingChannels.prepare.tracePromise(
+        () => this._prepare(context.sql, options),
+        context,
+      );
     }
-    /* c8 ignore stop */
-    return await this._captureErrorStack(
-      PreparedStatement.prepare(this, sql, options),
-    );
+    return this._prepare(sql, options);
   }
 
   /**
@@ -1059,7 +1079,7 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
       });
     }
 
-    const statement = await this.prepare(sql, { paramTypes, typeMap }).catch(
+    const statement = await this._prepare(sql, { paramTypes, typeMap }).catch(
       (e: DatabaseError) => {
         throw this._handleError(e, sql);
       },
@@ -1069,13 +1089,55 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
         prm instanceof BindParam ? prm.value : prm,
       );
       return await this._captureErrorStack(
-        statement.execute({ ...options, params }),
+        runStatement(statement, { ...options, params }),
         this.query,
         options?.asyncErrorHandling,
       );
     } finally {
       await statement.close();
     }
+  }
+
+  /** pipeline() after its arguments are checked, without the tracing. */
+  protected async _runPipeline(
+    normalized: { sql: string; params?: any[] }[],
+    options: QueryOptions,
+  ): Promise<QueryResult[]> {
+    return await this._captureErrorStack(
+      this._intlCon.executePipeline(normalized, options),
+    ).catch((e: DatabaseError) => {
+      // Name the statement the server actually rejected, not the first
+      // one - the error is otherwise attributed to whichever SQL happens
+      // to be handy, which in a pipeline is the wrong statement.
+      const i = e.failedIndex;
+      throw this._handleError(
+        e,
+        i != null && normalized[i] ? normalized[i].sql : normalized[0].sql,
+      );
+    });
+  }
+
+  /**
+   * prepare() without the tracing, for the statement query() prepares
+   * for itself, which is published as the query alone.
+   */
+  protected async _prepare(
+    sql: string,
+    options?: StatementPrepareOptions,
+  ): Promise<PreparedStatement> {
+    /* c8 ignore start */
+    if (this.listenerCount('debug')) {
+      this.emit('debug', {
+        location: 'Connection.prepare',
+        connection: this,
+        message: `[${this.processID}] prepare | ${sql}`,
+        sql,
+      });
+    }
+    /* c8 ignore stop */
+    return await this._captureErrorStack(
+      PreparedStatement.prepare(this, sql, options),
+    );
   }
 
   /**
@@ -1194,17 +1256,27 @@ export class Connection extends SafeEventEmitter implements AsyncDisposable {
     fn: (connection: this) => Promise<T>,
   ): Promise<T> {
     const name = 'txscope' + ++transactionScopeCounter;
-    await this._captureErrorStack(this._intlCon.execute('SAVEPOINT ' + name));
+    const intlCon = this._intlCon;
+    const run = (sql: string) => intlCon.execute(sql);
+    await this._captureErrorStack(
+      intlCon.traceCommand('SAVEPOINT', 'SAVEPOINT ' + name, run),
+    );
     try {
       const result = await fn(this);
-      if (this._intlCon.inTransaction)
-        await this._intlCon.execute('RELEASE SAVEPOINT ' + name);
+      if (intlCon.inTransaction)
+        await intlCon.traceCommand(
+          'RELEASE SAVEPOINT',
+          'RELEASE SAVEPOINT ' + name,
+          run,
+        );
       return result;
     } catch (e) {
-      if (this._intlCon.inTransaction) {
-        await this._intlCon
-          .execute(
+      if (intlCon.inTransaction) {
+        await intlCon
+          .traceCommand(
+            'ROLLBACK TO SAVEPOINT',
             'ROLLBACK TO SAVEPOINT ' + name + '; RELEASE SAVEPOINT ' + name,
+            run,
           )
           .catch(() => undefined);
       }

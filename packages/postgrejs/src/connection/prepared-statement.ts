@@ -7,6 +7,11 @@ import type { QueryResult } from '../interfaces/query-result.js';
 import type { StatementPrepareOptions } from '../interfaces/statement-prepare-options.js';
 import { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
+import {
+  isTraced,
+  type StatementExecuteTraceContext,
+  tracingChannels,
+} from '../tracing.js';
 import type { AnyParseFunction, Maybe, OID } from '../types.js';
 import { withAbortSignal } from '../util/abort-signal.js';
 import { getParsers } from '../util/get-parsers.js';
@@ -170,10 +175,33 @@ export class PreparedStatement
    * @returns The rows, the command tag, and what the columns were.
    * @throws DatabaseError When the server refuses the execution.
    */
-  /* The options are merged with the connection's defaults here rather
+  /* Not async itself, so that the untraced path hands back the promise
+     unchanged. */
+  execute(options: QueryOptions = {}): Promise<QueryResult> {
+    if (isTraced(tracingChannels.statementExecute)) {
+      const context: StatementExecuteTraceContext = {
+        sql: this._sql,
+        statement: this,
+        connection: this._connection,
+        paramCount: options.params?.length ?? 0,
+      };
+      return tracingChannels.statementExecute.tracePromise(
+        () => this._executeUntraced(options),
+        context,
+      );
+    }
+    return this._executeUntraced(options);
+  }
+
+  /* execute() without the tracing: also what Connection.query() runs, through
+     runStatement(), for a statement it prepared for itself.
+
+     The options are merged with the connection's defaults here rather
      than deeper down, because a cursor keeps them and decodes its own
      rows with them long after this call is over. */
-  async execute(options: QueryOptions = {}): Promise<QueryResult> {
+  protected async _executeUntraced(
+    options: QueryOptions = {},
+  ): Promise<QueryResult> {
     const intlCon = getIntlConnection(this.connection);
     options = intlCon.withDefaults(options);
     if (options.signal)
@@ -231,7 +259,30 @@ export class PreparedStatement
    * @param options Applied to every set - the same options `execute()`
    *   takes, minus `fetchCount` and `cursor`, which a batch cannot honour.
    */
-  async executeBatch(
+  /* Not async itself, for the reason given on execute(). The checks run
+     inside the traced call, so a rejected argument shows up on the span. */
+  executeBatch(
+    paramSets: any[][],
+    options: QueryOptions = {},
+  ): Promise<BatchResult> {
+    if (isTraced(tracingChannels.statementExecute)) {
+      const context: StatementExecuteTraceContext = {
+        sql: this._sql,
+        statement: this,
+        connection: this._connection,
+        paramCount: Array.isArray(paramSets) ? (paramSets[0]?.length ?? 0) : 0,
+        batchSize: Array.isArray(paramSets) ? paramSets.length : 0,
+      };
+      return tracingChannels.statementExecute.tracePromise(
+        () => this._executeBatchUntraced(paramSets, options),
+        context,
+      );
+    }
+    return this._executeBatchUntraced(paramSets, options);
+  }
+
+  /* executeBatch() without the tracing. */
+  protected async _executeBatchUntraced(
     paramSets: any[][],
     options: QueryOptions = {},
   ): Promise<BatchResult> {
@@ -653,4 +704,20 @@ export class PreparedStatement
 function typeLabel(oid: OID): string {
   const name = DataTypeNames[oid];
   return name ? `${name} (${oid})` : String(oid);
+}
+
+/**
+ * Runs a prepared statement without publishing it on
+ * `postgrejs:statement:execute`.
+ *
+ * @internal
+ */
+/* For the statement Connection.query() prepares and runs on its own behalf:
+   the query is already published on postgrejs:query, and the same
+   statement a second time, as an execution, would count it twice. */
+export function runStatement(
+  statement: PreparedStatement,
+  options: QueryOptions,
+): Promise<QueryResult> {
+  return statement['_executeUntraced'](options);
 }

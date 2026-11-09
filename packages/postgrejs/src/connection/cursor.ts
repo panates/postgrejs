@@ -4,6 +4,11 @@ import { TaskQueue } from 'power-tasks';
 import type { FieldInfo } from '../interfaces/field-info.js';
 import type { QueryOptions } from '../interfaces/query-options.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
+import {
+  type CursorFetchTraceContext,
+  isTraced,
+  tracingChannels,
+} from '../tracing.js';
 import type { AnyParseFunction, Maybe, Row } from '../types.js';
 import type { RowDecoder } from '../util/row-decoder.js';
 import {
@@ -150,6 +155,30 @@ export class Cursor extends SafeEventEmitter implements AsyncDisposable {
      anything that reaches it today. */
   private async _fetchRows(): Promise<void> {
     if (this._closed) return;
+    if (isTraced(tracingChannels.cursorFetch)) {
+      const statement = this._statement;
+      const context: CursorFetchTraceContext = {
+        sql: statement.sql,
+        connection: statement.connection,
+        cursor: this,
+        fetchCount: this._queryOptions.fetchCount ?? 100,
+      };
+      return tracingChannels.cursorFetch.tracePromise(
+        () => this._fetchBatch(context),
+        context,
+      );
+    }
+    return this._fetchBatch();
+  }
+
+  /**
+   * One Execute of the portal, its rows decoded and queued.
+   *
+   * @param context Told how many rows came back, when traced.
+   */
+  /* Traced from outside the task queue, in the caller's context, so the
+     span has the caller's parent and covers what the caller waited. */
+  private async _fetchBatch(context?: CursorFetchTraceContext): Promise<void> {
     const portal = this._portal;
     await this._taskQueue
       .enqueue(async () => {
@@ -208,8 +237,13 @@ export class Cursor extends SafeEventEmitter implements AsyncDisposable {
             }
           }
           this._rows.push(...rows);
+          if (context) context.rowCount = rows.length;
           this.emit('fetch', rows);
         } else {
+          if (context) {
+            context.rowCount = 0;
+            context.done = true;
+          }
           await this.close();
         }
       })

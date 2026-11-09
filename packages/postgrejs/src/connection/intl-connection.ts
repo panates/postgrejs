@@ -41,8 +41,11 @@ import { SafeEventEmitter } from '../safe-event-emitter.js';
 import {
   type ConnectTraceContext,
   type CopyTraceContext,
+  type ExecuteTraceContext,
   isTraced,
+  type PrepareTraceContext,
   tracingChannels,
+  type TransactionCommand,
 } from '../tracing.js';
 import type { AnyParseFunction, Maybe, OID } from '../types.js';
 import { getConnectionConfig } from '../util/connection-config.js';
@@ -78,6 +81,7 @@ import {
 import { wrapRowDescription } from '../util/wrap-row-description.js';
 import type { Connection } from './connection.js';
 import { CopyFromStream, CopyToStream } from './copy-stream.js';
+import type { Pool } from './pool.js';
 
 const DataFormat = Protocol.DataFormat;
 
@@ -449,13 +453,33 @@ export class IntlConnection extends SafeEventEmitter {
     return this.socket.sessionParameters;
   }
 
-  connect(): Promise<void> {
+  /** See `PgSocket.host`. */
+  get host(): Maybe<string> {
+    return this.socket.host;
+  }
+
+  /** See `PgSocket.port`. */
+  get port(): Maybe<number> {
+    return this.socket.port;
+  }
+
+  /**
+   * Opens the connection.
+   *
+   * @param pool The pool opening it, if one is; only reported to tracing.
+   */
+  connect(pool?: Pool): Promise<void> {
     if (this.socket.state === ConnectionState.READY) return Promise.resolve();
     if (isTraced(tracingChannels.connect)) {
-      const context: ConnectTraceContext = { config: this.config };
+      const context: ConnectTraceContext = { config: this.config, pool };
       return tracingChannels.connect.tracePromise(async () => {
-        await this._connect();
-        context.processID = this.processID;
+        try {
+          await this._connect();
+          context.processID = this.processID;
+        } finally {
+          context.host = this.host;
+          context.port = this.port;
+        }
       }, context);
     }
     return this._connect();
@@ -616,7 +640,7 @@ export class IntlConnection extends SafeEventEmitter {
       this._transactionDepth++;
       return;
     }
-    await this.execute(sql);
+    await this.traceCommand('BEGIN', sql, s => this.execute(s));
     this._transactionDepth++;
   }
 
@@ -633,7 +657,10 @@ export class IntlConnection extends SafeEventEmitter {
       throw new Error(`Invalid savepoint "${name}"`);
     const depth = (this._savepointDepths.get(name) || 0) + 1;
     this._savepointDepths.set(name, depth);
-    if (depth === 1) await this.execute('BEGIN; SAVEPOINT ' + name);
+    if (depth === 1)
+      await this.traceCommand('SAVEPOINT', 'BEGIN; SAVEPOINT ' + name, s =>
+        this.execute(s),
+      );
   }
 
   /**
@@ -650,7 +677,8 @@ export class IntlConnection extends SafeEventEmitter {
       return;
     }
     this._transactionDepth = 0;
-    if (this.inTransaction) await this.execute('COMMIT');
+    if (this.inTransaction)
+      await this.traceCommand('COMMIT', 'COMMIT', s => this.execute(s));
   }
 
   /**
@@ -669,7 +697,11 @@ export class IntlConnection extends SafeEventEmitter {
       return;
     }
     this._savepointDepths.delete(name);
-    await this.execute('RELEASE SAVEPOINT ' + name, { autoCommit: false });
+    await this.traceCommand(
+      'RELEASE SAVEPOINT',
+      'RELEASE SAVEPOINT ' + name,
+      s => this.execute(s, { autoCommit: false }),
+    );
   }
 
   /**
@@ -679,7 +711,8 @@ export class IntlConnection extends SafeEventEmitter {
    */
   async rollback(): Promise<void> {
     this._transactionDepth = 0;
-    if (this.inTransaction) await this.execute('ROLLBACK');
+    if (this.inTransaction)
+      await this.traceCommand('ROLLBACK', 'ROLLBACK', s => this.execute(s));
   }
 
   /**
@@ -704,18 +737,30 @@ export class IntlConnection extends SafeEventEmitter {
    * sending COMMIT.
    */
   async prepareTransaction(name: string): Promise<void> {
-    await this._execute('PREPARE TRANSACTION ' + escapeLiteral(name));
+    await this.traceCommand(
+      'PREPARE TRANSACTION',
+      'PREPARE TRANSACTION ' + escapeLiteral(name),
+      s => this._execute(s),
+    );
     this._transactionDepth = 0;
   }
 
   /** Commits a transaction left waiting by prepareTransaction(). */
   async commitPrepared(name: string): Promise<void> {
-    await this._execute('COMMIT PREPARED ' + escapeLiteral(name));
+    await this.traceCommand(
+      'COMMIT PREPARED',
+      'COMMIT PREPARED ' + escapeLiteral(name),
+      s => this._execute(s),
+    );
   }
 
   /** Discards a transaction left waiting by prepareTransaction(). */
   async rollbackPrepared(name: string): Promise<void> {
-    await this._execute('ROLLBACK PREPARED ' + escapeLiteral(name));
+    await this.traceCommand(
+      'ROLLBACK PREPARED',
+      'ROLLBACK PREPARED ' + escapeLiteral(name),
+      s => this._execute(s),
+    );
   }
 
   /**
@@ -728,7 +773,11 @@ export class IntlConnection extends SafeEventEmitter {
     if (!(name && name.match(/^[a-zA-Z]\w*$/)))
       throw new Error(`Invalid savepoint "${name}"`);
     this._savepointDepths.delete(name);
-    await this.execute('ROLLBACK TO SAVEPOINT ' + name, { autoCommit: false });
+    await this.traceCommand(
+      'ROLLBACK TO SAVEPOINT',
+      'ROLLBACK TO SAVEPOINT ' + name,
+      s => this.execute(s, { autoCommit: false }),
+    );
   }
 
   /** Asks the server to cancel whatever this session is running. */
@@ -884,11 +933,7 @@ export class IntlConnection extends SafeEventEmitter {
     let dataTypeIds = options.columnTypes;
 
     if (!dataTypeIds || !columns) {
-      const { fields } = await this.prepareOnce(
-        buildProbeSql(table, columns),
-        undefined,
-        '',
-      );
+      const { fields } = await this._describeTable(table, columns);
       if (!fields?.length)
         throw new Error(
           `Cannot determine columns of "${table}" - it returned no column descriptions`,
@@ -954,6 +999,62 @@ export class IntlConnection extends SafeEventEmitter {
     this._startCopy(sql, 'from', stream, table);
     await stream.waitStarted();
     return stream;
+  }
+
+  /**
+   * Describes a query on `table` without running it, for the column names
+   * and types `copyFromRows()` was not given. Published on
+   * `postgrejs:prepare`, as a prepare of the table.
+   *
+   * @param table The table to describe.
+   * @param columns The columns to describe; all of them when not given.
+   * @returns The server's description of the columns.
+   */
+  protected async _describeTable(
+    table: string,
+    columns?: string[],
+  ): Promise<{ fields?: Protocol.RowDescription[] }> {
+    const sql = buildProbeSql(table, columns);
+    if (!isTraced(tracingChannels.prepare))
+      return this.prepareOnce(sql, undefined, '');
+    const context: PrepareTraceContext = {
+      sql,
+      paramTypeCount: 0,
+      connection: this.owner as Connection,
+      table,
+    };
+    let described: { fields?: Protocol.RowDescription[] } = {};
+    // Kept off context.result, which names a prepared statement.
+    await tracingChannels.prepare.tracePromise(async () => {
+      described = await this.prepareOnce(context.sql, undefined, '');
+    }, context);
+    return described;
+  }
+
+  /**
+   * Sends a transaction command, published on `postgrejs:execute` with
+   * the command it is.
+   *
+   * @param command What the statement does.
+   * @param sql The statement.
+   * @param run Sends it, the way the caller would have without tracing.
+   * @internal
+   */
+  traceCommand(
+    command: TransactionCommand,
+    sql: string,
+    run: (sql: string) => Promise<ScriptResult>,
+  ): Promise<ScriptResult> {
+    if (!isTraced(tracingChannels.execute)) return run(sql);
+    const context: ExecuteTraceContext = {
+      sql,
+      connection: this.owner as Connection,
+      command,
+    };
+    return tracingChannels.execute.tracePromise(
+      () => run(context.sql),
+      context,
+    );
   }
 
   /**

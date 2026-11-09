@@ -151,6 +151,21 @@ export class PgSocket extends SafeEventEmitter {
     return this._sessionParameters;
   }
 
+  /**
+   * The host this socket connected to, or is connecting to: with several
+   * hosts configured, the one it reached. Undefined before `connect()`.
+   */
+  get host(): Maybe<string> {
+    const target = this._hosts[this._hostIndex];
+    return target && (target.host || 'localhost');
+  }
+
+  /** The port of {@link host}. Undefined before `connect()`. */
+  get port(): Maybe<number> {
+    const target = this._hosts[this._hostIndex];
+    return target && (target.port || DEFAULT_PORT_NUMBER);
+  }
+
   connect() {
     if (this._socket) return;
     const options = this.options;

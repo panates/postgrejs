@@ -1,9 +1,21 @@
 import diagnosticsChannel from 'node:diagnostics_channel';
 import { Readable, Writable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
+import {
+  context,
+  metrics,
+  SpanKind,
+  SpanStatusCode,
+  trace,
+} from '@opentelemetry/api';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
+import {
+  type DataPoint,
+  type Histogram,
+  MeterProvider,
+  MetricReader,
+} from '@opentelemetry/sdk-metrics';
 import {
   BasicTracerProvider,
   InMemorySpanExporter,
@@ -14,15 +26,23 @@ import { expect } from 'expect';
 import {
   Connection,
   type CopyTraceContext,
+  type CursorFetchTraceContext,
   DatabaseError,
+  type PipelineTraceContext,
   Pool,
+  type PrepareTraceContext,
   type QueryTraceContext,
+  type StatementExecuteTraceContext,
 } from 'postgrejs';
 import {
   type CopyContext,
+  type CursorFetchContext,
   datadogDbmTags,
+  type PipelineContext,
   PostgrejsInstrumentation,
+  type PrepareContext,
   type QueryContext,
+  type StatementExecuteContext,
 } from 'postgrejs-otel';
 import pkg from '../package.json' with { type: 'json' };
 
@@ -30,8 +50,23 @@ import pkg from '../package.json' with { type: 'json' };
    accept what postgrejs actually publishes. */
 const _shapeCheck: (ctx: QueryTraceContext) => QueryContext = ctx => ctx;
 const _copyShapeCheck: (ctx: CopyTraceContext) => CopyContext = ctx => ctx;
+const _prepareShapeCheck: (ctx: PrepareTraceContext) => PrepareContext = ctx =>
+  ctx;
+const _statementShapeCheck: (
+  ctx: StatementExecuteTraceContext,
+) => StatementExecuteContext = ctx => ctx;
+const _pipelineShapeCheck: (
+  ctx: PipelineTraceContext,
+) => PipelineContext = ctx => ctx;
+void _pipelineShapeCheck;
+const _fetchShapeCheck: (
+  ctx: CursorFetchTraceContext,
+) => CursorFetchContext = ctx => ctx;
+void _fetchShapeCheck;
 void _shapeCheck;
 void _copyShapeCheck;
+void _prepareShapeCheck;
+void _statementShapeCheck;
 
 const exporter = new InMemorySpanExporter();
 const provider = new BasicTracerProvider({
@@ -387,6 +422,550 @@ describe('postgrejs-otel', () => {
     });
   });
 
+  describe('prepared statement spans', () => {
+    it('should record prepare() as PREPARE and each execution as a statement', async () => {
+      const parent = await inParent(async () => {
+        const statement = await conn.prepare('select $1::int as n');
+        try {
+          await statement.execute({ params: [1] });
+          await statement.execute({ params: [2] });
+        } finally {
+          await statement.close();
+        }
+      });
+      const [prepare, ...executions] = spans();
+      expect(spans().length).toStrictEqual(3);
+      expect(prepare.name).toStrictEqual('PREPARE');
+      expect(prepare.kind).toStrictEqual(SpanKind.CLIENT);
+      expect(parentId(prepare)).toStrictEqual(parent);
+      expect(prepare.attributes['db.operation.name']).toStrictEqual('PREPARE');
+      expect(prepare.attributes['db.query.text']).toStrictEqual(
+        'select $1::int as n',
+      );
+      for (const span of executions) {
+        expect(span.name).toStrictEqual(conn.config.database);
+        expect(parentId(span)).toStrictEqual(parent);
+        expect(span.attributes['db.query.text']).toStrictEqual(
+          'select $1::int as n',
+        );
+        expect(span.attributes['db.response.returned_rows']).toStrictEqual(1);
+        expect(span.attributes['db.operation.name']).toBeUndefined();
+        expect(span.attributes['db.operation.batch.size']).toBeUndefined();
+      }
+    });
+
+    it('should record executeBatch() as one span with the batch size', async () => {
+      const statement = await conn.prepare('select $1::int');
+      try {
+        await statement.executeBatch([[1], [2], [3]]);
+        await statement.executeBatch([[4]]);
+      } finally {
+        await statement.close();
+      }
+      const [, batch, single] = spans();
+      expect(spans().length).toStrictEqual(3);
+      expect(batch.attributes['db.operation.batch.size']).toStrictEqual(3);
+      expect(batch.attributes['db.response.returned_rows']).toBeUndefined();
+      // A batch of one is not a batch to the conventions.
+      expect(single.attributes['db.operation.batch.size']).toBeUndefined();
+    });
+
+    it('should record a failed execution with its SQLSTATE', async () => {
+      const statement = await conn.prepare('select 1 / $1::int');
+      try {
+        await statement.execute({ params: [0] }).catch(() => undefined);
+      } finally {
+        await statement.close();
+      }
+      const span = spans()[1];
+      expect(span.status.code).toStrictEqual(SpanStatusCode.ERROR);
+      expect(span.attributes['db.response.status_code']).toStrictEqual('22012');
+    });
+
+    it('should record a query that prepares a statement for itself once', async () => {
+      const r = await conn.query('select 1', { cursor: true });
+      await r.cursor!.close();
+      expect(spans().map(s => s.name)).toStrictEqual([conn.config.database]);
+    });
+
+    it('should pass the operation to the hooks', async () => {
+      const seen: string[] = [];
+      instrumentation.setConfig({
+        requestHook: (_span, info) => seen.push('request ' + info.operation),
+        responseHook: (_span, info) => seen.push('response ' + info.operation),
+      });
+      const statement = await conn.prepare('select 1');
+      try {
+        await statement.execute();
+      } finally {
+        await statement.close();
+      }
+      expect(seen).toStrictEqual([
+        'request prepare',
+        'response prepare',
+        'request executePrepared',
+        'response executePrepared',
+      ]);
+    });
+
+    it('should comment the statement at prepare(), without a traceparent', async () => {
+      instrumentation.setConfig({
+        sqlComment: { tags: { app: 'billing' }, traceparent: true },
+      });
+      const statement = await conn.prepare('select current_query()');
+      let result: any;
+      try {
+        result = await statement.execute();
+      } finally {
+        await statement.close();
+      }
+      expect(result.rows[0][0]).toStrictEqual(
+        "/*app='billing'*/ select current_query()",
+      );
+      expect(spans()[1].attributes['db.query.text']).toStrictEqual(
+        "/*app='billing'*/ select current_query()",
+      );
+    });
+  });
+
+  describe('copyFromRows() column lookup', () => {
+    before(() =>
+      conn.execute(`
+        drop table if exists otel_lookup_test;
+        create table otel_lookup_test (id int4, name text);`),
+    );
+    after(() => conn.execute('drop table if exists otel_lookup_test'));
+
+    it('should record the lookup as PREPARE <table> before the COPY', async () => {
+      exporter.reset();
+      const parent = await inParent(() =>
+        conn.copyFromRows('otel_lookup_test', [[1, 'one']]),
+      );
+      // Wait for the COPY span, which ends when the server is done.
+      const deadline = Date.now() + 5000;
+      while (
+        !spans().some(s => s.name.startsWith('COPY')) &&
+        Date.now() < deadline
+      )
+        await new Promise(r => setTimeout(r, 5));
+      const names = spans().map(s => s.name);
+      expect(names).toStrictEqual([
+        'PREPARE otel_lookup_test',
+        'COPY otel_lookup_test',
+      ]);
+      const [lookup] = spans();
+      expect(parentId(lookup)).toStrictEqual(parent);
+      expect(lookup.attributes['db.operation.name']).toStrictEqual('PREPARE');
+      expect(lookup.attributes['db.collection.name']).toStrictEqual(
+        'otel_lookup_test',
+      );
+    });
+  });
+
+  describe('transaction spans', () => {
+    it('should name a transaction command after itself', async () => {
+      const parent = await inParent(async () => {
+        await conn.startTransaction();
+        await conn.savepoint('sp');
+        await conn.releaseSavepoint('sp');
+        await conn.commit();
+      });
+      expect(spans().map(s => s.name)).toStrictEqual([
+        'BEGIN',
+        'SAVEPOINT',
+        'RELEASE SAVEPOINT',
+        'COMMIT',
+      ]);
+      for (const span of spans()) {
+        expect(span.kind).toStrictEqual(SpanKind.CLIENT);
+        expect(parentId(span)).toStrictEqual(parent);
+        expect(span.attributes['db.operation.name']).toStrictEqual(span.name);
+      }
+      expect(spans()[1].attributes['db.query.text']).toStrictEqual(
+        'BEGIN; SAVEPOINT sp',
+      );
+    });
+
+    it('should keep a commented SET TRANSACTION out of a savepoint', async () => {
+      instrumentation.setConfig({ sqlComment: { tags: { app: 'billing' } } });
+      try {
+        await conn.startTransaction();
+        await conn.execute('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE');
+        await conn.commit();
+      } finally {
+        if (conn.inTransaction) await conn.rollback();
+      }
+      expect(spans().map(s => s.status.code)).toStrictEqual([
+        SpanStatusCode.UNSET,
+        SpanStatusCode.UNSET,
+        SpanStatusCode.UNSET,
+      ]);
+    });
+  });
+
+  describe('pipeline spans', () => {
+    it('should record a pipeline as one span with every statement', async () => {
+      const parent = await inParent(() =>
+        conn.pipeline(['select 1', { sql: 'select $1::int', params: [2] }]),
+      );
+      expect(spans().length).toStrictEqual(1);
+      const [span] = spans();
+      expect(span.name).toStrictEqual(conn.config.database);
+      expect(span.kind).toStrictEqual(SpanKind.CLIENT);
+      expect(parentId(span)).toStrictEqual(parent);
+      expect(span.attributes['db.query.text']).toStrictEqual(
+        'select 1; select $1::int',
+      );
+      expect(span.attributes['db.operation.batch.size']).toStrictEqual(2);
+    });
+
+    it('should leave the batch size off a pipeline of one', async () => {
+      await conn.pipeline(['select 1']);
+      expect(spans()[0].attributes['db.operation.batch.size']).toBeUndefined();
+    });
+
+    it('should record which statement the server rejected', async () => {
+      await conn
+        .pipeline(['select 1', 'select * from no_such_table_for_otel'])
+        .catch(() => undefined);
+      const [span] = spans();
+      expect(span.status.code).toStrictEqual(SpanStatusCode.ERROR);
+      expect(span.attributes['db.response.status_code']).toStrictEqual('42P01');
+      expect(span.attributes['postgrejs.pipeline.failed_index']).toStrictEqual(
+        1,
+      );
+    });
+
+    it('should comment every statement and pass the operation to the hooks', async () => {
+      const seen: string[] = [];
+      instrumentation.setConfig({
+        sqlComment: { tags: { app: 'billing' } },
+        responseHook: (_span, info) => seen.push(info.operation),
+      });
+      const results = await conn.pipeline([
+        'select current_query()',
+        'select current_query() as q',
+      ]);
+      expect(results.map(r => r.rows![0][0])).toStrictEqual([
+        "/*app='billing'*/ select current_query()",
+        "/*app='billing'*/ select current_query() as q",
+      ]);
+      expect(seen).toStrictEqual(['pipeline']);
+      // The span keeps the statements as the application wrote them.
+      expect(spans()[0].attributes['db.query.text']).toStrictEqual(
+        'select current_query(); select current_query() as q',
+      );
+    });
+  });
+
+  describe('cursor fetch spans', () => {
+    const SQL = 'select g from generate_series(1, 3) g';
+
+    it('should record each fetch as FETCH, linked to the query that opened the cursor', async () => {
+      let cursor: any;
+      await inParent(async () => {
+        const r = await conn.query(SQL, { cursor: true, fetchCount: 2 });
+        cursor = r.cursor;
+      });
+      const query = spans()[0];
+      exporter.reset();
+      const reader = await inParent(async () => {
+        while ((await cursor.next()) !== undefined) {
+          // read them all
+        }
+      });
+      const fetches = spans('FETCH');
+      expect(fetches.length).toStrictEqual(3);
+      expect(
+        fetches.map(s => s.attributes['db.response.returned_rows']),
+      ).toStrictEqual([2, 1, 0]);
+      expect(
+        fetches.map(s => s.attributes['postgrejs.cursor.done']),
+      ).toStrictEqual([undefined, undefined, true]);
+      for (const span of fetches) {
+        expect(span.kind).toStrictEqual(SpanKind.CLIENT);
+        // A child of whoever reads, not of the query, which is long over.
+        expect(parentId(span)).toStrictEqual(reader);
+        expect(span.links.map(l => l.context.spanId)).toStrictEqual([
+          query.spanContext().spanId,
+        ]);
+        expect(span.attributes['db.operation.name']).toStrictEqual('FETCH');
+        expect(span.attributes['db.query.text']).toStrictEqual(SQL);
+        expect(span.attributes['postgrejs.cursor.fetch_count']).toStrictEqual(
+          2,
+        );
+      }
+    });
+
+    it("should link the fetches of a prepared statement's cursor to its execution", async () => {
+      const statement = await conn.prepare(SQL);
+      try {
+        const r = await statement.execute({ cursor: true });
+        await r.cursor!.fetch(5);
+      } finally {
+        await statement.close();
+      }
+      const execution = spans()[1];
+      const fetches = spans('FETCH');
+      expect(fetches.length).toStrictEqual(2);
+      for (const span of fetches) {
+        expect(span.links[0].context.spanId).toStrictEqual(
+          execution.spanContext().spanId,
+        );
+      }
+    });
+
+    it('should record a lost portal as an error and add no comment of its own', async () => {
+      const seen: string[] = [];
+      instrumentation.setConfig({
+        sqlComment: { tags: { app: 'billing' } },
+        requestHook: (_span, info) => seen.push(info.operation),
+      });
+      const r = await conn.query(SQL, { cursor: true, fetchCount: 1 });
+      await conn.query('select 1');
+      await r.cursor!.next().catch(() => undefined);
+      await r.cursor!.close();
+      const [fetch] = spans('FETCH');
+      expect(fetch.status.code).toStrictEqual(SpanStatusCode.ERROR);
+      expect(fetch.attributes['db.response.status_code']).toStrictEqual(
+        '34000',
+      );
+      // The text the cursor's statement was prepared with, commented once
+      // by the query that opened it, and not again by the fetch.
+      expect(fetch.attributes['db.query.text']).toStrictEqual(
+        `/*app='billing'*/ ${SQL}`,
+      );
+      expect(seen).toStrictEqual(['query', 'query', 'fetch']);
+    });
+  });
+
+  describe('multiple hosts', () => {
+    it('should name the host the connection reached, not the first configured', async () => {
+      const live = conn.config;
+      const other = new Connection({
+        hosts: [
+          { host: '127.0.0.1', port: 9 },
+          { host: live.host!, port: live.port },
+        ],
+      });
+      try {
+        await other.connect();
+        await other.query('select 1');
+      } finally {
+        await other.close(0);
+      }
+      const expected = {
+        'server.address': live.host,
+        'server.port': live.port || 5432,
+      };
+      const [connect] = spans('postgrejs.connect');
+      expect(connect.attributes).toMatchObject(expected);
+      const [query] = spans().filter(s => s.name !== 'postgrejs.connect');
+      expect(query.attributes).toMatchObject(expected);
+    });
+
+    it('should name the last host tried when none could be reached', async () => {
+      const dead = new Connection({ hosts: [{ host: '127.0.0.1', port: 9 }] });
+      await dead.connect().catch(() => undefined);
+      const [connect] = spans('postgrejs.connect');
+      expect(connect.status.code).toStrictEqual(SpanStatusCode.ERROR);
+      expect(connect.attributes).toMatchObject({
+        'server.address': '127.0.0.1',
+        'server.port': 9,
+      });
+    });
+  });
+
+  describe('metrics', () => {
+    class TestReader extends MetricReader {
+      protected onForceFlush(): Promise<void> {
+        return Promise.resolve();
+      }
+
+      protected onShutdown(): Promise<void> {
+        return Promise.resolve();
+      }
+    }
+
+    let reader: TestReader;
+    let meterProvider: MeterProvider;
+
+    beforeEach(() => {
+      reader = new TestReader();
+      meterProvider = new MeterProvider({ readers: [reader] });
+      instrumentation.setMeterProvider(meterProvider);
+    });
+
+    afterEach(() => meterProvider.shutdown());
+
+    /** The data points of one metric, as of now. */
+    async function points(name: string): Promise<DataPoint<any>[]> {
+      const { resourceMetrics } = await reader.collect();
+      for (const scope of resourceMetrics.scopeMetrics) {
+        for (const metric of scope.metrics) {
+          if (metric.descriptor.name === name) return metric.dataPoints;
+        }
+      }
+      return [];
+    }
+
+    function count(p: DataPoint<any>): number {
+      return (p.value as Histogram).count;
+    }
+
+    it('should time a query, without its text in the attributes', async () => {
+      await conn.query('select g from generate_series(1, 3) g');
+      const [duration] = await points('db.client.operation.duration');
+      expect(count(duration)).toStrictEqual(1);
+      expect(duration.attributes).toEqual({
+        'db.system.name': 'postgresql',
+        'db.namespace': conn.config.database,
+        'server.address': conn.host,
+        'server.port': conn.port,
+      });
+      const [rows] = await points('db.client.response.returned_rows');
+      expect((rows.value as Histogram).sum).toStrictEqual(3);
+    });
+
+    it('should name the operation and the error where they are known', async () => {
+      await conn.startTransaction();
+      await conn.commit();
+      await conn
+        .query('select * from no_such_table_for_otel')
+        .catch(() => undefined);
+      const byName = (await points('db.client.operation.duration')).map(p => [
+        p.attributes['db.operation.name'],
+        p.attributes['error.type'],
+        p.attributes['db.response.status_code'],
+      ]);
+      expect(byName).toEqual(
+        expect.arrayContaining([
+          ['BEGIN', undefined, undefined],
+          ['COMMIT', undefined, undefined],
+          [undefined, '42P01', '42P01'],
+        ]),
+      );
+    });
+
+    it('should time an operation that got no span', async () => {
+      instrumentation.setConfig({ requireParentSpan: true });
+      await conn.query('select 1');
+      expect(spans().length).toStrictEqual(0);
+      const [duration] = await points('db.client.operation.duration');
+      expect(count(duration)).toStrictEqual(1);
+    });
+
+    it('should time a synchronous throw', async () => {
+      const channel = diagnosticsChannel.tracingChannel<any, any>(
+        'postgrejs:query',
+      );
+      expect(() =>
+        channel.tracePromise(
+          () => {
+            throw new TypeError('sync');
+          },
+          { sql: 'select 1', paramCount: 0, connection: { config: {} } },
+        ),
+      ).toThrow('sync');
+      const [duration] = await points('db.client.operation.duration');
+      expect(duration.attributes['error.type']).toStrictEqual('TypeError');
+    });
+
+    it('should report a pool: its connections, waits, opens and holds', async () => {
+      const pool = new Pool({ max: 3, name: 'metrics-pool' });
+      let states!: () => Promise<Record<string, unknown>>;
+      try {
+        const connection = await pool.acquire();
+        const attributes = {
+          'db.client.connection.pool.name': 'metrics-pool',
+          'db.system.name': 'postgresql',
+          'db.namespace': pool.config.database,
+          'server.address': pool.config.host,
+          'server.port': pool.config.port || 5432,
+        };
+        states = async () =>
+          Object.fromEntries(
+            (await points('db.client.connection.count')).map(p => [
+              p.attributes['db.client.connection.state'],
+              p.value,
+            ]),
+          );
+        expect(await states()).toEqual({ idle: 0, used: 1 });
+        const [limit] = await points('db.client.connection.limit');
+        expect(limit.value).toStrictEqual(3);
+        expect(limit.attributes).toEqual(attributes);
+        const [idleMin] = await points('db.client.connection.idle.min');
+        expect(idleMin.value).toStrictEqual(0);
+        const [pending] = await points('db.client.connection.pending_requests');
+        expect(pending.value).toStrictEqual(0);
+        expect(count((await points('db.client.connection.wait_time'))[0])).toBe(
+          1,
+        );
+        const [create] = await points('db.client.connection.create_time');
+        expect(count(create)).toBe(1);
+        expect(create.attributes).toEqual(attributes);
+        expect(await points('db.client.connection.use_time')).toEqual([]);
+        await connection.close();
+        expect(await states()).toEqual({ idle: 1, used: 0 });
+        expect(count((await points('db.client.connection.use_time'))[0])).toBe(
+          1,
+        );
+      } finally {
+        await pool.close(0);
+      }
+      // A closed pool is reported at zero, not at its last value.
+      expect(await states()).toEqual({ idle: 0, used: 0 });
+      const [limit] = await points('db.client.connection.limit');
+      expect(limit.value).toStrictEqual(0);
+    });
+
+    it('should add up the pools of one database that have no name', async () => {
+      const a = new Pool({ max: 2 });
+      const b = new Pool({ max: 5 });
+      try {
+        const [limit] = await points('db.client.connection.limit');
+        expect(limit.value).toStrictEqual(7);
+        expect(limit.attributes['db.client.connection.pool.name']).toBe(
+          a.config.database,
+        );
+      } finally {
+        await a.close(0);
+        await b.close(0);
+      }
+    });
+
+    it('should count a caller that gave up waiting', async () => {
+      const pool = new Pool({ max: 1, acquireTimeoutMillis: 30, name: 'tiny' });
+      try {
+        const held = await pool.acquire();
+        await pool.acquire().catch(() => undefined);
+        const [timeouts] = await points('db.client.connection.timeouts');
+        expect(timeouts.value).toStrictEqual(1);
+        expect(timeouts.attributes['db.client.connection.pool.name']).toBe(
+          'tiny',
+        );
+        await held.close();
+      } finally {
+        await pool.close(0);
+      }
+    });
+
+    it('should report a pool made before it, once told about it', async () => {
+      instrumentation.disable();
+      const pool = new Pool({ max: 4, name: 'early' });
+      instrumentation.enable();
+      try {
+        expect(await points('db.client.connection.limit')).toEqual([]);
+        instrumentation.observePool(pool);
+        instrumentation.observePool(pool);
+        const [limit] = await points('db.client.connection.limit');
+        expect(limit.value).toStrictEqual(4);
+      } finally {
+        await pool.close(0);
+      }
+    });
+  });
+
   describe('sqlComment', () => {
     it('should put the tags and the traceparent in front of the statement', async () => {
       instrumentation.setConfig({
@@ -539,7 +1118,7 @@ describe('postgrejs-otel', () => {
       const unregister = registerInstrumentations({
         instrumentations: [other],
         tracerProvider: provider,
-        meterProvider: {} as any,
+        meterProvider: metrics.getMeterProvider(),
       });
       try {
         await conn.query('select 1');
