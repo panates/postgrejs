@@ -1,4 +1,6 @@
 import diagnosticsChannel from 'node:diagnostics_channel';
+import { Readable, Writable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
@@ -11,11 +13,13 @@ import {
 import { expect } from 'expect';
 import {
   Connection,
+  type CopyTraceContext,
   DatabaseError,
   Pool,
   type QueryTraceContext,
 } from 'postgrejs';
 import {
+  type CopyContext,
   datadogDbmTags,
   PostgrejsInstrumentation,
   type QueryContext,
@@ -25,7 +29,9 @@ import pkg from '../package.json' with { type: 'json' };
 /* Compile-time check that the shapes this package declares for itself
    accept what postgrejs actually publishes. */
 const _shapeCheck: (ctx: QueryTraceContext) => QueryContext = ctx => ctx;
+const _copyShapeCheck: (ctx: CopyTraceContext) => CopyContext = ctx => ctx;
 void _shapeCheck;
+void _copyShapeCheck;
 
 const exporter = new InMemorySpanExporter();
 const provider = new BasicTracerProvider({
@@ -169,7 +175,7 @@ describe('postgrejs-otel', () => {
         },
         responseHook: (_span, info) => {
           calls.push(
-            `response ${info.operation} ${info.context.result !== undefined}`,
+            `response ${info.operation} ${info.operation !== 'copy' && info.context.result !== undefined}`,
           );
         },
       });
@@ -248,6 +254,136 @@ describe('postgrejs-otel', () => {
       }
       expect(spans().map(s => s.name)).toEqual(['postgrejs.connect']);
       expect(parentId(spans()[0])).toBeUndefined();
+    });
+  });
+
+  describe('copy spans', () => {
+    /** COPY spans end at ReadyForQuery, which can follow the stream's end. */
+    async function settled(): Promise<void> {
+      const until = Date.now() + 10_000;
+      while (
+        Date.now() < until &&
+        !spans().some(s => s.name.startsWith('COPY'))
+      )
+        await new Promise(resolve => setTimeout(resolve, 5));
+    }
+
+    // beforeEach's truncate leaves a span of its own.
+    const copySpan = () => spans().find(s => s.name.startsWith('COPY'))!;
+
+    async function drain(stream: Readable): Promise<string> {
+      let out = '';
+      await pipeline(
+        stream,
+        new Writable({
+          write(chunk, _enc, cb) {
+            out += chunk.toString();
+            cb();
+          },
+        }),
+      );
+      return out;
+    }
+
+    before(() =>
+      conn.execute(`
+        drop table if exists copy_otel_test;
+        create table copy_otel_test (id int4 primary key, name text);`),
+    );
+    beforeEach(() => conn.execute('truncate table copy_otel_test'));
+    after(() => conn.execute('drop table if exists copy_otel_test'));
+
+    it('should record copyTo() as a COPY span with rows and bytes', async () => {
+      await conn.execute(
+        `insert into copy_otel_test values (1, 'a'), (2, 'b')`,
+      );
+      exporter.reset();
+      let out = '';
+      const parent = await inParent(async () => {
+        out = await drain(await conn.copyTo('copy copy_otel_test to stdout'));
+        await settled();
+      });
+      const span = copySpan();
+      expect(span.name).toStrictEqual('COPY');
+      expect(span.kind).toStrictEqual(SpanKind.CLIENT);
+      expect(parentId(span)).toStrictEqual(parent);
+      expect(span.attributes).toMatchObject({
+        'db.system.name': 'postgresql',
+        'db.operation.name': 'COPY',
+        'db.query.text': 'copy copy_otel_test to stdout',
+        'db.response.returned_rows': 2,
+        'postgrejs.copy.direction': 'to',
+        'postgrejs.copy.bytes': Buffer.byteLength(out),
+      });
+      expect(span.attributes['db.collection.name']).toBeUndefined();
+      expect(span.attributes['postgrejs.copy.aborted']).toBeUndefined();
+    });
+
+    it('should name the table for copyFromRows()', async () => {
+      await conn.copyFromRows('copy_otel_test', [
+        [1, 'a'],
+        [2, 'b'],
+        [3, 'c'],
+      ]);
+      await settled();
+      const span = spans('COPY copy_otel_test')[0];
+      expect(span.attributes).toMatchObject({
+        'db.operation.name': 'COPY',
+        'db.collection.name': 'copy_otel_test',
+        'postgrejs.copy.direction': 'from',
+        'postgrejs.copy.rows': 3,
+      });
+      expect(span.attributes['db.response.returned_rows']).toBeUndefined();
+      expect(span.attributes['postgrejs.copy.bytes']).toBeGreaterThan(0);
+    });
+
+    it('should record a CopyFail as an error, with what was sent', async () => {
+      const stream = await conn.copyFrom('copy copy_otel_test from stdin');
+      const source = Readable.from(
+        (function* () {
+          yield '1\ta\n';
+          throw new Error('source exploded');
+        })(),
+      );
+      await expect(pipeline(source, stream)).rejects.toThrow('source exploded');
+      await settled();
+      const span = copySpan();
+      expect(span.status.code).toStrictEqual(SpanStatusCode.ERROR);
+      expect(span.attributes['db.response.status_code']).toStrictEqual('57014');
+      expect(span.attributes['postgrejs.copy.bytes']).toStrictEqual(4);
+      expect(span.attributes['postgrejs.copy.rows']).toBeUndefined();
+    });
+
+    it('should mark a copyTo() its consumer gave up on as aborted, not failed', async () => {
+      const stream = await conn.copyTo(
+        `copy (select g, repeat('x', 100) from generate_series(1, 200000) g) to stdout`,
+      );
+      stream.destroy();
+      await settled();
+      const span = copySpan();
+      expect(span.status.code).toStrictEqual(SpanStatusCode.UNSET);
+      expect(span.attributes['postgrejs.copy.aborted']).toStrictEqual(true);
+    });
+
+    it('should put the sqlComment in front of a COPY too', async () => {
+      instrumentation.setConfig({ sqlComment: { tags: { app: 'x' } } });
+      const out = await drain(
+        await conn.copyTo('copy (select current_query()) to stdout'),
+      );
+      expect(out).toStrictEqual(
+        "/*app='x'*/ copy (select current_query()) to stdout\n",
+      );
+    });
+
+    it('should call the hooks with the copy operation', async () => {
+      const calls: string[] = [];
+      instrumentation.setConfig({
+        requestHook: (_span, info) => calls.push(`request ${info.operation}`),
+        responseHook: (_span, info) => calls.push(`response ${info.operation}`),
+      });
+      await drain(await conn.copyTo('copy copy_otel_test to stdout'));
+      await settled();
+      expect(calls).toEqual(['request copy', 'response copy']);
     });
   });
 

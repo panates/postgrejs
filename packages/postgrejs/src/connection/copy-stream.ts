@@ -26,6 +26,14 @@ export class CopyToStream extends Readable {
    * it is always readable once the stream has finished.
    */
   rowCount?: number;
+  /** Bytes of CopyData received from the server, discarded ones included. */
+  bytes = 0;
+  /**
+   * True once the stream was destroyed by its consumer before the copy
+   * finished. The server still completes the copy; what it sends from then
+   * on is discarded.
+   */
+  aborted = false;
   protected readonly _socket: PgSocket;
   protected _error?: Error;
   protected _started?: (err?: Error) => void;
@@ -52,6 +60,7 @@ export class CopyToStream extends Readable {
         this._started = undefined;
         break;
       case BackendMessageCode.CopyData:
+        this.bytes += msg.data.length;
         if (this._discarding) break;
         if (!this.push(msg.data) && !this._paused) {
           this._paused = true;
@@ -115,6 +124,8 @@ export class CopyToStream extends Readable {
     err: Error | null,
     callback: (err?: Error | null) => void,
   ): void {
+    // Not when the copy itself ended it: _finish() and fail() settle first.
+    if (!this._settled) this.aborted = true;
     this._discarding = true;
     this._paused = false;
     this._socket.resume();
@@ -151,6 +162,8 @@ export class CopyToStream extends Readable {
 export class CopyFromStream extends Writable {
   /** Rows the server accepted. Set before 'finish' is emitted. */
   rowCount?: number;
+  /** Bytes of CopyData sent to the server. */
+  bytes = 0;
   protected readonly _socket: PgSocket;
   protected _error?: Error;
   protected _started?: (err?: Error) => void;
@@ -224,10 +237,9 @@ export class CopyFromStream extends Writable {
     callback: (err?: Error | null) => void,
   ): void {
     if (this._error) return callback(this._error);
-    this._socket.sendCopyData(
-      Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding),
-      callback,
-    );
+    const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
+    this.bytes += data.length;
+    this._socket.sendCopyData(data, callback);
   }
 
   override _final(callback: (err?: Error | null) => void): void {

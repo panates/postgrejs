@@ -40,6 +40,7 @@ import { Protocol } from '../protocol/protocol.js';
 import { SafeEventEmitter } from '../safe-event-emitter.js';
 import {
   type ConnectTraceContext,
+  type CopyTraceContext,
   isTraced,
   tracingChannels,
 } from '../tracing.js';
@@ -853,24 +854,12 @@ export class IntlConnection extends SafeEventEmitter {
    */
   async copyTo(sql: string): Promise<CopyToStream> {
     this.assertConnected();
-    this.ref();
-    this.runningQueryCount++;
     const stream = new CopyToStream(this.socket);
-    this.socket
-      .sendQueryMessage(sql, stream.capture)
-      .catch(err => stream.fail(err))
-      .finally(() => {
-        this.runningQueryCount--;
-        this.unref();
-      });
+    this._startCopy(sql, 'to', stream);
     await stream.waitStarted();
     return stream;
   }
 
-  /**
-   * Runs a COPY ... FROM STDIN and hands back a stream to feed it.
-   * Resolves once the server is ready for data.
-   */
   /**
    * Streams rows into a table with `COPY ... FROM STDIN (FORMAT binary)`,
    * encoding each value with its own type's binary encoder.
@@ -912,7 +901,7 @@ export class IntlConnection extends SafeEventEmitter {
         `columnTypes has ${dataTypeIds.length} entries but ${columns.length} columns were given`,
       );
 
-    const stream = await this.copyFrom(buildCopySql(table, columns));
+    const stream = await this.copyFrom(buildCopySql(table, columns), table);
     // The CopyFail sent below comes back as an ErrorResponse, which the
     // stream emits as 'error'. Node turns an 'error' with no listener into
     // an uncaught exception and takes the process down - so a value this
@@ -930,6 +919,7 @@ export class IntlConnection extends SafeEventEmitter {
         options,
         write: chunk =>
           new Promise<void>((resolve, reject) => {
+            stream.bytes += chunk.length;
             const accepted = this.socket.sendCopyData(chunk, err =>
               err ? reject(err) : resolve(),
             );
@@ -951,20 +941,70 @@ export class IntlConnection extends SafeEventEmitter {
     }
   }
 
-  async copyFrom(sql: string): Promise<CopyFromStream> {
+  /**
+   * Runs a COPY ... FROM STDIN and hands back a stream to feed it.
+   * Resolves once the server is ready for data.
+   *
+   * @param sql The COPY statement.
+   * @param table The table `copyFromRows()` was given, for tracing.
+   */
+  async copyFrom(sql: string, table?: string): Promise<CopyFromStream> {
     this.assertConnected();
+    const stream = new CopyFromStream(this.socket);
+    this._startCopy(sql, 'from', stream, table);
+    await stream.waitStarted();
+    return stream;
+  }
+
+  /**
+   * Sends a COPY statement and runs it to the end in the background,
+   * feeding the server's messages to the stream.
+   *
+   * @param sql The COPY statement.
+   * @param direction Which way the data moves.
+   * @param stream The stream that captures the copy's messages.
+   * @param table The table `copyFromRows()` was given, if any.
+   */
+  /* The promise sendQueryMessage() returns settles at ReadyForQuery, so it
+     spans the copy as the server sees it: from the statement until every
+     byte has moved, slow consumers and CopyFail included. That is what is
+     traced, rather than the stream's own events: a subscriber would need an
+     'error' listener on the caller's stream to see those, and adding one
+     changes what happens to an error nobody else listens for. */
+  protected _startCopy(
+    sql: string,
+    direction: 'to' | 'from',
+    stream: CopyToStream | CopyFromStream,
+    table?: string,
+  ): void {
     this.ref();
     this.runningQueryCount++;
-    const stream = new CopyFromStream(this.socket);
-    this.socket
-      .sendQueryMessage(sql, stream.capture)
+    let wire: Promise<unknown>;
+    if (isTraced(tracingChannels.copy)) {
+      const context: CopyTraceContext = {
+        sql,
+        direction,
+        connection: this.owner as Connection,
+        table,
+      };
+      wire = tracingChannels.copy.tracePromise(async () => {
+        try {
+          await this.socket.sendQueryMessage(context.sql, stream.capture);
+        } finally {
+          context.rowCount = stream.rowCount;
+          context.bytes = stream.bytes;
+          if ((stream as CopyToStream).aborted) context.aborted = true;
+        }
+      }, context);
+    } else {
+      wire = this.socket.sendQueryMessage(sql, stream.capture);
+    }
+    wire
       .catch(err => stream.fail(err))
       .finally(() => {
         this.runningQueryCount--;
         this.unref();
       });
-    await stream.waitStarted();
-    return stream;
   }
 
   protected async _connect(): Promise<void> {

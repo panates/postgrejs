@@ -1,5 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { TracingChannel } from 'node:diagnostics_channel';
+import { Readable, Writable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { expect } from 'expect';
 import {
   Connection,
@@ -369,6 +371,212 @@ describe('tracing channels', () => {
         'connect:asyncEnd',
       ]);
       expect(log[0].context.processID).toStrictEqual(processID);
+    });
+  });
+
+  describe('postgrejs:copy', () => {
+    const BIG_ROWS = 200_000;
+    const BIG_EXPORT = `copy (select g, repeat('x', 100) from generate_series(1, ${BIG_ROWS}) g) to stdout`;
+
+    /** Resolves once the channel has published asyncEnd. */
+    async function settled(log: Recorded[]): Promise<void> {
+      // A copy whose output is being discarded still has to receive all of
+      // it, which takes a while for the big export below.
+      const until = Date.now() + 10_000;
+      while (Date.now() < until) {
+        if (log.some(r => r.event === 'asyncEnd')) return;
+        await new Promise(resolve => setTimeout(resolve, 5));
+      }
+      throw new Error('copy never settled');
+    }
+
+    async function drain(stream: Readable): Promise<string> {
+      let out = '';
+      await pipeline(
+        stream,
+        new Writable({
+          write(chunk, _enc, cb) {
+            out += chunk.toString();
+            cb();
+          },
+        }),
+      );
+      return out;
+    }
+
+    before(() =>
+      conn.execute(`
+        drop table if exists copy_tracing_test;
+        create table copy_tracing_test (id int4 primary key, name text);`),
+    );
+    beforeEach(() => conn.execute('truncate table copy_tracing_test'));
+    after(() => conn.execute('drop table if exists copy_tracing_test'));
+
+    it('should publish copyTo() with the rows and bytes received', async () => {
+      await conn.execute(
+        `insert into copy_tracing_test values (1, 'one'), (2, 'two')`,
+      );
+      const log: Recorded[] = [];
+      const off = record(log, 'copy', tracingChannels.copy);
+      let out: string;
+      try {
+        out = await drain(
+          await conn.copyTo('copy copy_tracing_test to stdout'),
+        );
+        await settled(log);
+      } finally {
+        off();
+      }
+      expect(events(log)).toStrictEqual([
+        'copy:start',
+        'copy:end',
+        'copy:asyncStart',
+        'copy:asyncEnd',
+      ]);
+      const ctx = log[0].context;
+      expect(ctx.direction).toStrictEqual('to');
+      expect(ctx.sql).toStrictEqual('copy copy_tracing_test to stdout');
+      expect(ctx.connection).toBe(conn);
+      expect(ctx.table).toBeUndefined();
+      expect(ctx.rowCount).toStrictEqual(2);
+      expect(ctx.bytes).toStrictEqual(Buffer.byteLength(out));
+      expect(ctx.aborted).toBeUndefined();
+    });
+
+    it('should stay open while a consumer that is not reading holds the server', async () => {
+      // Far more than the stream's and the socket's buffers hold, so the
+      // server is stopped by backpressure until the stream is read: the
+      // operation outlives copyTo()'s resolution. A small export, sent in
+      // one packet, would already be over by then, which is also correct.
+      const log: Recorded[] = [];
+      const off = record(log, 'copy', tracingChannels.copy);
+      try {
+        const stream = await conn.copyTo(BIG_EXPORT);
+        await new Promise(resolve => setTimeout(resolve, 200));
+        expect(events(log)).toStrictEqual(['copy:start', 'copy:end']);
+        await drain(stream);
+        await settled(log);
+      } finally {
+        off();
+      }
+      expect(log[0].context.rowCount).toStrictEqual(BIG_ROWS);
+      expect(log[0].context.aborted).toBeUndefined();
+    });
+
+    it('should publish copyFrom() with the rows and bytes sent', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'copy', tracingChannels.copy);
+      const data = '1\tone\n2\ttwo\n3\tthree\n';
+      try {
+        const stream = await conn.copyFrom('copy copy_tracing_test from stdin');
+        await pipeline(Readable.from([data]), stream);
+        await settled(log);
+      } finally {
+        off();
+      }
+      expect(events(log)).not.toContain('copy:error');
+      const ctx = log[0].context;
+      expect(ctx.direction).toStrictEqual('from');
+      expect(ctx.rowCount).toStrictEqual(3);
+      expect(ctx.bytes).toStrictEqual(Buffer.byteLength(data));
+    });
+
+    it('should publish error when the server refuses the copy', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'copy', tracingChannels.copy);
+      try {
+        await expect(
+          conn.copyTo('copy no_such_table_for_tracing to stdout'),
+        ).rejects.toThrow(DatabaseError);
+        await settled(log);
+      } finally {
+        off();
+      }
+      expect(events(log)).toContain('copy:error');
+      expect(log[0].context.error).toBeInstanceOf(DatabaseError);
+      expect(log[0].context.error.code).toStrictEqual('42P01');
+    });
+
+    it('should publish error when a failing source sends CopyFail', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'copy', tracingChannels.copy);
+      try {
+        const stream = await conn.copyFrom('copy copy_tracing_test from stdin');
+        const source = Readable.from(
+          (function* () {
+            yield '1\tone\n';
+            throw new Error('source exploded');
+          })(),
+        );
+        await expect(pipeline(source, stream)).rejects.toThrow(
+          'source exploded',
+        );
+        await settled(log);
+      } finally {
+        off();
+      }
+      expect(events(log)).toContain('copy:error');
+      // query_canceled: how the server answers a CopyFail.
+      expect(log[0].context.error.code).toStrictEqual('57014');
+      expect(log[0].context.bytes).toStrictEqual(Buffer.byteLength('1\tone\n'));
+    });
+
+    it('should mark a copyTo() destroyed by its consumer as aborted, not failed', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'copy', tracingChannels.copy);
+      try {
+        const stream = await conn.copyTo(BIG_EXPORT);
+        stream.destroy();
+        await settled(log);
+      } finally {
+        off();
+      }
+      expect(events(log)).not.toContain('copy:error');
+      expect(log[0].context.aborted).toStrictEqual(true);
+      // The server still finished the copy; what it sent was discarded.
+      expect(log[0].context.rowCount).toStrictEqual(BIG_ROWS);
+      const r = await conn.query('select 1');
+      expect(r.rows).toStrictEqual([[1]]);
+    });
+
+    it('should name the table for copyFromRows()', async () => {
+      const log: Recorded[] = [];
+      const off = record(log, 'copy', tracingChannels.copy);
+      try {
+        const result = await conn.copyFromRows('copy_tracing_test', [
+          [1, 'one'],
+          [2, 'two'],
+        ]);
+        expect(result.rowCount).toStrictEqual(2);
+        await settled(log);
+      } finally {
+        off();
+      }
+      const ctx = log[0].context;
+      expect(ctx.table).toStrictEqual('copy_tracing_test');
+      expect(ctx.direction).toStrictEqual('from');
+      expect(ctx.sql).toStrictEqual(
+        'copy "copy_tracing_test" ("id", "name") from stdin with (format binary)',
+      );
+      expect(ctx.rowCount).toStrictEqual(2);
+      expect(ctx.bytes).toBeGreaterThan(0);
+    });
+
+    it('should send the statement a start handler replaced', async () => {
+      const off = record([], 'copy', tracingChannels.copy, ctx => {
+        ctx.sql = `/*traced*/ ${ctx.sql}`;
+      });
+      let out: string;
+      try {
+        out = await drain(
+          await conn.copyTo('copy (select current_query()) to stdout'),
+        );
+      } finally {
+        off();
+      }
+      expect(out).toStrictEqual(
+        '/*traced*/ copy (select current_query()) to stdout\n',
+      );
     });
   });
 });

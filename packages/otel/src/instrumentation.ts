@@ -21,15 +21,17 @@ import type {
   ConnectContext,
   ConnectionInfo,
   ConnectionLike,
+  CopyContext,
   ExecuteContext,
   PoolAcquireContext,
   QueryContext,
 } from './types.js';
 
-/** The two statement operations a request or response hook is called for. */
+/** The statement operations a request or response hook is called for. */
 export type StatementInfo =
   | { operation: 'query'; context: QueryContext }
-  | { operation: 'execute'; context: ExecuteContext };
+  | { operation: 'execute'; context: ExecuteContext }
+  | { operation: 'copy'; context: CopyContext };
 
 /** What to put in a comment in front of every statement. */
 export interface SqlCommentOptions {
@@ -154,6 +156,10 @@ export class PostgrejsInstrumentation {
         handlers: this._statementHandlers('execute'),
       },
       {
+        channel: 'postgrejs:copy',
+        handlers: this._statementHandlers('copy'),
+      },
+      {
         channel: 'postgrejs:pool:acquire',
         handlers: this._spanHandlers(ctx => this._startAcquire(ctx)),
       },
@@ -222,18 +228,20 @@ export class PostgrejsInstrumentation {
   }
 
   protected _statementHandlers(
-    operation: 'query' | 'execute',
+    operation: StatementInfo['operation'],
   ): TracingChannelSubscribers<any> {
     return {
-      start: (ctx: QueryContext | ExecuteContext) =>
+      start: (ctx: StatementInfo['context']) =>
         this._startStatement(operation, ctx),
       end: (ctx: any) => {
         // A synchronous throw: no asyncEnd will follow.
         if (ctx.error !== undefined) this._finish(ctx);
       },
       asyncStart: () => undefined,
-      asyncEnd: (ctx: QueryContext | ExecuteContext) => {
+      asyncEnd: (ctx: StatementInfo['context']) => {
         const span = this._spans.get(ctx);
+        // Recorded on failure too: how far a failed COPY got is the point.
+        if (span && operation === 'copy') endCopy(span, ctx as CopyContext);
         if (span && ctx.error === undefined) {
           const rows = (ctx as QueryContext).result?.rows;
           if (rows) span.setAttribute('db.response.returned_rows', rows.length);
@@ -265,8 +273,8 @@ export class PostgrejsInstrumentation {
   }
 
   protected _startStatement(
-    operation: 'query' | 'execute',
-    ctx: QueryContext | ExecuteContext,
+    operation: StatementInfo['operation'],
+    ctx: StatementInfo['context'],
   ): void {
     const config = ctx.connection.config;
     const attributes: Attributes = { ...this._connectionAttributes(config) };
@@ -275,11 +283,23 @@ export class PostgrejsInstrumentation {
     }
     const pid = ctx.connection.processID;
     if (pid != null) attributes['postgrejs.backend_pid'] = pid;
-    const span = this._startSpan(
-      config.database || 'postgresql',
-      SpanKind.CLIENT,
-      attributes,
-    );
+    /* A COPY is known to be one without reading the SQL, so it can be
+       named the way the semantic conventions prefer, operation and table;
+       the table only when copyFromRows() was given it by name. Any other
+       statement is named after the database, as the conventions ask when
+       neither is known without parsing. */
+    let name = config.database || 'postgresql';
+    if (operation === 'copy') {
+      const copy = ctx as CopyContext;
+      attributes['db.operation.name'] = 'COPY';
+      attributes['postgrejs.copy.direction'] = copy.direction;
+      name = 'COPY';
+      if (copy.table) {
+        attributes['db.collection.name'] = copy.table;
+        name += ' ' + copy.table;
+      }
+    }
+    const span = this._startSpan(name, SpanKind.CLIENT, attributes);
     if (span) {
       this._spans.set(ctx, span);
       const hook = this._config.requestHook;
@@ -409,6 +429,22 @@ export class PostgrejsInstrumentation {
     }
     return attributes;
   }
+}
+
+/* COPY TO returns rows, so it gets the convention's returned_rows; the
+   conventions have no attribute for rows written, so COPY FROM's count
+   goes under the package's own name. */
+function endCopy(span: Span, ctx: CopyContext): void {
+  if (ctx.rowCount != null) {
+    span.setAttribute(
+      ctx.direction === 'to'
+        ? 'db.response.returned_rows'
+        : 'postgrejs.copy.rows',
+      ctx.rowCount,
+    );
+  }
+  if (ctx.bytes != null) span.setAttribute('postgrejs.copy.bytes', ctx.bytes);
+  if (ctx.aborted) span.setAttribute('postgrejs.copy.aborted', true);
 }
 
 function safely<T>(what: string, fn: () => T): T | undefined {

@@ -70,6 +70,44 @@ export interface ConnectTraceContext {
 }
 
 /**
+ * What `postgrejs:copy` publishes for one COPY, from `copyTo()`,
+ * `copyFrom()` or `copyFromRows()`.
+ *
+ * The operation lasts from the moment the statement is sent until the
+ * server reports it finished (ReadyForQuery), not until `copyTo()` or
+ * `copyFrom()` resolves: those resolve as soon as the server accepts the
+ * copy. A small export can be over by then, sent whole in one packet; a
+ * larger one is held by backpressure, and a consumer that reads slowly
+ * keeps the copy, and the operation, open for as long as it holds the
+ * server.
+ *
+ * `sql` can be replaced in `start` as described for
+ * {@link QueryTraceContext}. `rowCount` and `bytes` are set by the time
+ * the operation ends, whether it succeeded or not.
+ */
+export interface CopyTraceContext {
+  /** The COPY statement as it will be sent. */
+  sql: string;
+  /** `to` for COPY ... TO STDOUT, `from` for COPY ... FROM STDIN. */
+  direction: 'to' | 'from';
+  /** The connection that runs the copy. */
+  connection: Connection;
+  /** The destination table, when `copyFromRows()` was given one by name. */
+  table?: string;
+  /** Rows the server reported for the copy. */
+  rowCount?: number;
+  /** Bytes of CopyData sent or received. */
+  bytes?: number;
+  /**
+   * True when a `copyTo()` stream was destroyed by its consumer before the
+   * end. The server still finishes the copy and its output is discarded,
+   * so this is not an error.
+   */
+  aborted?: boolean;
+  error?: unknown;
+}
+
+/**
  * The `node:diagnostics_channel` tracing channels postgrejs publishes on.
  *
  * Each one is a `TracingChannel`, so a subscriber gets `start`, `end`,
@@ -98,6 +136,7 @@ export const tracingChannels = {
   ),
   connect:
     diagnosticsChannel.tracingChannel<ConnectTraceContext>('postgrejs:connect'),
+  copy: diagnosticsChannel.tracingChannel<CopyTraceContext>('postgrejs:copy'),
 };
 
 /**
