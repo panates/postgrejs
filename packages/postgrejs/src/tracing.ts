@@ -2,6 +2,7 @@ import diagnosticsChannel, {
   type TracingChannel,
 } from 'node:diagnostics_channel';
 import type { Connection } from './connection/connection.js';
+import type { Cursor } from './connection/cursor.js';
 import type { Pool } from './connection/pool.js';
 import type { PreparedStatement } from './connection/prepared-statement.js';
 import type { BatchResult } from './interfaces/batch-result.js';
@@ -210,6 +211,32 @@ export interface PipelineTraceContext {
 }
 
 /**
+ * What `postgrejs:cursor:fetch` publishes for each batch a cursor reads:
+ * one Execute of the portal behind it, for up to `fetchCount` rows, and
+ * the decoding of the rows that come back.
+ *
+ * The statement that opened the cursor is published on `postgrejs:query`
+ * or `postgrejs:statement:execute`, and is over by the time the first
+ * batch is read: opening a cursor reads no rows. `sql` is only for
+ * reading here, as no statement text is sent.
+ */
+export interface CursorFetchTraceContext {
+  /** The statement the cursor reads the result of. */
+  readonly sql: string;
+  /** The connection the cursor reads from. */
+  connection: Connection;
+  /** The cursor reading the batch. */
+  cursor: Cursor;
+  /** How many rows were asked for. */
+  fetchCount: number;
+  /** How many rows came back. */
+  rowCount?: number;
+  /** True when no rows came back, so the cursor closed itself. */
+  done?: boolean;
+  error?: unknown;
+}
+
+/**
  * The `node:diagnostics_channel` tracing channels postgrejs publishes on.
  *
  * Each one is a `TracingChannel`, so a subscriber gets `start`, `end`,
@@ -249,6 +276,9 @@ export const tracingChannels = {
     diagnosticsChannel.tracingChannel<PipelineTraceContext>(
       'postgrejs:pipeline',
     ),
+  cursorFetch: diagnosticsChannel.tracingChannel<CursorFetchTraceContext>(
+    'postgrejs:cursor:fetch',
+  ),
 };
 
 /**

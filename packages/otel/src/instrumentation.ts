@@ -8,7 +8,9 @@ import {
   type Context,
   context,
   diag,
+  type Link,
   type Span,
+  type SpanContext,
   SpanKind,
   SpanStatusCode,
   trace,
@@ -22,6 +24,7 @@ import type {
   ConnectionInfo,
   ConnectionLike,
   CopyContext,
+  CursorFetchContext,
   ExecuteContext,
   PipelineContext,
   PoolAcquireContext,
@@ -37,7 +40,8 @@ export type StatementInfo =
   | { operation: 'copy'; context: CopyContext }
   | { operation: 'prepare'; context: PrepareContext }
   | { operation: 'executePrepared'; context: StatementExecuteContext }
-  | { operation: 'pipeline'; context: PipelineContext };
+  | { operation: 'pipeline'; context: PipelineContext }
+  | { operation: 'fetch'; context: CursorFetchContext };
 
 /** What to put in a comment in front of every statement. */
 export interface SqlCommentOptions {
@@ -129,6 +133,10 @@ export class PostgrejsInstrumentation {
   protected _enabled = false;
   protected _spans = new WeakMap<object, Span>();
   protected _connAttributes = new WeakMap<ConnectionInfo, Attributes>();
+  /* The span of the statement that opened each cursor, which every fetch
+     from it links to: the statement's span is over before the first fetch,
+     and a fetch's parent is whatever the reader had active. */
+  protected _cursorOrigins = new WeakMap<object, SpanContext>();
   /* The context a span started inside pool acquire takes as its parent.
      OpenTelemetry's own context is not reachable from here, since its
      AsyncLocalStorage belongs to the context manager the application
@@ -177,6 +185,10 @@ export class PostgrejsInstrumentation {
       {
         channel: 'postgrejs:pipeline',
         handlers: this._statementHandlers('pipeline'),
+      },
+      {
+        channel: 'postgrejs:cursor:fetch',
+        handlers: this._statementHandlers('fetch'),
       },
       {
         channel: 'postgrejs:pool:acquire',
@@ -262,8 +274,12 @@ export class PostgrejsInstrumentation {
         // Recorded on failure too: how far a failed COPY got is the point.
         if (span && operation === 'copy') endCopy(span, ctx as CopyContext);
         if (span && ctx.error === undefined) {
-          const rows = (ctx as QueryContext).result?.rows;
+          const result = (ctx as QueryContext).result;
+          const rows = result?.rows;
           if (rows) span.setAttribute('db.response.returned_rows', rows.length);
+          if (result?.cursor)
+            this._cursorOrigins.set(result.cursor, span.spanContext());
+          if (operation === 'fetch') endFetch(span, ctx as CursorFetchContext);
           const hook = this._config.responseHook;
           if (hook) {
             safely('responseHook', () =>
@@ -336,6 +352,13 @@ export class PostgrejsInstrumentation {
     } else if (operation === 'pipeline') {
       const size = (ctx as PipelineContext).statements.length;
       if (size > 1) attributes['db.operation.batch.size'] = size;
+    } else if (operation === 'fetch') {
+      // The protocol's Execute of a portal, which is what SQL FETCH does.
+      attributes['db.operation.name'] = 'FETCH';
+      attributes['postgrejs.cursor.fetch_count'] = (
+        ctx as CursorFetchContext
+      ).fetchCount;
+      name = 'FETCH';
     } else if (operation === 'copy') {
       const copy = ctx as CopyContext;
       attributes['db.operation.name'] = 'COPY';
@@ -346,7 +369,16 @@ export class PostgrejsInstrumentation {
         name += ' ' + copy.table;
       }
     }
-    const span = this._startSpan(name, SpanKind.CLIENT, attributes);
+    const origin =
+      operation === 'fetch'
+        ? this._cursorOrigins.get((ctx as CursorFetchContext).cursor)
+        : undefined;
+    const span = this._startSpan(
+      name,
+      SpanKind.CLIENT,
+      attributes,
+      origin && [{ context: origin }],
+    );
     if (span) {
       this._spans.set(ctx, span);
       const hook = this._config.requestHook;
@@ -362,7 +394,9 @@ export class PostgrejsInstrumentation {
        which would otherwise tie every later execution to the span of the
        prepare. */
     const comment =
-      operation === 'executePrepared' ? undefined : this._config.sqlComment;
+      operation === 'executePrepared' || operation === 'fetch'
+        ? undefined
+        : this._config.sqlComment;
     if (comment) {
       const tags =
         typeof comment.tags === 'function'
@@ -423,6 +457,7 @@ export class PostgrejsInstrumentation {
     name: string,
     kind: SpanKind,
     attributes: Attributes,
+    links?: Link[],
   ): Span | undefined {
     if (this._checkGlobalProvider) {
       this._checkGlobalProvider = false;
@@ -430,7 +465,7 @@ export class PostgrejsInstrumentation {
     }
     const parent = this._parentContext();
     if (this._config.requireParentSpan && !trace.getSpan(parent)) return;
-    return this._tracer.startSpan(name, { kind, attributes }, parent);
+    return this._tracer.startSpan(name, { kind, attributes, links }, parent);
   }
 
   protected _parentContext(): Context {
@@ -506,6 +541,13 @@ function endCopy(span: Span, ctx: CopyContext): void {
   }
   if (ctx.bytes != null) span.setAttribute('postgrejs.copy.bytes', ctx.bytes);
   if (ctx.aborted) span.setAttribute('postgrejs.copy.aborted', true);
+}
+
+/** Records what a cursor fetch read. */
+function endFetch(span: Span, ctx: CursorFetchContext): void {
+  // Always set once a fetch succeeds.
+  span.setAttribute('db.response.returned_rows', ctx.rowCount as number);
+  if (ctx.done) span.setAttribute('postgrejs.cursor.done', true);
 }
 
 function safely<T>(what: string, fn: () => T): T | undefined {

@@ -1027,4 +1027,81 @@ describe('tracing channels', () => {
       expect(log).toStrictEqual([]);
     });
   });
+
+  describe('postgrejs:cursor:fetch', () => {
+    const SQL = 'select g from generate_series(1, 5) g';
+
+    it('should publish each batch with its rows, after the query is over', async () => {
+      const log: Recorded[] = [];
+      const offs = [
+        record(log, 'query', tracingChannels.query),
+        record(log, 'fetch', tracingChannels.cursorFetch),
+      ];
+      const rows: any[] = [];
+      try {
+        const r = await conn.query(SQL, { cursor: true, fetchCount: 2 });
+        for await (const row of r.cursor!) rows.push(row[0]);
+      } finally {
+        for (const off of offs) off();
+      }
+      expect(rows).toStrictEqual([1, 2, 3, 4, 5]);
+      // Opening the cursor reads nothing: the query is over first.
+      expect(events(log).indexOf('query:asyncEnd')).toBeLessThan(
+        events(log).indexOf('fetch:start'),
+      );
+      const fetches = log.filter(
+        r => r.channel === 'fetch' && r.event === 'asyncEnd',
+      );
+      expect(
+        fetches.map(r => [r.context.rowCount, r.context.done ?? false]),
+      ).toStrictEqual([
+        [2, false],
+        [2, false],
+        [1, false],
+        [0, true],
+      ]);
+      const ctx = fetches[0].context;
+      expect(ctx.sql).toStrictEqual(SQL);
+      expect(ctx.connection).toBe(conn);
+      expect(ctx.fetchCount).toStrictEqual(2);
+      expect(ctx.cursor).toBeDefined();
+    });
+
+    it("should publish the fetches of a prepared statement's cursor", async () => {
+      const statement = await conn.prepare(SQL);
+      const log: Recorded[] = [];
+      const off = record(log, 'fetch', tracingChannels.cursorFetch);
+      try {
+        const r = await statement.execute({ cursor: true });
+        expect((await r.cursor!.fetch(10)).length).toStrictEqual(5);
+        await r.cursor!.close();
+      } finally {
+        off();
+        await statement.close();
+      }
+      const ends = log.filter(r => r.event === 'asyncEnd');
+      expect(ends.map(r => r.context.rowCount)).toStrictEqual([5, 0]);
+      expect(ends[0].context.fetchCount).toStrictEqual(100);
+    });
+
+    it('should publish error when the portal is gone', async () => {
+      const r = await conn.query(SQL, { cursor: true, fetchCount: 1 });
+      // Another statement ends the implicit transaction the portal lives in.
+      await conn.query('select 1');
+      const log: Recorded[] = [];
+      const off = record(log, 'fetch', tracingChannels.cursorFetch);
+      let caught: any;
+      try {
+        await r.cursor!.next();
+      } catch (e) {
+        caught = e;
+      } finally {
+        off();
+        await r.cursor!.close();
+      }
+      expect(caught?.code).toStrictEqual('34000');
+      expect(events(log)).toContain('fetch:error');
+      expect(log[0].context.error).toBe(caught);
+    });
+  });
 });

@@ -14,6 +14,7 @@ import { expect } from 'expect';
 import {
   Connection,
   type CopyTraceContext,
+  type CursorFetchTraceContext,
   DatabaseError,
   type PipelineTraceContext,
   Pool,
@@ -23,6 +24,7 @@ import {
 } from 'postgrejs';
 import {
   type CopyContext,
+  type CursorFetchContext,
   datadogDbmTags,
   type PipelineContext,
   PostgrejsInstrumentation,
@@ -45,6 +47,10 @@ const _pipelineShapeCheck: (
   ctx: PipelineTraceContext,
 ) => PipelineContext = ctx => ctx;
 void _pipelineShapeCheck;
+const _fetchShapeCheck: (
+  ctx: CursorFetchTraceContext,
+) => CursorFetchContext = ctx => ctx;
+void _fetchShapeCheck;
 void _shapeCheck;
 void _copyShapeCheck;
 void _prepareShapeCheck;
@@ -603,6 +609,87 @@ describe('postgrejs-otel', () => {
       expect(spans()[0].attributes['db.query.text']).toStrictEqual(
         'select current_query(); select current_query() as q',
       );
+    });
+  });
+
+  describe('cursor fetch spans', () => {
+    const SQL = 'select g from generate_series(1, 3) g';
+
+    it('should record each fetch as FETCH, linked to the query that opened the cursor', async () => {
+      let cursor: any;
+      await inParent(async () => {
+        const r = await conn.query(SQL, { cursor: true, fetchCount: 2 });
+        cursor = r.cursor;
+      });
+      const query = spans()[0];
+      exporter.reset();
+      const reader = await inParent(async () => {
+        while ((await cursor.next()) !== undefined) {
+          // read them all
+        }
+      });
+      const fetches = spans('FETCH');
+      expect(fetches.length).toStrictEqual(3);
+      expect(
+        fetches.map(s => s.attributes['db.response.returned_rows']),
+      ).toStrictEqual([2, 1, 0]);
+      expect(
+        fetches.map(s => s.attributes['postgrejs.cursor.done']),
+      ).toStrictEqual([undefined, undefined, true]);
+      for (const span of fetches) {
+        expect(span.kind).toStrictEqual(SpanKind.CLIENT);
+        // A child of whoever reads, not of the query, which is long over.
+        expect(parentId(span)).toStrictEqual(reader);
+        expect(span.links.map(l => l.context.spanId)).toStrictEqual([
+          query.spanContext().spanId,
+        ]);
+        expect(span.attributes['db.operation.name']).toStrictEqual('FETCH');
+        expect(span.attributes['db.query.text']).toStrictEqual(SQL);
+        expect(span.attributes['postgrejs.cursor.fetch_count']).toStrictEqual(
+          2,
+        );
+      }
+    });
+
+    it("should link the fetches of a prepared statement's cursor to its execution", async () => {
+      const statement = await conn.prepare(SQL);
+      try {
+        const r = await statement.execute({ cursor: true });
+        await r.cursor!.fetch(5);
+      } finally {
+        await statement.close();
+      }
+      const execution = spans()[1];
+      const fetches = spans('FETCH');
+      expect(fetches.length).toStrictEqual(2);
+      for (const span of fetches) {
+        expect(span.links[0].context.spanId).toStrictEqual(
+          execution.spanContext().spanId,
+        );
+      }
+    });
+
+    it('should record a lost portal as an error and add no comment of its own', async () => {
+      const seen: string[] = [];
+      instrumentation.setConfig({
+        sqlComment: { tags: { app: 'billing' } },
+        requestHook: (_span, info) => seen.push(info.operation),
+      });
+      const r = await conn.query(SQL, { cursor: true, fetchCount: 1 });
+      await conn.query('select 1');
+      await r.cursor!.next().catch(() => undefined);
+      await r.cursor!.close();
+      const [fetch] = spans('FETCH');
+      expect(fetch.status.code).toStrictEqual(SpanStatusCode.ERROR);
+      expect(fetch.attributes['db.response.status_code']).toStrictEqual(
+        '34000',
+      );
+      // The text the cursor's statement was prepared with, commented once
+      // by the query that opened it, and not again by the fetch.
+      expect(fetch.attributes['db.query.text']).toStrictEqual(
+        `/*app='billing'*/ ${SQL}`,
+      );
+      expect(seen).toStrictEqual(['query', 'query', 'fetch']);
     });
   });
 

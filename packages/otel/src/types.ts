@@ -22,7 +22,7 @@ export interface QueryContext {
   sql: string;
   paramCount: number;
   connection: ConnectionLike;
-  result?: { rows?: unknown[] };
+  result?: { rows?: unknown[]; cursor?: object };
   error?: unknown;
 }
 
@@ -68,7 +68,7 @@ export interface StatementExecuteContext {
   paramCount: number;
   /** Set for `executeBatch()` only. */
   batchSize?: number;
-  result?: { rows?: unknown[] };
+  result?: { rows?: unknown[]; cursor?: object };
   error?: unknown;
 }
 
@@ -77,6 +77,17 @@ export interface PipelineContext {
   statements: { sql: string; paramCount: number }[];
   connection: ConnectionLike;
   result?: unknown[];
+  error?: unknown;
+}
+
+/** What `postgrejs:cursor:fetch` publishes. See postgrejs's `CursorFetchTraceContext`. */
+export interface CursorFetchContext {
+  readonly sql: string;
+  connection: ConnectionLike;
+  cursor: object;
+  fetchCount: number;
+  rowCount?: number;
+  done?: boolean;
   error?: unknown;
 }
 
