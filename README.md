@@ -54,37 +54,46 @@ PostgreJS is a driver, not a framework, so what you build on top of it stays you
 
 <!-- The same cards as the integrations section on postgrejs.com: each
      project's full logo, which carries its name, over the one-line
-     description, linking to its integration page. A table because GitHub
-     strips CSS; the logos follow the reader's theme. -->
+     description, linking to its integration page. HTML because GitHub and npm
+     strip CSS.
+
+     Each logo is two links, one per theme. GitHub hides a link whose href ends
+     in #gh-dark-mode-only or #gh-light-mode-only according to its own theme
+     setting; a <picture> would follow the OS theme instead, and npm moves its
+     <img> out of the link. npm has no such rule and a light page, so the build
+     drops the dark links from the README it publishes (support/npm-readme.mjs).
+
+     Each row has a <tbody> of its own, so GitHub's tr:nth-child(2n) striping,
+     which counts within the parent, never greys the second row. -->
 <table>
-  <tr>
+  <tbody><tr>
     <td align="center" width="280" valign="top"><br>
-      <a href="https://www.postgrejs.com/docs/integrations/sqb"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/sqb-full-dark.svg"><img src="https://www.postgrejs.com/img/sqb-full-light.svg" alt="SQB" height="40"></picture></a><br><br>
+      <a href="https://www.postgrejs.com/docs/integrations/sqb#gh-light-mode-only"><img src="https://www.postgrejs.com/img/sqb-full-light.svg" alt="SQB" height="40"></a><a href="https://www.postgrejs.com/docs/integrations/sqb#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/sqb-full-dark.svg" alt="SQB" height="40"></a><br><br>
       Panates' own multi-dialect ORM and query builder. Its PostgreSQL adapter is built directly on postgrejs.<br><br>
     </td>
     <td align="center" width="280" valign="top"><br>
-      <a href="https://www.postgrejs.com/docs/integrations/joist"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/joist-full-dark.svg"><img src="https://www.postgrejs.com/img/joist-full-light.svg" alt="Joist" height="40"></picture></a><br><br>
+      <a href="https://www.postgrejs.com/docs/integrations/joist#gh-light-mode-only"><img src="https://www.postgrejs.com/img/joist-full-light.svg" alt="Joist" height="40"></a><a href="https://www.postgrejs.com/docs/integrations/joist#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/joist-full-dark.svg" alt="Joist" height="40"></a><br><br>
       Joist 2.5 ships a postgrejs driver of its own, which keeps each row undecoded until an entity reads it.<br><br>
     </td>
     <td align="center" width="280" valign="top"><br>
       <h3><a href="https://www.postgrejs.com/docs/integrations/kysely"><img src="https://www.postgrejs.com/img/kysely-logo.svg" alt="" height="40" align="absmiddle"></a>&nbsp;Kysely</h3>
       A type-safe SQL query builder. Run it on postgrejs instead of pg with a drop-in dialect.<br><br>
     </td>
-  </tr>
-  <tr>
+  </tr></tbody>
+  <tbody><tr>
     <td align="center" width="280" valign="top"><br>
-      <a href="https://www.postgrejs.com/docs/integrations/drizzle"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/drizzle-logo-dark.svg"><img src="https://www.postgrejs.com/img/drizzle-logo-light.svg" alt="Drizzle ORM" height="34"></picture></a><br><br>
+      <a href="https://www.postgrejs.com/docs/integrations/drizzle#gh-light-mode-only"><img src="https://www.postgrejs.com/img/drizzle-logo-light.svg" alt="Drizzle ORM" height="34"></a><a href="https://www.postgrejs.com/docs/integrations/drizzle#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/drizzle-logo-dark.svg" alt="Drizzle ORM" height="34"></a><br><br>
       A lightweight TypeScript ORM: schema, relational queries and migrations on postgrejs.<br><br>
     </td>
     <td align="center" width="280" valign="top"><br>
-      <a href="https://www.postgrejs.com/docs/integrations/typeorm"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/typeorm-full-dark.png"><img src="https://www.postgrejs.com/img/typeorm-full-light.svg" alt="TypeORM" height="40"></picture></a><br><br>
+      <a href="https://www.postgrejs.com/docs/integrations/typeorm#gh-light-mode-only"><img src="https://www.postgrejs.com/img/typeorm-full-light.svg" alt="TypeORM" height="40"></a><a href="https://www.postgrejs.com/docs/integrations/typeorm#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/typeorm-full-dark.png" alt="TypeORM" height="40"></a><br><br>
       A pg-compatible facade. Bring postgrejs to TypeORM by changing one line.<br><br>
     </td>
     <td align="center" width="280" valign="top"><br>
-      <a href="https://www.postgrejs.com/docs/integrations/prisma"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/prisma-full-dark.svg"><img src="https://www.postgrejs.com/img/prisma-full-light.svg" alt="Prisma" height="40"></picture></a><br><br>
+      <a href="https://www.postgrejs.com/docs/integrations/prisma#gh-light-mode-only"><img src="https://www.postgrejs.com/img/prisma-full-light.svg" alt="Prisma" height="40"></a><a href="https://www.postgrejs.com/docs/integrations/prisma#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/prisma-full-dark.svg" alt="Prisma" height="40"></a><br><br>
       A driver adapter. Run a Prisma schema on postgrejs instead of pg.<br><br>
     </td>
-  </tr>
+  </tr></tbody>
 </table>
 
 Each adapter hands the compiled SQL straight to this client, with no `pg` left anywhere in the chain, and each is

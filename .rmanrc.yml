@@ -14,3 +14,10 @@ version:
 changelog:
   # One changelog for the whole release, at the repository root.
   groupBy: group
+
+'[postgrejs]':
+  run:
+    build:
+      # After the preset's own step, which copies the root README into build/: npm gets
+      # the README without the dark-theme logos GitHub hides on a light page.
+      after: "${{ [...value, 'node ../../support/npm-readme.mjs build/README.md'] }}"

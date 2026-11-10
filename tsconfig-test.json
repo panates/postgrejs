@@ -3,7 +3,8 @@
   "include": [
     "./packages/*/test/**/*.*",
     "./packages/*/src/**/*.*",
-    "./packages/*/benchmark/**/*.ts"
+    "./packages/*/benchmark/**/*.ts",
+    "./support/*.d.mts"
   ],
   "compilerOptions": {
     "types": ["node", "mocha"],
