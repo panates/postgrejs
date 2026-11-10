@@ -18,7 +18,7 @@ byte on the wire is handled by code written for exactly that purpose, with a bin
 and row/column decoding pipelines built to avoid unnecessary allocation, instead of generic string plumbing bolted
 onto a client meant for text.
 
-### ⚡ Blazing Fast
+### Blazing Fast
 
 The numbers back it up. In PostgreJS's own benchmark suite - run head-to-head against
 [`pg`](https://github.com/brianc/node-postgres) (node-postgres) and [`postgres`](https://github.com/porsager/postgres)
@@ -31,7 +31,7 @@ methodology and every scenario.
 The same suite runs under Bun, where Bun's own built-in `Bun.sql` joins the comparison as a fourth client - see
 [`doc/BENCHMARKS-bun.md`](doc/BENCHMARKS-bun.md).
 
-### 🪶 Small Footprint
+### Small Footprint
 
 The same benchmarks show it using a fraction of the memory: peak heap usage typically runs **3-7x lower** than both
 pg and postgres.js - as much as **7x lower** when streaming cursors or fetching large arrays - and it spends a
@@ -39,7 +39,7 @@ fraction of the time either of them does in garbage collection. Shared buffers a
 straight out of the wire buffer leave far less garbage behind per row, so there's less for the GC to clean up in
 the first place.
 
-### 🔋 Batteries Included
+### Batteries Included
 
 Speed and memory aside, PostgreJS is also the most complete driver of the three: a dynamic `sql` tag for
 composable, parameterized SQL, per-query type mapping, and TC39 Explicit Resource Management (`using`) support are
@@ -48,43 +48,52 @@ prepared statements, server-side cursors, LISTEN/NOTIFY, bulk `COPY` streams, lo
 two-phase commit, multi-host failover, and SCRAM channel binding - all in the one package, written in
 strictly-typed TypeScript from the ground up.
 
-### 🔌 Bring Your Own ORM
+### Bring Your Own ORM
 
 PostgreJS is a driver, not a framework, so what you build on top of it stays your choice:
 
 <!-- The same cards as the integrations section on postgrejs.com: each
      project's full logo, which carries its name, over the one-line
-     description, linking to its integration page. A table because GitHub
-     strips CSS; the logos follow the reader's theme. -->
+     description, linking to its integration page. HTML because GitHub and npm
+     strip CSS.
+
+     Each logo is two links, one per theme. GitHub hides a link whose href ends
+     in #gh-dark-mode-only or #gh-light-mode-only according to its own theme
+     setting; a <picture> would follow the OS theme instead, and npm moves its
+     <img> out of the link. npm has no such rule and a light page, so the build
+     drops the dark links from the README it publishes (support/npm-readme.mjs).
+
+     Each row has a <tbody> of its own, so GitHub's tr:nth-child(2n) striping,
+     which counts within the parent, never greys the second row. -->
 <table>
-  <tr>
+  <tbody><tr>
     <td align="center" width="280" valign="top"><br>
-      <a href="https://www.postgrejs.com/docs/integrations/sqb"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/sqb-full-dark.svg"><img src="https://www.postgrejs.com/img/sqb-full-light.svg" alt="SQB" height="40"></picture></a><br><br>
+      <a href="https://www.postgrejs.com/docs/integrations/sqb#gh-light-mode-only"><img src="https://www.postgrejs.com/img/sqb-full-light.svg" alt="SQB" height="40"></a><a href="https://www.postgrejs.com/docs/integrations/sqb#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/sqb-full-dark.svg" alt="SQB" height="40"></a><br><br>
       Panates' own multi-dialect ORM and query builder. Its PostgreSQL adapter is built directly on postgrejs.<br><br>
     </td>
     <td align="center" width="280" valign="top"><br>
-      <a href="https://www.postgrejs.com/docs/integrations/joist"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/joist-full-dark.svg"><img src="https://www.postgrejs.com/img/joist-full-light.svg" alt="Joist" height="40"></picture></a><br><br>
+      <a href="https://www.postgrejs.com/docs/integrations/joist#gh-light-mode-only"><img src="https://www.postgrejs.com/img/joist-full-light.svg" alt="Joist" height="40"></a><a href="https://www.postgrejs.com/docs/integrations/joist#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/joist-full-dark.svg" alt="Joist" height="40"></a><br><br>
       Joist 2.5 ships a postgrejs driver of its own, which keeps each row undecoded until an entity reads it.<br><br>
     </td>
     <td align="center" width="280" valign="top"><br>
       <h3><a href="https://www.postgrejs.com/docs/integrations/kysely"><img src="https://www.postgrejs.com/img/kysely-logo.svg" alt="" height="40" align="absmiddle"></a>&nbsp;Kysely</h3>
       A type-safe SQL query builder. Run it on postgrejs instead of pg with a drop-in dialect.<br><br>
     </td>
-  </tr>
-  <tr>
+  </tr></tbody>
+  <tbody><tr>
     <td align="center" width="280" valign="top"><br>
-      <a href="https://www.postgrejs.com/docs/integrations/drizzle"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/drizzle-logo-dark.svg"><img src="https://www.postgrejs.com/img/drizzle-logo-light.svg" alt="Drizzle ORM" height="34"></picture></a><br><br>
+      <a href="https://www.postgrejs.com/docs/integrations/drizzle#gh-light-mode-only"><img src="https://www.postgrejs.com/img/drizzle-logo-light.svg" alt="Drizzle ORM" height="34"></a><a href="https://www.postgrejs.com/docs/integrations/drizzle#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/drizzle-logo-dark.svg" alt="Drizzle ORM" height="34"></a><br><br>
       A lightweight TypeScript ORM: schema, relational queries and migrations on postgrejs.<br><br>
     </td>
     <td align="center" width="280" valign="top"><br>
-      <a href="https://www.postgrejs.com/docs/integrations/typeorm"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/typeorm-full-dark.png"><img src="https://www.postgrejs.com/img/typeorm-full-light.svg" alt="TypeORM" height="40"></picture></a><br><br>
+      <a href="https://www.postgrejs.com/docs/integrations/typeorm#gh-light-mode-only"><img src="https://www.postgrejs.com/img/typeorm-full-light.svg" alt="TypeORM" height="40"></a><a href="https://www.postgrejs.com/docs/integrations/typeorm#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/typeorm-full-dark.png" alt="TypeORM" height="40"></a><br><br>
       A pg-compatible facade. Bring postgrejs to TypeORM by changing one line.<br><br>
     </td>
     <td align="center" width="280" valign="top"><br>
-      <a href="https://www.postgrejs.com/docs/integrations/prisma"><picture><source media="(prefers-color-scheme: dark)" srcset="https://www.postgrejs.com/img/prisma-full-dark.svg"><img src="https://www.postgrejs.com/img/prisma-full-light.svg" alt="Prisma" height="40"></picture></a><br><br>
+      <a href="https://www.postgrejs.com/docs/integrations/prisma#gh-light-mode-only"><img src="https://www.postgrejs.com/img/prisma-full-light.svg" alt="Prisma" height="40"></a><a href="https://www.postgrejs.com/docs/integrations/prisma#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/prisma-full-dark.svg" alt="Prisma" height="40"></a><br><br>
       A driver adapter. Run a Prisma schema on postgrejs instead of pg.<br><br>
     </td>
-  </tr>
+  </tr></tbody>
 </table>
 
 Each adapter hands the compiled SQL straight to this client, with no `pg` left anywhere in the chain, and each is
@@ -94,7 +103,26 @@ against that too. So adopting one is a change to how the connection is created a
 Joist's is the Joist project's own, and uses `RowDecoder` to leave each cell undecoded until an entity reads it.
 Codegen and migrations there still run on `pg`, though the runtime does not.
 
-### 🌍 Runs Where You Run
+### OpenTelemetry Instrumentation
+
+Every query, prepared statement, pipeline, cursor fetch, `COPY`, transaction command, connection attempt and pool
+checkout is published on Node's `diagnostics_channel`, and nothing is published while nobody listens.
+[`postgrejs-otel`](https://github.com/panates/postgrejs/tree/main/packages/otel) turns those events into OpenTelemetry
+spans that follow the stable database semantic conventions, and records the database client metrics: operation
+duration, returned rows, and the pool's connections, waiting callers, wait time and timeouts. It patches nothing, so
+import order and bundling make no difference, and it runs on Node.js and Bun.
+
+```ts
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { PostgrejsInstrumentation } from 'postgrejs-otel';
+
+new NodeSDK({ instrumentations: [new PostgrejsInstrumentation()] }).start();
+```
+
+A cursor's `FETCH` spans link back to the query that opened the cursor, and an optional SQL comment carries the trace
+context to the server, where it shows up in `pg_stat_activity` and the server logs.
+
+### Runs Where You Run
 
 <!-- Same card shape as the adapters above, for the same reason: GitHub strips CSS, and a table
      is the one layout that survives everywhere the README is read. -->
@@ -115,8 +143,8 @@ Codegen and migrations there still run on `pg`, though the runtime does not.
   </tr>
 </table>
 
-Node and Bun run **the same test suite** in CI on every push - Node across 20, 22, 24 and 26 against PostgreSQL 12,
-16 and 18, Bun against 18 - so neither is a target that merely ought to work. Workers is not in that matrix yet: it
+Node and Bun run **the same test suite** in CI on every push - Node across 22, 24 and 26 against PostgreSQL 12, 16
+and 18, Bun against 18 - so neither is a target that merely ought to work. Workers is not in that matrix yet: it
 was measured by hand against PostgreSQL 18, a plain connection and a TLS one, and what the runtime does and does not
 allow is written down in [doc/CLOUDFLARE-WORKERS.md](doc/CLOUDFLARE-WORKERS.md).
 
@@ -128,7 +156,7 @@ $ npm install postgrejs --save
 
 ## Documentation
 
-### Please read 🔸 [DOCUMENTATION](https://www.postgrejs.com/) 🔸 for detailed usage
+### Please read the [documentation](https://www.postgrejs.com/) for detailed usage
 
 Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3.6.md) - `query()` no longer stops at
 100 rows, and `fetchAsString` now returns the server's own text.
