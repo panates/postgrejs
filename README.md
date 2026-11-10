@@ -18,7 +18,7 @@ byte on the wire is handled by code written for exactly that purpose, with a bin
 and row/column decoding pipelines built to avoid unnecessary allocation, instead of generic string plumbing bolted
 onto a client meant for text.
 
-### ⚡ Blazing Fast
+### Blazing Fast
 
 The numbers back it up. In PostgreJS's own benchmark suite - run head-to-head against
 [`pg`](https://github.com/brianc/node-postgres) (node-postgres) and [`postgres`](https://github.com/porsager/postgres)
@@ -31,7 +31,7 @@ methodology and every scenario.
 The same suite runs under Bun, where Bun's own built-in `Bun.sql` joins the comparison as a fourth client - see
 [`doc/BENCHMARKS-bun.md`](doc/BENCHMARKS-bun.md).
 
-### 🪶 Small Footprint
+### Small Footprint
 
 The same benchmarks show it using a fraction of the memory: peak heap usage typically runs **3-7x lower** than both
 pg and postgres.js - as much as **7x lower** when streaming cursors or fetching large arrays - and it spends a
@@ -39,7 +39,7 @@ fraction of the time either of them does in garbage collection. Shared buffers a
 straight out of the wire buffer leave far less garbage behind per row, so there's less for the GC to clean up in
 the first place.
 
-### 🔋 Batteries Included
+### Batteries Included
 
 Speed and memory aside, PostgreJS is also the most complete driver of the three: a dynamic `sql` tag for
 composable, parameterized SQL, per-query type mapping, and TC39 Explicit Resource Management (`using`) support are
@@ -48,7 +48,7 @@ prepared statements, server-side cursors, LISTEN/NOTIFY, bulk `COPY` streams, lo
 two-phase commit, multi-host failover, and SCRAM channel binding - all in the one package, written in
 strictly-typed TypeScript from the ground up.
 
-### 🔌 Bring Your Own ORM
+### Bring Your Own ORM
 
 PostgreJS is a driver, not a framework, so what you build on top of it stays your choice:
 
@@ -103,7 +103,26 @@ against that too. So adopting one is a change to how the connection is created a
 Joist's is the Joist project's own, and uses `RowDecoder` to leave each cell undecoded until an entity reads it.
 Codegen and migrations there still run on `pg`, though the runtime does not.
 
-### 🌍 Runs Where You Run
+### OpenTelemetry Instrumentation
+
+Every query, prepared statement, pipeline, cursor fetch, `COPY`, transaction command, connection attempt and pool
+checkout is published on Node's `diagnostics_channel`, and nothing is published while nobody listens.
+[`postgrejs-otel`](https://github.com/panates/postgrejs/tree/main/packages/otel) turns those events into OpenTelemetry
+spans that follow the stable database semantic conventions, and records the database client metrics: operation
+duration, returned rows, and the pool's connections, waiting callers, wait time and timeouts. It patches nothing, so
+import order and bundling make no difference, and it runs on Node.js and Bun.
+
+```ts
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { PostgrejsInstrumentation } from 'postgrejs-otel';
+
+new NodeSDK({ instrumentations: [new PostgrejsInstrumentation()] }).start();
+```
+
+A cursor's `FETCH` spans link back to the query that opened the cursor, and an optional SQL comment carries the trace
+context to the server, where it shows up in `pg_stat_activity` and the server logs.
+
+### Runs Where You Run
 
 <!-- Same card shape as the adapters above, for the same reason: GitHub strips CSS, and a table
      is the one layout that survives everywhere the README is read. -->
@@ -124,8 +143,8 @@ Codegen and migrations there still run on `pg`, though the runtime does not.
   </tr>
 </table>
 
-Node and Bun run **the same test suite** in CI on every push - Node across 20, 22, 24 and 26 against PostgreSQL 12,
-16 and 18, Bun against 18 - so neither is a target that merely ought to work. Workers is not in that matrix yet: it
+Node and Bun run **the same test suite** in CI on every push - Node across 22, 24 and 26 against PostgreSQL 12, 16
+and 18, Bun against 18 - so neither is a target that merely ought to work. Workers is not in that matrix yet: it
 was measured by hand against PostgreSQL 18, a plain connection and a TLS one, and what the runtime does and does not
 allow is written down in [doc/CLOUDFLARE-WORKERS.md](doc/CLOUDFLARE-WORKERS.md).
 
@@ -137,7 +156,7 @@ $ npm install postgrejs --save
 
 ## Documentation
 
-### Please read 🔸 [DOCUMENTATION](https://www.postgrejs.com/) 🔸 for detailed usage
+### Please read the [documentation](https://www.postgrejs.com/) for detailed usage
 
 Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3.6.md) - `query()` no longer stops at
 100 rows, and `fetchAsString` now returns the server's own text.
