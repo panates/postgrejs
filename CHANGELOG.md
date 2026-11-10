@@ -1,6 +1,20 @@
 # Changelog
 
-<!-- rman:documented-up-to 396ba3f22513510358c182bcbea9667097477956 -->
+<!-- rman:documented-up-to 65caa68493f640ad2522dd1c3cd976b563656e77 -->
+
+## v3.15.1 (2026-11-10)
+
+### 📚 Documentation
+
+- follow GitHub's theme in the README's ORM logos (d494129)
+- add OpenTelemetry to the README's Why PostgreJS section (228802e)
+
+### 📦 Build System
+
+- format .rmanrc.yml as prettier does (de1f7bb)
+- publish postgrejs-otel with the release again (ba7a421)
+
+---
 
 ## v3.15.0 (2026-11-09)
 
