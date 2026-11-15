@@ -14,7 +14,8 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/panates/postgrejs.git"
+    "url": "git+https://github.com/panates/postgrejs.git",
+    "directory": "packages/postgrejs"
   },
   "scripts": {
     "bench": "node --import ./benchmark/env.mjs --import @swc-node/register/esm-register benchmark/cli.ts",
