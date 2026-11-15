@@ -1,6 +1,24 @@
 # Changelog
 
-<!-- rman:documented-up-to 65caa68493f640ad2522dd1c3cd976b563656e77 -->
+<!-- rman:documented-up-to a2a910f1c7407b5acff6904e6a74e39751594076 -->
+
+## v3.15.2 (2026-11-15)
+
+### 📚 Documentation
+
+- move doc/ to docs/ (464e969)
+
+### 🤖 Continuous Integration
+
+- guard main, run tests on every branch, add SECURITY.md (a0e1269)
+
+### 🧹 Chores
+
+- align ignore files and eslint config with the templates (fa68504)
+- commit the shared Claude settings, add badges to the otel README (7c88066)
+- **deps:** upgrade dependencies (16a6b46)
+
+---
 
 ## v3.15.1 (2026-11-10)
 
