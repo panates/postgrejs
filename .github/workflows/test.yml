@@ -8,10 +8,10 @@ on:
   # Can be run manually
   workflow_dispatch:
 
-  # on git push
+  # Every push but to main, which gets its tests from release.yml
   push:
-    branches:
-      - dev
+    branches-ignore:
+      - main
     # **No leading slash.** GitHub matches these against paths relative to the repository root, so
     # they are anchored already and `/` is not in the documented filter syntax (`*`, `**`, `?`, `+`,
     # `[]`, `!`, `\`). `'/src/**'` and `'/test/**'` therefore matched nothing at all: a push to dev
@@ -57,8 +57,8 @@ jobs:
     # and is answered by the API (`pr-source.yaml@v3`) rather than by parsing a commit message,
     # which only ever recognised one of the three merge buttons this repository has enabled.
     #
-    # It was also wrong here on its own terms: this workflow's own trigger is a push to `dev`, where
-    # a merge into `dev` from any branch whose name contains `/dev` skipped the tests entirely.
+    # It was also wrong here on its own terms: when this workflow ran only on pushes to `dev`, a
+    # merge into `dev` from any branch whose name contained `/dev` skipped the tests entirely.
     if: >
       github.event_name == 'workflow_dispatch' ||
       (
@@ -198,10 +198,10 @@ jobs:
       # a build. The preset contributes no typecheck command - it builds with `tsc -b` and this is
       # the no-emit half - so it stays an npm script.
       - name: Run type check
-        run: npm run typecheck
+        run: pnpm run typecheck
 
       - name: Run unit tests
-        run: npm run citest
+        run: pnpm run citest
         env:
           NODE_OPTIONS: "--max_old_space_size=4096"
           NODE_TLS_REJECT_UNAUTHORIZED: 0
