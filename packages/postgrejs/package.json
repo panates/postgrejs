@@ -39,7 +39,7 @@
     "expect": "^30.5.2",
     "pg": "^8.23.1",
     "pg-copy-streams": "^7.0.0",
-    "postgres": "^4.1.0",
+    "postgres": "^4.1.1",
     "temporal-polyfill": "^1.0.8",
     "tinybench": "^6.2.3",
     "yargs": "^18.2.0"
