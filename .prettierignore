@@ -1,16 +1,18 @@
 /node_modules
+/build
 packages/*/build
-# Generated, and pnpm rewrites it in its own layout on every install - left
-# to prettier the two reformat it back and forth forever.
-/pnpm-lock.yaml
 /coverage
 /.idea
-/.circleci
 /.husky
 /.DS_Store
 /.nyc_output
 /.github
+/.claude
+/graphify-out
 **/*.md
+
+# pnpm writes the lockfile in its own layout, which prettier would rewrite on every format
+pnpm-lock.yaml
 
 # IDEs and editors
 .project

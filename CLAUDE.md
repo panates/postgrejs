@@ -1,7 +1,7 @@
 ## Project Orientation
 
 `postgrejs` is a from-scratch PostgreSQL wire-protocol client for Node.js/TypeScript - no `libpq`, no native
-bindings. See README.md's "Why PostgreJS?" section for the pitch and `doc/BENCHMARKS.md` for performance data
+bindings. See README.md's "Why PostgreJS?" section for the pitch and `docs/BENCHMARKS.md` for performance data
 against `pg` and `postgres.js`.
 
 The repository is a pnpm workspace with lockstep versioning (one version, one `v*` tag for every
@@ -12,7 +12,7 @@ package, see `.rmanrc.yml`):
 - `packages/otel/` - `postgrejs-otel`, the OpenTelemetry instrumentation. It subscribes to the driver's
   `diagnostics_channel` tracing channels (`src/tracing.ts`) by name and never imports the driver at runtime; the
   event shapes it reads are restated in its `src/types.ts`, so it type-checks without the driver being built.
-- At the root: the shared tooling (`tsconfig-*.json`, `.mocharc.cjs`, `.c8rc.json`, eslint, rman), `doc/`,
+- At the root: the shared tooling (`tsconfig-*.json`, `.mocharc.cjs`, `.c8rc.json`, eslint, rman), `docs/`,
   `support/docker/` (the local PostgreSQL), and the README, which rman copies into the driver's build because
   the package has none of its own.
 
@@ -111,7 +111,7 @@ declaration.
 ### Prose a person will read
 
 Run `panates:humanize` over anything written for a human reader, without waiting to be asked:
-TSDoc and the notes under it, `doc/*.md`, README prose, commit messages, PR bodies, issue
+TSDoc and the notes under it, `docs/*.md`, README prose, commit messages, PR bodies, issue
 replies. Not identifiers, test titles or config - those need consistency, not a natural voice.
 The skill carries its own section for documentation and commit messages, and defers to this file
 wherever the two disagree.

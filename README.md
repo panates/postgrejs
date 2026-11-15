@@ -25,11 +25,11 @@ The numbers back it up. In PostgreJS's own benchmark suite - run head-to-head ag
 (postgres.js) on identical workloads - PostgreJS opens a connection up to **3x faster** than postgres.js, pushes
 pooled queries through up to **6.5x faster** than pg, and fetches large result sets nearly **5x faster** than pg
 too. It's also the only one of the three Node drivers with a complete binary wire protocol across every data
-type, rather than falling back to text for most of them. See [`doc/BENCHMARKS.md`](doc/BENCHMARKS.md) for the full
+type, rather than falling back to text for most of them. See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for the full
 methodology and every scenario.
 
 The same suite runs under Bun, where Bun's own built-in `Bun.sql` joins the comparison as a fourth client - see
-[`doc/BENCHMARKS-bun.md`](doc/BENCHMARKS-bun.md).
+[`docs/BENCHMARKS-bun.md`](docs/BENCHMARKS-bun.md).
 
 ### Small Footprint
 
@@ -146,7 +146,7 @@ context to the server, where it shows up in `pg_stat_activity` and the server lo
 Node and Bun run **the same test suite** in CI on every push - Node across 22, 24 and 26 against PostgreSQL 12, 16
 and 18, Bun against 18 - so neither is a target that merely ought to work. Workers is not in that matrix yet: it
 was measured by hand against PostgreSQL 18, a plain connection and a TLS one, and what the runtime does and does not
-allow is written down in [doc/CLOUDFLARE-WORKERS.md](doc/CLOUDFLARE-WORKERS.md).
+allow is written down in [docs/CLOUDFLARE-WORKERS.md](docs/CLOUDFLARE-WORKERS.md).
 
 ## Installation
 
@@ -158,7 +158,7 @@ $ npm install postgrejs --save
 
 ### Please read the [documentation](https://www.postgrejs.com/) for detailed usage
 
-Upgrading from 3.5? See [doc/MIGRATION-v3.5-to-v3.6.md](doc/MIGRATION-v3.5-to-v3.6.md) - `query()` no longer stops at
+Upgrading from 3.5? See [docs/MIGRATION-v3.5-to-v3.6.md](docs/MIGRATION-v3.5-to-v3.6.md) - `query()` no longer stops at
 100 rows, and `fetchAsString` now returns the server's own text.
 
 ## Library Overview
@@ -339,7 +339,7 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
   `postgresql` ALPN protocol, and is refused by name here; and SCRAM channel binding has no server certificate to bind
   to, so `channelBinding: 'require'` is refused and the default `prefer` authenticates without it. Hyperdrive is the
   other way in, terminating TLS in Cloudflare's own network - checked here against its binding. See
-  [doc/CLOUDFLARE-WORKERS.md](doc/CLOUDFLARE-WORKERS.md).
+  [docs/CLOUDFLARE-WORKERS.md](docs/CLOUDFLARE-WORKERS.md).
 - <sup>29</sup> pg reaches workerd through `pg-cloudflare`, a separate package it carries as an optional dependency
   and selects at runtime (`lib/stream.js`, on `navigator.userAgent`). That package wraps `cloudflare:sockets` and
   upgrades with its own `startTls()`, so TLS is available where PostgreJS's is not - at the cost of a second package
@@ -367,14 +367,14 @@ in · 🟡 partial or needs a separate package · ❌ not supported.
 ## Benchmarks
 
 PostgreJS implements the full PostgreSQL wire protocol from scratch, with no dependency on `pg`/libpq.
-[`doc/BENCHMARKS.md`](doc/BENCHMARKS.md) compares it against `pg` (node-postgres) and `postgres` (postgres.js)
+[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) compares it against `pg` (node-postgres) and `postgres` (postgres.js)
 across connection setup, simple/prepared queries, mixed-type decoding, bulk fetches, cursor streaming and pool
 concurrency, each library run through its own idiomatic fast path. The numbers there are reproducible on your own
 machine via `pnpm run bench` against the repo's own
 `support/docker/docker-compose.yml` Postgres instance; see [`packages/postgrejs/benchmark/README.md`](./packages/postgrejs/benchmark/README.md) for details.
 
 The same suite runs under Bun via `pnpm run bench:bun`, where it also measures Bun's own built-in `Bun.sql` client as
-a fourth library. Those results live in [`doc/BENCHMARKS-bun.md`](doc/BENCHMARKS-bun.md) and are deliberately kept
+a fourth library. Those results live in [`docs/BENCHMARKS-bun.md`](docs/BENCHMARKS-bun.md) and are deliberately kept
 in a separate report rather than merged into the Node one: GC instrumentation, cursor streaming and binary-format
 control all differ enough between the two runtimes that a single table would conflate a library difference with a
 runtime difference.
@@ -396,7 +396,7 @@ you open an issue please provide version of NodeJS and PostgreSQL server.
   coverage APIs, which JavaScriptCore doesn't have.)
 - Cloudflare Workers - with `nodejs_compat`, and without TLS: the runtime has no way to trust a server
   certificate, so a database behind TLS is reached through Hyperdrive instead. See
-  [doc/CLOUDFLARE-WORKERS.md](doc/CLOUDFLARE-WORKERS.md).
+  [docs/CLOUDFLARE-WORKERS.md](docs/CLOUDFLARE-WORKERS.md).
 
 ## License
 

@@ -122,7 +122,7 @@ so sticking to the format keeps it meaningful.
 
 ## Benchmarks
 
-Benchmark scenarios live under `packages/postgrejs/benchmark/`; see `doc/BENCHMARKS.md` for
+Benchmark scenarios live under `packages/postgrejs/benchmark/`; see `docs/BENCHMARKS.md` for
 the current results and that directory's `README.md` for how to run a scenario
 yourself (`pnpm run bench -- --scenario=<name> --lib=<name>`). Only run
 these if your change could affect performance - they aren't part of the

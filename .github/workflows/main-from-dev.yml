@@ -1,0 +1,28 @@
+name: Main from dev
+on:
+  # main takes pull requests from dev only
+  pull_request:
+    branches:
+      - main
+
+# This workflow reads nothing; the branch names come from the event
+permissions: {}
+
+jobs:
+  main-from-dev:
+    name: main-from-dev
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The branch names go through env, never into the script text: a branch name is set by
+      # whoever opens the pull request.
+      - name: Check the source branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ "$HEAD_REF" != "dev" ] || [ "$HEAD_REPO" != "$REPO" ]; then
+            echo "::error::main takes pull requests from dev only, not from $HEAD_REPO:$HEAD_REF"
+            exit 1
+          fi

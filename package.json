@@ -32,8 +32,8 @@
     "prepare": "husky || true"
   },
   "devDependencies": {
-    "@panates/eslint-config": "^2.3.5",
-    "@panates/eslint-config-ts": "^2.3.5",
+    "@panates/eslint-config": "^2.4.0",
+    "@panates/eslint-config-ts": "^2.4.0",
     "@panates/rman-preset": "^2.2.2",
     "@panates/tsconfig": "^2.1.8",
     "@swc-node/register": "^1.12.1",
