@@ -1,34 +1,43 @@
-**/node_modules
-packages/*/build
-/examples/*/package-lock.json
-*.tsbuildinfo
-.claude
-graphify-out
-/test-*
-/support/docker/data
+# Dependencies
+node_modules
 
-# environment variables
+# Build output
+build/
+packages/*/build
+*.tsbuildinfo
+/examples/*/package-lock.json
+
+# Environment variables: only an example file is committed
 .env
+.env.*
+!.env.example
 .development.env
 
 # Logs
 logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
 
 # OS
 .DS_Store
 
 # Tests
 /coverage
-/reports
 /.nyc_output
+/reports
+/test-*
 
 # Benchmarks
 /packages/postgrejs/benchmark/results
+
+# Local PostgreSQL data (support/docker)
+/support/docker/data
+
+# Claude Code: .claude/settings.json is shared and committed, these are local
+.claude/*
+!.claude/settings.json
+.claude/settings.local.json
+.claude/worktrees/
+graphify-out
 
 # IDEs and editors
 /.idea

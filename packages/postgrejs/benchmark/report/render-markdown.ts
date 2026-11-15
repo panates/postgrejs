@@ -18,7 +18,7 @@ import { LIB_ORDER } from './lib-order.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BENCHMARK_DIR = path.resolve(__dirname, '..');
-// benchmark/ sits in packages/postgrejs; the reports go to doc/ at the repository root.
+// benchmark/ sits in packages/postgrejs; the reports go to docs/ at the repository root.
 const REPO_ROOT = path.resolve(BENCHMARK_DIR, '../../..');
 
 const LIB_LABELS: Record<string, string> = {
@@ -913,14 +913,14 @@ async function main(): Promise<void> {
   const wroteNode = await generateReport(
     'node',
     path.join(BENCHMARK_DIR, 'results', 'node'),
-    path.join(REPO_ROOT, 'doc', 'BENCHMARKS.md'),
+    path.join(REPO_ROOT, 'docs', 'BENCHMARKS.md'),
     'PostgreJS Benchmarks',
     postgresVersion,
   );
   const wroteBun = await generateReport(
     'bun',
     path.join(BENCHMARK_DIR, 'results', 'bun'),
-    path.join(REPO_ROOT, 'doc', 'BENCHMARKS-bun.md'),
+    path.join(REPO_ROOT, 'docs', 'BENCHMARKS-bun.md'),
     'PostgreJS Benchmarks (Bun)',
     postgresVersion,
   );

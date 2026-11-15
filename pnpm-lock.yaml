@@ -167,11 +167,11 @@ importers:
   .:
     devDependencies:
       '@panates/eslint-config':
-        specifier: ^2.3.5
-        version: 2.3.5(@eslint/js@10.0.1(eslint@10.13.0(supports-color@8.1.1)))(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1))(eslint-plugin-prettier@5.5.7(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(prettier@3.9.10))(eslint-plugin-security@4.2.0)(eslint-plugin-simple-import-sort@14.0.0(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(globals@17.14.0)
+        specifier: ^2.4.0
+        version: 2.4.0(@eslint/js@10.0.1(eslint@10.13.0(supports-color@8.1.1)))(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1))(eslint-plugin-prettier@5.5.7(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(prettier@3.9.10))(eslint-plugin-security@4.2.0)(eslint-plugin-simple-import-sort@14.0.0(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(globals@17.14.0)
       '@panates/eslint-config-ts':
-        specifier: ^2.3.5
-        version: 2.3.5(@eslint/js@10.0.1(eslint@10.13.0(supports-color@8.1.1)))(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1))(eslint-plugin-prettier@5.5.7(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(prettier@3.9.10))(eslint-plugin-security@4.2.0)(eslint-plugin-simple-import-sort@14.0.0(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(globals@17.14.0)(typescript-eslint@8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(typescript@6.0.3)
+        specifier: ^2.4.0
+        version: 2.4.0(@eslint/js@10.0.1(eslint@10.13.0(supports-color@8.1.1)))(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1))(eslint-plugin-prettier@5.5.7(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(prettier@3.9.10))(eslint-plugin-security@4.2.0)(eslint-plugin-simple-import-sort@14.0.0(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(globals@17.14.0)(typescript-eslint@8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(typescript@6.0.3)
       '@panates/rman-preset':
         specifier: ^2.2.2
         version: 2.2.2(dpdm@4.3.0)(eslint@10.13.0(supports-color@8.1.1))(prettier@3.9.10)(rman@2.39.0)
@@ -225,8 +225,8 @@ importers:
         specifier: ^3.1.1
         version: 3.1.1(@opentelemetry/api@1.10.0)
       '@opentelemetry/instrumentation':
-        specifier: ^0.301.1
-        version: 0.301.1(@opentelemetry/api@1.10.0)(supports-color@8.1.1)
+        specifier: ^0.301.2
+        version: 0.301.2(@opentelemetry/api@1.10.0)(supports-color@8.1.1)
       '@opentelemetry/sdk-metrics':
         specifier: ^3.1.1
         version: 3.1.1(@opentelemetry/api@1.10.0)
@@ -283,8 +283,8 @@ importers:
         specifier: ^7.0.0
         version: 7.0.0
       postgres:
-        specifier: ^4.1.0
-        version: 4.1.0
+        specifier: ^4.1.1
+        version: 4.1.1
       temporal-polyfill:
         specifier: ^1.0.8
         version: 1.0.8
@@ -592,8 +592,8 @@ packages:
     peerDependencies:
       '@opentelemetry/api': '>=1.10.0 <1.11.0'
 
-  '@opentelemetry/instrumentation@0.301.1':
-    resolution: {integrity: sha512-gKk+ExdRO31HuMf6/iY9JIow2I/qnPqQbu+wnhMXNtl4dPsLEBOWqvK/i08Pv5zCLRHxCYZzKr8s0pfztS+Odg==}
+  '@opentelemetry/instrumentation@0.301.2':
+    resolution: {integrity: sha512-14ZUepvK+YiMfhy3Hugh4UuY5THEfVOcsY0+L+DertoVmdh4MTR5H0JvD1IT2jGLKPZiIg+apDCM2CTuGh6UzQ==}
     engines: {node: '>=22.15.0'}
     peerDependencies:
       '@opentelemetry/api': '>=1.10.0 <1.11.0'
@@ -736,15 +736,15 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@panates/eslint-config-ts@2.3.5':
-    resolution: {integrity: sha512-9AfgFIsuncHFXXLehv6xvHaTldjrQ8oJB0tz81EFr+BJtYySLVrQJwMxTOweo3yKlmagvFL1BQGUOqw6jFK3bg==}
+  '@panates/eslint-config-ts@2.4.0':
+    resolution: {integrity: sha512-dmm3UAc4Hr8D0Oog2CVDO68UkPxtMUdOFmSxcZa7eZhM4b0QQQ2qBlL2pAQDPMqeN+IThPOoz4hTwsEPZyxHtA==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       typescript: '>=6 <7'
       typescript-eslint: '>=8'
 
-  '@panates/eslint-config@2.3.5':
-    resolution: {integrity: sha512-MfZQhbznBW/0jHCgf2lMDI/vet+0HzM8ut0m8aULmx+azpjSSWjhPAxApEDsmCZs0/ZYuaKXh5NZmCf+v3hZDw==}
+  '@panates/eslint-config@2.4.0':
+    resolution: {integrity: sha512-SGPvllTs6RvEzY6sr6k5FWLRHIMpO3brCG1OhcvqvjP4HXvRUmZuxFZZ7kp3aaSGRTfHdXSe6fBh0PLgF0PT/g==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@eslint/js': '>=10'
@@ -1828,8 +1828,8 @@ packages:
     resolution: {integrity: sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ==}
     engines: {node: '>=0.10.0'}
 
-  postgres@4.1.0:
-    resolution: {integrity: sha512-s+0WH67YAyLdBQUb6XczbziBhY+C9uiQsg9S8R5RHdZhk6sdyK6202E+T2tXpiInSEEjDLRSJ3OpYBe3PN6MsQ==}
+  postgres@4.1.1:
+    resolution: {integrity: sha512-1kJDojqNZC+iTHHXh6eif0J98LUtyLAePe/qkW1GK35eh2JixlsAiIKq3FGI+xqI+SUGTNodzf7TScVeIIyUug==}
     engines: {node: '>=18'}
 
   power-tasks@1.14.2:
@@ -2423,7 +2423,7 @@ snapshots:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/semantic-conventions': 1.45.0
 
-  '@opentelemetry/instrumentation@0.301.1(@opentelemetry/api@1.10.0)(supports-color@8.1.1)':
+  '@opentelemetry/instrumentation@0.301.2(@opentelemetry/api@1.10.0)(supports-color@8.1.1)':
     dependencies:
       '@opentelemetry/api': 1.10.0
       import-in-the-middle: 3.6.0
@@ -2527,9 +2527,9 @@ snapshots:
   '@oxc-resolver/binding-win32-x64-msvc@11.24.2':
     optional: true
 
-  '@panates/eslint-config-ts@2.3.5(@eslint/js@10.0.1(eslint@10.13.0(supports-color@8.1.1)))(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1))(eslint-plugin-prettier@5.5.7(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(prettier@3.9.10))(eslint-plugin-security@4.2.0)(eslint-plugin-simple-import-sort@14.0.0(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(globals@17.14.0)(typescript-eslint@8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(typescript@6.0.3)':
+  '@panates/eslint-config-ts@2.4.0(@eslint/js@10.0.1(eslint@10.13.0(supports-color@8.1.1)))(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1))(eslint-plugin-prettier@5.5.7(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(prettier@3.9.10))(eslint-plugin-security@4.2.0)(eslint-plugin-simple-import-sort@14.0.0(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(globals@17.14.0)(typescript-eslint@8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(typescript@6.0.3)':
     dependencies:
-      '@panates/eslint-config': 2.3.5(@eslint/js@10.0.1(eslint@10.13.0(supports-color@8.1.1)))(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1))(eslint-plugin-prettier@5.5.7(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(prettier@3.9.10))(eslint-plugin-security@4.2.0)(eslint-plugin-simple-import-sort@14.0.0(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(globals@17.14.0)
+      '@panates/eslint-config': 2.4.0(@eslint/js@10.0.1(eslint@10.13.0(supports-color@8.1.1)))(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1))(eslint-plugin-prettier@5.5.7(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(prettier@3.9.10))(eslint-plugin-security@4.2.0)(eslint-plugin-simple-import-sort@14.0.0(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(globals@17.14.0)
       typescript: 6.0.3
       typescript-eslint: 8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3)
     transitivePeerDependencies:
@@ -2542,7 +2542,7 @@ snapshots:
       - eslint-plugin-simple-import-sort
       - globals
 
-  '@panates/eslint-config@2.3.5(@eslint/js@10.0.1(eslint@10.13.0(supports-color@8.1.1)))(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1))(eslint-plugin-prettier@5.5.7(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(prettier@3.9.10))(eslint-plugin-security@4.2.0)(eslint-plugin-simple-import-sort@14.0.0(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(globals@17.14.0)':
+  '@panates/eslint-config@2.4.0(@eslint/js@10.0.1(eslint@10.13.0(supports-color@8.1.1)))(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.72.0(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.13.0(supports-color@8.1.1))(supports-color@8.1.1))(eslint-plugin-prettier@5.5.7(eslint-config-prettier@10.1.8(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(prettier@3.9.10))(eslint-plugin-security@4.2.0)(eslint-plugin-simple-import-sort@14.0.0(eslint@10.13.0(supports-color@8.1.1)))(eslint@10.13.0(supports-color@8.1.1))(globals@17.14.0)':
     dependencies:
       '@eslint/js': 10.0.1(eslint@10.13.0(supports-color@8.1.1))
       eslint: 10.13.0(supports-color@8.1.1)
@@ -3594,7 +3594,7 @@ snapshots:
     dependencies:
       xtend: 4.0.2
 
-  postgres@4.1.0: {}
+  postgres@4.1.1: {}
 
   power-tasks@1.14.2:
     dependencies:

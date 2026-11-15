@@ -1,0 +1,16 @@
+{
+  "extraKnownMarketplaces": {
+    "panates": {
+      "source": {
+        "source": "github",
+        "repo": "panates/ai-harness"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "panates@panates": true
+  },
+  "attribution": {
+    "commit": ""
+  }
+}
