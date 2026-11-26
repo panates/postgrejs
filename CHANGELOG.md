@@ -1,6 +1,19 @@
 # Changelog
 
-<!-- rman:documented-up-to a2a910f1c7407b5acff6904e6a74e39751594076 -->
+<!-- rman:documented-up-to a2d853a150a7e5e87daf03884d21da285f4f3686 -->
+
+## v3.15.3 (2026-11-26)
+
+### 📚 Documentation
+
+- **readme:** add Knex to the integrations table (89ea6aa)
+- **readme:** give Kysely the same card shape as the rest (8c8ce92)
+
+### 🧹 Chores
+
+- **deps:** upgrade dependencies (7719724)
+
+---
 
 ## v3.15.2 (2026-11-15)
 
