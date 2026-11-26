@@ -76,11 +76,15 @@ PostgreJS is a driver, not a framework, so what you build on top of it stays you
       Joist 2.5 ships a postgrejs driver of its own, which keeps each row undecoded until an entity reads it.<br><br>
     </td>
     <td align="center" width="280" valign="top"><br>
-      <h3><a href="https://www.postgrejs.com/docs/integrations/kysely"><img src="https://www.postgrejs.com/img/kysely-logo.svg" alt="" height="40" align="absmiddle"></a>&nbsp;Kysely</h3>
-      A type-safe SQL query builder. Run it on postgrejs instead of pg with a drop-in dialect.<br><br>
+      <a href="https://www.postgrejs.com/docs/integrations/knex#gh-light-mode-only"><img src="https://www.postgrejs.com/img/knex-full-light.svg" alt="Knex.js" height="40"></a><a href="https://www.postgrejs.com/docs/integrations/knex#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/knex-full-dark.svg" alt="Knex.js" height="40"></a><br><br>
+      A SQL query builder, with Objection on top of it. Your queries, migrations and seeds stay as they are.<br><br>
     </td>
   </tr></tbody>
   <tbody><tr>
+    <td align="center" width="280" valign="top"><br>
+      <a href="https://www.postgrejs.com/docs/integrations/kysely#gh-light-mode-only"><img src="https://www.postgrejs.com/img/kysely-full-light.svg" alt="Kysely" height="40"></a><a href="https://www.postgrejs.com/docs/integrations/kysely#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/kysely-full-dark.svg" alt="Kysely" height="40"></a><br><br>
+      A type-safe SQL query builder. Run it on postgrejs instead of pg with a drop-in dialect.<br><br>
+    </td>
     <td align="center" width="280" valign="top"><br>
       <a href="https://www.postgrejs.com/docs/integrations/drizzle#gh-light-mode-only"><img src="https://www.postgrejs.com/img/drizzle-logo-light.svg" alt="Drizzle ORM" height="34"></a><a href="https://www.postgrejs.com/docs/integrations/drizzle#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/drizzle-logo-dark.svg" alt="Drizzle ORM" height="34"></a><br><br>
       A lightweight TypeScript ORM: schema, relational queries and migrations on postgrejs.<br><br>
@@ -89,10 +93,14 @@ PostgreJS is a driver, not a framework, so what you build on top of it stays you
       <a href="https://www.postgrejs.com/docs/integrations/typeorm#gh-light-mode-only"><img src="https://www.postgrejs.com/img/typeorm-full-light.svg" alt="TypeORM" height="40"></a><a href="https://www.postgrejs.com/docs/integrations/typeorm#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/typeorm-full-dark.png" alt="TypeORM" height="40"></a><br><br>
       A pg-compatible facade. Bring postgrejs to TypeORM by changing one line.<br><br>
     </td>
+  </tr></tbody>
+  <tbody><tr>
     <td align="center" width="280" valign="top"><br>
       <a href="https://www.postgrejs.com/docs/integrations/prisma#gh-light-mode-only"><img src="https://www.postgrejs.com/img/prisma-full-light.svg" alt="Prisma" height="40"></a><a href="https://www.postgrejs.com/docs/integrations/prisma#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/prisma-full-dark.svg" alt="Prisma" height="40"></a><br><br>
       A driver adapter. Run a Prisma schema on postgrejs instead of pg.<br><br>
     </td>
+    <td width="280"></td>
+    <td width="280"></td>
   </tr></tbody>
 </table>
 

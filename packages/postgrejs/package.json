@@ -34,14 +34,14 @@
   },
   "devDependencies": {
     "@types/pg": "^8.23.1",
-    "bun-types": "^1.4.4",
+    "bun-types": "^1.4.5",
     "dotenv": "^18.0.10",
     "expect": "^30.5.2",
     "pg": "^8.23.1",
     "pg-copy-streams": "^7.0.0",
     "postgres": "^4.1.1",
     "temporal-polyfill": "^1.0.8",
-    "tinybench": "^6.2.3",
+    "tinybench": "^6.2.5",
     "yargs": "^18.2.0"
   },
   "type": "module",
