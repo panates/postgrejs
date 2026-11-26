@@ -82,7 +82,7 @@ PostgreJS is a driver, not a framework, so what you build on top of it stays you
   </tr></tbody>
   <tbody><tr>
     <td align="center" width="280" valign="top"><br>
-      <h3><a href="https://www.postgrejs.com/docs/integrations/kysely"><img src="https://www.postgrejs.com/img/kysely-logo.svg" alt="" height="40" align="absmiddle"></a>&nbsp;Kysely</h3>
+      <a href="https://www.postgrejs.com/docs/integrations/kysely#gh-light-mode-only"><img src="https://www.postgrejs.com/img/kysely-full-light.svg" alt="Kysely" height="40"></a><a href="https://www.postgrejs.com/docs/integrations/kysely#gh-dark-mode-only"><img src="https://www.postgrejs.com/img/kysely-full-dark.svg" alt="Kysely" height="40"></a><br><br>
       A type-safe SQL query builder. Run it on postgrejs instead of pg with a drop-in dialect.<br><br>
     </td>
     <td align="center" width="280" valign="top"><br>
