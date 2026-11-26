@@ -31,6 +31,7 @@ describe('npm README', () => {
     expect(logos.map(m => m[1])).toStrictEqual([
       'sqb',
       'joist',
+      'knex',
       'kysely',
       'drizzle',
       'typeorm',
