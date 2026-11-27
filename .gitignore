@@ -37,8 +37,6 @@ logs
 .claude/settings.local.json
 .claude/worktrees/
 .claude/local/
-# The session-to-session notes that predate .claude/local/ and still sit beside it
-.claude/*.md
 graphify-out
 
 # IDEs and editors
