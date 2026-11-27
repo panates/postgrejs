@@ -5,10 +5,17 @@
   </a>
 </p>
 
+A PostgreSQL client for Node.js and Bun, written in TypeScript.
+
 [![NPM Version][npm-image]][npm-url]
 [![NPM Downloads][downloads-image]][downloads-url]
 [![CI Tests][ci-test-image]][ci-test-url]
 [![Test Coverage][coveralls-image]][coveralls-url]
+
+[Documentation](https://www.postgrejs.com/) ·
+[Getting Started](https://www.postgrejs.com/docs/getting-started/installation) ·
+[Benchmarks](https://www.postgrejs.com/docs/getting-started/benchmarks) ·
+[Issues](https://github.com/panates/postgrejs/issues)
 
 ## Why PostgreJS?
 
