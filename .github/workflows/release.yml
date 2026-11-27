@@ -56,6 +56,31 @@ jobs:
       )
     uses: ./.github/workflows/test.yml
 
+  # Sends the released code's coverage to Coveralls under `main`. test.yml keeps its report as an
+  # artifact instead of uploading it, because the suite runs on `dev` and a release merged from
+  # `dev` is not tested again - so `main` never had a build of its own. Which report it takes
+  # depends on the same answer the release does: the test run of the pull request's head commit
+  # when this release came from `dev`, otherwise the report of this run's own `test` job.
+  #
+  # It warns and ends green when there is nothing to send - an expired artifact, a `no-test` push.
+  # Coverage is a report, not a gate on the release.
+  coverage:
+    needs: [source, test]
+    if: >
+      always() && !cancelled() &&
+      needs.source.result == 'success' &&
+      (needs.test.result == 'success' ||
+       (needs.test.result == 'skipped' && needs.source.outputs.head-ref == 'dev'))
+    uses: panates/github-actions/.github/workflows/coverage-publish.yaml@v3
+    # `actions: read` downloads the other run's artifact; `pull-requests: read` resolves the head
+    # commit of the pull request this release was merged from.
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    with:
+      pr-number: ${{ needs.source.outputs.head-ref == 'dev' && needs.source.outputs.pr-number || '' }}
+
   release:
     needs: [source, test]
     # `always()` because `needs` alone would block this whenever `test` is *skipped*, which is the
@@ -78,7 +103,7 @@ jobs:
     uses: panates/github-actions/.github/workflows/node-release.yaml@v3
     # Declared on the calling job, because that is what governs a reusable workflow's permissions.
     # `contents: write` is what `rman version --push` and the GitHub Release need; `id-token: write`
-    # is only used if this repo switches to npm Trusted Publishing, and costs nothing meanwhile.
+    # is what npm Trusted Publishing signs the provenance with, which both packages publish with.
     permissions:
       id-token: write
       contents: write
