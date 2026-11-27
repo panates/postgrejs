@@ -5,10 +5,17 @@
   </a>
 </p>
 
+A PostgreSQL client for Node.js and Bun, written in TypeScript.
+
 [![NPM Version][npm-image]][npm-url]
 [![NPM Downloads][downloads-image]][downloads-url]
 [![CI Tests][ci-test-image]][ci-test-url]
 [![Test Coverage][coveralls-image]][coveralls-url]
+
+[Documentation](https://www.postgrejs.com/) ·
+[Getting Started](https://www.postgrejs.com/docs/getting-started/installation) ·
+[Benchmarks](https://www.postgrejs.com/docs/getting-started/benchmarks) ·
+[Issues](https://github.com/panates/postgrejs/issues)
 
 ## Why PostgreJS?
 
@@ -416,5 +423,5 @@ PostgreJS is available under the [BSD 3-Clause](LICENSE) license.
 [downloads-url]: https://npmjs.org/package/postgrejs
 [ci-test-image]: https://github.com/panates/postgrejs/actions/workflows/test.yml/badge.svg
 [ci-test-url]: https://github.com/panates/postgrejs/actions/workflows/test.yml
-[coveralls-image]: https://img.shields.io/coveralls/panates/postgrejs/dev.svg
+[coveralls-image]: https://img.shields.io/coveralls/panates/postgrejs/main.svg
 [coveralls-url]: https://coveralls.io/r/panates/postgrejs

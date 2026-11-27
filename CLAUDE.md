@@ -72,6 +72,10 @@ contributor workflow (lint/compile/test commands, commit message convention, PR 
   `rman deps -u`, run the tests, and push only once they pass. A dependency that breaks something
   is cheaper to find here than on a branch other people have already pulled, and the upgrade then
   travels with the commits it was tested against rather than arriving later on its own.
+- The handoff note for the next session is `.claude/local/handoff.md`, and it lives nowhere else.
+  `.claude/local/` is git-ignored, so the note is never committed; a new note replaces the old one.
+  Read it first in a new session and check what it says against the code and `git log` - it was
+  written before whatever happened since.
 - Don't sign commits or pull requests on the assistant's behalf - no `Co-Authored-By: Claude` trailer, no
   "Generated with Claude Code" line. The commit message ends with its own last paragraph.
 
@@ -98,15 +102,12 @@ was tried and thrown away, which branch cannot currently fire - goes in a plain 
 export function take(n: number): void {}
 ```
 
-Measured, so it is not a matter of taste: both orders reach the emitted `.d.ts` identically, the
-plain block is stripped from it either way, and the language service shows the same hover text for
-both. The order is for readers - the caller stops at the first block, the maintainer keeps going,
-and a note that runs to twenty lines of measurements does not push the contract away from the code
-it describes. A note that is genuinely about the *contract* rather than the implementation is
-better as the TSDoc's last paragraph than as a block underneath it.
+A note that is genuinely about the *contract* rather than the implementation is better as the
+TSDoc's last paragraph than as a block underneath it. Line comments inside a function body stay
+where they are; this is about what sits above a declaration.
 
-Line comments inside a function body stay where they are; this is about what sits above a
-declaration.
+Why the order is this way round, and what was measured to settle it:
+[docs/decisions/comment-placement.md](docs/decisions/comment-placement.md).
 
 ### Prose a person will read
 
@@ -136,7 +137,7 @@ Prefer `protected` over `private`. Use `private` only when a member genuinely mu
 
 ### Loops
 
-Hoist loop-invariant work out of the loop condition and body — `for (let i = 0; i < obj.length; i++)` re-reads the property on every iteration. V8 can only hoist it when the value is a plain array field and the body calls nothing opaque; anything behind a getter (`BufferReader.length`, `SmartBuffer.length`) or any body that calls a parser/decoder blocks that, which is most of this codebase's hot loops. Read it once into a local first:
+Hoist loop-invariant work out of the loop condition and body — `for (let i = 0; i < obj.length; i++)` re-reads the property on every iteration. Read it once into a local first:
 
 ```ts
 const l = arr.length;
@@ -146,7 +147,9 @@ for (i = 0; i < l; i++) { ... }
 
 The same applies to conditions that don't depend on the loop variable (`level < dim.length - 1`) — lift the whole comparison, not just the property read.
 
-Declaring `let x` inside the loop body costs nothing when no closure captures it, so keep it scoped there; hoisting it only matters when a closure does capture it, and then hoisting would change behaviour anyway.
+Declaring `let x` inside the loop body costs nothing when no closure captures it, so keep it scoped there.
+
+Why V8 does not hoist these reads by itself: [docs/decisions/loop-hoisting.md](docs/decisions/loop-hoisting.md).
 
 ## graphify
 

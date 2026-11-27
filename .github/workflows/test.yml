@@ -34,11 +34,11 @@ on:
       - 'support/**'
 
 # The workflow only ever reads the repository: it checks out, installs, and
-# runs tests. Anything it publishes goes out through a separate credential -
-# Coveralls uses its own token, and releases happen in release.yml - so the
-# GITHUB_TOKEN never needs write access here. Set explicitly rather than
-# left to the repository default, which is org-wide and can be widened
-# later without anyone editing this file (CodeQL alert #12).
+# runs tests. It publishes nothing - the coverage report leaves as an artifact
+# and releases happen in release.yml - so the GITHUB_TOKEN never needs write
+# access here. Set explicitly rather than left to the repository default,
+# which is org-wide and can be widened later without anyone editing this file
+# (CodeQL alert #12).
 permissions:
   contents: read
 
@@ -212,12 +212,20 @@ jobs:
           LOGIN_MD5: postgrejs_test_md5
           LOGIN_SCRAM: postgrejs_test_scram
 
-      - name: Send coverage to Coveralls
-        uses: coverallsapp/github-action@v2
-        # Run only once
+      # **The report is kept, not sent.** Uploading from here put the number on Coveralls under
+      # `dev`, which is the branch that runs the suite - and a release merged from `dev` is not
+      # tested again, so `main` never uploaded and coveralls.io showed whatever `dev` last measured.
+      # release.yml now downloads this artifact and sends it under the release commit on `main`
+      # (`coverage-publish.yaml@v3`), so the badge reports the code that was actually published.
+      #
+      # Still one matrix cell: the report is the same from every cell, and Coveralls counts each
+      # upload as a separate build.
+      - name: Keep the coverage report for the release
         if: ${{ matrix.node == '22' && matrix.postgres == '16' }}
+        uses: actions/upload-artifact@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: coverage
+          path: coverage/lcov.info
 
   test-bun:
     name: Bun on PostgreSQL v18
