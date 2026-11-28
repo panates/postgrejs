@@ -205,6 +205,75 @@ describe('Pool', () => {
     }
   });
 
+  describe('maxUses', () => {
+    it('should reuse a released connection when maxUses is not set', async () => {
+      const p = new Pool({ max: 1 });
+      try {
+        const c1 = await p.acquire();
+        const pid1 = c1.processID;
+        await p.release(c1);
+        const c2 = await p.acquire();
+        expect(c2.processID).toStrictEqual(pid1);
+        await p.release(c2);
+      } finally {
+        await p.close(0);
+      }
+    });
+
+    it('should close a connection on release once it has been handed out maxUses times', async () => {
+      const p = new Pool({ max: 1, maxUses: 2 });
+      try {
+        const c1 = await p.acquire();
+        const pid1 = c1.processID;
+        await p.release(c1);
+        // The second handout is still within the limit, so it is the same
+        // backend.
+        const c2 = await p.acquire();
+        expect(c2.processID).toStrictEqual(pid1);
+        await p.release(c2);
+        // That release was its second use, so it was destroyed rather than
+        // returned to the idle list.
+        expect(p.totalConnections).toStrictEqual(0);
+        const c3 = await p.acquire();
+        expect(c3.processID).not.toStrictEqual(pid1);
+        await p.release(c3);
+      } finally {
+        await p.close(0);
+      }
+    });
+
+    it('should open a fresh connection for every acquire when maxUses is 1', async () => {
+      // MikroORM's Cloudflare Workers setup, `{ max: Infinity, maxUses: 1 }`:
+      // a connection opened for one request must never be handed to another.
+      const p = new Pool({ maxUses: 1 });
+      try {
+        const pids = new Set<number | undefined>();
+        for (let i = 0; i < 3; i++) {
+          const c = await p.acquire();
+          pids.add(c.processID);
+          await c.close();
+        }
+        expect(pids.size).toStrictEqual(3);
+        expect(p.totalConnections).toStrictEqual(0);
+      } finally {
+        await p.close(0);
+      }
+    });
+
+    it('should apply to the connections Pool.execute() takes for itself', async () => {
+      const p = new Pool({ max: 1, maxUses: 1 });
+      try {
+        const r1 = await p.execute('select pg_backend_pid()');
+        const r2 = await p.execute('select pg_backend_pid()');
+        expect(r2.results[0].rows?.[0][0]).not.toStrictEqual(
+          r1.results[0].rows?.[0][0],
+        );
+      } finally {
+        await p.close(0);
+      }
+    });
+  });
+
   it('should drop the pipeline slot when growing it fails to acquire a connection', async () => {
     // Nothing listens on port 9, so every connection attempt is refused
     // immediately - growPipeline()'s own error path, not a timeout.
