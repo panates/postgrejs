@@ -161,7 +161,10 @@ measured.
 **A `Pool` does not outlive a request** in the way it does on a server. A Worker isolate may be
 reused between requests and may not, so a pool created at module scope is a cache that may be
 cold at any time rather than a pool with a known size. Hyperdrive is where connection reuse
-actually lives on this platform.
+actually lives on this platform. If a pool is kept at module scope anyway, give it `maxUses: 1`: a
+connection is then closed when it is released instead of going back to the idle list, so one opened
+while serving a request is never handed to the next. Workers refuse I/O on an object another
+request created, which is the failure this avoids.
 
 **`LISTEN`/`NOTIFY` and logical replication** need a connection that stays open and a process that
 stays alive to hear it. Neither is a thing a request-scoped Worker has.

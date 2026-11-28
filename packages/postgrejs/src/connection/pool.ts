@@ -120,7 +120,7 @@ export class Pool extends SafeEventEmitter {
     poolOptions.idleTimeoutMillis = coerceToInt(cfg.idleTimeoutMillis, 30000);
     poolOptions.max = coerceToInt(cfg.max, 10);
     poolOptions.maxQueue = coerceToInt(cfg.maxQueue, 1000);
-    poolOptions.max = coerceToInt(cfg.max, 10);
+    poolOptions.maxUses = coerceToInt(cfg.maxUses, 0);
     poolOptions.min = coerceToInt(cfg.min, 0);
     poolOptions.minIdle = coerceToInt(cfg.minIdle, 0);
     poolOptions.validation = coerceToBoolean(cfg.validation, false);
