@@ -75,7 +75,9 @@ contributor workflow (lint/compile/test commands, commit message convention, PR 
 - The handoff note for the next session is `.claude/local/handoff.md`, and it lives nowhere else.
   `.claude/local/` is git-ignored, so the note is never committed; a new note replaces the old one.
   Read it first in a new session and check what it says against the code and `git log` - it was
-  written before whatever happened since.
+  written before whatever happened since. The same folder holds the findings the sibling-package
+  sessions file here - `TASKS.md`, `NOTICES.md` and one file per finding - which used to sit
+  directly in `.claude/`. The CLAUDE.md of those packages still names the old path.
 - Don't sign commits or pull requests on the assistant's behalf - no `Co-Authored-By: Claude` trailer, no
   "Generated with Claude Code" line. The commit message ends with its own last paragraph.
 

@@ -34,8 +34,6 @@ logs
 
 # Claude Code: .claude/settings.json is shared and committed, these are local
 # (.claude/local/ holds the handoff note between sessions)
-.claude/*
-!.claude/settings.json
 .claude/settings.local.json
 .claude/worktrees/
 .claude/local/
